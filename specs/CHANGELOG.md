@@ -2,6 +2,17 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [SPEC-EQS-001 Draft v4.1] - 2569-11-09
+ให้ spec 001 ตรงกับ specs/000-shared v3 ไม่ทำ CR เพราะไม่ได้เปลี่ยน FR หรือ AC เดิม (DOM-REQ-01 ทีมตัดสินแล้วใน v3)
+
+### Changed
+- Constraints ใช้ร่วม: เพิ่ม DOM-REQ-01 (ตามตาราง "ใครอ้างใช้บ้าง" ใน constraints.md)
+- Open Questions: เพิ่มการอ้าง Q-SH-05 (ลำดับคำขอแสดงที่หน้าไหน) และ Q-SH-08 (auth ล่ม กระทบ AC-EQS-09)
+- Traceability: เพิ่มแถว DOM-REQ-01
+- tasks.md: T-04 รองรับ DOM-REQ-01, ตาราง Constraint เพิ่ม DOM-REQ-01, T-02 ชื่อไฟล์ .up.sql,
+  T-21 เลิกอ้าง UC-13 (การยืนยันตัวตนเป็นระบบภายนอกตาม CR-002), ตาราง Open Questions เพิ่ม Q-SH-08
+- plan.md: อ้าง spec Draft v4.1 (เนื้อหา plan ไม่เปลี่ยน)
+
 ## [SRS v0.3 owners + shared Q-SH-07/08] - 2569-11-09
 ไม่ทำ CR เพราะไม่ได้เปลี่ยนข้อกำหนด
 
