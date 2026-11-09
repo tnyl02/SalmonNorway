@@ -1,5 +1,5 @@
 # Implementation Plan: ตรวจสอบสถานะอุปกรณ์ (Equipment Status)
-Spec: SPEC-EQS-001 (specs/001-equipment-status/spec.md, Draft v4) | Plan status: Draft v1.3 | Updated: 2569-11-02 (CR-002 ให้ตรงกับ Miro)
+Spec: SPEC-EQS-001 (specs/001-equipment-status/spec.md, Draft v4.1) | Plan status: Draft v1.3 | Updated: 2569-11-02 (CR-002 ให้ตรงกับ Miro)
 
 ## 1. Summary
 ฟีเจอร์ read-only ให้ผู้ใช้ที่ยืนยันตัวตนแล้วดูรายการอุปกรณ์แบบ "1 แถว = 1 รุ่น/ชนิด"

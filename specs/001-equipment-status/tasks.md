@@ -1,5 +1,5 @@
 # Tasks: ตรวจสอบสถานะอุปกรณ์ (Equipment Status)
-Spec: SPEC-EQS-001 (spec.md Draft v4) | Plan: plan.md Draft v1.3 | สร้าง: 2569-11-02 | แก้ตาม CR-002: 2569-11-02 | Owner: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05)
+Spec: SPEC-EQS-001 (spec.md Draft v4.1) | Plan: plan.md Draft v1.3 | สร้าง: 2569-11-02 | แก้ตาม CR-002: 2569-11-02 | Owner: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05)
 
 สรุป
 - 15 เฟสที่ใช้งาน (ฐานราก + 13 เฟสตาม AC + รอคำตอบ) รวม 30 task ยกเลิกโดย CR-002 2 task (T-15, T-25) เหลือ 28 task
@@ -29,7 +29,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v4) | Plan: plan.md Draft v1.3 | สร้า�
 ### T-02 สร้างตาราง read model และข้อมูลตั้งต้น
 - รองรับ: CON-DATA-01, CON-DATA-03, ASM-01
 - ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นงานพื้นฐานของ T-04 ขึ้นไป
-- ไฟล์ที่แตะ: `backend/db/migrations/0001_equipment_read_model.sql`, `backend/db/seed/seed.sql`, `backend/internal/platform/migrate.go`
+- ไฟล์ที่แตะ: `backend/db/migrations/0001_equipment_read_model.up.sql` (golang-migrate บังคับชื่อ .up.sql), `backend/db/seed/seed.sql`, `backend/internal/platform/migrate.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
 - เสร็จเมื่อ: `TestMigration_StatusCheck` ผ่าน (insert สถานะนอก 3 ค่าถูกปฏิเสธ) และ `TestMigration_AssetCodeUnique` ผ่าน (รหัสครุภัณฑ์ซ้ำถูกปฏิเสธ)
@@ -49,7 +49,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v4) | Plan: plan.md Draft v1.3 | สร้า�
 ## เฟส 1: เห็นรายการรุ่นและรายชิ้น (AC-EQS-01)
 
 ### T-04 สร้าง API รายการรุ่นพร้อมจำนวนว่าง/ทั้งหมด
-- รองรับ: FR-EQS-01
+- รองรับ: FR-EQS-01, DOM-REQ-01 (นับตามสถานะ "ว่าง" อย่างเดียว คำขอที่ค้างไม่ลดจำนวน)
 - ตรวจด้วย: AC-EQS-01
 - ไฟล์ที่แตะ: `backend/internal/equipment/repository.go`, `backend/internal/equipment/service.go`, `backend/internal/equipment/handler.go`, `backend/internal/equipment/dto.go`, `backend/internal/equipment/handler_test.go`
 - แบบหน้าจอ: ไม่มี
@@ -331,7 +331,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v4) | Plan: plan.md Draft v1.3 | สร้า�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-03, T-06
 - เสร็จเมื่อ: `AC-EQS-09.test.jsx` ผ่าน (401 -> ไปหน้าล็อกอินพร้อมข้อความ -> กลับ path เดิม) และ returnTo ภายนอกระบบถูกปฏิเสธ
-- สถานะ: พร้อมทำ (หน้าล็อกอินเป็นแบบจำลอง UC-13 อยู่นอกขอบเขต)
+- สถานะ: พร้อมทำ (หน้าล็อกอินเป็นแบบจำลอง เพราะการยืนยันตัวตนเป็นระบบภายนอก IF-IDP-01 ไม่ใช่ use case ของระบบนี้)
 
 #### จุดตรวจเฟส 13
 - คนลองเองตาม AC-EQS-09:
@@ -460,6 +460,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v4) | Plan: plan.md Draft v1.3 | สร้า�
 | CON-TECH-02 | T-01 (Docker), ส่วน HTTPS/TLS ที่ reverse proxy: ยังไม่มี task ดูหมายเหตุ |
 | CON-DATA-01 | T-02, T-12, T-14 |
 | DOM-LOAN-01 | T-12 |
+| DOM-REQ-01 | T-04 |
 | CON-DATA-02 | T-10 |
 | CON-DATA-03 | T-02, T-05 |
 | DOM-PRIV-01 | T-12, T-17 |
@@ -502,6 +503,7 @@ NFR-USE-01 ต้องทดสอบกับผู้ใช้จริง 10
 | Q-SH-01 [ปิด 2569-11-09 DOM-REQ-01: นับเป็นว่าง] | - (T-04 ไม่ต้องแก้) |
 | Q-SH-05 ลำดับคำขอแสดงให้ใครและที่หน้าไหน | ไม่มี task (ถ้าคำตอบคือหน้ารายละเอียดของ 001 ต้องแก้ spec ผ่าน CR) |
 | Q-SH-04 กำหนดคืนของยืมค้างคืน | ไม่มี (กระทบฟีเจอร์ 005) |
+| Q-SH-08 auth ล่มตอนใช้งานทั่วไป | ไม่มี task (ถ้าได้คำตอบ ต้องเพิ่ม AC และ task ต่อจาก T-21) |
 | Q-P2 ตัวเลขเมื่อกรอง | T-30 |
 | Q-P3 ขอบเขตภาควิชาของเจ้าหน้าที่ | T-28 |
 | Q-P4 เขียน audit ไม่สำเร็จ | T-29 |
