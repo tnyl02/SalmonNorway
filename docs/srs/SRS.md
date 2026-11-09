@@ -97,7 +97,7 @@ AC = Acceptance Criteria, UC = Use Case, US = User Story, BL = Backlog item, CR 
 ### 3.1 Functional Requirements (จัดกลุ่มตามฟีเจอร์)
 รหัส: `FR-[กลุ่มฟีเจอร์]-[ลำดับ]` กลุ่ม: EQS ดูสถานะ, BRQ ส่งคำขอยืม, CXL ยกเลิกคำขอ, APV อนุมัติ, HND ส่งมอบ, RET รับคืน
 
-#### 3.1.1 UC-01 ตรวจสอบอุปกรณ์ (EQS) - เจ้าของ: `[เติม]` - spec: `specs/001-equipment-status/spec.md` (Draft v4)
+#### 3.1.1 UC-01 ตรวจสอบอุปกรณ์ (EQS) - เจ้าของ: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05) - spec: `specs/001-equipment-status/spec.md` (Draft v4)
 ที่มา: US-001, RQ-02, RQ-05, RQ-09, RQ-24 | Backlog: BL-01 ถึง BL-04 | ลำดับ: Must
 
 | ID | ข้อกำหนด | ที่มา |
@@ -115,7 +115,7 @@ AC = Acceptance Criteria, UC = Use Case, US = User Story, BL = Backlog item, CR 
 
 ข้อความเต็มและ AC อยู่ใน spec.md
 
-#### 3.1.2 UC-02 ส่งคำขอยืม (BRQ) - เจ้าของ: `[เติม]` - spec: `specs/002-borrow-request/spec.md`
+#### 3.1.2 UC-02 ส่งคำขอยืม (BRQ) - เจ้าของ: 660710715 นางสาวธัญลักษณ์ เดชนครชัย (@tnyl02) - spec: `specs/002-borrow-request/spec.md`
 ที่มา: US-002, RQ-18, RQ-20, RQ-22 (และ RQ-16 ถ้ารวมค้างคืน UC-05) | Backlog: BL-07 | ลำดับ: Must
 สิ่งที่รู้แล้ว: รับรหัสครุภัณฑ์จาก FR-EQS-06, สถานะของคำขอดู `specs/000-shared/data-model.md`, ส่งคำขอซ้อนได้และต้องแสดงเวลา/ลำดับของคำขอที่มาก่อน (DOM-REQ-01) รอ Q-SH-05, Q-SH-06
 
@@ -123,21 +123,21 @@ AC = Acceptance Criteria, UC = Use Case, US = User Story, BL = Backlog item, CR 
 |---|---|---|
 | FR-BRQ-01 | `[เติม]` | `[เติม]` |
 
-#### 3.1.3 UC-15 ยกเลิกคำขอยืม (CXL) - เจ้าของ: `[เติม]` - spec: `specs/003-cancel-request/spec.md`
+#### 3.1.3 UC-15 ยกเลิกคำขอยืม (CXL) - เจ้าของ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np) - spec: `specs/003-cancel-request/spec.md`
 ที่มา: RQ-03 | Backlog: BL-20 | ลำดับ: Must
 
 | ID | ข้อกำหนด | ที่มา |
 |---|---|---|
 | FR-CXL-01 | `[เติม]` | RQ-03 |
 
-#### 3.1.4 UC-12 อนุมัติคำขอยืมปกติ (APV) - เจ้าของ: `[เติม]` - spec: `specs/004-approve-request/spec.md`
+#### 3.1.4 UC-12 อนุมัติคำขอยืมปกติ (APV) - เจ้าของ: 660710758 นางสาวณัฐสุดา กัญญาบุญ (@natsuda05) - spec: `specs/004-approve-request/spec.md`
 ที่มา: US-007, RQ-14, RQ-21 | Backlog: BL-08 | ลำดับ: Must
 
 | ID | ข้อกำหนด | ที่มา |
 |---|---|---|
 | FR-APV-01 | `[เติม]` | `[เติม]` |
 
-#### 3.1.5 UC-08 บันทึกการส่งมอบอุปกรณ์ (HND) - เจ้าของ: `[เติม]` - spec: `specs/005-handover/spec.md`
+#### 3.1.5 UC-08 บันทึกการส่งมอบอุปกรณ์ (HND) - เจ้าของ: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn101219) - spec: `specs/005-handover/spec.md`
 ที่มา: US-008, RQ-04, RQ-08, RQ-17, RQ-19, RQ-23 | Backlog: BL-09 | ลำดับ: Must
 สิ่งที่รู้แล้ว: สถานะเปลี่ยนเป็น "ถูกยืม" สร้างกำหนดคืน ยืมปกติ = 16:00 วันเดียวกัน (DOM-LOAN-01) ค้างคืนรอ Q-SH-04
 
@@ -145,7 +145,7 @@ AC = Acceptance Criteria, UC = Use Case, US = User Story, BL = Backlog item, CR 
 |---|---|---|
 | FR-HND-01 | `[เติม]` | `[เติม]` |
 
-#### 3.1.6 UC-09 บันทึกการรับคืนอุปกรณ์ (RET) - เจ้าของ: `[เติม]` - spec: `specs/006-return/spec.md`
+#### 3.1.6 UC-09 บันทึกการรับคืนอุปกรณ์ (RET) - เจ้าของ: 660710737 นายวรรัตน์ หลักฐาน (@660710737) - spec: `specs/006-return/spec.md`
 ที่มา: US-010, RQ-11, RQ-13 | Backlog: BL-10 | ลำดับ: Must
 สิ่งที่รู้แล้ว: คืนสภาพปกติแล้วสถานะเป็น "ว่าง" อัตโนมัติ (RQ-13) และ AC-EQS-05 ของ 001 คาดว่าเห็นผลภายใน 30 วินาที
 
@@ -171,7 +171,7 @@ AC = Acceptance Criteria, UC = Use Case, US = User Story, BL = Backlog item, CR 
 ### 3.2 External Interfaces
 - ส่วนต่อประสานผู้ใช้: เว็บแบบ responsive (เว็บนักศึกษา, แดชบอร์ดเจ้าหน้าที่) ใช้ได้บนมือถือ (NFR-USE-01, ความกว้างขั้นต่ำรอ Q-09 ของ 001)
 - IF-IDP-01 ระบบยืนยันตัวตนของมหาวิทยาลัย (Auth API): ถ้าเชื่อมต่อไม่สำเร็จตอนส่งมอบ เจ้าหน้าที่ตรวจบัตรแทน (RQ-23)
-  ถ้าเชื่อมต่อไม่สำเร็จตอนเข้าใช้ระบบทั่วไป: `[เติม]`
+  ถ้าเชื่อมต่อไม่สำเร็จตอนเข้าใช้ระบบทั่วไป: ยังไม่รู้ ดู Q-SH-08
 - IF-NOT-01 ระบบแจ้งเตือน Email
 - ส่วนต่อประสานฮาร์ดแวร์: ไม่มี `[ยืนยัน: Onion Diagram พูดถึงสแกน QR Code/บาร์โค้ด ใช้ไหม]`
 - การสื่อสาร: HTTPS เท่านั้น TLS 1.2 ขึ้นไป (CON-TECH-02, NFR-SEC-01)
@@ -187,7 +187,7 @@ AC = Acceptance Criteria, UC = Use Case, US = User Story, BL = Backlog item, CR 
 
 ### 3.4 Domain Requirements และกฎของหน่วยงาน
 ข้อความเต็มที่ `specs/000-shared/constraints.md`: DOM-PRIV-01, DOM-AUDIT-01, DOM-ACCESS-01, DOM-LOAN-01 (RQ-17)
-- RQ-27 บทลงโทษเมื่อไม่คืนตามกำหนด: `[เติม รูปแบบบทลงโทษ ใครกำหนด ใครบันทึก]` (ตอนนี้ใช้คำว่า "ชัดเจน" ทดสอบไม่ได้)
+- RQ-27 บทลงโทษเมื่อไม่คืนตามกำหนด: ยังไม่รู้ ดู Q-SH-07 (ห้ามแต่งเอง) (ตอนนี้ใช้คำว่า "ชัดเจน" ทดสอบไม่ได้)
 
 ## 4. Appendices
 

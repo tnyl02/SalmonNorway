@@ -1,7 +1,7 @@
 # specs/001-equipment-status/spec.md
 # Feature: ตรวจสอบสถานะอุปกรณ์ (Equipment Status)
 Spec ID: SPEC-EQS-001 | Source: US-001, RQ-02, RQ-05, RQ-09, Journey Map เฟส "ตรวจสอบอุปกรณ์ที่ต้องการยืม" | Use case: UC-01
-Owner: - | Status: Draft v4 | Updated: 2569-11-02 (CR-002 ให้ตรงกับ Miro)
+Owner: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05) | Status: Draft v4 | Updated: 2569-11-02 (CR-002 ให้ตรงกับ Miro)
 Backlog: BL-01, BL-02, BL-03, BL-04 (specs/backlog.md)
 
 ## Goal
