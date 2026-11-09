@@ -1,0 +1,23 @@
+# ฐานข้อมูลสำหรับเครื่องพัฒนา (CON-TECH-01 PostgreSQL, CON-TECH-02 Docker)
+# รหัสผ่านนี้ใช้ในเครื่องพัฒนาเท่านั้น ทีมเลือกเอง ไม่ได้มาจาก spec
+# HTTPS และ reverse proxy (CON-TECH-02, NFR-SEC-01) ยังไม่อยู่ในไฟล์นี้ ดูหมายเหตุท้าย tasks.md ของ 001
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: salmon
+      POSTGRES_PASSWORD: salmon
+      POSTGRES_DB: salmon
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U salmon -d salmon"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

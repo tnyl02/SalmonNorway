@@ -1,5 +1,5 @@
 # Tasks: ตรวจสอบสถานะอุปกรณ์ (Equipment Status)
-Spec: SPEC-EQS-001 (spec.md Draft v4) | Plan: plan.md Draft v1.3 | สร้าง: 2569-11-02 | แก้ตาม CR-002: 2569-11-02 | Owner: (ใส่ชื่อ)
+Spec: SPEC-EQS-001 (spec.md Draft v4) | Plan: plan.md Draft v1.3 | สร้าง: 2569-11-02 | แก้ตาม CR-002: 2569-11-02 | Owner: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05)
 
 สรุป
 - 15 เฟสที่ใช้งาน (ฐานราก + 13 เฟสตาม AC + รอคำตอบ) รวม 30 task ยกเลิกโดย CR-002 2 task (T-15, T-25) เหลือ 28 task
@@ -24,7 +24,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v4) | Plan: plan.md Draft v1.3 | สร้า�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: `GET /healthz` ตอบ 200 เมื่อต่อฐานข้อมูลได้ และ `npm test` ของโครงหน้าจอผ่าน
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 ### T-02 สร้างตาราง read model และข้อมูลตั้งต้น
 - รองรับ: CON-DATA-01, CON-DATA-03, ASM-01
