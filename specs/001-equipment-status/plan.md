@@ -100,7 +100,7 @@ audit_log(id, actor_id, actor_role, occurred_at, action CHECK IN ('list','search
 | `GET /api/v1/equipment/summary` | FR-07 | เฉพาะ staff, นับตามสถานะ |
 
 Response (ตัวอย่างแถวรุ่น): `{modelId, name, category, availableCount, totalCount}`
-- `availableCount` นับเฉพาะ `status='available'` (สถานะ "ว่าง") ยังไม่รู้ว่าอุปกรณ์ที่มีคำขอค้างนับไหม (Q-SH-01)
+- `availableCount` นับเฉพาะ `status='available'` (สถานะ "ว่าง") อุปกรณ์ที่มีคำขอค้างยังนับเป็นว่าง (DOM-REQ-01)
 - `availableCount/totalCount` คำนวณจากทั้งรุ่นเสมอ ไม่ถูกลดตามตัวกรอง (ดู Q-P2)
 
 Response (รายชิ้น): `{assetCode, status, dueAt?, isOverdue?, canRequestLoan, borrowerName?}`
