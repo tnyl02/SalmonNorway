@@ -33,7 +33,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v4) | Plan: plan.md Draft v1.3 | สร้า�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
 - เสร็จเมื่อ: `TestMigration_StatusCheck` ผ่าน (insert สถานะนอก 3 ค่าถูกปฏิเสธ) และ `TestMigration_AssetCodeUnique` ผ่าน (รหัสครุภัณฑ์ซ้ำถูกปฏิเสธ)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 ### T-03 สร้าง middleware ยืนยันตัวตนแบบจำลอง
 - รองรับ: IF-IDP-01, NFR-SEC-01 (ส่วน "ต้องยืนยันตัวตนก่อนทุกครั้ง")
