@@ -10,12 +10,12 @@ Term Project รายวิชา 520461-165 Software Requirement Specification
 
 | สมาชิก | GitHub | ฟีเจอร์ที่รับผิดชอบ | ส่วนอื่นที่ทำ |
 |---|---|---|---|
-| | | 001-equipment-status | |
-| | | 002-borrow-request | |
-| | | 003-cancel-request | |
-| | | 004-approve-request | |
-| | | 005-handover | |
-| | | 006-return | |
+| 660710767 นางสาวพรรณธร จันทร์สายทอง | https://github.com/Pannathorn05 | 001-equipment-status |  |
+| 660710715 นางสาวธัญลักษณ์ เดชนครชัย  | https://github.com/tnyl02 | 002-borrow-request | |
+| 660710763 นางสาวนภัสนัน ดีเสมอ | https://github.com/napatsanan-np | 003-cancel-request | |
+| 660710758 นางสาวณัฐสุดา กัญญาบุญ | https://github.com/natsuda05 | 004-approve-request | |
+| 660710764 นายบรรลุ ฉิมสิงห์ | https://github.com/mmoonn101219 | 005-handover | |
+| 660710737 นายวรรัตน์ หลักฐาน | https://github.com/660710737 | 006-return | |
 
 ดูว่าใครทำอะไรได้จาก 3 ที่: ตารางนี้, ช่อง `Owner:` ใน spec.md ของแต่ละฟีเจอร์, และ `git log --author=<ชื่อ>`
 
