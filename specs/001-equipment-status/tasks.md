@@ -42,7 +42,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.1) | Plan: plan.md Draft v1.3 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
 - เสร็จเมื่อ: `TestAuth_NoToken_401` และ `TestAuth_MissingDepartment_Rejected` ผ่าน (ไม่ได้ภาควิชา = ปฏิเสธ ตาม plan 6.1)
-- สถานะ: พร้อมทำ (auth จำลองเป็นการตัดสินใจของทีม ไม่ได้มาจาก spec โปรโตคอลจริงรอ Q-SH-03 ดู T-30)
+- สถานะ: เสร็จ 
 
 ---
 
