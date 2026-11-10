@@ -172,7 +172,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.3) | Plan: plan.md Draft v1.5 | tasks v2: 2
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-08
 - เสร็จเมื่อ: `TestAC_EQS_03_EmptyIs200` ผ่าน (ไม่พบ = 200 items ว่าง ไม่ใช่ error) และ `AC-EQS-03.test.jsx` ผ่าน
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ 
 
 #### จุดตรวจเฟส 3
 - คนลองเองตาม AC-EQS-03:
