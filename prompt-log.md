@@ -358,3 +358,20 @@
 - Constraints ใช้ร่วม: เพิ่ม DOM-REQ-01 / Scope: เพิ่มหน้ารายการที่ยังไม่คืน และย้ายสูญหาย/ระงับคำขอไป Out of scope (รอ CR-003)
 - ASM-01 ถึง 07, Q-01 ถึง Q-09 (ปิด Q-02, Q-05, Q-06 เพิ่ม Q-09), Clarifications, Traceability
 - ของกลางที่แก้เพราะ 006: glossary.md เพิ่ม "สภาพ (ตอนรับคืน)" (v2.1), constraints.md ตารางใครอ้างใช้ เพิ่ม 006 ที่ DOM-REQ-01
+
+---
+
+## 2569-11-10 คำสั่ง: /plan (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return
+- เครื่องมือ: Claude Code (`.claude/commands/plan.md`)
+- คำสั่งของทีม: "ไม่ต้องทำ CR-003.md ทำ plan ไปเลย" (ขัดกับ Q-07 ใน spec v2 ที่เขียนว่าทำ CR ก่อน plan ทีมตัดสินใหม่)
+- ก่อนเริ่ม: commit spec v2 (`0a7e66c 006: spec v2`)
+- ผลลัพธ์: specs/006-return/plan.md (Draft v1)
+- Constraint ที่ AI ยังไม่ได้ใช้: DOM-REQ-01 (การระงับคำขอค้างเป็น FR ใหม่ รอ Q-08)
+- สิ่งที่ AI บอกว่าอยากเดาแต่ไม่ได้เดา: ช่องหมายเหตุความเสียหาย (Q-04), หน้าของผู้ยืม (Q-03), ปิดการยืมแบบสูญหาย (Q-01),
+  ฟิลด์ audit สถานะก่อน/หลัง (Q-09), พฤติกรรมเมื่อ auth ล่ม (Q-SH-08)
+- สิ่งที่ AI เลือกเอง (ทีมเลือกเอง ไม่ได้มาจาก spec): เก็บรูปเป็น BYTEA, 5 MB = 5 × 1024 × 1024, ไม่แบ่งหน้ารายการที่ยังไม่คืน,
+  path `/api/v1/returns/...`, error code ใหม่ (FORBIDDEN_ROLE, NO_OPEN_LOAN, CONDITION_REQUIRED, PHOTO_*), action audit ใหม่ 4 ค่า
+- ของกลางที่ plan จะแก้ตอน implement: คอลัมน์ใหม่ในตาราง `loan` (DM-05), ค่า action ใหม่ของ `audit_log` (DM-07), เลข migration ต้องจองในกลุ่ม
