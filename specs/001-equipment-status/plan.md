@@ -103,7 +103,7 @@ audit_log(id, actor_id, actor_role, occurred_at, action CHECK IN ('list','search
 
 Response (ตัวอย่างแถวรุ่น): `{modelId, name, category, availableCount, totalCount}`
 - `availableCount` นับเฉพาะ `status='available'` (สถานะ "ว่าง") อุปกรณ์ที่มีคำขอค้างยังนับเป็นว่าง (DOM-REQ-01)
-- `availableCount/totalCount` คำนวณจากทั้งรุ่นเสมอ ไม่ถูกลดตามตัวกรอง (ดู Q-P2)
+- availableCount/totalCount นับเฉพาะชิ้นที่ตรงตัวกรอง (Q-15) รูปแบบตัวเลขบนหน้าจอเมื่อกรองตามที่ตกลงใน AC-EQS-15
 
 Response (รายชิ้น): `{assetCode, status, dueAt?, isOverdue?, canRequestLoan, borrowerName?}`
 - `canRequestLoan = (status == 'available')` คำนวณที่ server ตาม FR-04/05/06
