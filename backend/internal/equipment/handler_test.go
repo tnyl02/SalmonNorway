@@ -286,3 +286,70 @@ func TestFR_EQS_02_OnlyModelsWithMatchingItems(t *testing.T) {
 		t.Errorf("ค่าที่ไม่รู้จักต้องไม่ตรงกับรุ่นใด ได้ %+v", models)
 	}
 }
+
+// AC-EQS-15 (FR-EQS-01, FR-EQS-02)
+//
+//	Given รุ่นหนึ่งมี 5 ชิ้น ว่าง 3 ถูกยืม 2
+//	When  กรองสถานะ "ถูกยืม"
+//	Then  รุ่นนั้นแสดง 1 แถว และตัวเลขนับเฉพาะชิ้นที่ตรงตัวกรอง (2 ชิ้น)
+func TestAC_EQS_15_CountsFollowFilter(t *testing.T) {
+	// Given: รุ่น 1 ในข้อมูลตั้งต้น 5 ชิ้น ว่าง 3 ถูกยืม 2
+	srv := newTestServer(t)
+
+	// When: กรองสถานะ "ถูกยืม"
+	rec := get(t, srv, PathPrefix+"models?status=borrowed", tokenStudentDept1)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, ต้องเป็น 200", rec.Code)
+	}
+	var rows []ModelRowDTO
+	for _, m := range decode[ListDTO[ModelRowDTO]](t, rec).Items {
+		if m.ModelID == 1 {
+			rows = append(rows, m)
+		}
+	}
+
+	// Then: รุ่นนั้น 1 แถว และนับเฉพาะชิ้นที่ตรงตัวกรอง (2 ชิ้น ซึ่งไม่มีชิ้นไหนว่าง)
+	if len(rows) != 1 {
+		t.Fatalf("รุ่นนั้นต้องแสดง 1 แถว ได้ %d แถว", len(rows))
+	}
+	if rows[0].TotalCount != 2 {
+		t.Errorf("ตัวเลขต้องนับเฉพาะชิ้นที่ตรงตัวกรอง (2 ชิ้น) ได้ totalCount = %d", rows[0].TotalCount)
+	}
+	if rows[0].AvailableCount != 0 {
+		t.Errorf("ชิ้นที่ตรงตัวกรอง \"ถูกยืม\" ไม่มีชิ้นที่ว่าง ได้ availableCount = %d", rows[0].AvailableCount)
+	}
+}
+
+// AC-EQS-16 (FR-EQS-02)
+//
+//	Given มีอุปกรณ์สถานะ ว่าง ถูกยืม และไม่พร้อมใช้งาน
+//	When  เลือกตัวกรองสถานะ "ว่าง" และ "ถูกยืม" พร้อมกัน
+//	Then  แสดงเฉพาะชิ้นที่ว่างหรือถูกยืม ไม่แสดงชิ้นที่ไม่พร้อมใช้งาน
+func TestAC_EQS_16_MultiStatusFilter(t *testing.T) {
+	// Given: ข้อมูลตั้งต้นมีครบ 3 สถานะ (CS-PJ-0002 ของรุ่น 2 ไม่พร้อมใช้งาน)
+	srv := newTestServer(t)
+	filter := url.Values{"status": {"available", "borrowed"}}
+
+	// When: เลือก "ว่าง" และ "ถูกยืม" พร้อมกัน
+	models := modelsByID(t, srv, filter)
+
+	// Then: รุ่น 1 ได้ครบ 5 ชิ้น (ว่าง 3 + ถูกยืม 2) และรุ่น 2 ไม่นับชิ้นที่ไม่พร้อมใช้งาน
+	if models[1].TotalCount != 5 {
+		t.Errorf("รุ่น 1 ต้องนับ 5 ชิ้น ได้ %+v", models[1])
+	}
+	if models[2].TotalCount != 1 {
+		t.Errorf("รุ่น 2 ต้องนับแค่ชิ้นที่ว่าง 1 ชิ้น ได้ %+v", models[2])
+	}
+
+	// Then: รายชิ้นของรุ่น 2 ไม่มีชิ้นที่ไม่พร้อมใช้งาน
+	rec := get(t, srv, PathPrefix+"models/2/items?"+filter.Encode(), tokenStudentDept1)
+	items := decode[ListDTO[ItemRow]](t, rec).Items
+	if len(items) != 1 || items[0].AssetCode != "CS-PJ-0001" {
+		t.Fatalf("รุ่น 2 ต้องเหลือแค่ CS-PJ-0001 ได้ %+v", items)
+	}
+	for _, it := range items {
+		if it.Status == StatusUnavailable {
+			t.Errorf("%s ไม่พร้อมใช้งาน ต้องไม่แสดง", it.AssetCode)
+		}
+	}
+}

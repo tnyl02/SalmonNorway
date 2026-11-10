@@ -56,18 +56,25 @@ func (h *Handler) listItems(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, ListDTO[ItemRow]{Items: nonNil(items), Total: len(items)})
 }
 
-// filterFrom อ่านตัวกรองจาก query string (FR-EQS-02) ตอนนี้รับได้ค่าเดียวต่อตัวกรอง
-// ?category=<ชื่อประเภท>&status=<available|borrowed|unavailable>
+// filterFrom อ่านตัวกรองจาก query string (FR-EQS-02) เลือกได้หลายค่าในแต่ละตัวกรอง (Q-15)
+// ส่งค่าซ้ำชื่อเดิมได้ เช่น ?status=available&status=borrowed&category=<ชื่อประเภท>
 func filterFrom(r *http.Request) Filter {
 	q := r.URL.Query()
-	var f Filter
-	if v := q.Get("category"); v != "" {
-		f.Categories = []string{v}
+	return Filter{
+		Categories: nonEmpty(q["category"]),
+		Statuses:   nonEmpty(q["status"]),
 	}
-	if v := q.Get("status"); v != "" {
-		f.Statuses = []string{v}
+}
+
+// nonEmpty ตัดค่าว่างออก (?status= ไม่นับเป็นตัวกรอง)
+func nonEmpty(values []string) []string {
+	var out []string
+	for _, v := range values {
+		if v != "" {
+			out = append(out, v)
+		}
 	}
-	return f
+	return out
 }
 
 // writeUpstreamError ตอบเมื่ออ่านฐานข้อมูลไม่สำเร็จ ตาม Error contract ใน plan.md ข้อ 5 (FR-EQS-08)
