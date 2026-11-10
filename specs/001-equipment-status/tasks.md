@@ -278,7 +278,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.3) | Plan: plan.md Draft v1.5 | tasks v2: 2
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-11
 - เสร็จเมื่อ: `TestAC_EQS_05_ReturnedBecomesAvailable` ผ่าน (ปิด loan จำลอง UC-09 แล้วเรียกใหม่ได้ status available และมี header no-store) และ `AC-EQS-05.test.jsx` ผ่าน (โหลดใหม่ไม่ใช้ข้อมูลเก่า)
-- สถานะ: เสร็จ รอทีมตรวจ (ปุ่มส่งคำขอยืมกลับมาใช้ได้ ย้ายไป T-34 รอ Q-16 / หน้าจอรีเฟรชเองไหม รอ Q-18 ดู T-35)
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 8
 - คนลองเองตาม AC-EQS-05:
