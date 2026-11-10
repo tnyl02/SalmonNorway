@@ -5,11 +5,17 @@ import (
 	"net/http"
 )
 
-// NewRouter สร้าง HTTP router ของหลังบ้าน
-// ตอนนี้มีแค่ /healthz (T-01) endpoint ของฟีเจอร์ต่าง ๆ จะถูกเพิ่มใน task ของฟีเจอร์นั้น
-func NewRouter(db Pinger) *http.ServeMux {
+// Routes คือฟังก์ชันที่ฟีเจอร์ใช้ผูก endpoint ของตัวเองเข้ากับ router
+// ฟีเจอร์เป็นคนห่อ auth.Middleware เอง platform จึงไม่ต้อง import package ของฟีเจอร์ (เพิ่มโดย 006 T-03)
+type Routes func(mux *http.ServeMux)
+
+// NewRouter สร้าง HTTP router ของหลังบ้าน: /healthz (001 T-01) และ endpoint ของฟีเจอร์ที่ส่งมาใน routes
+func NewRouter(db Pinger, routes ...Routes) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthz(db))
+	for _, register := range routes {
+		register(mux)
+	}
 	return mux
 }
 

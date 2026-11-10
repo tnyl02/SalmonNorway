@@ -439,3 +439,31 @@
 ### สิ่งที่เกือบต้องเดา
 - ที่เผื่อ 1 MB ใน `ReturnRequestMaxBytes` และ 5 MB = 5 × 1024 × 1024 มาจาก plan.md (ทีมเลือกเอง) ไม่ได้ตั้งใหม่
 - ยังไม่รู้ว่า "ไม่ต้องทำ frontend" ใช้กับ task หน้าจอที่เหลือ (T-06, T-10, T-13, T-15, T-18, T-20, T-22, T-24) ด้วยหรือไม่ ต้องถามทีม
+
+---
+
+## 2569-11-10 คำสั่ง: /implement T-03 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 0 ฐานราก)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "เอาเลยย" -> `/implement T-03 specs/006-return/tasks.md`
+- คำถามค้างจาก T-02 ที่ทีมยังไม่ตอบ: "ไม่ต้องทำ frontend" ใช้กับ task หน้าจอที่เหลือด้วยไหม (T-03 เป็นหลังบ้าน ไม่กระทบ)
+
+### ไฟล์ที่สร้างหรือแก้
+- สร้าง `backend/internal/returns/handler.go` (5 route ตาม plan ข้อ 4 ผ่าน `auth.Middleware` ตอบ 501 จนกว่าจะถึง task ของแต่ละ endpoint, `Cache-Control: no-store`)
+- สร้าง `backend/internal/returns/repository.go` (โครง Repository)
+- แก้ `backend/internal/platform/http.go` (ของกลาง แก้เพราะ 006): เพิ่ม `type Routes` และ `NewRouter(db, routes...)` แบบ variadic
+  ให้ฟีเจอร์ผูก route เองโดย platform ไม่ต้อง import ฟีเจอร์ / test เดิมของ 001 ที่เรียก `NewRouter(db)` ใช้ได้เหมือนเดิม
+- แก้ `backend/cmd/server/main.go`: สร้าง `auth.NewMockProvider()` และผูก route ของ 006 (ครั้งแรกที่ middleware ถูกผูกเข้า router จริง)
+- สร้าง `backend/db/seed/seed_006_return.sql`: `XX-NB-0002` ภาควิชา 2 ถูกยืม + การยืมที่ยังไม่คืน, การยืมที่คืนแล้ว 2 รายการของ CS-NB-0001/0002
+- สร้าง `backend/internal/returns/handler_test.go` (ไม่อยู่ในช่องไฟล์ที่แตะ เพิ่มเพราะ AGENTS.md ให้ test อยู่ข้างโค้ด)
+
+### ผล test (`cd backend && go test ./... -v`)
+- TestReturns_Skeleton_RoutedThroughAuth PASS (staff -> 501, ไม่มี token -> 401 ทั้ง 5 endpoint)
+- TestReturns_Seed006Loaded PASS (ภาควิชา 1 ยังไม่คืน 2 / คืนแล้ว 2, ภาควิชา 2 ยังไม่คืน 1)
+- test เดิมทั้งหมด (auth, config, platform) ยัง PASS
+
+### สิ่งที่เกือบต้องเดา
+- วิธีผูก route: เลือกส่งฟังก์ชันเข้า `NewRouter` แทนให้ platform import returns เพื่อไม่ให้ของกลางผูกกับฟีเจอร์ใดฟีเจอร์หนึ่ง (002-005 ใช้แบบเดียวกันได้)
+- ยังไม่ตรวจบทบาทเจ้าหน้าที่ (นักศึกษาก็ได้ 501) เพราะเป็นงานของ T-25 ตาม tasks.md
