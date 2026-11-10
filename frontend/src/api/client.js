@@ -2,6 +2,40 @@
 // ตอน test ให้ส่ง client จำลองเข้าไปในหน้าจอแทน ไม่ต้องรันหลังบ้านจริง
 // เรียกผ่าน /api (ดู proxy ใน vite.config.js) หลังบ้านต้องรันอยู่ที่ port 8000
 // ฟังก์ชันของแต่ละ endpoint ให้ task ของฟีเจอร์นั้นเพิ่มเอง (เช่น T-06 ของ 001)
+import { MOCK_TOKEN } from '../config.js'
+
 export const BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
-export const api = {}
+// ApiError บอกว่าหลังบ้านตอบไม่สำเร็จ status คือ HTTP status code ส่วน code มาจาก Error contract ใน plan.md
+export class ApiError extends Error {
+  constructor(status, code) {
+    super(`API ${status} ${code ?? ''}`.trim())
+    this.status = status
+    this.code = code
+  }
+}
+
+// ทุก request ต้องยืนยันตัวตน (IF-IDP-01, NFR-SEC-01) ส่ง token จำลองจาก config.js ไปก่อน (T-21 จะเปลี่ยนเป็นหน้าล็อกอินจำลอง)
+async function getJSON(path) {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+  })
+  if (!res.ok) {
+    let code
+    try {
+      code = (await res.json()).code
+    } catch {
+      code = undefined
+    }
+    throw new ApiError(res.status, code)
+  }
+  return res.json()
+}
+
+export const api = {
+  // 001 FR-EQS-01: รายการรุ่น 1 แถว = 1 รุ่น -> { items: [{ modelId, name, category, availableCount, totalCount }], total }
+  listModels: () => getJSON('/v1/equipment/models'),
+
+  // 001 FR-EQS-01: อุปกรณ์รายชิ้นของรุ่น -> { items: [{ assetCode, status }], total }
+  listItems: (modelId) => getJSON(`/v1/equipment/models/${encodeURIComponent(modelId)}/items`),
+}

@@ -1,12 +1,12 @@
-// โครงเริ่มต้นของรายวิชา: ยังไม่มีหน้าจอของ task ใด ๆ
-// หน้าจอจริงจะถูกสร้างใน src/pages/ ตาม task ใน tasks.md ทีละหน้า
+import EquipmentList from './pages/EquipmentList/EquipmentList.jsx'
+
+// หน้าจอหลักของระบบ ตอนนี้มีหน้ารายการอุปกรณ์ของ 001 (T-06)
+// หน้าจอของฟีเจอร์อื่นจะถูกสร้างใน src/pages/ ตาม task ของฟีเจอร์นั้น
 export default function App() {
   return (
-    <main className="mx-auto max-w-2xl p-6">
+    <main className="mx-auto max-w-2xl p-4 sm:p-6">
       <h1 className="text-2xl font-bold text-teal-800">ระบบยืมอุปกรณ์ภาควิชาคอมพิวเตอร์</h1>
-      <p className="mt-2 text-slate-600">
-        โครงหน้าจอพร้อมแล้ว หน้าจอของแต่ละ task จะอยู่ในโฟลเดอร์ src/pages/
-      </p>
+      <EquipmentList />
     </main>
   )
 }

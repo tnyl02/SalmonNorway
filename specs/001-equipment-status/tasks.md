@@ -98,11 +98,11 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.3) | Plan: plan.md Draft v1.5 | tasks v2: 2
 ### T-06 สร้างหน้ารายการอุปกรณ์และรายชิ้น
 - รองรับ: FR-EQS-01
 - ตรวจด้วย: AC-EQS-01
-- ไฟล์ที่แตะ: `frontend/src/pages/EquipmentList/EquipmentList.jsx`, `frontend/src/components/ModelRow.jsx`, `frontend/src/components/ItemTable.jsx`, `frontend/src/components/StatusBadge.jsx`, `frontend/src/api/client.js`, `frontend/src/__tests__/AC-EQS-01.test.jsx`
+- ไฟล์ที่แตะ: `frontend/src/pages/EquipmentList/EquipmentList.jsx`, `frontend/src/components/ModelRow.jsx`, `frontend/src/components/ItemTable.jsx`, `frontend/src/components/StatusBadge.jsx`, `frontend/src/api/client.js`, `frontend/src/__tests__/AC-EQS-01.test.jsx`, `frontend/src/App.jsx` (แสดงหน้ารายการ), `frontend/src/config.js` (token จำลอง ก่อนมีหน้าล็อกอินใน T-21) เพิ่ม 2 ไฟล์นี้ตามที่ทีมตัดสิน 2569-11-10
 - แบบหน้าจอ: ไม่มี (ยังไม่มี mockup)
 - ต้องทำหลัง: T-05
 - เสร็จเมื่อ: `AC-EQS-01.test.jsx` ผ่าน (เห็น "ว่าง 3 / ทั้งหมด 5" และกดแล้วเห็น 5 ชิ้น) ยังไม่มีปุ่มส่งคำขอยืม (รอ Q-16 ดู T-34)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 #### จุดตรวจเฟส 1
 - test ที่ต้องผ่านทั้งหมด: TestMigration_*, TestAuth_*, TestHealthz_*, TestAC_EQS_01_*, AC-EQS-01.test.jsx
