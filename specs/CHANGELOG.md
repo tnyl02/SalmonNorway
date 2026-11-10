@@ -2,6 +2,20 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [data-model v4 + plan 001 v1.4] - 2569-11-10
+ตามคำขอของ 003 (นภัสนัน) ที่ต้องบันทึกการยกเลิกคำขอลง audit_log ไม่ทำ CR เพราะไม่ได้เปลี่ยน FR/AC ของฟีเจอร์ใด
+
+### Changed
+- data-model DM-07: เพิ่ม `request_id` (ว่างได้) และตารางค่า action ที่ตกลงแล้ว (`list`, `search`, `detail` ของ 001 / `cancel` ของ 003)
+- plan 001 v1.4: audit_log เป็นตารางใช้ร่วม สร้างใน T-31
+- tasks 001: แยกการสร้างตาราง audit_log จาก T-19 เป็น T-31 (ทำหลัง T-02) ให้ 003 ใช้ได้ก่อน T-19 ต้องทำหลัง T-31
+
+### Added
+- data-model: ตารางเลข migration ที่เสนอ (0002 audit_log ของ 001, 0003 borrow_request ของ 002) รอยืนยันในกลุ่ม
+
+### Pending
+- `cancel_notify_failed` รอทีมตัดสินว่าการแจ้งเตือน (BL-21) อยู่ใน prototype ไหม
+
 ## [SPEC-EQS-001 Draft v4.1] - 2569-11-09
 ให้ spec 001 ตรงกับ specs/000-shared v3 ไม่ทำ CR เพราะไม่ได้เปลี่ยน FR หรือ AC เดิม (DOM-REQ-01 ทีมตัดสินแล้วใน v3)
 
