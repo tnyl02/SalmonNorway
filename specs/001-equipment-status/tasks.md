@@ -84,7 +84,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.3) | Plan: plan.md Draft v1.5 | tasks v2: 2
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-02, T-03
 - เสร็จเมื่อ: `TestAC_EQS_01_ModelRowCounts` ผ่าน (รุ่น 5 ชิ้น ว่าง 3 -> 1 แถว availableCount=3 totalCount=5) และเปิดหลังบ้านแล้วเรียก `GET /api/v1/equipment/models` ด้วย token จำลองได้ข้อมูลตั้งต้น
-- สถานะ: เสร็จ รอทีมตรวจ (ยังไม่แบ่งหน้า ดู T-23 / 1 แถว = 1 รุ่น ตาม Q-13)
+- สถานะ: เสร็จ
 
 ### T-05 สร้าง API รายชิ้นของรุ่น
 - รองรับ: FR-EQS-01, CON-DATA-03
@@ -93,7 +93,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.3) | Plan: plan.md Draft v1.5 | tasks v2: 2
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-04
 - เสร็จเมื่อ: `TestAC_EQS_01_ItemsOfModel` ผ่าน (ได้ 5 ชิ้นตามรหัสครุภัณฑ์ พร้อมสถานะแต่ละชิ้น)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ 
 
 ### T-06 สร้างหน้ารายการอุปกรณ์และรายชิ้น
 - รองรับ: FR-EQS-01
@@ -102,7 +102,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.3) | Plan: plan.md Draft v1.5 | tasks v2: 2
 - แบบหน้าจอ: ไม่มี (ยังไม่มี mockup)
 - ต้องทำหลัง: T-05
 - เสร็จเมื่อ: `AC-EQS-01.test.jsx` ผ่าน (เห็น "ว่าง 3 / ทั้งหมด 5" และกดแล้วเห็น 5 ชิ้น) ยังไม่มีปุ่มส่งคำขอยืม (รอ Q-16 ดู T-34)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ 
 
 #### จุดตรวจเฟส 1
 - test ที่ต้องผ่านทั้งหมด: TestMigration_*, TestAuth_*, TestHealthz_*, TestAC_EQS_01_*, AC-EQS-01.test.jsx
