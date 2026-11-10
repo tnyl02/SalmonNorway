@@ -2,6 +2,7 @@ package platform
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync"
 	"testing"
@@ -184,5 +185,72 @@ func TestMigration_AuditLogAction(t *testing.T) {
 		insertAudit,
 	); err != nil {
 		t.Errorf("request_id และ asset_code ต้องว่างได้ทั้งคู่: %v", err)
+	}
+}
+
+// 006 T-01 เสร็จเมื่อ: audit_log รับ action ใหม่ของ 006 ทั้ง 4 ค่า (DOM-AUDIT-01, FR-RET-07)
+func TestMigration006_AuditLogReturnActions(t *testing.T) {
+	conn := testDB(t)
+
+	for _, a := range []string{"return_list", "return_lookup", "return_detail", "return"} {
+		stmt := `INSERT INTO audit_log (actor_id, actor_role, action, asset_code, outcome) VALUES ('staff-001', 'staff', '` + a + `', 'CS-NB-0004', 'ok')`
+		if err := execInTx(t, conn, stmt); err != nil {
+			t.Errorf("action %q ของ 006 ต้องบันทึกได้ แต่ได้ error: %v", a, err)
+		}
+	}
+}
+
+// 006 T-01 เสร็จเมื่อ: loan มี return_condition (ปกติ/ชำรุด เท่านั้น) และ returned_late
+// และคืนแล้วต้องมีครบทั้งเวลาคืน สภาพ เครื่องหมายคืนเกินกำหนด (FR-RET-02, FR-RET-06)
+func TestMigration006_LoanReturnColumns(t *testing.T) {
+	conn := testDB(t)
+
+	// การยืมของ CS-NB-0004 (item_id 4) ในข้อมูลตั้งต้น ยังไม่คืน
+	const loanOf4 = `(SELECT id FROM loan WHERE item_id = 4 AND returned_at IS NULL)`
+
+	ok := map[string]string{
+		"ยังไม่คืน ว่างทั้ง 3 ค่า (ข้อมูลเดิมของ 001)": `SELECT 1`,
+		"คืนสภาพปกติ":  `UPDATE loan SET returned_at = now(), return_condition = 'normal', returned_late = false WHERE id = ` + loanOf4,
+		"คืนสภาพชำรุด": `UPDATE loan SET returned_at = now(), return_condition = 'damaged', returned_late = true WHERE id = ` + loanOf4,
+	}
+	for name, stmt := range ok {
+		if err := execInTx(t, conn, stmt); err != nil {
+			t.Errorf("%s ต้องบันทึกได้: %v", name, err)
+		}
+	}
+
+	bad := map[string]string{
+		"สภาพสูญหาย (ไม่ใช่สภาพ FR-RET-02)":   `UPDATE loan SET returned_at = now(), return_condition = 'lost', returned_late = false WHERE id = ` + loanOf4,
+		"คืนแล้วแต่ไม่มีสภาพ":                 `UPDATE loan SET returned_at = now(), returned_late = false WHERE id = ` + loanOf4,
+		"คืนแล้วแต่ไม่มีเครื่องหมายเกินกำหนด": `UPDATE loan SET returned_at = now(), return_condition = 'normal' WHERE id = ` + loanOf4,
+		"มีสภาพแต่ไม่มีเวลาคืน":               `UPDATE loan SET return_condition = 'normal', returned_late = false WHERE id = ` + loanOf4,
+	}
+	for name, stmt := range bad {
+		if err := execInTx(t, conn, stmt); err == nil {
+			t.Errorf("%s ต้องถูกปฏิเสธ", name)
+		}
+	}
+}
+
+// 006 T-01 เสร็จเมื่อ: มีตาราง loan_return_photo รับเฉพาะ JPG/PNG (FR-RET-05)
+func TestMigration006_LoanReturnPhoto(t *testing.T) {
+	conn := testDB(t)
+
+	const insert = `INSERT INTO loan_return_photo (loan_id, content_type, size_bytes, data)
+		VALUES ((SELECT id FROM loan WHERE item_id = 4), '%s', 3, '\x010203')`
+	for _, ct := range []string{"image/jpeg", "image/png"} {
+		if err := execInTx(t, conn, fmt.Sprintf(insert, ct)); err != nil {
+			t.Errorf("ชนิด %q ต้องบันทึกได้: %v", ct, err)
+		}
+	}
+	for _, ct := range []string{"image/gif", "application/pdf", ""} {
+		if err := execInTx(t, conn, fmt.Sprintf(insert, ct)); err == nil {
+			t.Errorf("ชนิด %q ต้องถูกปฏิเสธ (FR-RET-05 JPG หรือ PNG)", ct)
+		}
+	}
+	if err := execInTx(t, conn,
+		`INSERT INTO loan_return_photo (loan_id, content_type, size_bytes, data) VALUES (999999, 'image/png', 3, '\x010203')`,
+	); err == nil {
+		t.Error("รูปของการยืมที่ไม่มีอยู่ต้องถูกปฏิเสธ (foreign key)")
 	}
 }

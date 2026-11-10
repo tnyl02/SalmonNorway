@@ -389,3 +389,30 @@
 - เฟสแรกที่ลองใช้งานได้จริง: เฟส 1 (บันทึกคืนสภาพปกติ อุปกรณ์กลับเป็น "ว่าง")
 - ไม่มี task: Q-01 (สูญหาย) และ Q-08 (ระงับคำขอค้าง) เพราะไม่มี FR รองรับ / DOM-REQ-01 ไม่มี task ด้วยเหตุผลเดียวกับ plan
 - test เพิ่มที่ไม่ได้มาจาก AC ตรงๆ: `TestReturns_Lookup_FoundOpenLoan`, `TestReturns_ConcurrentReturn_OneWins`
+
+---
+
+## 2569-11-10 คำสั่ง: /implement T-01 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 0 ฐานราก)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "/implement T-xx ทีละ task แล้ว commit 006-return ทุกขั้น" -> `/implement T-01 specs/006-return/tasks.md`
+- ก่อนหน้า: ทีมตอบ "จองเองเลย" เรื่องเลข migration (ใช้แค่ใน branch นี้) -> AI ใช้ `0006` แก้ data-model.md ตารางเลข migration, plan Q-P4, tasks T-01
+  (รอบแรกที่สั่ง implement ทีมหยุดและให้ถอน commit `89e9cb4` และบันทึกของรอบนั้นออก แล้วสั่งใหม่)
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- สร้าง `backend/db/migrations/0006_return.up.sql`: `loan.return_condition` (normal/damaged), `loan.returned_late`,
+  CHECK `loan_return_fields_complete`, ตาราง `loan_return_photo` (JPG/PNG, BYTEA), action ใหม่ 4 ค่าใน `audit_log_action_check`
+- แก้ `specs/000-shared/data-model.md` (ของกลาง แก้เพราะ 006): DM-05 ฟิลด์ตอนรับคืน, DM-07 แถว action ของ 006, ตารางเลข migration แถว 0006
+- แก้ `backend/internal/platform/migrate_test.go`: เพิ่ม 3 test ต่อท้าย ไม่แก้ test เดิมของ 001
+
+### ผล test (`cd backend && go test ./... -v`)
+- TestMigration006_AuditLogReturnActions PASS
+- TestMigration006_LoanReturnColumns PASS (ปกติ/ชำรุดได้, lost / ไม่ครบ 3 ค่า ถูกปฏิเสธ)
+- TestMigration006_LoanReturnPhoto PASS (JPG/PNG ได้, GIF/PDF/ว่าง และ loan ที่ไม่มีอยู่ ถูกปฏิเสธ)
+- test เดิมของ 001 (auth, healthz, migration, seed, audit_log) ยัง PASS ทั้งหมด
+
+### สิ่งที่เกือบต้องเดา
+- ชื่อ CHECK เดิมของ audit_log: ใช้ชื่อที่ PostgreSQL ตั้งให้อัตโนมัติ `audit_log_action_check` (ยืนยันด้วย test ที่ผ่าน)
+- ไม่ได้ใส่เพดานขนาดรูปเป็น CHECK ใน DB เพราะ AGENTS.md กฎข้อ 9 ให้ตัวเลขอยู่ใน config.go (T-02) ที่เดียว

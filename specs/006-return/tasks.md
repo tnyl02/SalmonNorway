@@ -3,7 +3,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 
 สรุป
 - 15 เฟส (ฐานราก + 13 เฟสตาม AC + รอคำตอบ) รวม 30 task
-- รอ Q-xx 4 task (T-27 Q-04, T-28 Q-03, T-29 Q-09, T-30 Q-SH-08) และ T-01 ต้องจองเลข migration ในกลุ่มก่อน (Q-P4 ของ plan)
+- รอ Q-xx 4 task (T-27 Q-04, T-28 Q-03, T-29 Q-09, T-30 Q-SH-08) (เลข migration 0006 จองแล้ว)
 - เฟสแรกที่ลองใช้งานได้จริง: เฟส 1 (เจ้าหน้าที่กรอกรหัสครุภัณฑ์ บันทึกคืนสภาพปกติ แล้วอุปกรณ์กลับเป็น "ว่าง")
 
 เทคโนโลยีตาม plan.md ข้อ 2: Go (net/http + pgx), PostgreSQL 16, golang-migrate, React + Vite, vitest, testcontainers
@@ -26,11 +26,11 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 ### T-01 สร้าง migration ของการรับคืน
 - รองรับ: FR-RET-02, FR-RET-05, FR-RET-06, FR-RET-07, CON-TECH-01, CON-DATA-01, DOM-AUDIT-01
 - ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นงานพื้นฐานของ T-04, T-08, T-12, T-14, T-16, T-26
-- ไฟล์ที่แตะ: `backend/db/migrations/00NN_return.up.sql` (เลขจองในกลุ่ม), `specs/000-shared/data-model.md` (เพิ่มแถว action `return_list`, `return_lookup`, `return_detail`, `return` ใน DM-07 และคอลัมน์ใหม่ของ DM-05), `backend/internal/platform/migrate_test.go`
+- ไฟล์ที่แตะ: `backend/db/migrations/0006_return.up.sql`, `specs/000-shared/data-model.md` (เพิ่มแถว action `return_list`, `return_lookup`, `return_detail`, `return` ใน DM-07 และคอลัมน์ใหม่ของ DM-05), `backend/internal/platform/migrate_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: migration รันบน DB ว่างได้ ตาราง `loan` มี `return_condition`, `returned_late` พร้อม CHECK, มีตาราง `loan_return_photo` และ `audit_log` รับ action ใหม่ 4 ค่า (test ใน `migrate_test.go` ผ่าน)
-- สถานะ: พร้อมทำ (ต้องจองเลข migration ก่อน Q-P4)
+- สถานะ: เสร็จ รอทีมตรวจ
 
 ### T-02 เพิ่มค่าที่ตั้งได้ของการรับคืน
 - รองรับ: FR-RET-02, FR-RET-03, FR-RET-04, FR-RET-05
@@ -523,4 +523,4 @@ Open Questions จาก spec.md (ทุกข้อ) และ task ที่�
 - Q-08 คืนมาชำรุดแต่มีคำขอค้าง (DOM-REQ-01) ระงับคำขอและแจ้งผู้ขอ เป็น FR ใหม่ -> ไม่มี task (ไม่มี FR รองรับ)
 - Q-09 ขยาย DOM-AUDIT-01 ให้ครอบการเขียน -> T-29
 - Q-SH-08 ระบบยืนยันตัวตนเชื่อมต่อไม่ได้ -> T-30
-- Q-P1 ถึง Q-P5 (open points ของ plan.md): Q-P4 เลข migration บล็อก T-01, Q-P1 การแบ่งหน้าเขียนไว้ในจุดตรวจเฟส 8
+- Q-P1 ถึง Q-P5 (open points ของ plan.md): Q-P1 การแบ่งหน้าเขียนไว้ในจุดตรวจเฟส 8
