@@ -68,6 +68,6 @@ Status: v3 | Updated: 2569-11-09 (ปิด Q-SH-01 เพิ่ม DOM-REQ-01) 
 | DOM-REQ-01 | 001-equipment-status (จำนวนว่างไม่เปลี่ยนตามคำขอ), 003-cancel-request (ยกเลิกคำขอหนึ่งไม่กระทบคำขออื่นของชิ้นเดียวกัน) |
 | DOM-LOAN-01 | 001-equipment-status (อ่านกำหนดคืน) |
 | IF-IDP-01 | 001-equipment-status, 003-cancel-request |
-| IF-NOT-01 | - |
+| IF-NOT-01 | 003-cancel-request (แจ้งเจ้าหน้าที่เมื่อมีการยกเลิก FR-CXL-09) |
 
 เมื่อเปิดฟีเจอร์ 002-006 เจ้าของฟีเจอร์เพิ่มชื่อโฟลเดอร์ของตัวเองในตารางนี้
