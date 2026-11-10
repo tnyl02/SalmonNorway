@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client.js'
 import { TIME_ZONE } from '../../config.js'
-import StatusBadge from '../../components/StatusBadge.jsx'
+import StatusBadge, { OverdueBadge } from '../../components/StatusBadge.jsx'
 
 // ปี พ.ศ. = ปี ค.ศ. + 543 ใช้แสดงวันที่แบบตัวอย่างใน spec ("2569-10-10 16:00" ใน AC-EQS-14)
 const BUDDHIST_YEAR_OFFSET = 543
@@ -26,8 +26,9 @@ export function formatDueAt(iso) {
 }
 
 // หน้ารายละเอียดอุปกรณ์รายชิ้น (UC-01 ขั้น 7-8, FR-EQS-04)
-// แสดงสถานะ และกำหนดคืน (วันที่และเวลา) เมื่อถูกยืม
-// ป้าย "เลยกำหนดคืน" (T-13) และปุ่มส่งคำขอยืม (T-34 รอ Q-16) ยังไม่มีในตอนนี้
+// แสดงสถานะ กำหนดคืน (วันที่และเวลา) เมื่อถูกยืม และป้าย "เลยกำหนดคืน" เมื่อเลยกำหนด (FR-EQS-04 ข้อ ก, ข)
+// นักศึกษาที่เลยกำหนดแล้วไม่ได้รับกำหนดคืนจากหลังบ้าน จึงเห็นแค่ป้าย ส่วนเจ้าหน้าที่เห็นทั้งคู่ (CR-001)
+// ปุ่มส่งคำขอยืม (T-34 รอ Q-16) ยังไม่มีในตอนนี้
 export default function EquipmentDetail({ assetCode, client = api, onBack }) {
   const [item, setItem] = useState(null)
   const [failed, setFailed] = useState(false)
@@ -67,8 +68,9 @@ export default function EquipmentDetail({ assetCode, client = api, onBack }) {
       ) : (
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
           <dt className="text-slate-600">สถานะ</dt>
-          <dd>
+          <dd className="flex flex-wrap gap-2">
             <StatusBadge status={item.status} />
+            {item.isOverdue && <OverdueBadge />}
           </dd>
           {item.dueAt && (
             <>
