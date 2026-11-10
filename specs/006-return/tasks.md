@@ -61,7 +61,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01, T-02, T-03
 - เสร็จเมื่อ: `TestAC_RET_01_NormalReturnBecomesAvailable` ผ่าน (1 transaction: `SELECT ... FOR UPDATE` ปิดการยืมด้วย `now()` เก็บรูป เปลี่ยนสถานะเป็น `available`)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 ### T-05 ทำ `GET /api/v1/returns/lookup?assetCode=`
 - รองรับ: FR-RET-01, CON-DATA-03

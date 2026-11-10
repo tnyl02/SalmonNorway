@@ -467,3 +467,29 @@
 ### สิ่งที่เกือบต้องเดา
 - วิธีผูก route: เลือกส่งฟังก์ชันเข้า `NewRouter` แทนให้ platform import returns เพื่อไม่ให้ของกลางผูกกับฟีเจอร์ใดฟีเจอร์หนึ่ง (002-005 ใช้แบบเดียวกันได้)
 - ยังไม่ตรวจบทบาทเจ้าหน้าที่ (นักศึกษาก็ได้ 501) เพราะเป็นงานของ T-25 ตาม tasks.md
+
+---
+
+## 2569-11-10 คำสั่ง: /implement T-04 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 1)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "เอาเลย" -> `/implement T-04 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- `backend/internal/returns/repository.go`: `RecordReturn` 1 transaction (`SELECT ... FOR UPDATE OF l, i` -> ปิดการยืมด้วย `now()` ->
+  เปลี่ยนสถานะครั้งเดียว -> เก็บรูป -> commit), `ErrNoOpenLoan`
+- `backend/internal/returns/service.go` (ใหม่): สถานะหลังคืนจาก `config.ReturnConditionStatus`, `ErrUnknownCondition`
+- `backend/internal/returns/handler.go`: `POST /api/v1/returns` multipart (`assetCode`, `condition`, `photos`) ชนิดรูปจาก `http.DetectContentType`
+- `backend/internal/returns/handler_test.go`: ตัวช่วย `insertBorrowedItem`, `postReturn` และ AC test / แก้ `TestReturns_Seed006Loaded` ให้นับเฉพาะข้อมูลตัวอย่าง
+
+### ผล test (`cd backend && go test ./... -v`)
+- TestAC_RET_01_NormalReturnBecomesAvailable PASS (200, returned_at มีค่า, สถานะ available, รูป 1 รูป, Cache-Control no-store)
+- test เดิมทั้งหมดยัง PASS
+
+### สิ่งที่ต้องทำเกินขอบ task เล็กน้อย (บอกทีม)
+- `returned_late = (now() > due_at)` ต้องใส่ใน T-04 เพราะ CHECK `loan_return_fields_complete` ของ T-01 บังคับ (test ของค่านี้ยังเป็น T-16)
+- ตอบ 422 `CONDITION_REQUIRED` เมื่อสภาพไม่รู้จัก และ 409 `NO_OPEN_LOAN` แบบขั้นต่ำ เพราะต้องมีทางออกของ error เหล่านี้
+  (test และข้อความแจ้งอยู่ใน T-09 และ T-21)
+- ยังไม่ทำ: ตรวจรูป (T-11, T-12) ชนิดผิดตอนนี้ DB ปฏิเสธแล้วตอบ 503, ตรวจภาควิชา (T-23), บทบาท (T-25), audit (T-26)
