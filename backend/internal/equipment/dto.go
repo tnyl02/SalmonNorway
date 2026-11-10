@@ -24,14 +24,30 @@ type ModelRowDTO struct {
 	TotalCount     int    `json:"totalCount"`
 }
 
-// ItemDetailDTO คือรายละเอียดอุปกรณ์รายชิ้น 1 ชิ้น (FR-EQS-04, plan.md ข้อ 5)
-// dueAt (กำหนดคืน วันที่และเวลา) มีเฉพาะสถานะ "ถูกยืม" (CR-002, DOM-LOAN-01)
-// ป้ายเลยกำหนดคืน (T-12) ปุ่มส่งคำขอยืม (T-34 รอ Q-16) และชื่อผู้ยืม (T-36 รอ Q-20) ยังไม่มีในตอนนี้
-type ItemDetailDTO struct {
+// รายละเอียดอุปกรณ์รายชิ้น 1 ชิ้น แยก struct ตามบทบาท (FR-EQS-04, FR-EQS-07, DOM-PRIV-01, plan.md ข้อ 6.1)
+// ฟิลด์ที่บทบาทนั้นไม่มีสิทธิ์เห็นต้องไม่อยู่ใน struct เลย กันข้อมูลหลุดโดยไม่ตั้งใจ
+//   - dueAt (กำหนดคืน วันที่และเวลา) มีเฉพาะสถานะ "ถูกยืม" (CR-002, DOM-LOAN-01)
+//   - isOverdue = ถูกยืมและเวลาปัจจุบันเลยกำหนดคืนแล้ว เป็นป้าย ไม่ใช่สถานะที่ 4 สถานะยังเป็น borrowed (CON-DATA-01)
+//   - ปุ่มส่งคำขอยืม (T-34 รอ Q-16) และชื่อผู้ยืมของเจ้าหน้าที่ (T-36 รอ Q-20) ยังไม่มี
+
+// StudentItemDTO คือสิ่งที่นักศึกษาได้ เมื่อเลยกำหนดคืนแล้วไม่ส่ง dueAt ส่งแค่ป้าย (FR-EQS-04 ข้อ ข, CR-001)
+type StudentItemDTO struct {
 	AssetCode string     `json:"assetCode"`
 	Status    Status     `json:"status"`
 	DueAt     *time.Time `json:"dueAt,omitempty"`
+	IsOverdue bool       `json:"isOverdue,omitempty"`
 }
+
+// StaffItemDTO คือสิ่งที่เจ้าหน้าที่ได้ เห็นทั้งกำหนดคืนและป้ายเลยกำหนดคืน (FR-EQS-04 ข้อ ข)
+type StaffItemDTO struct {
+	AssetCode string     `json:"assetCode"`
+	Status    Status     `json:"status"`
+	DueAt     *time.Time `json:"dueAt,omitempty"`
+	IsOverdue bool       `json:"isOverdue,omitempty"`
+}
+
+// ItemDetailDTO คือชื่อเดิมของรายละเอียดจาก T-10 ใช้อ่าน JSON ใน test (มีฟิลด์ครบทุกตัวที่ส่งได้)
+type ItemDetailDTO = StaffItemDTO
 
 // ListDTO คือรูปแบบคำตอบของ endpoint ที่คืนรายการ (plan.md ข้อ 5: ไม่พบ = items ว่าง ไม่ใช่ error)
 type ListDTO[T any] struct {

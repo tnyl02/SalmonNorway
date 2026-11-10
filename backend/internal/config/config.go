@@ -4,7 +4,13 @@
 // ค่าที่มาจาก spec (เช่น เขตเวลา Asia/Bangkok, จำนวนต่อหน้า) ให้ task ที่ใช้เพิ่มที่นี่ พร้อมคอมเมนต์อ้าง ID
 package config
 
-import "os"
+import (
+	"os"
+	_ "time/tzdata" // ฝังข้อมูลเขตเวลาไว้ในโปรแกรม ใช้ Asia/Bangkok ได้แม้ container ไม่มี zoneinfo
+)
+
+// TimeZone คือเขตเวลาที่ใช้เทียบ "วันที่และเวลาปัจจุบัน" (glossary, FR-EQS-04 ข้อ ข, DOM-LOAN-01)
+const TimeZone = "Asia/Bangkok"
 
 // Config คือค่าที่โปรแกรมหลังบ้านใช้ตอนเริ่มทำงาน
 type Config struct {
