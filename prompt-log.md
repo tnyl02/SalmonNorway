@@ -269,3 +269,28 @@
   - เนื้อหาใน Email (ผู้ยกเลิก ชื่อรุ่น รหัสครุภัณฑ์ เวลา เหตุผล) AI ร่างเอง
   - ใช้ ID ใหม่ NFR-PERF-CXL-01 (ไม่ใช้ NFR-PERF-02 กันชนกับฟีเจอร์อื่น) และเพิ่มแถวใน SRS 3.3
   - เหตุผลการยกเลิกต้องมีช่องในตาราง borrow_request ของ 002 (ASM-09)
+
+---
+
+## 2569-11-10 /plan ของ 003 (plan v1, spec Draft v3.1)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (plan mode) คำสั่ง /plan ไม่ได้โหลดใน session เพราะเปิดจากโฟลเดอร์แม่ AI อ่าน .claude/commands/plan.md แล้วทำตามเอง
+- สิ่งที่สั่ง: /plan specs/003-cancel-request/spec.md
+
+### คำถามที่ AI ถาม และคำตอบของทีม
+1. ตาราง borrow_request ยังไม่มี ใครสร้าง -> 003 ร่างเบื้องต้น ให้ 002 รับช่วง (ASM-11)
+2. Q-14 เหตุผลยาวสูงสุด -> 200 ตัวอักษร
+3. Q-15 prototype ส่ง Email จริงหรือจำลอง -> จำลอง แบบ auth จำลอง (ASM-10)
+
+### สิ่งที่ AI ทำ
+- spec Draft v3.1: FR-CXL-08, AC-CXL-14 (200 ตัวอักษร), ASM-10, ASM-11, ปิด Q-14, Q-15 ปิดบางส่วน, SRS 3.1.3, CHANGELOG, README
+- สร้าง specs/003-cancel-request/plan.md Draft v1 (8 หัวข้อ, Constraints 8 ตัว, AC 17 ตัว, ลำดับงาน 9 ขั้น)
+- อ้างโครงกลางจาก origin/001-equipment-status (auth.Middleware, Provider pattern, config.go, migration 0001, seed)
+- สิ่งที่ AI เลือกเอง ทีมต้องตรวจ:
+  - ชื่อ package `cancelrequest`, หน้า `MyPendingRequests`, path API, รหัส error (REQUEST_NOT_FOUND, ALREADY_APPROVED, NOT_CANCELLABLE ฯลฯ)
+  - ค่าสถานะในฐานข้อมูลเป็นภาษาอังกฤษตัวเล็ก "ยกเลิก" = `cancelled` ต้องตรงกับ 002
+  - ตาราง staff_contact (จำลอง) และ `CancelDBTimeout` (ตัวเลขทีมเลือกเอง)
+  - ส่ง Email หลัง commit และไม่เก็บเหตุผลใน audit_log
+- สิ่งที่อยากเดาแต่ไม่ได้เดา: รูปแบบช่องรหัสคำขอใน audit_log (Q-13)
