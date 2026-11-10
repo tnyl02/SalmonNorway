@@ -1,14 +1,14 @@
 import { STATUS_LABEL } from './StatusBadge.jsx'
 
 // ตัวกรองของหน้ารายการอุปกรณ์: ประเภท และสถานะ (FR-EQS-02, plan.md ข้อ 6.7 ตัวกรองเป็น chip)
-// ตอนนี้เลือกได้ 1 ค่าต่อตัวกรอง กดซ้ำเพื่อยกเลิก (เลือกหลายค่าเพิ่มใน T-33)
+// เลือกได้หลายค่าในแต่ละตัวกรอง กดซ้ำเพื่อเอาค่านั้นออก (FR-EQS-02, Q-15, T-33)
 // ยังไม่มีช่องค้นหาด้วยคำ เพราะวิธีจับคู่คำค้นรอ Q-06 (T-24) ตามที่ทีมตัดสิน 2569-11-10
 //
 // filter = { categories: [...], statuses: [...] }  ค่าว่าง = ไม่กรอง
 export default function SearchBar({ categories, filter, onChange }) {
   const pick = (key, value) => {
     const current = filter[key] ?? []
-    const next = current.includes(value) ? [] : [value]
+    const next = current.includes(value) ? current.filter((v) => v !== value) : [...current, value]
     onChange({ ...filter, [key]: next })
   }
 
