@@ -3,10 +3,11 @@ import { api } from '../../api/client.js'
 import ModelRow from '../../components/ModelRow.jsx'
 import ItemTable from '../../components/ItemTable.jsx'
 import SearchBar from '../../components/SearchBar.jsx'
+import EmptyState from '../../components/EmptyState.jsx'
 
 const NO_FILTER = { categories: [], statuses: [] }
 
-// หน้ารายการอุปกรณ์ (UC-01 main flow ขั้น 3-6, FR-EQS-01, FR-EQS-02)
+// หน้ารายการอุปกรณ์ (UC-01 main flow ขั้น 3-6 และ alternative 6a, FR-EQS-01, FR-EQS-02, FR-EQS-03)
 // แสดงรายการรุ่น 1 แถว = 1 รุ่น กรองตามประเภทและสถานะ แล้วเมื่อเลือกรุ่นแสดงอุปกรณ์รายชิ้นตามรหัสครุภัณฑ์
 // รายชิ้นใช้ตัวกรองเดียวกับรายการรุ่น (plan.md ข้อ 6.3)
 // client ส่งเข้ามาได้ ตอน test ใช้ client จำลองแทนหลังบ้านจริง
@@ -72,6 +73,14 @@ export default function EquipmentList({ client = api }) {
 
       {models == null ? (
         <p className="text-slate-600">กำลังโหลด...</p>
+      ) : models.length === 0 ? (
+        // FR-EQS-03: ไม่พบ แจ้งและให้ล้างตัวกรองกลับไปดูรายการทั้งหมด
+        <EmptyState
+          onClear={() => {
+            setSelectedId(null)
+            setFilter(NO_FILTER)
+          }}
+        />
       ) : (
         <ul className="grid gap-2">
           {models.map((m) => (

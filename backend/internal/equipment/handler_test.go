@@ -353,3 +353,28 @@ func TestAC_EQS_16_MultiStatusFilter(t *testing.T) {
 		}
 	}
 }
+
+// AC-EQS-03 (FR-EQS-03) ส่วนหลังบ้าน: ไม่พบ = 200 กับรายการว่าง ไม่ใช่ error (plan.md ข้อ 5)
+// ยังไม่มีช่องค้นหาด้วยคำ (รอ Q-06 ดู T-24) จึงใช้ตัวกรองที่ไม่ตรงกับชิ้นใด ตามที่ทีมตัดสิน 2569-11-10
+//
+//	Given ค้นหา/กรองด้วยเงื่อนไขที่ไม่มีในระบบ
+//	When  กดค้นหา
+//	Then  ได้รายการว่าง (หน้าจอแจ้งว่าไม่พบอุปกรณ์)
+func TestAC_EQS_03_EmptyIs200(t *testing.T) {
+	// Given: ประเภท "อุปกรณ์นำเสนอ" ไม่มีชิ้นที่ถูกยืมในข้อมูลตั้งต้น
+	srv := newTestServer(t)
+	query := url.Values{"category": {"อุปกรณ์นำเสนอ"}, "status": {"borrowed"}}
+
+	// When
+	rec := get(t, srv, PathPrefix+"models?"+query.Encode(), tokenStudentDept1)
+
+	// Then: 200 และ items เป็น [] ไม่ใช่ null หรือ error
+	if rec.Code != http.StatusOK {
+		t.Fatalf("ไม่พบต้องได้ 200 แต่ได้ %d (body: %s)", rec.Code, rec.Body.String())
+	}
+	raw := rec.Body.String()
+	body := decode[ListDTO[ModelRowDTO]](t, rec)
+	if body.Items == nil || len(body.Items) != 0 || body.Total != 0 {
+		t.Errorf("ต้องได้ {items: [], total: 0} แต่ได้ %s", raw)
+	}
+}
