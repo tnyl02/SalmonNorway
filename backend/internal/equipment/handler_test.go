@@ -83,13 +83,13 @@ func testPool(t *testing.T) *pgxpool.Pool {
 	return dbPool
 }
 
-// newTestServer ประกอบ handler แบบเดียวกับ cmd/server/main.go (อยู่หลัง auth.Middleware)
+// newTestServer ประกอบ handler แบบเดียวกับ cmd/server/main.go (อยู่หลัง auth.Middleware และห่อด้วย platform.NoStore)
 func newTestServer(t *testing.T) http.Handler {
 	t.Helper()
 	h := NewHandler(NewService(NewRepository(testPool(t))))
 	mux := http.NewServeMux()
 	mux.Handle(PathPrefix, auth.Middleware(auth.NewMockProvider(), h.Routes()))
-	return mux
+	return platform.NoStore(mux)
 }
 
 // get เรียก endpoint ด้วย token ที่กำหนด (ว่าง = ไม่ส่ง token)
@@ -469,5 +469,66 @@ func TestCON_DATA_02_NoWriteEndpoints(t *testing.T) {
 	}
 	if status != string(StatusAvailable) {
 		t.Errorf("สถานะของ CS-NB-0001 เปลี่ยนเป็น %s", status)
+	}
+}
+
+// AC-EQS-05 (FR-EQS-06, NFR-DATA-01) ส่วนสถานะเปลี่ยนเป็น "ว่าง"
+// (ส่วน "ปุ่มส่งคำขอยืมกลับมาใช้งานได้" รอ Q-16 ดู T-34 / หน้าจอรีเฟรชเองไหม รอ Q-18 ดู T-35)
+//
+//	Given เจ้าหน้าที่บันทึกการรับคืนใน UC-09 สภาพปกติ
+//	When  นักศึกษารีเฟรชหน้ารายการภายใน 30 วินาที
+//	Then  สถานะเปลี่ยนเป็น "ว่าง"
+func TestAC_EQS_05_ReturnedBecomesAvailable(t *testing.T) {
+	pool := testPool(t)
+	ctx := context.Background()
+	srv := newTestServer(t)
+
+	// เตรียม: ชิ้นใหม่ของรุ่น 1 ถูกยืมอยู่ (จำลอง UC-08) ลบทิ้งหลัง test
+	const code = "TEST-AC05-0001"
+	_, err := pool.Exec(ctx, `
+WITH item AS (
+  INSERT INTO equipment_item (asset_code, model_id, status) VALUES ($1, 1, 'borrowed') RETURNING id
+)
+INSERT INTO loan (item_id, borrower_id, loan_type, due_at)
+SELECT id, 'student-001', 'normal', now() + interval '1 day' FROM item`, code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(ctx, `DELETE FROM loan WHERE item_id = (SELECT id FROM equipment_item WHERE asset_code = $1)`, code)
+		_, _ = pool.Exec(ctx, `DELETE FROM equipment_item WHERE asset_code = $1`, code)
+	})
+	before := modelsByID(t, srv, url.Values{})[1].AvailableCount
+	if got := decode[ItemDetailDTO](t, get(t, srv, PathPrefix+"items/"+code, tokenStudentDept1)); got.Status != StatusBorrowed {
+		t.Fatalf("ก่อนรับคืนต้องเป็น borrowed ได้ %s", got.Status)
+	}
+
+	// Given: จำลอง UC-09 รับคืนสภาพปกติ ปิดการยืมและตั้งสถานะเป็นว่าง
+	for _, q := range []string{
+		`UPDATE loan SET returned_at = now() WHERE item_id = (SELECT id FROM equipment_item WHERE asset_code = $1) AND returned_at IS NULL`,
+		`UPDATE equipment_item SET status = 'available', updated_at = now() WHERE asset_code = $1`,
+	} {
+		if _, err := pool.Exec(ctx, q, code); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// When: นักศึกษารีเฟรช (เรียกใหม่ทันที อยู่ในช่วง 30 วินาทีแน่นอน)
+	rec := get(t, srv, PathPrefix+"items/"+code, tokenStudentDept1)
+
+	// Then: สถานะเป็น "ว่าง" ไม่มีกำหนดคืนค้าง และตัวเลขว่างของรุ่นเพิ่มขึ้น 1
+	item := decode[ItemDetailDTO](t, rec)
+	if item.Status != StatusAvailable || item.DueAt != nil {
+		t.Errorf("หลังรับคืนต้องเป็น available ไม่มี dueAt ได้ %+v", item)
+	}
+	if after := modelsByID(t, srv, url.Values{})[1].AvailableCount; after != before+1 {
+		t.Errorf("ตัวเลขว่างของรุ่น 1 ต้องเพิ่มจาก %d เป็น %d ได้ %d", before, before+1, after)
+	}
+
+	// Then: response บอกห้าม cache ทุก endpoint กดรีเฟรชจึงได้ข้อมูลจากฐานข้อมูลใหม่เสมอ (plan.md ข้อ 6.2)
+	for _, p := range []string{PathPrefix + "items/" + code, PathPrefix + "models", PathPrefix + "models/1/items"} {
+		if cc := get(t, srv, p, tokenStudentDept1).Header().Get("Cache-Control"); cc != "no-store" {
+			t.Errorf("%s Cache-Control = %q ต้องเป็น no-store", p, cc)
+		}
 	}
 }

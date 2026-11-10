@@ -55,7 +55,8 @@ func main() {
 	mux.Handle(equipment.PathPrefix, auth.Middleware(provider, eq.Routes()))
 
 	log.Printf("listening on %s", cfg.HTTPAddr)
-	if err := http.ListenAndServe(cfg.HTTPAddr, mux); err != nil {
+	// ทุก response ห้าม cache เพื่อให้รีเฟรชแล้วเห็นสถานะล่าสุด (NFR-DATA-01, T-16)
+	if err := http.ListenAndServe(cfg.HTTPAddr, platform.NoStore(mux)); err != nil {
 		log.Fatal(err)
 	}
 }

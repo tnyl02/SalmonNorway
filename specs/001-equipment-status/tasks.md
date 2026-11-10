@@ -274,11 +274,11 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.3) | Plan: plan.md Draft v1.5 | tasks v2: 2
 ### T-16 ไม่ cache ข้อมูลสถานะ ให้รีเฟรชแล้วเห็นสถานะล่าสุด
 - รองรับ: NFR-DATA-01, FR-EQS-06 (ส่วนสถานะ "ว่าง")
 - ตรวจด้วย: AC-EQS-05 (ส่วนสถานะเปลี่ยนเป็น "ว่าง")
-- ไฟล์ที่แตะ: `backend/internal/platform/http.go` (Cache-Control: no-store), `backend/internal/equipment/handler_test.go`, `frontend/src/api/client.js`, `frontend/src/__tests__/AC-EQS-05.test.jsx`
+- ไฟล์ที่แตะ: `backend/internal/platform/http.go` (Cache-Control: no-store), `backend/internal/equipment/handler_test.go`, `frontend/src/api/client.js`, `frontend/src/__tests__/AC-EQS-05.test.jsx`, `backend/cmd/server/main.go` (ห่อ router ด้วย NoStore เพิ่มตามที่ทีมตัดสิน 2569-11-10)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-11
 - เสร็จเมื่อ: `TestAC_EQS_05_ReturnedBecomesAvailable` ผ่าน (ปิด loan จำลอง UC-09 แล้วเรียกใหม่ได้ status available และมี header no-store) และ `AC-EQS-05.test.jsx` ผ่าน (โหลดใหม่ไม่ใช้ข้อมูลเก่า)
-- สถานะ: พร้อมทำ (ปุ่มส่งคำขอยืมกลับมาใช้ได้ ย้ายไป T-34 รอ Q-16 / หน้าจอรีเฟรชเองไหม รอ Q-18 ดู T-35)
+- สถานะ: เสร็จ รอทีมตรวจ (ปุ่มส่งคำขอยืมกลับมาใช้ได้ ย้ายไป T-34 รอ Q-16 / หน้าจอรีเฟรชเองไหม รอ Q-18 ดู T-35)
 
 #### จุดตรวจเฟส 8
 - คนลองเองตาม AC-EQS-05:

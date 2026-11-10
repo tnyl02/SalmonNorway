@@ -16,9 +16,12 @@ export class ApiError extends Error {
 }
 
 // ทุก request ต้องยืนยันตัวตน (IF-IDP-01, NFR-SEC-01) ส่ง token จำลองจาก config.js ไปก่อน (T-21 จะเปลี่ยนเป็นหน้าล็อกอินจำลอง)
+// cache: 'no-store' ให้เบราว์เซอร์ถามหลังบ้านทุกครั้ง ไม่ใช้ข้อมูลเก่า (NFR-DATA-01, plan.md ข้อ 6.2)
+// หลังบ้านส่ง Cache-Control: no-store มาด้วย (platform.NoStore)
 async function getJSON(path) {
   const res = await fetch(`${BASE}${path}`, {
     headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+    cache: 'no-store',
   })
   if (!res.ok) {
     let code
