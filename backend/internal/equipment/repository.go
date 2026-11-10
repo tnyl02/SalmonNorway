@@ -48,3 +48,29 @@ ORDER BY model_name, model_id`
 	}
 	return out, nil
 }
+
+// ItemRow คืออุปกรณ์รายชิ้น 1 ชิ้นในรุ่นที่เลือก ระบุด้วยรหัสครุภัณฑ์ (FR-EQS-01, CON-DATA-03)
+// กำหนดคืน ป้ายเลยกำหนดคืน และข้อมูลตามบทบาทจะเพิ่มใน T-10, T-12, T-17
+type ItemRow struct {
+	AssetCode string `json:"assetCode"`
+	Status    Status `json:"status"`
+}
+
+// ListItems คืนอุปกรณ์รายชิ้นทั้งหมดของรุ่นที่เลือก พร้อมสถานะล่าสุดของแต่ละชิ้น เรียงตามรหัสครุภัณฑ์ (FR-EQS-01)
+// รุ่นที่ไม่มีอยู่ได้รายการว่าง (plan.md ข้อ 5: ไม่พบ = items ว่าง ไม่ใช่ error)
+func (r *Repository) ListItems(ctx context.Context, modelID int) ([]ItemRow, error) {
+	const q = `
+SELECT DISTINCT asset_code, status
+FROM v_equipment_item_status
+WHERE model_id = $1
+ORDER BY asset_code`
+	rows, err := r.db.Query(ctx, q, modelID)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (ItemRow, error) {
+		var it ItemRow
+		err := row.Scan(&it.AssetCode, &it.Status)
+		return it, err
+	})
+}

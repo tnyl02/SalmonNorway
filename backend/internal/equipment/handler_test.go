@@ -162,3 +162,54 @@ func TestModels_RequiresAuthentication(t *testing.T) {
 		t.Fatalf("ไม่มี token ต้องได้ 401 แต่ได้ %d", rec.Code)
 	}
 }
+
+// AC-EQS-01 (FR-EQS-01, CON-DATA-03) ส่วนรายชิ้น
+//
+//	Given นักศึกษายืนยันตัวตนแล้ว และมีอุปกรณ์รุ่นหนึ่ง 5 ชิ้น ว่าง 3 ชิ้น
+//	When  เลือกรุ่นนั้น
+//	Then  เห็นอุปกรณ์ 5 ชิ้นตามรหัสครุภัณฑ์พร้อมสถานะของแต่ละชิ้น
+func TestAC_EQS_01_ItemsOfModel(t *testing.T) {
+	// Given: รุ่น 1 ในข้อมูลตั้งต้น CS-NB-0001 ถึง 0003 ว่าง, 0004 และ 0005 ถูกยืม
+	srv := newTestServer(t)
+
+	// When: เลือกรุ่นนั้น
+	rec := get(t, srv, PathPrefix+"models/1/items", tokenStudentDept1)
+
+	// Then
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, ต้องเป็น 200 (body: %s)", rec.Code, rec.Body.String())
+	}
+	body := decode[ListDTO[ItemRow]](t, rec)
+	want := []ItemRow{
+		{"CS-NB-0001", StatusAvailable},
+		{"CS-NB-0002", StatusAvailable},
+		{"CS-NB-0003", StatusAvailable},
+		{"CS-NB-0004", StatusBorrowed},
+		{"CS-NB-0005", StatusBorrowed},
+	}
+	if len(body.Items) != len(want) || body.Total != len(want) {
+		t.Fatalf("ต้องเห็น 5 ชิ้น แต่ได้ %d ชิ้น (total %d): %+v", len(body.Items), body.Total, body.Items)
+	}
+	for i, w := range want {
+		if body.Items[i] != w {
+			t.Errorf("ชิ้นที่ %d = %+v, ต้องเป็น %+v", i+1, body.Items[i], w)
+		}
+	}
+}
+
+// รุ่นที่ไม่มีอยู่ได้รายการว่าง ไม่ใช่ error (plan.md ข้อ 5) และรหัสรุ่นที่ไม่ใช่ตัวเลขได้ 404
+func TestItems_UnknownModel(t *testing.T) {
+	srv := newTestServer(t)
+
+	rec := get(t, srv, PathPrefix+"models/9999/items", tokenStudentDept1)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("รุ่นที่ไม่มีอยู่ status = %d, ต้องเป็น 200", rec.Code)
+	}
+	if body := decode[ListDTO[ItemRow]](t, rec); len(body.Items) != 0 || body.Items == nil {
+		t.Errorf("ต้องได้ items เป็น [] แต่ได้ %+v", body.Items)
+	}
+
+	if rec := get(t, srv, PathPrefix+"models/abc/items", tokenStudentDept1); rec.Code != http.StatusNotFound {
+		t.Errorf("รหัสรุ่นไม่ใช่ตัวเลข status = %d, ต้องเป็น 404", rec.Code)
+	}
+}
