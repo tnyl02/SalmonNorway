@@ -375,3 +375,17 @@
 - สิ่งที่ AI เลือกเอง (ทีมเลือกเอง ไม่ได้มาจาก spec): เก็บรูปเป็น BYTEA, 5 MB = 5 × 1024 × 1024, ไม่แบ่งหน้ารายการที่ยังไม่คืน,
   path `/api/v1/returns/...`, error code ใหม่ (FORBIDDEN_ROLE, NO_OPEN_LOAN, CONDITION_REQUIRED, PHOTO_*), action audit ใหม่ 4 ค่า
 - ของกลางที่ plan จะแก้ตอน implement: คอลัมน์ใหม่ในตาราง `loan` (DM-05), ค่า action ใหม่ของ `audit_log` (DM-07), เลข migration ต้องจองในกลุ่ม
+
+---
+
+## 2569-11-10 คำสั่ง: /tasks (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return
+- เครื่องมือ: Claude Code (`.claude/commands/tasks.md`)
+- ก่อนเริ่ม: ทีมแจ้งว่า "ตรวจ plan เรียบร้อยแล้ว" (ไม่ได้ตอบข้อ 1-4 ที่ AI ถามหลัง /plan: ข้อความ "รอ CR-003" ใน spec, Q-P1 ถึง Q-P5, เลข migration, คอลัมน์ใหม่ใน loan)
+- ผลลัพธ์: specs/006-return/tasks.md รอบแรก 15 เฟส (ฐานราก + 13 เฟสตาม AC + รอคำตอบ) 30 task
+- รอ Q-xx 4 task: T-27 (Q-04), T-28 (Q-03), T-29 (Q-09), T-30 (Q-SH-08) และ T-01 ต้องจองเลข migration ก่อน (Q-P4)
+- เฟสแรกที่ลองใช้งานได้จริง: เฟส 1 (บันทึกคืนสภาพปกติ อุปกรณ์กลับเป็น "ว่าง")
+- ไม่มี task: Q-01 (สูญหาย) และ Q-08 (ระงับคำขอค้าง) เพราะไม่มี FR รองรับ / DOM-REQ-01 ไม่มี task ด้วยเหตุผลเดียวกับ plan
+- test เพิ่มที่ไม่ได้มาจาก AC ตรงๆ: `TestReturns_Lookup_FoundOpenLoan`, `TestReturns_ConcurrentReturn_OneWins`
