@@ -32,10 +32,22 @@ async function getJSON(path) {
   return res.json()
 }
 
-export const api = {
-  // 001 FR-EQS-01: รายการรุ่น 1 แถว = 1 รุ่น -> { items: [{ modelId, name, category, availableCount, totalCount }], total }
-  listModels: () => getJSON('/v1/equipment/models'),
+// 001 FR-EQS-02: แปลงตัวกรอง { categories: [...], statuses: [...] } เป็น query string
+// แต่ละค่าส่งเป็นชื่อซ้ำ เช่น ?status=available&status=borrowed (รูปแบบที่หลังบ้านรับใน T-32)
+function filterQuery(filter = {}) {
+  const params = new URLSearchParams()
+  for (const c of filter.categories ?? []) params.append('category', c)
+  for (const s of filter.statuses ?? []) params.append('status', s)
+  const qs = params.toString()
+  return qs ? `?${qs}` : ''
+}
 
-  // 001 FR-EQS-01: อุปกรณ์รายชิ้นของรุ่น -> { items: [{ assetCode, status }], total }
-  listItems: (modelId) => getJSON(`/v1/equipment/models/${encodeURIComponent(modelId)}/items`),
+export const api = {
+  // 001 FR-EQS-01, FR-EQS-02: รายการรุ่น 1 แถว = 1 รุ่น ตามตัวกรอง
+  //   -> { items: [{ modelId, name, category, availableCount, totalCount }], total }
+  listModels: (filter) => getJSON(`/v1/equipment/models${filterQuery(filter)}`),
+
+  // 001 FR-EQS-01, FR-EQS-02: อุปกรณ์รายชิ้นของรุ่น ตามตัวกรองเดียวกัน -> { items: [{ assetCode, status }], total }
+  listItems: (modelId, filter) =>
+    getJSON(`/v1/equipment/models/${encodeURIComponent(modelId)}/items${filterQuery(filter)}`),
 }

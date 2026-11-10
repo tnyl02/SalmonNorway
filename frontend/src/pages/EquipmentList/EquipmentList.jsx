@@ -2,11 +2,17 @@ import { useEffect, useState } from 'react'
 import { api } from '../../api/client.js'
 import ModelRow from '../../components/ModelRow.jsx'
 import ItemTable from '../../components/ItemTable.jsx'
+import SearchBar from '../../components/SearchBar.jsx'
 
-// หน้ารายการอุปกรณ์ (UC-01 main flow ขั้น 3-4, FR-EQS-01)
-// แสดงรายการรุ่น 1 แถว = 1 รุ่น แล้วเมื่อเลือกรุ่นแสดงอุปกรณ์รายชิ้นตามรหัสครุภัณฑ์
+const NO_FILTER = { categories: [], statuses: [] }
+
+// หน้ารายการอุปกรณ์ (UC-01 main flow ขั้น 3-6, FR-EQS-01, FR-EQS-02)
+// แสดงรายการรุ่น 1 แถว = 1 รุ่น กรองตามประเภทและสถานะ แล้วเมื่อเลือกรุ่นแสดงอุปกรณ์รายชิ้นตามรหัสครุภัณฑ์
+// รายชิ้นใช้ตัวกรองเดียวกับรายการรุ่น (plan.md ข้อ 6.3)
 // client ส่งเข้ามาได้ ตอน test ใช้ client จำลองแทนหลังบ้านจริง
 export default function EquipmentList({ client = api }) {
+  const [filter, setFilter] = useState(NO_FILTER)
+  const [categories, setCategories] = useState([])
   const [models, setModels] = useState(null)
   const [selectedId, setSelectedId] = useState(null)
   const [items, setItems] = useState(null)
@@ -14,9 +20,15 @@ export default function EquipmentList({ client = api }) {
 
   useEffect(() => {
     let active = true
+    setModels(null)
     client
-      .listModels()
-      .then((res) => active && setModels(res.items))
+      .listModels(filter)
+      .then((res) => {
+        if (!active) return
+        setModels(res.items)
+        // ตัวเลือกประเภทมาจากรายการตอนยังไม่กรอง ไม่มี endpoint ประเภทแยกใน plan.md ข้อ 5
+        if (filter === NO_FILTER) setCategories([...new Set(res.items.map((m) => m.category))])
+      })
       .catch(() => {
         // FR-EQS-08: ไม่แสดงข้อมูลเก่า ปุ่มลองใหม่และ test ของกรณีนี้อยู่ใน T-20
         if (active) {
@@ -27,14 +39,14 @@ export default function EquipmentList({ client = api }) {
     return () => {
       active = false
     }
-  }, [client])
+  }, [client, filter])
 
   useEffect(() => {
     if (selectedId == null) return
     let active = true
     setItems(null)
     client
-      .listItems(selectedId)
+      .listItems(selectedId, filter)
       .then((res) => active && setItems(res.items))
       .catch(() => {
         if (active) {
@@ -45,25 +57,28 @@ export default function EquipmentList({ client = api }) {
     return () => {
       active = false
     }
-  }, [client, selectedId])
+  }, [client, selectedId, filter])
 
   if (failed) {
     return <p role="alert" className="mt-4 text-red-700">ดึงข้อมูลอุปกรณ์ไม่สำเร็จ</p>
   }
-  if (models == null) {
-    return <p className="mt-4 text-slate-600">กำลังโหลด...</p>
-  }
 
-  const selected = models.find((m) => m.modelId === selectedId)
+  const selected = models?.find((m) => m.modelId === selectedId)
 
   return (
     <section className="mt-4 grid gap-4">
       <h2 className="text-lg font-semibold text-slate-900">รายการอุปกรณ์</h2>
-      <ul className="grid gap-2">
-        {models.map((m) => (
-          <ModelRow key={m.modelId} model={m} selected={m.modelId === selectedId} onSelect={setSelectedId} />
-        ))}
-      </ul>
+      <SearchBar categories={categories} filter={filter} onChange={setFilter} />
+
+      {models == null ? (
+        <p className="text-slate-600">กำลังโหลด...</p>
+      ) : (
+        <ul className="grid gap-2">
+          {models.map((m) => (
+            <ModelRow key={m.modelId} model={m} selected={m.modelId === selectedId} onSelect={setSelectedId} />
+          ))}
+        </ul>
+      )}
 
       {selected && (
         <div className="grid gap-2">

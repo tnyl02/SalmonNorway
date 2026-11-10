@@ -138,11 +138,11 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.3) | Plan: plan.md Draft v1.5 | tasks v2: 2
 ### T-08 เพิ่มช่องค้นหาและตัวกรองบนหน้าจอ
 - รองรับ: FR-EQS-02
 - ตรวจด้วย: AC-EQS-02 (ส่วนกรองสถานะ)
-- ไฟล์ที่แตะ: `frontend/src/pages/EquipmentList/EquipmentList.jsx`, `frontend/src/components/SearchBar.jsx`, `frontend/src/__tests__/AC-EQS-02.test.jsx`
+- ไฟล์ที่แตะ: `frontend/src/pages/EquipmentList/EquipmentList.jsx`, `frontend/src/components/SearchBar.jsx`, `frontend/src/__tests__/AC-EQS-02.test.jsx`, `frontend/src/api/client.js` (ส่งตัวกรองไปหลังบ้าน เพิ่มตามที่ทีมตัดสิน 2569-11-10)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-07
 - เสร็จเมื่อ: `AC-EQS-02.test.jsx` ส่วนกรองสถานะผ่าน
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 ### T-33 หน้าจอเลือกตัวกรองหลายค่า และแสดงตัวเลขตามตัวกรอง
 - รองรับ: FR-EQS-01, FR-EQS-02
