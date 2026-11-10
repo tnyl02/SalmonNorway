@@ -1,5 +1,5 @@
 # Implementation Plan: ตรวจสอบสถานะอุปกรณ์ (Equipment Status)
-Spec: SPEC-EQS-001 (specs/001-equipment-status/spec.md, Draft v4.1) | Plan status: Draft v1.3 | Updated: 2569-11-02 (CR-002 ให้ตรงกับ Miro)
+Spec: SPEC-EQS-001 (specs/001-equipment-status/spec.md, Draft v4.1) | Plan status: Draft v1.4 | Updated: 2569-11-10 (audit_log ใช้ร่วม แยกเป็น T-31)
 
 ## 1. Summary
 ฟีเจอร์ read-only ให้ผู้ใช้ที่ยืนยันตัวตนแล้วดูรายการอุปกรณ์แบบ "1 แถว = 1 รุ่น/ชนิด"
@@ -83,11 +83,12 @@ Index:
 - `pg_trgm` GIN บน `equipment_model.name` และ `equipment_item.asset_code` -- ค้นหา ILIKE
 - `loan(item_id) WHERE returned_at IS NULL` (partial)
 
-audit_log (ตารางใหม่ของฟีเจอร์นี้):
+audit_log (ตารางใช้ร่วม DM-07 สร้างโดย 001 ใน T-31):
 ```
-audit_log(id, actor_id, actor_role, occurred_at, action CHECK IN ('list','search','detail'),
-          query JSONB, asset_code NULL, outcome CHECK IN ('ok','forbidden','error'))
+audit_log(id, actor_id, actor_role, occurred_at, action CHECK IN ('list','search','detail','cancel'),
+          query JSONB, asset_code NULL, request_id NULL, outcome CHECK IN ('ok','forbidden','error'))
 ```
+`cancel` และ `request_id` เพิ่มตามคำขอของ 003 (2569-11-10) ฟีเจอร์นี้ใช้แค่ `list`, `search`, `detail`
 ตารางเป็น append-only (ไม่ให้ app user ทำ UPDATE/DELETE)
 
 ## 5. API Contract (REST, JSON, HTTPS เท่านั้น, ทุก endpoint ต้องมี auth)
