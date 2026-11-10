@@ -65,7 +65,7 @@ Status: v3 | Updated: 2569-11-09 (ปิด Q-SH-01 เพิ่ม DOM-REQ-01) 
 | DOM-PRIV-01 | 001-equipment-status |
 | DOM-AUDIT-01 | 001-equipment-status, 006-return |
 | DOM-ACCESS-01 | 001-equipment-status |
-| DOM-REQ-01 | 001-equipment-status (จำนวนว่างไม่เปลี่ยนตามคำขอ) |
+| DOM-REQ-01 | 001-equipment-status (จำนวนว่างไม่เปลี่ยนตามคำขอ), 006-return (คืนมาชำรุดแต่มีคำขอค้าง รอ CR-003) |
 | DOM-LOAN-01 | 001-equipment-status (อ่านกำหนดคืน), 006-return (ตรวจคืนเกินกำหนด) |
 | IF-IDP-01 | 001-equipment-status, 006-return |
 | IF-NOT-01 | - |
