@@ -2,7 +2,7 @@
 Spec: SPEC-EQS-001 (spec.md Draft v4.1) | Plan: plan.md Draft v1.3 | สร้าง: 2569-11-02 | แก้ตาม CR-002: 2569-11-02 | Owner: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05)
 
 สรุป
-- 15 เฟสที่ใช้งาน (ฐานราก + 13 เฟสตาม AC + รอคำตอบ) รวม 30 task ยกเลิกโดย CR-002 2 task (T-15, T-25) เหลือ 28 task
+- 15 เฟสที่ใช้งาน (ฐานราก + 13 เฟสตาม AC + รอคำตอบ) รวม 31 task ยกเลิกโดย CR-002 2 task (T-15, T-25) เหลือ 29 task (T-31 แยกจาก T-19 เมื่อ 2569-11-10 เพราะ 003 ต้องใช้ตาราง audit_log ก่อน)
 - รอ Q-xx 7 task (แบ่งหน้า, วิธีค้นหา, timeout, จอมือถือ, ขอบเขตเจ้าหน้าที่, audit ของรายการ, ตัวเลขเมื่อกรอง, auth จริง)
 - เฟสแรกที่ลองใช้งานได้จริง: เฟส 1 (เห็นรายการรุ่นและรายชิ้นบนหน้าจอ)
 
@@ -43,6 +43,15 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.1) | Plan: plan.md Draft v1.3 | สร้�
 - ต้องทำหลัง: T-01
 - เสร็จเมื่อ: `TestAuth_NoToken_401` และ `TestAuth_MissingDepartment_Rejected` ผ่าน (ไม่ได้ภาควิชา = ปฏิเสธ ตาม plan 6.1)
 - สถานะ: เสร็จ 
+
+### T-31 สร้างตาราง audit_log ใช้ร่วม (แยกจาก T-19)
+- รองรับ: DOM-AUDIT-01
+- ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นงานพื้นฐานของ T-19 และของ 003 (AC-EQS-11 ตรวจใน T-19)
+- ไฟล์ที่แตะ: `backend/db/migrations/0002_audit_log.up.sql`, `backend/internal/platform/migrate_test.go`
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: T-02
+- เสร็จเมื่อ: `TestMigration_AuditLogAppendOnly` ผ่าน (INSERT ได้ / UPDATE และ DELETE ถูกปฏิเสธ) และ `TestMigration_AuditLogAction` ผ่าน (action นอกตาราง DM-07 ถูกปฏิเสธ, request_id ว่างได้)
+- สถานะ: เสร็จ
 
 ---
 
@@ -287,10 +296,10 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.1) | Plan: plan.md Draft v1.3 | สร้�
 ### T-19 บันทึก audit log เมื่อเปิดรายละเอียด
 - รองรับ: DOM-AUDIT-01
 - ตรวจด้วย: AC-EQS-11
-- ไฟล์ที่แตะ: `backend/db/migrations/0002_audit_log.sql`, `backend/internal/audit/writer.go`, `backend/internal/audit/writer_test.go`, `backend/internal/equipment/handler.go`
+- ไฟล์ที่แตะ: `backend/internal/audit/writer.go`, `backend/internal/audit/writer_test.go`, `backend/internal/equipment/handler.go` (ตารางสร้างแล้วใน T-31)
 - แบบหน้าจอ: ไม่มี
-- ต้องทำหลัง: T-10
-- เสร็จเมื่อ: `TestAC_EQS_11_DetailWritesAudit` ผ่าน (มีแถวที่มีผู้เข้าถึง เวลา รหัสครุภัณฑ์) และตารางเป็น append-only
+- ต้องทำหลัง: T-10, T-31
+- เสร็จเมื่อ: `TestAC_EQS_11_DetailWritesAudit` ผ่าน (มีแถวที่มีผู้เข้าถึง เวลา รหัสครุภัณฑ์)
 - สถานะ: พร้อมทำ (การดูรายการ/ค้นหารอ Q-11 ดู T-29, ถ้าเขียน audit ไม่สำเร็จทำอย่างไรรอ Q-P4 ดู T-29)
 
 #### จุดตรวจเฟส 11
@@ -464,7 +473,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.1) | Plan: plan.md Draft v1.3 | สร้�
 | CON-DATA-02 | T-10 |
 | CON-DATA-03 | T-02, T-05 |
 | DOM-PRIV-01 | T-12, T-17 |
-| DOM-AUDIT-01 | T-19, T-29 |
+| DOM-AUDIT-01 | T-31, T-19, T-29 |
 | DOM-ACCESS-01 | T-18, T-28 |
 | IF-IDP-01 | T-03, T-18, T-21, T-30 |
 

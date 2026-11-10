@@ -123,3 +123,66 @@ func TestSeed_Model1HasFiveItemsThreeAvailable(t *testing.T) {
 		t.Fatalf("รุ่น 1 ได้ %d ชิ้น ว่าง %d ชิ้น ต้องเป็น 5 และ 3", total, available)
 	}
 }
+
+// execInTx รันคำสั่ง SQL ใน transaction ที่ยกเลิกทิ้งเสมอ ข้อมูลจึงไม่ค้างข้าม test
+func execInTx(t *testing.T, conn *pgx.Conn, sqls ...string) error {
+	t.Helper()
+	ctx := context.Background()
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx)
+	for _, s := range sqls {
+		if _, err := tx.Exec(ctx, s); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+const insertAudit = `INSERT INTO audit_log (actor_id, actor_role, action, asset_code, outcome)
+	VALUES ('student-001', 'student', 'detail', 'CS-NB-0001', 'ok')`
+
+// T-31 เสร็จเมื่อ: audit_log เป็น append-only คือ INSERT ได้ แต่ UPDATE และ DELETE ถูกปฏิเสธ (DOM-AUDIT-01, plan.md ข้อ 4)
+func TestMigration_AuditLogAppendOnly(t *testing.T) {
+	conn := testDB(t)
+
+	if err := execInTx(t, conn, insertAudit); err != nil {
+		t.Fatalf("INSERT ต้องทำได้: %v", err)
+	}
+	for name, stmt := range map[string]string{
+		"UPDATE":   `UPDATE audit_log SET outcome = 'error'`,
+		"DELETE":   `DELETE FROM audit_log`,
+		"TRUNCATE": `TRUNCATE audit_log`,
+	} {
+		if err := execInTx(t, conn, insertAudit, stmt); err == nil {
+			t.Errorf("%s ต้องถูกปฏิเสธ (append-only)", name)
+		}
+	}
+}
+
+// T-31 เสร็จเมื่อ: action นอกตาราง DM-07 ถูกปฏิเสธ และ request_id ว่างได้ (คำขอของ 003)
+func TestMigration_AuditLogAction(t *testing.T) {
+	conn := testDB(t)
+
+	for _, a := range []string{"list", "search", "detail", "cancel"} {
+		stmt := `INSERT INTO audit_log (actor_id, actor_role, action, outcome) VALUES ('student-001', 'student', '` + a + `', 'ok')`
+		if err := execInTx(t, conn, stmt); err != nil {
+			t.Errorf("action %q อยู่ใน DM-07 ต้องบันทึกได้ แต่ได้ error: %v", a, err)
+		}
+	}
+	for _, a := range []string{"cancel_notify_failed", "approve", ""} {
+		stmt := `INSERT INTO audit_log (actor_id, actor_role, action, outcome) VALUES ('student-001', 'student', '` + a + `', 'ok')`
+		if err := execInTx(t, conn, stmt); err == nil {
+			t.Errorf("action %q ไม่อยู่ใน DM-07 ต้องถูกปฏิเสธ", a)
+		}
+	}
+	// การยกเลิกคำขอของ 003: มี request_id ไม่มีรหัสครุภัณฑ์ / การเปิดรายละเอียดของ 001: กลับกัน
+	if err := execInTx(t, conn,
+		`INSERT INTO audit_log (actor_id, actor_role, action, request_id, outcome) VALUES ('student-001', 'student', 'cancel', 42, 'ok')`,
+		insertAudit,
+	); err != nil {
+		t.Errorf("request_id และ asset_code ต้องว่างได้ทั้งคู่: %v", err)
+	}
+}
