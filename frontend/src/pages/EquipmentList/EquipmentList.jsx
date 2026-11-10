@@ -4,6 +4,7 @@ import ModelRow from '../../components/ModelRow.jsx'
 import ItemTable from '../../components/ItemTable.jsx'
 import SearchBar from '../../components/SearchBar.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
+import EquipmentDetail from '../EquipmentDetail/EquipmentDetail.jsx'
 
 const NO_FILTER = { categories: [], statuses: [] }
 
@@ -18,6 +19,7 @@ export default function EquipmentList({ client = api }) {
   const [selectedId, setSelectedId] = useState(null)
   const [items, setItems] = useState(null)
   const [failed, setFailed] = useState(false)
+  const [openAsset, setOpenAsset] = useState(null) // รหัสครุภัณฑ์ที่เปิดดูรายละเอียดอยู่ (FR-EQS-04)
 
   useEffect(() => {
     let active = true
@@ -64,6 +66,11 @@ export default function EquipmentList({ client = api }) {
     return <p role="alert" className="mt-4 text-red-700">ดึงข้อมูลอุปกรณ์ไม่สำเร็จ</p>
   }
 
+  // เปิดรายละเอียดแทนรายการ ไม่ล้างตัวกรองและรุ่นที่เลือก กดกลับแล้วเห็นรายการเดิม
+  if (openAsset) {
+    return <EquipmentDetail assetCode={openAsset} client={client} onBack={() => setOpenAsset(null)} />
+  }
+
   const selected = models?.find((m) => m.modelId === selectedId)
 
   return (
@@ -92,7 +99,7 @@ export default function EquipmentList({ client = api }) {
       {selected && (
         <div className="grid gap-2">
           <h3 className="font-medium text-slate-900">{selected.name}</h3>
-          {items == null ? <p className="text-slate-600">กำลังโหลด...</p> : <ItemTable items={items} />}
+          {items == null ? <p className="text-slate-600">กำลังโหลด...</p> : <ItemTable items={items} onOpen={setOpenAsset} />}
         </div>
       )}
     </section>

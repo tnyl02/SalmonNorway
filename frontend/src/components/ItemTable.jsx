@@ -1,7 +1,8 @@
 import StatusBadge from './StatusBadge.jsx'
 
 // อุปกรณ์รายชิ้นของรุ่นที่เลือก ตามรหัสครุภัณฑ์ พร้อมสถานะล่าสุดของแต่ละชิ้น (FR-EQS-01, CON-DATA-03)
-export default function ItemTable({ items }) {
+// กดรหัสครุภัณฑ์เพื่อเปิดรายละเอียด (FR-EQS-04, ทีมตัดสิน 2569-11-10 ตอนทำ T-11)
+export default function ItemTable({ items, onOpen }) {
   return (
     <table className="w-full text-left text-sm">
       <thead>
@@ -13,7 +14,15 @@ export default function ItemTable({ items }) {
       <tbody>
         {items.map((item) => (
           <tr key={item.assetCode} className="border-b border-slate-100">
-            <td className="py-2 pr-4 font-mono">{item.assetCode}</td>
+            <td className="py-2 pr-4 font-mono">
+              {onOpen ? (
+                <button type="button" onClick={() => onOpen(item.assetCode)} className="text-teal-700 underline">
+                  {item.assetCode}
+                </button>
+              ) : (
+                item.assetCode
+              )}
+            </td>
             <td className="py-2">
               <StatusBadge status={item.status} />
             </td>
