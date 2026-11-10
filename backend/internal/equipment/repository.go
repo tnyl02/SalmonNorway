@@ -2,6 +2,8 @@ package equipment
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -103,4 +105,30 @@ ORDER BY asset_code`
 		err := row.Scan(&it.AssetCode, &it.Status)
 		return it, err
 	})
+}
+
+// ItemRecord คือข้อมูลอุปกรณ์รายชิ้น 1 ชิ้นตามที่อยู่ในฐานข้อมูล ยังไม่ผ่านกฎของ service
+// dueAt มาจากการยืมที่ยังไม่คืน (loan.returned_at IS NULL) ว่าง = ไม่มีการยืมค้าง
+type ItemRecord struct {
+	AssetCode string
+	Status    Status
+	DueAt     *time.Time
+}
+
+// GetItem อ่านอุปกรณ์รายชิ้นจากรหัสครุภัณฑ์ (FR-EQS-04, CON-DATA-03) อ่านอย่างเดียว (CON-DATA-02)
+// found = false เมื่อไม่มีรหัสนี้
+func (r *Repository) GetItem(ctx context.Context, assetCode string) (rec ItemRecord, found bool, err error) {
+	const q = `
+SELECT asset_code, status, due_at
+FROM v_equipment_item_status
+WHERE asset_code = $1
+LIMIT 1`
+	err = r.db.QueryRow(ctx, q, assetCode).Scan(&rec.AssetCode, &rec.Status, &rec.DueAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ItemRecord{}, false, nil
+	}
+	if err != nil {
+		return ItemRecord{}, false, err
+	}
+	return rec, true, nil
 }

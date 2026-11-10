@@ -27,6 +27,8 @@ func (h *Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET "+PathPrefix+"models", h.listModels)
 	mux.HandleFunc("GET "+PathPrefix+"models/{modelId}/items", h.listItems)
+	mux.HandleFunc("GET "+PathPrefix+"items/{assetCode}", h.getItem)
+	// ไม่มี endpoint ที่เขียนข้อมูล ฟีเจอร์นี้อ่านอย่างเดียว (CON-DATA-02) method อื่นได้ 405 จาก router
 	return mux
 }
 
@@ -54,6 +56,20 @@ func (h *Handler) listItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, ListDTO[ItemRow]{Items: nonNil(items), Total: len(items)})
+}
+
+// getItem: GET /v1/equipment/items/{assetCode} รายละเอียดอุปกรณ์รายชิ้น พร้อมกำหนดคืนเมื่อถูกยืม (FR-EQS-04, AC-EQS-04)
+func (h *Handler) getItem(w http.ResponseWriter, r *http.Request) {
+	item, found, err := h.svc.GetItem(r.Context(), r.PathValue("assetCode"))
+	if err != nil {
+		writeUpstreamError(w, err)
+		return
+	}
+	if !found {
+		http.NotFound(w, r) // ไม่มีรหัสครุภัณฑ์นี้ (plan ไม่ได้กำหนด error code ของกรณีนี้)
+		return
+	}
+	writeJSON(w, http.StatusOK, item)
 }
 
 // filterFrom อ่านตัวกรองจาก query string (FR-EQS-02) เลือกได้หลายค่าในแต่ละตัวกรอง (Q-15)

@@ -22,3 +22,17 @@ func (s *Service) ListModels(ctx context.Context, f Filter) ([]ModelRowDTO, erro
 func (s *Service) ListItems(ctx context.Context, modelID int, f Filter) ([]ItemRow, error) {
 	return s.repo.ListItems(ctx, modelID, f)
 }
+
+// GetItem คืนรายละเอียดอุปกรณ์รายชิ้น (FR-EQS-04)
+// กำหนดคืนส่งเฉพาะสถานะ "ถูกยืม" (plan.md ข้อ 5) กฎเลยกำหนดคืนและการซ่อนตามบทบาทจะเพิ่มใน T-12
+func (s *Service) GetItem(ctx context.Context, assetCode string) (ItemDetailDTO, bool, error) {
+	rec, found, err := s.repo.GetItem(ctx, assetCode)
+	if err != nil || !found {
+		return ItemDetailDTO{}, found, err
+	}
+	dto := ItemDetailDTO{AssetCode: rec.AssetCode, Status: rec.Status}
+	if rec.Status == StatusBorrowed {
+		dto.DueAt = rec.DueAt
+	}
+	return dto, true, nil
+}

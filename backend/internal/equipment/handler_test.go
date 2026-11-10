@@ -7,8 +7,10 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
@@ -376,5 +378,96 @@ func TestAC_EQS_03_EmptyIs200(t *testing.T) {
 	body := decode[ListDTO[ModelRowDTO]](t, rec)
 	if body.Items == nil || len(body.Items) != 0 || body.Total != 0 {
 		t.Errorf("ต้องได้ {items: [], total: 0} แต่ได้ %s", raw)
+	}
+}
+
+// AC-EQS-04 (FR-EQS-04, CON-DATA-02) ส่วนสถานะและกำหนดคืน (ส่วน "ไม่มีปุ่มส่งคำขอยืม" รอ Q-16 ดู T-34)
+//
+//	Given เจ้าหน้าที่บันทึกการส่งมอบอุปกรณ์ชิ้นหนึ่งใน UC-08 แล้ว และยังไม่เลยกำหนดคืน
+//	When  นักศึกษาเปิดดูอุปกรณ์ชิ้นนั้น
+//	Then  สถานะแสดงเป็น "ถูกยืม" พร้อมกำหนดคืน (วันที่และเวลา)
+func TestAC_EQS_04_BorrowedShowsDueDate(t *testing.T) {
+	pool := testPool(t)
+	ctx := context.Background()
+
+	// Given: จำลอง UC-08 ส่งมอบชิ้นใหม่ของรุ่น 1 กำหนดคืนพรุ่งนี้ (ยังไม่เลยกำหนด) แล้วลบทิ้งหลัง test
+	const code = "TEST-AC04-0001"
+	var want time.Time
+	err := pool.QueryRow(ctx, `
+WITH item AS (
+  INSERT INTO equipment_item (asset_code, model_id, status) VALUES ($1, 1, 'borrowed') RETURNING id
+)
+INSERT INTO loan (item_id, borrower_id, loan_type, due_at)
+SELECT id, 'student-002', 'normal', date_trunc('minute', now()) + interval '1 day' FROM item
+RETURNING due_at`, code).Scan(&want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(ctx, `DELETE FROM loan WHERE item_id = (SELECT id FROM equipment_item WHERE asset_code = $1)`, code)
+		_, _ = pool.Exec(ctx, `DELETE FROM equipment_item WHERE asset_code = $1`, code)
+	})
+	srv := newTestServer(t)
+
+	// When: นักศึกษาเปิดดูอุปกรณ์ชิ้นนั้น
+	rec := get(t, srv, PathPrefix+"items/"+code, tokenStudentDept1)
+
+	// Then: สถานะ "ถูกยืม" พร้อมกำหนดคืน (วันที่และเวลา)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, ต้องเป็น 200 (body: %s)", rec.Code, rec.Body.String())
+	}
+	item := decode[ItemDetailDTO](t, rec)
+	if item.Status != StatusBorrowed {
+		t.Errorf("สถานะ = %s, ต้องเป็น borrowed", item.Status)
+	}
+	if item.DueAt == nil {
+		t.Fatal("ต้องมีกำหนดคืน (dueAt)")
+	}
+	if !item.DueAt.Equal(want) {
+		t.Errorf("กำหนดคืน = %s, ต้องเป็น %s (วันที่และเวลาตามที่ UC-08 บันทึก)", item.DueAt, want)
+	}
+}
+
+// FR-EQS-04 กำหนดคืนมีเฉพาะชิ้นที่ถูกยืม และรหัสที่ไม่มีได้ 404
+func TestItemDetail_AvailableHasNoDueAtAndUnknownIs404(t *testing.T) {
+	srv := newTestServer(t)
+
+	rec := get(t, srv, PathPrefix+"items/CS-NB-0001", tokenStudentDept1)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	if item := decode[ItemDetailDTO](t, rec); item.Status != StatusAvailable || item.DueAt != nil {
+		t.Errorf("ชิ้นที่ว่างต้องไม่มีกำหนดคืน ได้ %+v", item)
+	}
+
+	if rec := get(t, srv, PathPrefix+"items/NO-SUCH-CODE", tokenStudentDept1); rec.Code != http.StatusNotFound {
+		t.Errorf("รหัสที่ไม่มีต้องได้ 404 ได้ %d", rec.Code)
+	}
+}
+
+// CON-DATA-02 ฟีเจอร์นี้อ่านอย่างเดียว: ไม่มี endpoint ใดเปลี่ยนสถานะอุปกรณ์ได้
+func TestCON_DATA_02_NoWriteEndpoints(t *testing.T) {
+	pool := testPool(t)
+	srv := newTestServer(t)
+	paths := []string{PathPrefix + "models", PathPrefix + "models/1/items", PathPrefix + "items/CS-NB-0001"}
+
+	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete} {
+		for _, p := range paths {
+			req := httptest.NewRequest(method, p, strings.NewReader(`{"status":"unavailable"}`))
+			req.Header.Set("Authorization", "Bearer "+tokenStudentDept1)
+			rec := httptest.NewRecorder()
+			srv.ServeHTTP(rec, req)
+			if rec.Code != http.StatusMethodNotAllowed {
+				t.Errorf("%s %s ได้ %d ต้องเป็น 405 (ไม่มี endpoint เขียนข้อมูล)", method, p, rec.Code)
+			}
+		}
+	}
+
+	var status string
+	if err := pool.QueryRow(context.Background(), `SELECT status FROM equipment_item WHERE asset_code = 'CS-NB-0001'`).Scan(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status != string(StatusAvailable) {
+		t.Errorf("สถานะของ CS-NB-0001 เปลี่ยนเป็น %s", status)
 	}
 }

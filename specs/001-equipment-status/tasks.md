@@ -188,16 +188,16 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.3) | Plan: plan.md Draft v1.5 | tasks v2: 2
 ### T-10 สร้าง API รายละเอียดรายชิ้น พร้อมกำหนดคืน (วันที่และเวลา)
 - รองรับ: FR-EQS-04 (ส่วนกำหนดคืน), CON-DATA-02
 - ตรวจด้วย: AC-EQS-04 (ส่วนสถานะและกำหนดคืน)
-- ไฟล์ที่แตะ: `backend/internal/equipment/repository.go`, `backend/internal/equipment/service.go`, `backend/internal/equipment/dto.go`, `backend/internal/equipment/handler_test.go`
+- ไฟล์ที่แตะ: `backend/internal/equipment/repository.go`, `backend/internal/equipment/service.go`, `backend/internal/equipment/dto.go`, `backend/internal/equipment/handler_test.go`, `backend/internal/equipment/handler.go` (endpoint รายละเอียด เพิ่มตามที่ทีมตัดสิน 2569-11-10)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-05
 - เสร็จเมื่อ: `TestAC_EQS_04_BorrowedShowsDueDate` ผ่าน (ถูกยืม ยังไม่เลยกำหนด -> มี dueAt วันที่และเวลา) และไม่มี endpoint ใดเขียนสถานะ (CON-DATA-02)
-- สถานะ: พร้อมทำ (canRequestLoan ย้ายไป T-34 รอ Q-16)
+- สถานะ: เสร็จ รอทีมตรวจ (canRequestLoan ย้ายไป T-34 รอ Q-16)
 
 ### T-11 สร้างหน้ารายละเอียดอุปกรณ์
 - รองรับ: FR-EQS-04 (ส่วนกำหนดคืน)
 - ตรวจด้วย: AC-EQS-04 (ส่วนสถานะและกำหนดคืน)
-- ไฟล์ที่แตะ: `frontend/src/pages/EquipmentDetail/EquipmentDetail.jsx`, `frontend/src/__tests__/AC-EQS-04.test.jsx`
+- ไฟล์ที่แตะ: `frontend/src/pages/EquipmentDetail/EquipmentDetail.jsx`, `frontend/src/__tests__/AC-EQS-04.test.jsx`, `frontend/src/components/ItemTable.jsx`, `frontend/src/pages/EquipmentList/EquipmentList.jsx` (กดรหัสครุภัณฑ์เพื่อเปิดรายละเอียด), `frontend/src/api/client.js` (getItem), `frontend/src/config.js` (เขตเวลา Asia/Bangkok) เพิ่มตามที่ทีมตัดสิน 2569-11-10
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `AC-EQS-04.test.jsx` ผ่าน (เห็น "ถูกยืม" และกำหนดคืนเป็นวันที่และเวลา)
