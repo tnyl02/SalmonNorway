@@ -51,7 +51,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.1) | Plan: plan.md Draft v1.3 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-02
 - เสร็จเมื่อ: `TestMigration_AuditLogAppendOnly` ผ่าน (INSERT ได้ / UPDATE และ DELETE ถูกปฏิเสธ) และ `TestMigration_AuditLogAction` ผ่าน (action นอกตาราง DM-07 ถูกปฏิเสธ, request_id ว่างได้)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 ---
 
