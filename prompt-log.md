@@ -416,3 +416,26 @@
 ### สิ่งที่เกือบต้องเดา
 - ชื่อ CHECK เดิมของ audit_log: ใช้ชื่อที่ PostgreSQL ตั้งให้อัตโนมัติ `audit_log_action_check` (ยืนยันด้วย test ที่ผ่าน)
 - ไม่ได้ใส่เพดานขนาดรูปเป็น CHECK ใน DB เพราะ AGENTS.md กฎข้อ 9 ให้ตัวเลขอยู่ใน config.go (T-02) ที่เดียว
+
+---
+
+## 2569-11-10 คำสั่ง: /implement T-02 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 0 ฐานราก)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "เอาเลย" -> `/implement T-02 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- แก้ `backend/internal/config/config.go`: `Timezone`, `ReturnPhotoMin`, `ReturnPhotoMax`, `ReturnPhotoMaxBytes`,
+  `ReturnRequestMaxBytes`, `ReturnPhotoTypes`, `ReturnConditionStatus` พร้อมคอมเมนต์อ้าง FR-RET-02 ถึง 05, ASM-05, ASM-06, glossary
+- สร้าง `backend/internal/config/config_test.go` (ไม่อยู่ในช่องไฟล์ที่แตะ เพิ่มเพราะ AGENTS.md ให้ test อยู่ข้างโค้ด)
+- ไม่ได้ทำ `frontend/src/config.js`: AI สร้างแล้วรัน vitest ไม่ได้ (ไม่มี node_modules) ถามว่าจะรัน `npm ci` ไหม
+  ทีมตอบ "ไม่ต้องทำอะไรกับ frontend" -> AI ลบ `frontend/src/config.js` และ `frontend/src/__tests__/config.test.js` ที่สร้างไว้ออก
+
+### ผล test (`cd backend && go test ./internal/config -v`)
+- TestReturnPhotoLimits PASS / TestReturnConditionStatus PASS / TestTimezoneLoads PASS
+
+### สิ่งที่เกือบต้องเดา
+- ที่เผื่อ 1 MB ใน `ReturnRequestMaxBytes` และ 5 MB = 5 × 1024 × 1024 มาจาก plan.md (ทีมเลือกเอง) ไม่ได้ตั้งใหม่
+- ยังไม่รู้ว่า "ไม่ต้องทำ frontend" ใช้กับ task หน้าจอที่เหลือ (T-06, T-10, T-13, T-15, T-18, T-20, T-22, T-24) ด้วยหรือไม่ ต้องถามทีม

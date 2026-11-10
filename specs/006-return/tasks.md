@@ -39,7 +39,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: มี `ReturnPhotoMin`, `ReturnPhotoMax`, `ReturnPhotoMaxBytes`, `ReturnPhotoTypes`, `ReturnRequestMaxBytes`, `ReturnConditionStatus`, `Timezone` ใน config.go และค่าคู่กันใน config.js ทุกตัวมีคอมเมนต์อ้าง ID ตาม plan.md ข้อ 5
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ (เฉพาะ config.go ทีมสั่ง 2569-11-10 ไม่ทำ frontend/src/config.js)
 
 ### T-03 สร้างโครง package returns ผูก route และข้อมูลตัวอย่าง
 - รองรับ: IF-IDP-01, CON-TECH-02
