@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"sync"
 	"testing"
@@ -211,5 +212,77 @@ func TestItems_UnknownModel(t *testing.T) {
 
 	if rec := get(t, srv, PathPrefix+"models/abc/items", tokenStudentDept1); rec.Code != http.StatusNotFound {
 		t.Errorf("รหัสรุ่นไม่ใช่ตัวเลข status = %d, ต้องเป็น 404", rec.Code)
+	}
+}
+
+// modelsByID เรียกรายการรุ่นด้วย query string ที่กำหนด แล้วคืนเป็น map ตามรหัสรุ่น
+func modelsByID(t *testing.T, srv http.Handler, query url.Values) map[int]ModelRowDTO {
+	t.Helper()
+	rec := get(t, srv, PathPrefix+"models?"+query.Encode(), tokenStudentDept1)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, ต้องเป็น 200 (body: %s)", rec.Code, rec.Body.String())
+	}
+	out := map[int]ModelRowDTO{}
+	for _, m := range decode[ListDTO[ModelRowDTO]](t, rec).Items {
+		out[m.ModelID] = m
+	}
+	return out
+}
+
+// AC-EQS-02 (FR-EQS-02) ส่วนกรองสถานะ (ส่วนค้นหาด้วยคำว่า "Notebook" รอ Q-06 ดู T-24)
+//
+//	Given อยู่ในหน้ารายการอุปกรณ์
+//	When  กรองสถานะ "ว่าง"
+//	Then  แสดงเฉพาะอุปกรณ์ที่มีสถานะว่างเท่านั้น
+func TestAC_EQS_02_FilterStatus(t *testing.T) {
+	// Given: ข้อมูลตั้งต้น รุ่น 1 ว่าง 3 ถูกยืม 2 / รุ่น 2 ว่าง 1 ไม่พร้อมใช้งาน 1 / รุ่น 3 ว่าง 1
+	srv := newTestServer(t)
+
+	// When: กรองสถานะ "ว่าง"
+	models := modelsByID(t, srv, url.Values{"status": {"available"}})
+
+	// Then: ทุกแถวนับเฉพาะชิ้นที่ว่าง
+	for id, m := range models {
+		if m.TotalCount != m.AvailableCount {
+			t.Errorf("รุ่น %d นับชิ้นที่ไม่ว่างด้วย: ว่าง %d / ทั้งหมด %d", id, m.AvailableCount, m.TotalCount)
+		}
+	}
+	if m, ok := models[1]; !ok || m.TotalCount != 3 {
+		t.Errorf("รุ่น 1 ต้องเหลือ 3 ชิ้นที่ว่าง ได้ %+v", m)
+	}
+
+	// Then: รายชิ้นของรุ่นนั้นใช้ตัวกรองเดียวกัน เห็นเฉพาะชิ้นที่ว่าง
+	rec := get(t, srv, PathPrefix+"models/1/items?status=available", tokenStudentDept1)
+	items := decode[ListDTO[ItemRow]](t, rec).Items
+	if len(items) != 3 {
+		t.Fatalf("รายชิ้นต้องเหลือ 3 ชิ้น ได้ %d: %+v", len(items), items)
+	}
+	for _, it := range items {
+		if it.Status != StatusAvailable {
+			t.Errorf("%s สถานะ %s ไม่ใช่ว่าง", it.AssetCode, it.Status)
+		}
+	}
+}
+
+// FR-EQS-02 แสดงเฉพาะรุ่นที่มีอย่างน้อย 1 ชิ้นตรงเงื่อนไข ทั้งตัวกรองสถานะและประเภท
+func TestFR_EQS_02_OnlyModelsWithMatchingItems(t *testing.T) {
+	srv := newTestServer(t)
+
+	// มีชิ้นที่ไม่พร้อมใช้งานแค่ CS-PJ-0002 ของรุ่น 2
+	models := modelsByID(t, srv, url.Values{"status": {"unavailable"}})
+	if len(models) != 1 || models[2].TotalCount != 1 {
+		t.Errorf("กรอง \"ไม่พร้อมใช้งาน\" ต้องเหลือแค่รุ่น 2 จำนวน 1 ชิ้น ได้ %+v", models)
+	}
+
+	// ประเภท "อุปกรณ์นำเสนอ" มีแค่รุ่น 2
+	models = modelsByID(t, srv, url.Values{"category": {"อุปกรณ์นำเสนอ"}})
+	if len(models) != 1 || models[2].TotalCount != 2 {
+		t.Errorf("กรองประเภท \"อุปกรณ์นำเสนอ\" ต้องเหลือแค่รุ่น 2 ได้ %+v", models)
+	}
+
+	// ค่าที่ไม่รู้จัก (รวมข้อความที่หน้าตาเป็น SQL) ไม่ตรงกับชิ้นใด และไม่ทำให้ query พัง (parameterized query)
+	models = modelsByID(t, srv, url.Values{"category": {"x' OR '1'='1"}, "status": {"pending"}})
+	if len(models) != 0 {
+		t.Errorf("ค่าที่ไม่รู้จักต้องไม่ตรงกับรุ่นใด ได้ %+v", models)
 	}
 }

@@ -23,18 +23,46 @@ func NewRepository(db Querier) *Repository {
 	return &Repository{db: db}
 }
 
+// Filter คือตัวกรองของหน้ารายการ (FR-EQS-02) ค่าว่าง = ไม่กรองด้วยเงื่อนไขนั้น
+// การกรองใช้กับสถานะของอุปกรณ์รายชิ้น (Q-15) ค่าที่ไม่รู้จักจะไม่ตรงกับชิ้นใดเลย ไม่ถือเป็น error
+type Filter struct {
+	Categories []string // ชื่อประเภท (glossary: "ประเภท" = กลุ่มใหญ่ของรุ่น, Q-13)
+	Statuses   []string // สถานะรายชิ้น ใช้ค่าของ CON-DATA-01 (available / borrowed / unavailable)
+}
+
+// args คืนตัวกรองเป็น array สำหรับ parameter ของ SQL ไม่ส่ง nil เพื่อให้ cardinality() ได้ 0 แทน NULL
+func (f Filter) args() (categories, statuses []string) {
+	categories, statuses = f.Categories, f.Statuses
+	if categories == nil {
+		categories = []string{}
+	}
+	if statuses == nil {
+		statuses = []string{}
+	}
+	return categories, statuses
+}
+
+// เงื่อนไขกรองที่ใช้ร่วมกันทั้งรายการรุ่นและรายชิ้น (plan.md ข้อ 6.3: รายชิ้นใช้ตัวกรองเดียวกัน)
+// $2 = ประเภท, $3 = สถานะ เป็น parameter ทั้งคู่ ไม่ต่อสตริงจากค่าที่ผู้ใช้ส่งมา
+const filterWhere = `
+  (cardinality($2::text[]) = 0 OR category_name = ANY($2::text[]))
+  AND (cardinality($3::text[]) = 0 OR status = ANY($3::text[]))`
+
 // ListModels คืนรายการรุ่น 1 แถว = 1 รุ่น พร้อมจำนวนว่างและจำนวนทั้งหมด (FR-EQS-01)
 // จำนวนว่างนับจากสถานะ "ว่าง" อย่างเดียว คำขอยืมที่ค้างไม่ลดจำนวน (DOM-REQ-01)
+// กรองที่รายชิ้นก่อนนับ จึงแสดงเฉพาะรุ่นที่มีอย่างน้อย 1 ชิ้นตรงเงื่อนไข และตัวเลขนับเฉพาะชิ้นที่ตรง (FR-EQS-02, Q-15)
 // ยังไม่แบ่งหน้า (รอ Q-05 ดู T-23) และยังไม่จำกัดภาควิชา (T-18)
-func (r *Repository) ListModels(ctx context.Context) ([]ModelRowDTO, error) {
+func (r *Repository) ListModels(ctx context.Context, f Filter) ([]ModelRowDTO, error) {
 	const q = `
 SELECT model_id, model_name, category_name,
        count(DISTINCT item_id) FILTER (WHERE status = $1) AS available_count,
        count(DISTINCT item_id)                            AS total_count
 FROM v_equipment_item_status
+WHERE` + filterWhere + `
 GROUP BY model_id, model_name, category_name
 ORDER BY model_name, model_id`
-	rows, err := r.db.Query(ctx, q, string(StatusAvailable))
+	categories, statuses := f.args()
+	rows, err := r.db.Query(ctx, q, string(StatusAvailable), categories, statuses)
 	if err != nil {
 		return nil, err
 	}
@@ -56,15 +84,17 @@ type ItemRow struct {
 	Status    Status `json:"status"`
 }
 
-// ListItems คืนอุปกรณ์รายชิ้นทั้งหมดของรุ่นที่เลือก พร้อมสถานะล่าสุดของแต่ละชิ้น เรียงตามรหัสครุภัณฑ์ (FR-EQS-01)
+// ListItems คืนอุปกรณ์รายชิ้นของรุ่นที่เลือก พร้อมสถานะล่าสุดของแต่ละชิ้น เรียงตามรหัสครุภัณฑ์ (FR-EQS-01)
+// ใช้ตัวกรองเดียวกับรายการรุ่น (FR-EQS-02, plan.md ข้อ 6.3)
 // รุ่นที่ไม่มีอยู่ได้รายการว่าง (plan.md ข้อ 5: ไม่พบ = items ว่าง ไม่ใช่ error)
-func (r *Repository) ListItems(ctx context.Context, modelID int) ([]ItemRow, error) {
+func (r *Repository) ListItems(ctx context.Context, modelID int, f Filter) ([]ItemRow, error) {
 	const q = `
 SELECT DISTINCT asset_code, status
 FROM v_equipment_item_status
-WHERE model_id = $1
+WHERE model_id = $1 AND` + filterWhere + `
 ORDER BY asset_code`
-	rows, err := r.db.Query(ctx, q, modelID)
+	categories, statuses := f.args()
+	rows, err := r.db.Query(ctx, q, modelID, categories, statuses)
 	if err != nil {
 		return nil, err
 	}

@@ -13,7 +13,12 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-// ListModels คืนรายการรุ่นพร้อมจำนวนว่าง/ทั้งหมด (FR-EQS-01)
-func (s *Service) ListModels(ctx context.Context) ([]ModelRowDTO, error) {
-	return s.repo.ListModels(ctx)
+// ListModels คืนรายการรุ่นพร้อมจำนวนว่าง/ทั้งหมด ตามตัวกรอง (FR-EQS-01, FR-EQS-02)
+func (s *Service) ListModels(ctx context.Context, f Filter) ([]ModelRowDTO, error) {
+	return s.repo.ListModels(ctx, f)
+}
+
+// ListItems คืนอุปกรณ์รายชิ้นของรุ่นที่เลือก ตามตัวกรองเดียวกัน (FR-EQS-01, FR-EQS-02)
+func (s *Service) ListItems(ctx context.Context, modelID int, f Filter) ([]ItemRow, error) {
+	return s.repo.ListItems(ctx, modelID, f)
 }

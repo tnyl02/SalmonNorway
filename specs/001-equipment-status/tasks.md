@@ -120,11 +120,11 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.3) | Plan: plan.md Draft v1.5 | tasks v2: 2
 ### T-07 เพิ่มตัวกรองประเภทและสถานะใน API
 - รองรับ: FR-EQS-02
 - ตรวจด้วย: AC-EQS-02 (ส่วนกรองสถานะ)
-- ไฟล์ที่แตะ: `backend/internal/equipment/repository.go`, `backend/internal/equipment/handler.go`, `backend/internal/equipment/handler_test.go`
+- ไฟล์ที่แตะ: `backend/internal/equipment/repository.go`, `backend/internal/equipment/handler.go`, `backend/internal/equipment/handler_test.go`, `backend/internal/equipment/service.go` (ส่งตัวกรองผ่าน service เพิ่มตามที่ทีมตัดสิน 2569-11-10)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-05
 - เสร็จเมื่อ: `TestAC_EQS_02_FilterStatus` ผ่าน (กรอง "ว่าง" ได้เฉพาะชิ้นที่ว่าง และแสดงเฉพาะรุ่นที่มีอย่างน้อย 1 ชิ้นตรงเงื่อนไข) parameterized query ทุกจุด
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 ### T-32 ตัวกรองเลือกหลายค่า และตัวเลขของรุ่นนับตามตัวกรองใน API
 - รองรับ: FR-EQS-01, FR-EQS-02 (คำตอบ Q-15: กรองที่รายชิ้น ตัวเลขเปลี่ยนตามตัวกรอง เลือกได้หลายค่า)

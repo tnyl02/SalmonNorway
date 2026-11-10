@@ -30,9 +30,9 @@ func (h *Handler) Routes() http.Handler {
 	return mux
 }
 
-// listModels: GET /v1/equipment/models รายการรุ่นพร้อมจำนวนว่าง/ทั้งหมด (FR-EQS-01, AC-EQS-01)
+// listModels: GET /v1/equipment/models?category=&status= รายการรุ่นพร้อมจำนวนว่าง/ทั้งหมด (FR-EQS-01, FR-EQS-02, AC-EQS-01, AC-EQS-02)
 func (h *Handler) listModels(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.svc.ListModels(r.Context())
+	rows, err := h.svc.ListModels(r.Context(), filterFrom(r))
 	if err != nil {
 		writeUpstreamError(w, err)
 		return
@@ -41,19 +41,33 @@ func (h *Handler) listModels(w http.ResponseWriter, r *http.Request) {
 }
 
 // listItems: GET /v1/equipment/models/{modelId}/items อุปกรณ์รายชิ้นของรุ่นที่เลือก (FR-EQS-01, AC-EQS-01)
-// อ่านตรงจาก repository เพราะยังไม่มีกฎของ service ที่ใช้กับรายชิ้น (กฎเลยกำหนดคืนและตามบทบาทเพิ่มใน T-12, T-17)
+// ใช้ตัวกรองเดียวกับรายการรุ่น (FR-EQS-02)
 func (h *Handler) listItems(w http.ResponseWriter, r *http.Request) {
 	modelID, err := strconv.Atoi(r.PathValue("modelId"))
 	if err != nil || modelID <= 0 {
 		http.NotFound(w, r) // รหัสรุ่นที่ไม่ใช่ตัวเลข ถือว่าไม่มี path นี้
 		return
 	}
-	items, err := h.svc.repo.ListItems(r.Context(), modelID)
+	items, err := h.svc.ListItems(r.Context(), modelID, filterFrom(r))
 	if err != nil {
 		writeUpstreamError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, ListDTO[ItemRow]{Items: nonNil(items), Total: len(items)})
+}
+
+// filterFrom อ่านตัวกรองจาก query string (FR-EQS-02) ตอนนี้รับได้ค่าเดียวต่อตัวกรอง
+// ?category=<ชื่อประเภท>&status=<available|borrowed|unavailable>
+func filterFrom(r *http.Request) Filter {
+	q := r.URL.Query()
+	var f Filter
+	if v := q.Get("category"); v != "" {
+		f.Categories = []string{v}
+	}
+	if v := q.Get("status"); v != "" {
+		f.Statuses = []string{v}
+	}
+	return f
 }
 
 // writeUpstreamError ตอบเมื่ออ่านฐานข้อมูลไม่สำเร็จ ตาม Error contract ใน plan.md ข้อ 5 (FR-EQS-08)
