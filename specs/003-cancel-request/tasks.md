@@ -461,7 +461,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-02, T-06
 - เสร็จเมื่อ: `TestAC_CXL_15_NotifyDepartmentStaff` ผ่าน (Notifier ปลอมได้ 1 ข้อความถึง Email ของภาควิชาเจ้าของอุปกรณ์ มีผู้ยกเลิก ชื่อรุ่น รหัสครุภัณฑ์ เวลา และเหตุผล ส่งหลัง commit)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 14
 - test ที่ต้องผ่านทั้งหมด: `TestAC_CXL_15_NotifyDepartmentStaff` และ test ของเฟส 0-13
@@ -545,6 +545,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-28, T-31
 - เสร็จเมื่อ: `TestAC_CXL_16_NotifyFailureStillCancelled` ตรวจเพิ่มว่ามีแถว action `notify` outcome `error` และ request_id ของคำขอนั้นใน audit_log
+  และกรณีภาควิชาไม่มี Email เจ้าหน้าที่ (ErrNoRecipients) ก็ต้องบันทึกแถวเดียวกัน (ทีมตัดสิน 2569-11-12 ตอนทำ T-27)
 - สถานะ: พร้อมทำ
 
 #### จุดตรวจเฟส 17

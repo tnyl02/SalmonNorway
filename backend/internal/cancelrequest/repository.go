@@ -100,3 +100,36 @@ func (r *Repository) OwnStatus(ctx context.Context, tx pgx.Tx, requestID int, re
 	return status, true, nil
 }
 
+// cancelledInfoSQL อ่านข้อมูลที่ต้องใส่ใน Email หลังยกเลิกสำเร็จ (FR-CXL-09) ภาควิชาเจ้าของอุปกรณ์มาจากรุ่น (DM-01)
+const cancelledInfoSQL = `
+SELECT m.name, i.asset_code, m.department_id, r.cancelled_at, r.requester_name, r.student_code
+FROM borrow_request r
+JOIN equipment_item  i ON i.id = r.item_id
+JOIN equipment_model m ON m.id = i.model_id
+WHERE r.id = $1`
+
+// staffEmailsSQL อ่าน Email เจ้าหน้าที่ของภาควิชา จากตารางจำลอง staff_contact (ASM-10, รอ Q-15 สำหรับระบบจริง)
+const staffEmailsSQL = `SELECT email FROM staff_contact WHERE department_id = $1 ORDER BY email`
+
+// CancelledNotice อ่านข้อมูลสำหรับ Email ของคำขอที่เพิ่งยกเลิก ใน transaction tx (ก่อน commit) ผู้ยกเลิกและเหตุผลใส่ที่ service
+func (r *Repository) CancelledNotice(ctx context.Context, tx pgx.Tx, requestID int) (CancelNotice, error) {
+	n := CancelNotice{RequestID: requestID}
+	var departmentID int
+	if err := tx.QueryRow(ctx, cancelledInfoSQL, requestID).Scan(&n.ModelName, &n.AssetCode, &departmentID, &n.CancelledAt, &n.RequesterName, &n.StudentCode); err != nil {
+		return CancelNotice{}, err
+	}
+	rows, err := tx.Query(ctx, staffEmailsSQL, departmentID)
+	if err != nil {
+		return CancelNotice{}, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var email string
+		if err := rows.Scan(&email); err != nil {
+			return CancelNotice{}, err
+		}
+		n.To = append(n.To, email)
+	}
+	return n, rows.Err()
+}
+

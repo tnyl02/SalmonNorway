@@ -2933,3 +2933,75 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
   - specs/CHANGELOG.md, prompt-log.md: เก็บทั้งสองฝั่ง
 - ผล test หลัง merge: go build, go vet ผ่าน, go test -p 1 ./... ผ่านทุก package (รวม borrowrequest, handover), npm test 47/47, npm run build ผ่าน
 
+---
+
+## 2569-11-12 /implement T-27 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-27 สร้าง Notifier จำลองและส่งหลังยกเลิกสำเร็จ
+- ไฟล์ที่แก้หรือสร้าง:
+  - notifier.go (ใหม่): CancelNotice, interface Notifier, LogNotifier (Email จำลองเขียนลง log ASM-10)
+  - repository.go: CancelledNotice อ่านชื่อรุ่น รหัสครุภัณฑ์ ภาควิชาเจ้าของอุปกรณ์ cancelled_at และ Email จาก staff_contact ใน transaction
+  - service.go: NewService ใช้ LogNotifier เป็นค่าเริ่มต้น, WithNotifier เปลี่ยนตัวส่ง, ส่งหลัง commit เท่านั้น ส่งไม่สำเร็จเขียน log ไม่ย้อนการยกเลิก
+  - notifier_test.go (ใหม่): TestAC_CXL_15_NotifyDepartmentStaff, TestNotify_NotSentWhenNotCancelled, TestNotify_NoStaffEmailStillCancelled
+  - ไม่แก้ backend/cmd/server/main.go (อยู่ในช่องไฟล์ที่แตะ) เพราะ NewService ใช้ LogNotifier เป็นค่าเริ่มต้นแล้ว ไม่ต้องแตะไฟล์กลาง
+    ไม่แก้ tc_helpers_test.go เพราะวิธีสร้าง Service ไม่เปลี่ยน
+- ผล test: package cancelrequest ผ่านทั้งหมด `go test -p 1 ./...` ผ่านทุก package
+- ที่ AI เลือกเองในขอบเขต task (spec ไม่ได้บอก ต้องให้ทีมตรวจ):
+  - ภาควิชาที่ไม่มี Email ใน staff_contact: ยกเลิกสำเร็จตามปกติ ไม่เรียก Notifier เขียน log ไว้
+  - ผู้ยกเลิกในข้อความเป็นรหัสผู้ใช้ (Principal.UserID) เพราะ IF-IDP-01 ไม่ส่งชื่อมา
+  - ส่ง Email แบบรอผล (ไม่แยก goroutine) หลัง commit ใช้ context.WithoutCancel ไม่ให้ dbTimeout ตัดการส่ง
+- สถานะใน tasks.md: T-27 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-12 แก้รูปแบบเวลาใน Email จำลอง (T-27, 003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: ตอนลองบนจอจริง เวลาในฐานข้อมูล (2026-11-11 18:25:39+00 UTC) กับใน Email จำลอง (2026-11-12T01:25:39+07:00) ดูไม่เหมือนกัน
+  ขอให้แสดงเหมือนกันและไม่ต้องมีวินาที (เป็นเวลาเดียวกัน ต่างแค่เขตเวลา)
+- ไฟล์ที่แก้: notifier.go เพิ่ม FormatNoticeTime เวลาไทย (config.TimeZone) ปี พ.ศ. ไม่มีวินาที "2569-11-12 01:25" แบบเดียวกับหน้าเว็บ
+  notifier_test.go เพิ่ม TestFormatNoticeTime ค่าที่เก็บในฐานข้อมูลไม่เปลี่ยน
+- ที่ AI เลือก: ใช้ปี พ.ศ. ให้ตรงกับเวลาบนหน้าเว็บ (formatDueAt ของ 001), ตัดวินาทีทิ้งไม่ปัด
+- คำสั่งดูเวลาในฐานข้อมูลแบบเดียวกัน: to_char ใน psql (ให้ไว้ในแชต)
+
+---
+
+## 2569-11-12 ลอง T-27 บนจอจริงผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- วิธีตรวจ: เปิดหลังบ้านใหม่ ยกเลิกคำขอบนหน้าเว็บ Email จำลองใน log มีผู้รับ staff-it@example.test ผู้ยกเลิก ชื่อรุ่น รหัสครุภัณฑ์
+  เวลา (รูปแบบใหม่ 2569-11-12 01:25 ตรงกับ cancelled_at ในฐานข้อมูลเมื่อแปลงเป็นเวลาไทย) และเหตุผล
+- ยังค้าง: ทีมยังไม่ตอบ 3 เรื่องที่ spec ไม่ได้บอก (ภาควิชาที่ไม่มี Email, ผู้ยกเลิกเป็นรหัสหรือชื่อ, รอผลหรือส่งเบื้องหลัง) สถานะ T-27 ยังเป็น "เสร็จ รอทีมตรวจ"
+
+---
+
+## 2569-11-12 ทีมตัดสิน 3 เรื่องของ Email (T-27, 003-cancel-request)
+
+- ผู้ตัดสิน: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- คำตอบ: (1) ภาควิชาที่ไม่มี Email เจ้าหน้าที่ นับเป็นส่งไม่สำเร็จ (2) ผู้ยกเลิกแสดงทั้งชื่อ/รหัสนักศึกษาจากคำขอและรหัสผู้ใช้ (3) ส่งแบบรอผล
+- ไฟล์ที่แก้:
+  - notifier.go: CancelNotice เพิ่ม RequesterName, StudentCode, FormatCanceller, ErrNoRecipients
+  - repository.go: CancelledNotice อ่าน requester_name, student_code
+  - service.go: notify คืน error (ไม่มีผู้รับ = ErrNoRecipients) ให้ T-32 ใช้บันทึก audit การยกเลิกยังสำเร็จ
+  - notifier_test.go: ตรวจ FormatCanceller, เพิ่ม TestNotify_ReportsFailure
+  - spec.md ASM-10 (บันทึก 4 ข้อของ Email), Q-15 (เพิ่มคำถามเวลาส่งของตัวส่งจริง), tasks.md T-32, CHANGELOG
+- ผล test: `go test -p 1 ./...` ผ่านทุก package
+
+---
+
+## 2569-11-12 ทีมตรวจ T-27 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ:
+  - A: test 5 ตัว (AC_CXL_15, Notify_NotSent, Notify_NoStaffEmail, Notify_ReportsFailure, FormatNoticeTime) และ go test -p 1 ./... ผ่าน
+  - B: บนจอจริง กรณียกเลิกสำเร็จ Email จำลองมีผู้รับ ผู้ยกเลิก (ชื่อ รหัสนักศึกษา รหัสผู้ใช้) ชื่อรุ่น รหัสครุภัณฑ์ เวลา (ตรงกับฐานข้อมูล) เหตุผล
+    กรณียกเลิกไม่สำเร็จไม่มี Email, กรณีภาควิชา 2 ไม่มี Email ขึ้น "ส่งไม่สำเร็จ: no staff email" และยกเลิกสำเร็จ
+  - C: อ่านโค้ด ส่งหลัง commit และหาภาควิชาจากอุปกรณ์
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-27 เป็น "เสร็จ"
+
