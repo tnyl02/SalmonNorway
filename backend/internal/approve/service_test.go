@@ -537,3 +537,67 @@ func TestAC_APV_15(t *testing.T) {
 	assertHistory(t, tx, stale, config.ApprovalKindAutoRejected, config.ApprovalAutoRejectReason,
 		config.ApprovalSystemActorID, config.AuditActionAutoReject)
 }
+
+// AC-APV-17 (FR-APV-01 จ ฉ, Q-APV-14) [ID รอทีมอนุมัติ Q-APV-22]
+// Given อุปกรณ์รายชิ้นเดียวกันมีคำขอยืมปกติ A (ส่งก่อน) และคำขอค้างคืน C สถานะ requested (AP-TEST-0001)
+// When  เจ้าหน้าที่อนุมัติคำขอ A / หรือเมื่อถึง 00:00 น. หลังวันที่ส่งของ C
+// Then  กรณีอนุมัติ A: C เป็น rejected ด้วยเหตุผล "อุปกรณ์ชิ้นนี้ได้รับการอนุมัติให้คำขออื่นแล้ว" และผู้ขอได้รับ Email ผลปฏิเสธ
+//
+//	/ กรณีเที่ยงคืน: C ยังเป็น requested
+func TestAC_APV_17(t *testing.T) {
+	t.Run("อนุมัติ A แล้ว C ค้างคืนถูกปฏิเสธตาม", func(t *testing.T) {
+		tx := devTx(t)
+		a := requestIDOf(t, tx, "AP-TEST-0001", "student-001")
+		c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+
+		res, err := NewService(NewRepository(tx)).Approve(staffCtx("staff-001", 1), a, time.Time{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, id := range res.RejectedBy {
+			found = found || id == c
+		}
+		if !found {
+			t.Errorf("C ต้องอยู่ในรายการคำขอที่ถูกปฏิเสธตาม แต่ได้ %v", res.RejectedBy)
+		}
+
+		var status, reason, kind string
+		if err := tx.QueryRow(context.Background(), `
+			SELECT r.status, d.reason, e.kind FROM borrow_request r
+			JOIN approval_decision d ON d.request_id = r.id
+			JOIN approval_email    e ON e.request_id = r.id
+			WHERE r.id = $1`, c).Scan(&status, &reason, &kind); err != nil {
+			t.Fatalf("C ต้องมีผลการพิจารณาและ Email: %v", err)
+		}
+		if status != "rejected" || reason != config.ApprovalSupersededReason || kind != config.ApprovalKindRejected {
+			t.Errorf("C ได้ %q / %q / Email %q", status, reason, kind)
+		}
+	})
+
+	t.Run("เที่ยงคืนหลังวันที่ส่งของ C แล้ว C ยังเป็น requested", func(t *testing.T) {
+		tx := devTx(t)
+		c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+		midnight := autoRejectCutoff(time.Now()).AddDate(0, 0, 1)
+		if _, err := tx.Exec(context.Background(), `UPDATE borrow_request SET submitted_at = $2 WHERE id = $1`,
+			c, midnight.Add(-2*time.Hour)); err != nil {
+			t.Fatal(err)
+		}
+
+		job := &AutoRejecter{db: tx, now: func() time.Time { return midnight.Add(time.Minute) }}
+		if _, err := job.RejectStale(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+
+		var status string
+		var decisions int
+		if err := tx.QueryRow(context.Background(), `
+			SELECT r.status, (SELECT count(*) FROM approval_decision d WHERE d.request_id = r.id)
+			FROM borrow_request r WHERE r.id = $1`, c).Scan(&status, &decisions); err != nil {
+			t.Fatal(err)
+		}
+		if status != "requested" || decisions != 0 {
+			t.Errorf("C ค้างคืนต้องยังเป็น requested ไม่มีผลการพิจารณา แต่ได้ %q / %d", status, decisions)
+		}
+	})
+}
