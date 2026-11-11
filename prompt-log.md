@@ -1886,3 +1886,19 @@
 - รอบแรกไม่เห็นข้อความเพราะหน้าโหลดรายการใหม่หลัง UPDATE แล้ว (ไม่ได้ผ่านขั้นกดยกเลิก) ไม่ใช่บั๊ก
 - ผล: เปลี่ยนสถานะใน tasks.md ของ T-16 เป็น "เสร็จ"
 
+---
+
+## 2569-11-12 /implement T-18 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-18 แสดงข้อความ "คำขอนี้ยกเลิกไม่ได้"
+- ไฟล์ที่แก้ (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - MyPendingRequests.jsx: เปลี่ยนเงื่อนไขของ T-16 เป็นตาราง CANCEL_REJECTED (รหัส error -> ข้อความใน config.js)
+    เพิ่ม NOT_CANCELLABLE -> MSG_NOT_CANCELLABLE ปิดกล่อง แสดงแถบแดง โหลดรายการใหม่ (พฤติกรรมของ ALREADY_APPROVED เหมือนเดิม)
+  - __tests__/MyPendingRequests.test.jsx: AC_CXL_11 shows not cancellable message, cancel error clears when opening next dialog
+- ผล test: `npx vitest run` ผ่าน 37/37 (TC-CXL หน้าจอ 10/10, AC_CXL_02 ของ T-16 ยังผ่าน) `npm run build` ผ่าน
+- สิ่งที่เกือบต้องเดา: ไม่มี (plan.md ข้อ 4)
+- สถานะใน tasks.md: T-18 เสร็จ รอทีมตรวจ
+

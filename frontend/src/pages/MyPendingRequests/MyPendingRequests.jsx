@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client.js'
-import { LABEL_RETRY, MSG_ALREADY_APPROVED, MSG_CANCEL_SUCCESS, MSG_LOAD_FAILED, MSG_NO_PENDING } from '../../config.js'
+import {
+  LABEL_RETRY,
+  MSG_ALREADY_APPROVED,
+  MSG_CANCEL_SUCCESS,
+  MSG_LOAD_FAILED,
+  MSG_NO_PENDING,
+  MSG_NOT_CANCELLABLE,
+} from '../../config.js'
 import { formatDueAt } from '../EquipmentDetail/EquipmentDetail.jsx'
 import CancelDialog from './CancelDialog.jsx'
 
@@ -12,8 +19,16 @@ const formatSubmittedAt = formatDueAt
 // แสดงเฉพาะคำขอของนักศึกษาที่เข้าสู่ระบบที่ยังยกเลิกได้ หลังบ้านกรองและเรียงใหม่ไปเก่ามาแล้ว (FR-CXL-03, CON-CXL-02)
 // กดยกเลิกแล้วต้องยืนยันพร้อมเหตุผลก่อน ยกเลิกสำเร็จแล้วแถวหายจากหน้า (FR-CXL-07, FR-CXL-01)
 // ไม่มีคำขอแสดง MSG_NO_PENDING โหลดไม่สำเร็จแสดง MSG_LOAD_FAILED พร้อมปุ่มลองใหม่ ไม่แสดงรายการเก่า (FR-CXL-06, ASM-13)
-// ยกเลิกไม่ได้เพราะอนุมัติแล้ว (409 ALREADY_APPROVED) แสดง MSG_ALREADY_APPROVED แล้วโหลดรายการใหม่ (FR-CXL-02, plan.md ข้อ 4)
-// ข้อความของกรณีอื่นอยู่ใน T-18, T-20, T-24
+// ยกเลิกไม่ได้ตามตาราง error ใน plan.md ข้อ 4: แสดงข้อความแล้วโหลดรายการใหม่ (FR-CXL-02) ดู CANCEL_REJECTED
+// ข้อความของกรณีอื่นอยู่ใน T-20, T-24
+
+// CANCEL_REJECTED คือรหัส error จากหลังบ้านที่แปลว่ายกเลิกไม่ได้ จับคู่กับข้อความใน config.js (plan.md ข้อ 4)
+// ได้รหัสเหล่านี้แล้ว ปิดกล่อง แสดงข้อความ และโหลดรายการใหม่ให้ตรงกับฐานข้อมูล
+const CANCEL_REJECTED = {
+  ALREADY_APPROVED: MSG_ALREADY_APPROVED, // 409 FR-CXL-02, FR-CXL-04 (T-16)
+  NOT_CANCELLABLE: MSG_NOT_CANCELLABLE, // 409 FR-CXL-02 rejected, handed_over, returned, cancelled (T-18)
+}
+
 export default function MyPendingRequests({ client = api }) {
   const [items, setItems] = useState(null)
   const [loadFailed, setLoadFailed] = useState(false)
@@ -56,13 +71,14 @@ export default function MyPendingRequests({ client = api }) {
       setSuccess(MSG_CANCEL_SUCCESS(request.modelName, request.assetCode))
       setTarget(null)
     } catch (err) {
-      if (err?.status === 409 && err.code === 'ALREADY_APPROVED') {
-        // FR-CXL-02, FR-CXL-04: เจ้าหน้าที่อนุมัติไปก่อน ปิดกล่อง แจ้งเหตุผล แล้วโหลดรายการใหม่ให้ตรงกับฐานข้อมูล
+      const message = CANCEL_REJECTED[err?.code]
+      if (message) {
+        // FR-CXL-02, FR-CXL-04: สถานะเปลี่ยนไปแล้ว ปิดกล่อง แจ้งเหตุผล แล้วโหลดรายการใหม่
         setTarget(null)
-        setCancelError(MSG_ALREADY_APPROVED)
+        setCancelError(message)
         setReloadKey((k) => k + 1)
       }
-      // กรณีอื่น: คงแถวและกล่องไว้ ข้อความอยู่ใน T-18, T-20, T-24
+      // กรณีอื่น: คงแถวและกล่องไว้ ข้อความอยู่ใน T-20, T-24
     } finally {
       setBusy(false)
     }
