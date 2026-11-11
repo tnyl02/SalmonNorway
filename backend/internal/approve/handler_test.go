@@ -187,3 +187,45 @@ func TestAC_APV_02_HTTP(t *testing.T) {
 		t.Errorf("เหตุผลที่บันทึกต้องตรงกับที่ส่ง แต่ได้ %q", reason)
 	}
 }
+
+// AC-APV-06 (FR-APV-01 ง)
+// Given คำขอสถานะ requested (AP-TEST-0003)
+// When  เจ้าหน้าที่กดปฏิเสธโดยไม่ระบุเหตุผล (ว่าง / มีแต่ช่องว่าง / ไม่ส่งช่อง reason)
+// Then  ระบบไม่ปฏิเสธ ตอบ 422 VALIDATION_FAILED ช่อง reason พร้อม "กรุณาระบุเหตุผลในการปฏิเสธ" และสถานะคงเดิม
+func TestAC_APV_06(t *testing.T) {
+	tx := devTx(t)
+	srv := newTestServer(tx)
+	id := requestIDOf(t, tx, "AP-TEST-0003", "student-002")
+	path := fmt.Sprintf("%srequests/%d/reject", PathPrefix, id)
+
+	for _, body := range []string{
+		`{"loadedAt":"2026-11-12T03:00:00Z","reason":""}`,
+		`{"loadedAt":"2026-11-12T03:00:00Z","reason":"   \n\t"}`,
+		`{"loadedAt":"2026-11-12T03:00:00Z"}`,
+	} {
+		w := postJSON(srv, tokenStaffDept1, path, body)
+		if w.Code != http.StatusUnprocessableEntity {
+			t.Errorf("body %s ต้องได้ 422 แต่ได้ %d", body, w.Code)
+			continue
+		}
+		var e ValidationErrorDTO
+		if err := json.Unmarshal(w.Body.Bytes(), &e); err != nil {
+			t.Fatal(err)
+		}
+		if e.Code != "VALIDATION_FAILED" || e.Message != "กรุณาระบุเหตุผลในการปฏิเสธ" || len(e.Fields) != 1 || e.Fields[0] != "reason" {
+			t.Errorf("body %s ได้คำตอบไม่ถูกต้อง: %+v", body, e)
+		}
+	}
+
+	// สถานะคงเดิม และไม่มีประวัติการพิจารณา
+	var status string
+	var decisions int
+	if err := tx.QueryRow(context.Background(), `
+		SELECT r.status, (SELECT count(*) FROM approval_decision d WHERE d.request_id = r.id)
+		FROM borrow_request r WHERE r.id = $1`, id).Scan(&status, &decisions); err != nil {
+		t.Fatal(err)
+	}
+	if status != "requested" || decisions != 0 {
+		t.Errorf("สถานะต้องคงเป็น requested และไม่มี approval_decision แต่ได้ %q / %d", status, decisions)
+	}
+}

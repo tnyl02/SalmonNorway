@@ -68,3 +68,11 @@ func toResultDTO(r Result) ResultDTO {
 	}
 	return ResultDTO{RequestID: r.RequestID, Status: r.Status, DecidedAt: r.DecidedAt, RejectedRequestIDs: ids}
 }
+
+// ValidationErrorDTO คือ {code, message} ที่แนบรายชื่อช่องที่ผิด CON-TECH-03 กำหนดให้ VALIDATION_FAILED แนบช่องมาด้วย
+// ชื่อช่อง fields แบบเดียวกับ 002
+type ValidationErrorDTO struct {
+	Code    string   `json:"code"`
+	Message string   `json:"message"`
+	Fields  []string `json:"fields"`
+}

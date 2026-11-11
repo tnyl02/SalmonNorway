@@ -179,11 +179,11 @@ Updated: 2569-11-12
 ### T-12 ตรวจเหตุผลการปฏิเสธที่ว่างหรือมีแต่ช่องว่าง
 - รองรับ: FR-APV-01 (ง)(ซ), CON-TECH-03
 - ตรวจด้วย: AC-APV-06
-- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/handler_test.go`
+- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/handler_test.go`, `backend/internal/approve/handler.go` + `dto.go` (แปลง error เป็น 422 พร้อมรายชื่อช่อง)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `TestAC_APV_06` ผ่าน: ตอบ 422 `VALIDATION_FAILED` ระบุช่อง `reason` พร้อมข้อความ "กรุณาระบุเหตุผลในการปฏิเสธ" และสถานะคงเดิม
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน `TestAC_APV_06` ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 ### T-13 แสดงข้อความเมื่อไม่ระบุเหตุผลบนหน้าจอ
 - รองรับ: FR-APV-01 (ซ)

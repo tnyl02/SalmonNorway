@@ -2453,3 +2453,26 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ฟีเจอร์: 004-approve-request
 - คำสั่ง: "ทีมตรวจแล้วผ่าน"
 - สิ่งที่แก้: tasks.md T-11 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-12 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "ทีมตรวจแล้วผ่าน" (T-11 -> เสร็จ)
+- คำสั่ง: "/implement T-12"
+- ไฟล์ที่แก้: `backend/internal/approve/service.go` (`ErrReasonRequired` ตรวจ strings.TrimSpace ก่อนเปิด transaction), `handler.go` (แปลงเป็น 422 VALIDATION_FAILED พร้อม fields ["reason"]), `dto.go` (`ValidationErrorDTO`), `handler_test.go` (`TestAC_APV_06` 3 กรณี: ว่าง, มีแต่ช่องว่าง, ไม่ส่งช่อง), `specs/004-approve-request/tasks.md`
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
+- ไฟล์นอกช่อง "ไฟล์ที่แตะ": handler.go และ dto.go เป็นไฟล์ของ 004 เอง ต้องแก้เพื่อแปลง error เป็น HTTP 422 เพิ่มในช่องแล้ว
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): ชื่อช่อง `fields` ใน body ของ VALIDATION_FAILED ตามแบบ 002; body ที่อ่านไม่ออกถือว่าไม่ได้ระบุเหตุผล
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-12 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ทีมตรวจแล้วผ่าน"
+- สิ่งที่แก้: tasks.md T-12 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)

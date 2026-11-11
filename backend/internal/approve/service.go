@@ -3,6 +3,7 @@ package approve
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"salmonnorway/backend/internal/auth"
@@ -105,15 +106,22 @@ func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
 	return out, err
 }
 
+// ErrReasonRequired เกิดเมื่อปฏิเสธโดยไม่ระบุเหตุผล (FR-APV-01 ง, AC-APV-06, CON-TECH-03 VALIDATION_FAILED ช่อง reason)
+var ErrReasonRequired = errors.New("ต้องระบุเหตุผลในการปฏิเสธ")
+
 // Reject ปฏิเสธคำขอยืมแบบปกติ 1 ใบพร้อมเหตุผลที่เจ้าหน้าที่ระบุ ใน transaction เดียว (FR-APV-01 ง ฌ, AC-APV-02)
 //   - คำขอเป็น rejected บันทึกเหตุผลใน approval_decision และ audit_log action reject (RQ-25)
 //   - ไม่เปลี่ยนสถานะอุปกรณ์ (CON-DATA-01)
 //
-// การตรวจเหตุผลว่าง (T-12), ภาควิชา (T-25), Email (T-15) และข้อความกรณีพิจารณาแล้ว (T-23) เพิ่มใน task ของแต่ละเรื่อง
+// การตรวจภาควิชา (T-25), Email (T-15) และข้อความกรณีพิจารณาแล้ว (T-23) เพิ่มใน task ของแต่ละเรื่อง
 func (s *Service) Reject(ctx context.Context, requestID int, reason string) (Result, error) {
 	p, err := staff(ctx)
 	if err != nil {
 		return Result{}, err
+	}
+	// FR-APV-01 (ง)(ซ), AC-APV-06: ต้องระบุเหตุผล ว่างหรือมีแต่ช่องว่างไม่นับ ไม่เปิด transaction เลย สถานะจึงคงเดิม
+	if strings.TrimSpace(reason) == "" {
+		return Result{}, ErrReasonRequired
 	}
 	var out Result
 	err = s.repo.inTx(ctx, func(tx *Repository) error {

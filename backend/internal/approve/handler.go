@@ -81,7 +81,7 @@ func (h *Handler) approve(w http.ResponseWriter, r *http.Request) {
 }
 
 // reject: POST /v1/approvals/requests/{id}/reject ปฏิเสธคำขอยืมปกติพร้อมเหตุผล (FR-APV-01 ง, AC-APV-02)
-// body { loadedAt, reason } การตรวจเหตุผลว่างเป็นงานของ T-12
+// body { loadedAt, reason } เหตุผลว่างได้ 422 VALIDATION_FAILED (T-12, AC-APV-06)
 func (h *Handler) reject(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
@@ -89,7 +89,7 @@ func (h *Handler) reject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in DecideInputDTO
-	_ = json.NewDecoder(r.Body).Decode(&in) // body ที่อ่านไม่ออกได้เหตุผลว่าง ซึ่ง T-12 ปฏิเสธด้วย VALIDATION_FAILED
+	_ = json.NewDecoder(r.Body).Decode(&in) // body ที่อ่านไม่ออกได้เหตุผลว่าง จึงได้ VALIDATION_FAILED ช่อง reason
 
 	res, err := h.svc.Reject(r.Context(), id, in.Reason)
 	if err != nil {
@@ -102,6 +102,11 @@ func (h *Handler) reject(w http.ResponseWriter, r *http.Request) {
 // writeServiceError แปลง error ของ service เป็น {code, message} ตาม CON-TECH-03 ข้อความจาก config (FR-APV-01 ซ)
 func writeServiceError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, ErrReasonRequired):
+		// CON-TECH-03: VALIDATION_FAILED แนบรายชื่อช่องที่ผิด ช่องเดียวที่ 004 ตรวจคือ reason (AC-APV-06)
+		writeJSON(w, http.StatusUnprocessableEntity, ValidationErrorDTO{
+			Code: "VALIDATION_FAILED", Message: config.ApprovalMessages["VALIDATION_FAILED"], Fields: []string{"reason"},
+		})
 	case errors.Is(err, ErrRequestNotFound):
 		writeError(w, http.StatusNotFound, "REQUEST_NOT_FOUND") // Q-APV-25
 	case errors.Is(err, ErrNotRequested):
