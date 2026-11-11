@@ -6,6 +6,7 @@ package config
 
 import (
 	"os"
+	"time"
 	_ "time/tzdata" // ฝังข้อมูลเขตเวลาไว้ในโปรแกรม ใช้ Asia/Bangkok ได้แม้ container ไม่มี zoneinfo
 )
 
@@ -91,4 +92,35 @@ func getenv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// ---- 005-handover (plan.md ข้อ 5 ของ 005, T-01) ----
+
+// BorrowerAuthTimeout คือเวลาที่รอ Auth API ยืนยันตัวตนผู้ยืม เกินนี้ถือว่าเชื่อมต่อไม่สำเร็จ
+// แล้วใช้ผลการตรวจบัตรแทน (FR-HND-02, ASM-HND-02, IF-IDP-01)
+const BorrowerAuthTimeout = 10 * time.Second
+
+// HandoverMinPhotos คือจำนวนรูปสภาพอุปกรณ์ขั้นต่ำที่ต้องแนบตอนส่งมอบ (FR-HND-06, ASM-HND-07)
+const HandoverMinPhotos = 2
+
+// HandoverPhotoMaxBytes คือขนาดไฟล์รูปสูงสุด 10 MB (FR-HND-06, ASM-HND-07)
+// นับต่อรูปหรือรวมทุกรูป รอ Q-HND-10 (ใช้ใน T-28)
+const HandoverPhotoMaxBytes = 10 << 20
+
+// HandoverPhotoTypes คือชนิดไฟล์รูปที่รับ JPG และ PNG (FR-HND-06, ASM-HND-07)
+// คืน slice ใหม่ทุกครั้ง กันโค้ดที่เรียกใช้เผลอแก้ค่ากลาง
+func HandoverPhotoTypes() []string {
+	return []string{"image/jpeg", "image/png"}
+}
+
+// PhotoDir คือโฟลเดอร์รากของไฟล์รูปบน Docker volume `photos` (plan.md ของ 005 Q-P1: ทีมเลือกเอง ไม่ได้มาจาก spec)
+// 005 ใช้โฟลเดอร์ย่อย handover/ ฟีเจอร์อื่น (เช่น 006) ใช้โฟลเดอร์ข้างกันได้ เปลี่ยนได้ด้วย env PHOTO_DIR
+func PhotoDir() string {
+	return getenv("PHOTO_DIR", "/data/photos")
+}
+
+// HandoverReadyStatuses คือสถานะของคำขอยืมที่ส่งมอบได้ = `approved` (FR-HND-01, data-model.md v9, Q-HND-05 ปิดแล้ว)
+// คืน slice ใหม่ทุกครั้ง กันโค้ดที่เรียกใช้เผลอแก้ค่ากลาง
+func HandoverReadyStatuses() []string {
+	return []string{"approved"}
 }
