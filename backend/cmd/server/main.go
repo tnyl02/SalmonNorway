@@ -10,6 +10,7 @@ import (
 	"salmonnorway/backend/internal/borrowrequest"
 	"salmonnorway/backend/internal/config"
 	"salmonnorway/backend/internal/equipment"
+	"salmonnorway/backend/internal/handover"
 	"salmonnorway/backend/internal/platform"
 )
 
@@ -53,7 +54,9 @@ func main() {
 
 	mux := platform.NewRouter(db) // /healthz ไม่ต้องยืนยันตัวตน ใช้ตรวจ container
 	eq := equipment.NewHandler(equipment.NewService(equipment.NewRepository(db)))
+	ho := handover.NewHandler(db, provider) // 005 บันทึกการส่งมอบ เฉพาะเจ้าหน้าที่ (CON-HND-01)
 	mux.Handle(equipment.PathPrefix, auth.Middleware(provider, eq.Routes()))
+	mux.Handle(handover.PathPrefix, auth.Middleware(provider, ho.Routes()))
 
 	// ฟีเจอร์ 002 ส่งคำขอยืม (T-05) ต้องผ่านการยืนยันตัวตนเช่นกัน (IF-IDP-01, NFR-SEC-01)
 	br := borrowrequest.NewHandler(borrowrequest.NewService(borrowrequest.NewRepository(db)))
