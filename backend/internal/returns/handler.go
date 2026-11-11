@@ -22,7 +22,7 @@ func NewHandler(repo *Repository) *Handler {
 }
 
 // Routes คืนฟังก์ชันที่ผูก endpoint ทั้งหมดของ 006 เข้ากับ router
-// ทุก endpoint ต้องผ่าน auth.Middleware ก่อนเสมอ (IF-IDP-01, NFR-SEC-01)
+// ทุก endpoint ต้องผ่าน auth.Middleware (IF-IDP-01, NFR-SEC-01) แล้วตามด้วย staffOnly (FR-RET-01, AC-RET-08)
 func (h *Handler) Routes(provider auth.Provider) func(*http.ServeMux) {
 	return func(mux *http.ServeMux) {
 		for pattern, handle := range map[string]http.HandlerFunc{
@@ -31,7 +31,7 @@ func (h *Handler) Routes(provider auth.Provider) func(*http.ServeMux) {
 			"POST /api/v1/returns":               h.recordReturn, // FR-RET-02, 03, 04, 06, 07
 			"GET /api/v1/returns/loans/{loanId}": h.loanDetail,   // FR-RET-06
 		} {
-			mux.Handle(pattern, auth.Middleware(provider, handle))
+			mux.Handle(pattern, auth.Middleware(provider, staffOnly(handle)))
 		}
 	}
 }
@@ -130,6 +130,22 @@ func (h *Handler) openLoans(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, loans)
+}
+
+// staffOnly ให้ผ่านเฉพาะเจ้าหน้าที่ บทบาทอื่น (นักศึกษา) ได้ 403 FORBIDDEN_ROLE ก่อนถึง handler
+// จึงไม่มีการอ่านหรือเขียนข้อมูลการยืมเลย (FR-RET-01 "เจ้าหน้าที่", RQ-11, AC-RET-08)
+func staffOnly(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		p, ok := principal(w, r)
+		if !ok {
+			return
+		}
+		if p.Role != auth.RoleStaff {
+			writeJSON(w, http.StatusForbidden, map[string]string{"code": "FORBIDDEN_ROLE"})
+			return
+		}
+		next(w, r)
+	}
 }
 
 // principal อ่านผู้ใช้ที่ middleware ยืนยันตัวตนแล้ว (IF-IDP-01) ไม่มี -> ตอบ 401 แล้วคืน false

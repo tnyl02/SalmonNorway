@@ -900,3 +900,23 @@
 
 ### สิ่งที่เกือบต้องเดา
 - ถ้อยคำ: AC-RET-11 บอกแค่ "ปฏิเสธว่าไม่มีสิทธิ์" AI ใช้ "ไม่มีสิทธิ์: อุปกรณ์นี้เป็นของภาควิชาอื่น" ไม่มี mockup ทีมตรวจถ้อยคำ
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-22 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 11)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำต่อเลย" -> `/implement T-22 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- `backend/internal/returns/handler.go`: `staffOnly` ครอบทุก route ของ 006 ต่อจาก `auth.Middleware` บทบาทอื่นได้ 403 `FORBIDDEN_ROLE` ก่อนถึง handler
+- `backend/internal/returns/handler_test.go`: `TestAC_RET_08_StudentForbidden`
+
+### ผล test (`cd backend && go test ./... -v`)
+- TestAC_RET_08_StudentForbidden PASS (token นักศึกษาเรียกทั้ง 4 endpoint ได้ 403 body มีแค่ code, การยืมและสถานะไม่เปลี่ยน, เจ้าหน้าที่ยังได้ 200)
+- test ทั้งหมดของ backend ยัง PASS (returns 15 tests)
+
+### สิ่งที่เกือบต้องเดา
+- ไม่มี (error code `FORBIDDEN_ROLE` มาจากตาราง error ของ plan.md ข้อ 4)

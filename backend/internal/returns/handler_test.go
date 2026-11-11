@@ -922,3 +922,52 @@ func TestAC_RET_11_OtherDepartmentForbidden(t *testing.T) {
 		t.Errorf("สถานะ = %q, want borrowed (ไม่เปลี่ยน)", got)
 	}
 }
+
+// AC-RET-08 (FR-RET-01, IF-IDP-01)
+//
+//	Given นักศึกษายืนยันตัวตนแล้ว
+//	When  เรียกบันทึกการรับคืน หรือเปิดหน้ารายการที่ยังไม่คืนโดยตรง
+//	Then  ระบบปฏิเสธว่าไม่มีสิทธิ์ และไม่มีข้อมูลการยืมถูกส่งกลับหรือเปลี่ยน
+//
+// ตรวจทั้ง 4 endpoint ของ 006 ด้วย token นักศึกษาภาควิชาเดียวกับอุปกรณ์ (ภาควิชา 1)
+func TestAC_RET_08_StudentForbidden(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+	ctx := context.Background()
+
+	// Given อุปกรณ์ภาควิชา 1 ที่ถูกยืมอยู่ และนักศึกษาภาควิชา 1
+	insertBorrowedItem(t, pool, "T22-STUDENT", 2*time.Hour)
+	var loanID int
+	if err := pool.QueryRow(ctx,
+		`SELECT l.id FROM loan l JOIN equipment_item i ON i.id = l.item_id WHERE i.asset_code = 'T22-STUDENT'`).Scan(&loanID); err != nil {
+		t.Fatal(err)
+	}
+	const student = "mock-student-001"
+
+	// When
+	recs := map[string]*httptest.ResponseRecorder{
+		"POST /returns":   postReturn(t, router, student, map[string]string{"assetCode": "T22-STUDENT", "condition": "normal"}),
+		"GET /open-loans": call(router, http.MethodGet, "/api/v1/returns/open-loans", student),
+		"GET /lookup":     call(router, http.MethodGet, "/api/v1/returns/lookup?assetCode=T22-STUDENT", student),
+		"GET /loans/{id}": call(router, http.MethodGet, fmt.Sprintf("/api/v1/returns/loans/%d", loanID), student),
+	}
+
+	// Then: 403 FORBIDDEN_ROLE ทุก endpoint body มีแค่ code
+	for name, rec := range recs {
+		if rec.Code != http.StatusForbidden || strings.TrimSpace(rec.Body.String()) != `{"code":"FORBIDDEN_ROLE"}` {
+			t.Errorf("%s: status = %d body=%s, want 403 และ body มีแค่ code FORBIDDEN_ROLE", name, rec.Code, rec.Body.String())
+		}
+	}
+	var returnedAt *time.Time
+	if err := pool.QueryRow(ctx, `SELECT returned_at FROM loan WHERE id = $1`, loanID).Scan(&returnedAt); err != nil {
+		t.Fatal(err)
+	}
+	if returnedAt != nil || itemStatus(t, pool, "T22-STUDENT") != "borrowed" {
+		t.Error("นักศึกษาเรียกแล้วการยืมหรือสถานะต้องไม่เปลี่ยน")
+	}
+
+	// เจ้าหน้าที่ยังใช้ได้ตามปกติ
+	if rec := call(router, http.MethodGet, "/api/v1/returns/lookup?assetCode=T22-STUDENT", "mock-staff-001"); rec.Code != http.StatusOK {
+		t.Errorf("เจ้าหน้าที่: status = %d, want 200", rec.Code)
+	}
+}
