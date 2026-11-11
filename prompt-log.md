@@ -1474,3 +1474,17 @@
 - ระหว่างแก้ AI ลบบรรทัด Q-HND-12 [ยกเลิก] ผิดตัว แล้วใส่คืนจาก commit ก่อนหน้า (ID ที่ยกเลิกต้องคงไว้)
 - สิ่งที่ AI ตัดสินในขอบเขต plan แต่ทีมควรตรวจ: รหัสนักศึกษาที่บันทึก = รหัสผู้ใช้จากการล็อกอิน (บัตรประชาชนไม่มีรหัสนักศึกษา)
   และหลังบ้านยืนยันผู้ยืมซ้ำเองตอนบันทึก ไม่เชื่อ `identityMethod` ที่หน้าจอส่ง (กันการปลอมผล)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-03
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover (แก้ของกลาง `backend/cmd/server/main.go` เพิ่ม 2 บรรทัดผูก route ของ 005 และ import)
+- เครื่องมือ: Claude Code
+- ไฟล์ที่สร้าง/แก้: `backend/internal/handover/handler.go` (3 route + `requireStaff`), `errors.go` (รหัสและข้อความตาม CON-TECH-03), `handler_test.go`, `backend/cmd/server/main.go`
+- ผล test: `TestHandover_NonStaffForbidden` ผ่าน 3 route (นักศึกษาได้ 403 `{code: FORBIDDEN_ROLE, message}` / ไม่มี token ได้ 401) `go test ./...` ผ่าน
+- สิ่งที่ AI ตัดสินในขอบเขตที่ plan ให้: path หลังบ้านเป็น `/v1/handover/` เพราะ proxy ตัด `/api` แบบเดียวกับ 001,
+  ข้อความภาษาไทยของ error ทีมเลือกเอง ไม่ได้มาจาก spec, route ของ T-04, T-09, T-10 ตอบ 501 ชั่วคราวจนกว่า task นั้นเสร็จ
+  `NewHandler(db, provider)` รับ provider ไว้ใช้ยืนยันผู้ยืม (T-09) เพื่อไม่ต้องแก้ main.go อีกใน task ถัดไป
+- ข้อสังเกตถึง 001: `auth.Middleware` ของ 001 ตอบ error เป็น `{code}` ไม่มี message ยังไม่ตรง CON-TECH-03 ทั้งหมด (CR-004 บอกว่า 001 ควรแก้รอบถัดไป)
