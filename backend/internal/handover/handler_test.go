@@ -640,3 +640,40 @@ func TestAC_HND_12_InvalidPhotos(t *testing.T) {
 		})
 	}
 }
+
+// AC-HND-13 (FR-HND-07, DOM-REQ-01)
+// Given อุปกรณ์รายชิ้นหนึ่งมีคำขอยืม 2 รายการ คำขอ X ได้รับอนุมัติแล้ว และคำขอ Y ยังไม่ได้ตัดสิน
+// When  เจ้าหน้าที่บันทึกการส่งมอบของคำขอ X สำเร็จ
+// Then  สถานะของคำขอ Y ไม่เปลี่ยน
+//
+//	และเมื่อเจ้าหน้าที่บันทึกการส่งมอบของคำขอ Y ระบบไม่สร้างการยืม เพราะอุปกรณ์ "ถูกยืม" (FR-HND-04)
+//
+// หมายเหตุ: Given นี้ไม่เกิดในระบบจริงหลัง Q-SH-06 ปิดบางส่วน (004 ปฏิเสธคำขออื่นอัตโนมัติ) ตั้งข้อมูลเองตาม AC จนกว่าทีมจะแก้ AC
+// ขั้น "ส่งมอบ Y" ตั้ง Y เป็น approved ในฐานข้อมูลเอง เพราะ 005 ส่งมอบได้เฉพาะคำขอที่อนุมัติแล้ว (FR-HND-01)
+func TestAC_HND_13_OtherRequestUntouched(t *testing.T) {
+	pool := testPool(t)
+	h := routesOnly(pool)
+	itemID := createItem(t, pool, "T13-OR-0001", "available")
+	requestX := createRequest(t, pool, "student-001", itemID, "approved")
+	requestY := createRequest(t, pool, "student-002", itemID, "requested")
+
+	if rec := postHandover(t, h, tokenStaff, requestX, validForm(tokenStudentA), twoJPEGs()); rec.Code != http.StatusCreated {
+		t.Fatalf("ส่งมอบ X: HTTP %d: %s", rec.Code, rec.Body.String())
+	}
+	if s := statusOf(t, pool, "borrow_request", requestY); s != "requested" {
+		t.Fatalf("สถานะคำขอ Y = %q ต้องไม่เปลี่ยน (requested)", s)
+	}
+
+	if _, err := pool.Exec(context.Background(), `UPDATE borrow_request SET status = 'approved' WHERE id = $1`, requestY); err != nil {
+		t.Fatal(err)
+	}
+	rec := postHandover(t, h, tokenStaff, requestY, validForm("mock-student-002"), twoJPEGs())
+	var e ErrorDTO
+	_ = json.Unmarshal(rec.Body.Bytes(), &e)
+	if rec.Code != http.StatusConflict || e.Code != "ITEM_NOT_AVAILABLE" {
+		t.Fatalf("ส่งมอบ Y: HTTP %d %+v ต้องเป็น 409 ITEM_NOT_AVAILABLE", rec.Code, e)
+	}
+	if n := countLoans(t, pool, itemID); n != 1 {
+		t.Errorf("มี Loan %d รายการ ต้องเป็น 1 (ของ X เท่านั้น)", n)
+	}
+}
