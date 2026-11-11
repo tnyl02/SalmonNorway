@@ -80,7 +80,7 @@ task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01, T-02, T-03
 - เสร็จเมื่อ: `TestAC_RET_01_NormalReturnBecomesAvailable` ผ่าน (1 transaction: `SELECT ... FOR UPDATE` ปิดการยืมด้วย `now()` เปลี่ยนสถานะเป็น `available`)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ 
 - ความสำคัญ: ต้องทำ
 
 ### T-05 ทำ `GET /api/v1/returns/lookup?assetCode=`
