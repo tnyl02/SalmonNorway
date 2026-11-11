@@ -61,7 +61,7 @@ Updated: 2569-11-11
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01, T-02
 - เสร็จเมื่อ: `TestAC_BRQ_04` ผ่าน — สร้างคำขอสถานะ `requested` พร้อมเวลาที่ส่งตาม Asia/Bangkok และ `equipment_item.status` ยังเป็น `available`
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ
 
 ### T-05 สร้าง endpoint POST /api/v1/loan-requests และผูกเข้า router
 - รองรับ: FR-BRQ-04, CON-TECH-02, CON-TECH-03, IF-IDP-01
