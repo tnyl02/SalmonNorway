@@ -107,6 +107,9 @@ func writeServiceError(w http.ResponseWriter, err error) {
 		writeJSON(w, http.StatusUnprocessableEntity, ValidationErrorDTO{
 			Code: "VALIDATION_FAILED", Message: config.ApprovalMessages["VALIDATION_FAILED"], Fields: []string{"reason"},
 		})
+	case errors.Is(err, ErrForbiddenDepartment):
+		// ไม่ส่งข้อมูลอุปกรณ์กลับ ตอบแค่ {code, message} (CON-TECH-03, AC-APV-12)
+		writeError(w, http.StatusForbidden, "FORBIDDEN_DEPARTMENT")
 	case errors.Is(err, ErrApprovalCutoff):
 		writeError(w, http.StatusConflict, "APPROVAL_CUTOFF_PASSED") // FR-APV-01 (ค)(ซ), AC-APV-16
 	case errors.Is(err, ErrItemNotAvailable):

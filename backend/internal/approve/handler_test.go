@@ -229,3 +229,47 @@ func TestAC_APV_06(t *testing.T) {
 		t.Errorf("สถานะต้องคงเป็น requested และไม่มี approval_decision แต่ได้ %q / %d", status, decisions)
 	}
 }
+
+// AC-APV-12 (FR-APV-01 ก, IF-IDP-01)
+// Given เจ้าหน้าที่ภาควิชาไม่ตรงกับภาควิชาเจ้าของอุปกรณ์ (mock-staff-001 ภาควิชา 1 กับ AP-TEST-0101 ภาควิชา 2)
+// When  พยายามอนุมัติหรือปฏิเสธคำขอนั้น
+// Then  ระบบไม่ดำเนินการ ตอบ FORBIDDEN_DEPARTMENT แสดง "คำขอนี้เป็นของอุปกรณ์ภาควิชาอื่น คุณไม่มีสิทธิ์พิจารณา"
+//
+//	และสถานะคงเดิม (T-25 เสร็จเมื่อ: ไม่ส่งข้อมูลอุปกรณ์กลับ)
+func TestAC_APV_12(t *testing.T) {
+	tx := devTx(t)
+	srv := newTestServer(tx)
+	id := requestIDOf(t, tx, "AP-TEST-0101", "student-101")
+
+	for _, action := range []string{"approve", "reject"} {
+		w := postJSON(srv, tokenStaffDept1, fmt.Sprintf("%srequests/%d/%s", PathPrefix, id, action),
+			`{"loadedAt":"2026-11-12T03:00:00Z","reason":"ทดสอบ"}`)
+		if w.Code != http.StatusForbidden {
+			t.Errorf("%s ต้องได้ 403 แต่ได้ %d", action, w.Code)
+			continue
+		}
+		// body มีแค่ code และ message ไม่มีข้อมูลอุปกรณ์หรือคำขอ (CON-TECH-03 FORBIDDEN_DEPARTMENT)
+		var raw map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &raw); err != nil {
+			t.Fatal(err)
+		}
+		if len(raw) != 2 || raw["code"] != "FORBIDDEN_DEPARTMENT" ||
+			raw["message"] != "คำขอนี้เป็นของอุปกรณ์ภาควิชาอื่น คุณไม่มีสิทธิ์พิจารณา" {
+			t.Errorf("%s ได้ %v", action, raw)
+		}
+		if strings.Contains(w.Body.String(), "AP-TEST-0101") {
+			t.Errorf("%s ต้องไม่ส่งรหัสครุภัณฑ์กลับ", action)
+		}
+	}
+
+	var status string
+	var decisions int
+	if err := tx.QueryRow(context.Background(), `
+		SELECT r.status, (SELECT count(*) FROM approval_decision d WHERE d.request_id = r.id)
+		FROM borrow_request r WHERE r.id = $1`, id).Scan(&status, &decisions); err != nil {
+		t.Fatal(err)
+	}
+	if status != "requested" || decisions != 0 {
+		t.Errorf("สถานะต้องคงเป็น requested และไม่มี approval_decision แต่ได้ %q / %d", status, decisions)
+	}
+}

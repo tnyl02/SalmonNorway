@@ -88,16 +88,10 @@ func notRequestedError(ctx context.Context, tx *Repository, target requestRow, l
 //   - ล็อกคำขอทุกใบของอุปกรณ์รายชิ้นนั้นก่อน (FR-APV-01 ช, plan.md ข้อ 7.3)
 //   - คำขอเป็น approved บันทึก approval_decision และ audit_log action approve (RQ-25)
 //   - ไม่เปลี่ยนสถานะอุปกรณ์ ยังเป็น "ว่าง" จนกว่า 005 ส่งมอบ (CON-DATA-01, data-model.md แถว UC-12)
-//
 //   - คำขออื่นที่ยังเป็น requested ของอุปกรณ์ชิ้นเดียวกัน ทั้งยืมปกติและค้างคืน ถูกปฏิเสธตามทันที (FR-APV-01 จ, Q-APV-14, T-16)
 //
-//   - อนุมัติได้เฉพาะคำขอแรกของชิ้นนั้น (FR-APV-01 ข, T-17)
-//
-//   - อนุมัติได้เฉพาะอุปกรณ์ที่ "ว่าง" (FR-APV-01 ค, T-19)
-//
-//   - อนุมัติไม่ได้เมื่อเลย 16:00 น. ของวันที่เริ่มยืม (FR-APV-01 ค, T-21)
-//
-// การตรวจภาควิชา (T-25) เพิ่มใน task ของเรื่องนั้น
+// ตรวจตามลำดับ: ภาควิชา (ASM-06, T-25) -> สถานะคำขอ (T-23) -> คำขอแรก (FR-APV-01 ข, T-17)
+// -> อุปกรณ์ "ว่าง" (FR-APV-01 ค, T-19) -> เวลาตัด 16:00 น. ของวันที่เริ่มยืม (FR-APV-01 ค, T-21)
 func (s *Service) Approve(ctx context.Context, requestID int, loadedAt time.Time) (Result, error) {
 	p, err := staff(ctx)
 	if err != nil {
@@ -111,6 +105,11 @@ func (s *Service) Approve(ctx context.Context, requestID int, loadedAt time.Time
 		}
 		if !ok || target.LoanType != config.LoanTypeNormal {
 			return ErrRequestNotFound
+		}
+		// ASM-06, IF-IDP-01: พิจารณาได้เฉพาะคำขอของอุปกรณ์ภาควิชาเดียวกับเจ้าหน้าที่ (AC-APV-12, T-25)
+		// ตรวจก่อนเรื่องอื่น ผู้ที่อยู่ภาควิชาอื่นจึงไม่รู้สถานะหรือข้อมูลใดของคำขอนั้น
+		if target.DepartmentID != p.DepartmentID {
+			return ErrForbiddenDepartment
 		}
 		if target.Status != config.StatusRequested {
 			return notRequestedError(ctx, tx, target, loadedAt) // FR-APV-01 (ซ), T-23
@@ -157,6 +156,9 @@ func (s *Service) Approve(ctx context.Context, requestID int, loadedAt time.Time
 	})
 	return out, err
 }
+
+// ErrForbiddenDepartment เกิดเมื่อเจ้าหน้าที่พิจารณาคำขอของอุปกรณ์ภาควิชาอื่น (ASM-06, AC-APV-12, FORBIDDEN_DEPARTMENT)
+var ErrForbiddenDepartment = errors.New("คำขอนี้เป็นของอุปกรณ์ภาควิชาอื่น")
 
 // ErrApprovalCutoff เกิดเมื่ออนุมัติหลัง 16:00 น. ของวันที่เริ่มยืม (FR-APV-01 ค ซ, AC-APV-16, APPROVAL_CUTOFF_PASSED)
 var ErrApprovalCutoff = errors.New("เลย 16:00 น. ของวันที่ยืมแล้ว อนุมัติไม่ได้")
@@ -227,7 +229,7 @@ var ErrReasonRequired = errors.New("ต้องระบุเหตุผล�
 //   - คำขอเป็น rejected บันทึกเหตุผลใน approval_decision และ audit_log action reject (RQ-25)
 //   - ไม่เปลี่ยนสถานะอุปกรณ์ (CON-DATA-01)
 //
-// การตรวจภาควิชา (T-25) และข้อความกรณีพิจารณาแล้ว (T-23) เพิ่มใน task ของแต่ละเรื่อง
+// พิจารณาได้เฉพาะอุปกรณ์ภาควิชาเดียวกับเจ้าหน้าที่ (ASM-06, T-25)
 func (s *Service) Reject(ctx context.Context, requestID int, reason string, loadedAt time.Time) (Result, error) {
 	p, err := staff(ctx)
 	if err != nil {
@@ -245,6 +247,11 @@ func (s *Service) Reject(ctx context.Context, requestID int, reason string, load
 		}
 		if !ok || target.LoanType != config.LoanTypeNormal {
 			return ErrRequestNotFound
+		}
+		// ASM-06, IF-IDP-01: พิจารณาได้เฉพาะคำขอของอุปกรณ์ภาควิชาเดียวกับเจ้าหน้าที่ (AC-APV-12, T-25)
+		// ตรวจก่อนเรื่องอื่น ผู้ที่อยู่ภาควิชาอื่นจึงไม่รู้สถานะหรือข้อมูลใดของคำขอนั้น
+		if target.DepartmentID != p.DepartmentID {
+			return ErrForbiddenDepartment
 		}
 		if target.Status != config.StatusRequested {
 			return notRequestedError(ctx, tx, target, loadedAt) // FR-APV-01 (ซ), T-23

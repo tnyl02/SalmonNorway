@@ -387,11 +387,11 @@ Updated: 2569-11-12
 ### T-25 ตรวจภาควิชาของเจ้าหน้าที่กับภาควิชาเจ้าของอุปกรณ์ก่อนพิจารณา
 - รองรับ: FR-APV-01 (ก)(ซ), IF-IDP-01, ASM-06, CON-TECH-03
 - ตรวจด้วย: AC-APV-12
-- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/handler_test.go`
+- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/handler_test.go`, `backend/internal/approve/handler.go` (แปลงเป็น 403 FORBIDDEN_DEPARTMENT)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `TestAC_APV_12` ผ่าน: `mock-staff-001` (ภาควิชา 1) อนุมัติหรือปฏิเสธคำขอของอุปกรณ์ภาควิชา 2 ได้ 403 `FORBIDDEN_DEPARTMENT` ข้อความ "คำขอนี้เป็นของอุปกรณ์ภาควิชาอื่น คุณไม่มีสิทธิ์พิจารณา" ไม่ส่งข้อมูลอุปกรณ์กลับ สถานะคงเดิม
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน `TestAC_APV_12` ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 ### T-26 แสดงข้อความ FORBIDDEN_DEPARTMENT บนหน้าจอ
 - รองรับ: FR-APV-01 (ซ)
