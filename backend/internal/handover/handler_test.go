@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -25,10 +27,12 @@ const (
 	tokenStudentB = "mock-student-101"
 )
 
-// routesOnly คือ router ที่ผ่าน auth.Middleware เหมือนใน main.go (ใช้กับ test ที่ไม่แตะฐานข้อมูล)
+// testPhotoRoot คือโฟลเดอร์เก็บรูปของ test (ไม่เขียนลง /data/photos ของเครื่อง)
+var testPhotoRoot = filepath.Join(os.TempDir(), "salmon-handover-test-"+strconv.Itoa(os.Getpid()))
+
+// routesOnly คือ router ที่ผ่าน auth.Middleware เหมือนใน main.go เก็บรูปที่ testPhotoRoot
 func routesOnly(db DB) http.Handler {
-	provider := auth.NewMockProvider()
-	return auth.Middleware(provider, NewHandler(db, provider).Routes())
+	return routesAt(db, time.Time{})
 }
 
 func doRequest(h http.Handler, method, path, token string) *httptest.ResponseRecorder {
@@ -408,10 +412,15 @@ func bangkok(t *testing.T, year int, month time.Month, day, hour, minute int) ti
 	return time.Date(year, month, day, hour, minute, 0, 0, loc)
 }
 
-// routesAt คือ router ที่นาฬิกาหยุดอยู่ที่ at (FR-HND-05)
+// routesAt คือ router ที่นาฬิกาหยุดอยู่ที่ at (FR-HND-05) at ว่าง = ใช้เวลาจริง
 func routesAt(db DB, at time.Time) http.Handler {
 	provider := auth.NewMockProvider()
-	return auth.Middleware(provider, newHandler(db, NewMockBorrowerVerifier(provider), func() time.Time { return at }).Routes())
+	now := time.Now
+	if !at.IsZero() {
+		now = func() time.Time { return at }
+	}
+	h := newHandler(db, NewMockBorrowerVerifier(provider), NewPhotoStore(testPhotoRoot), now)
+	return auth.Middleware(provider, h.Routes())
 }
 
 // AC-HND-05 (FR-HND-05, DOM-LOAN-01)
@@ -526,5 +535,54 @@ func TestAC_HND_10_BorrowerMismatch(t *testing.T) {
 	}
 	if s := statusOf(t, pool, "borrow_request", requestID); s != "approved" {
 		t.Errorf("สถานะคำขอ = %q ต้องเป็น approved", s)
+	}
+}
+
+// AC-HND-06 (FR-HND-06)
+// Given คำขอยืมแบบปกติที่ได้รับอนุมัติแล้ว
+// When  เจ้าหน้าที่แนบรูปสภาพอุปกรณ์ JPG 2 รูป ขนาดรูปละ 2 MB แล้วบันทึกการส่งมอบ
+// Then  ระบบบันทึกการส่งมอบ และรูปทั้ง 2 รูปถูกบันทึกผูกกับการยืมนั้น
+func TestAC_HND_06_TwoJpgPhotosSaved(t *testing.T) {
+	pool := testPool(t)
+	itemID := createItem(t, pool, "T06-PH-0001", "available")
+	requestID := createRequest(t, pool, "student-001", itemID, "approved")
+	photos := []photoFile{
+		{"a.jpg", "image/jpeg", testJPEG(2 << 20)},
+		{"b.jpg", "image/jpeg", testJPEG(2 << 20)},
+	}
+
+	rec := postHandover(t, routesOnly(pool), tokenStaff, requestID, validForm(tokenStudentA), photos)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
+	}
+	var out HandoverOutput
+	_ = json.Unmarshal(rec.Body.Bytes(), &out)
+
+	rows, err := pool.Query(context.Background(),
+		`SELECT file_path, content_type, size_bytes FROM handover_photo WHERE loan_id = $1 ORDER BY id`, out.LoanID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	n := 0
+	for rows.Next() {
+		var path, ct string
+		var size int64
+		if err := rows.Scan(&path, &ct, &size); err != nil {
+			t.Fatal(err)
+		}
+		n++
+		if ct != "image/jpeg" || size != 2<<20 {
+			t.Errorf("รูปที่ %d: ชนิด %q ขนาด %d ต้องเป็น image/jpeg 2 MB", n, ct, size)
+		}
+		if filepath.Dir(path) != filepath.Join(testPhotoRoot, strconv.Itoa(out.LoanID)) {
+			t.Errorf("รูปที่ %d อยู่ที่ %q ไม่ใช่โฟลเดอร์ของการยืมนี้", n, path)
+		}
+		if st, err := os.Stat(path); err != nil || st.Size() != size {
+			t.Errorf("ไฟล์รูปที่ %d บนดิสก์: %v", n, err)
+		}
+	}
+	if n != 2 {
+		t.Errorf("มีรูป %d รูปผูกกับการยืม ต้องเป็น 2", n)
 	}
 }

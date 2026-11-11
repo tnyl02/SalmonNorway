@@ -1578,3 +1578,17 @@
 - test ที่ไม่ผ่านระหว่างทาง: `TestHandover_ConcurrentSameItem` (T-18) เพราะข้อมูลตั้งต้นใช้ผู้ยืม student-001 กับคำขอของ student-002 ด้วย
   แก้ข้อมูลตั้งต้นของ test ให้ผู้ยืมตรงกับผู้ขอของแต่ละคำขอ (ไม่ใช่ test ที่ขึ้นต้นด้วย TestTC_ และไม่ได้ลดสิ่งที่ test ตรวจ) ผ่าน 3 รอบติด
 - `go test ./...` ผ่านทุก package
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-15
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่สร้าง/แก้: `backend/internal/handover/photos.go` (ตรวจจำนวนขั้นต่ำและชนิดจากเนื้อไฟล์ด้วย `http.DetectContentType`, `photoSaver`),
+  `service.go` (ตรวจรูปก่อนยืนยันผู้ยืม), `repository.go` (`CreateHandover` รับ `PhotoSaver` เขียนรูปหลังสร้าง Loan บันทึก `handover_photo` ใน transaction เดียวกัน ลบรูปเมื่อขั้นต่อไปล้มเหลว),
+  `handler.go` (อ่านช่อง `photos`, 422 VALIDATION_FAILED ช่อง photos), `handler_test.go`, `repository_test.go` (ส่ง nil เป็น PhotoSaver), `fixture_test.go` (ลบโฟลเดอร์รูปของ test ตอนจบ)
+- ผล test: `TestAC_HND_06_TwoJpgPhotosSaved` ผ่าน (JPG 2 รูป รูปละ 2 MB ได้ 201 มี 2 แถวผูกกับ Loan ไฟล์อยู่ที่ `<root>/<loanId>/` ขนาดตรง) `go test ./...` ผ่าน
+- test เก็บรูปที่โฟลเดอร์ชั่วคราวของระบบ ไม่เขียนลง `/data/photos` ของเครื่อง
+- ขนาด 10 MB ยังไม่ตรวจ (T-28 รอ Q-HND-10)

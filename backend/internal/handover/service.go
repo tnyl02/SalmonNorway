@@ -30,11 +30,12 @@ func (e *MissingFieldsError) Error() string { return "missing fields: " + string
 // HandoverInput คือข้อมูลที่เจ้าหน้าที่ส่งมาตอนบันทึกการส่งมอบ (plan.md v1.4 ข้อ 4)
 type HandoverInput struct {
 	RequestID          int
-	StaffID            string // เจ้าหน้าที่ผู้บันทึก (CON-HND-01)
-	BorrowerCredential string // ผู้ยืมล็อกอินบนเครื่องเจ้าหน้าที่ (ASM-HND-09) หลังบ้านยืนยันซ้ำเอง
-	BorrowerFirstName  string // เจ้าหน้าที่พิมพ์ตามบัตร (ASM-HND-10)
-	BorrowerLastName   string // เจ้าหน้าที่พิมพ์ตามบัตร (ASM-HND-10)
-	CardChecked        bool   // FR-HND-03 ต้องเป็น true
+	StaffID            string       // เจ้าหน้าที่ผู้บันทึก (CON-HND-01)
+	BorrowerCredential string       // ผู้ยืมล็อกอินบนเครื่องเจ้าหน้าที่ (ASM-HND-09) หลังบ้านยืนยันซ้ำเอง
+	BorrowerFirstName  string       // เจ้าหน้าที่พิมพ์ตามบัตร (ASM-HND-10)
+	BorrowerLastName   string       // เจ้าหน้าที่พิมพ์ตามบัตร (ASM-HND-10)
+	CardChecked        bool         // FR-HND-03 ต้องเป็น true
+	Photos             []PhotoInput // FR-HND-06 รูปสภาพอุปกรณ์
 }
 
 // HandoverOutput คือผลของการส่งมอบที่สำเร็จ (plan.md ข้อ 4 out 201)
@@ -49,15 +50,16 @@ type HandoverOutput struct {
 type Service struct {
 	repo     *Repository
 	verifier BorrowerVerifier
+	photos   *PhotoStore      // FR-HND-06 ที่เก็บไฟล์รูป
 	now      func() time.Time // นาฬิกา inject ได้ ใช้ทดสอบเวลา 10:00 และ 16:30 โดยไม่ต้องรอจริง (FR-HND-05, plan.md ข้อ 6)
 }
 
 // NewService สร้าง Service now = nil ใช้ time.Now
-func NewService(repo *Repository, verifier BorrowerVerifier, now func() time.Time) *Service {
+func NewService(repo *Repository, verifier BorrowerVerifier, photos *PhotoStore, now func() time.Time) *Service {
 	if now == nil {
 		now = time.Now
 	}
-	return &Service{repo: repo, verifier: verifier, now: now}
+	return &Service{repo: repo, verifier: verifier, photos: photos, now: now}
 }
 
 // Handover ตรวจข้อมูล ยืนยันผู้ยืม แล้วบันทึกการส่งมอบ (FR-HND-02, 03, 05, 07)
@@ -79,6 +81,11 @@ func (s *Service) Handover(ctx context.Context, in HandoverInput) (HandoverOutpu
 	if !in.CardChecked {
 		return HandoverOutput{}, ErrCardNotChecked
 	}
+	// FR-HND-06: รูปอย่างน้อย 2 รูป JPG/PNG ถ้าไม่ครบ ไม่บันทึกการส่งมอบ
+	photos, err := validatePhotos(in.Photos)
+	if err != nil {
+		return HandoverOutput{}, err
+	}
 
 	// FR-HND-02: หลังบ้านยืนยันผู้ยืมเอง ไม่เชื่อผลที่หน้าจอส่งมา (plan.md v1.4)
 	borrowerID, err := s.verifier.VerifyBorrower(ctx, in.BorrowerCredential)
@@ -99,7 +106,7 @@ func (s *Service) Handover(ctx context.Context, in HandoverInput) (HandoverOutpu
 		HandedOverAt:      now,
 		DueAt:             normalDueAt(now),
 	}
-	res, err := s.repo.CreateHandover(ctx, rec, config.HandoverReadyStatuses())
+	res, err := s.repo.CreateHandover(ctx, rec, config.HandoverReadyStatuses(), photoSaver{store: s.photos, photos: photos})
 	if err != nil {
 		return HandoverOutput{}, err
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -37,12 +38,12 @@ type Handler struct {
 // NewHandler สร้าง Handler จาก connection pool และระบบยืนยันตัวตน
 // ผู้ยืมล็อกอินบัญชีมหาวิทยาลัยบนเครื่องเจ้าหน้าที่ (ASM-HND-09) prototype ใช้ provider จำลองตัวเดียวกับ middleware (Q-SH-03)
 func NewHandler(db DB, provider auth.Provider) *Handler {
-	return newHandler(db, NewMockBorrowerVerifier(provider), time.Now)
+	return newHandler(db, NewMockBorrowerVerifier(provider), NewPhotoStore(DefaultPhotoRoot()), time.Now)
 }
 
 // newHandler ประกอบ Handler จากส่วนที่เปลี่ยนได้ ใช้ใน test เพื่อแทน verifier และนาฬิกา
-func newHandler(db DB, verifier BorrowerVerifier, now func() time.Time) *Handler {
-	return &Handler{db: db, verifier: verifier, svc: NewService(NewRepository(db), verifier, now)}
+func newHandler(db DB, verifier BorrowerVerifier, photos *PhotoStore, now func() time.Time) *Handler {
+	return &Handler{db: db, verifier: verifier, svc: NewService(NewRepository(db), verifier, photos, now)}
 }
 
 // multipartMaxMemory คือขนาดที่อ่านเข้าหน่วยความจำตอนแยก multipart ส่วนเกินพักไว้ในไฟล์ชั่วคราว (ทีมเลือกเอง ไม่ได้มาจาก spec)
@@ -169,6 +170,7 @@ func (h *Handler) handover(w http.ResponseWriter, r *http.Request) {
 		BorrowerFirstName:  r.FormValue("borrowerFirstName"),
 		BorrowerLastName:   r.FormValue("borrowerLastName"),
 		CardChecked:        r.FormValue("cardChecked") == "true",
+		Photos:             photoInputs(r),
 	})
 	var missing *MissingFieldsError
 	switch {
@@ -176,6 +178,8 @@ func (h *Handler) handover(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusCreated, out)
 	case errors.As(err, &missing):
 		writeError(w, http.StatusUnprocessableEntity, codeValidationFailed, missing.Fields...)
+	case errors.Is(err, ErrPhotoInvalid):
+		writeError(w, http.StatusUnprocessableEntity, codeValidationFailed, "photos") // FR-HND-06
 	case errors.Is(err, ErrCardNotChecked):
 		writeError(w, http.StatusUnprocessableEntity, codeValidationFailed, "cardChecked") // FR-HND-03
 	case errors.Is(err, ErrBorrowerNotVerified):
@@ -191,4 +195,14 @@ func (h *Handler) handover(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeUpstreamError(w, err)
 	}
+}
+
+// photoInputs อ่านรูปจากช่อง photos ของฟอร์ม multipart (FR-HND-06)
+func photoInputs(r *http.Request) []PhotoInput {
+	files := r.MultipartForm.File["photos"]
+	out := make([]PhotoInput, 0, len(files))
+	for _, fh := range files {
+		out = append(out, PhotoInput{Open: func() (io.ReadCloser, error) { return fh.Open() }})
+	}
+	return out
 }

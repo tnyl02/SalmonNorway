@@ -59,7 +59,7 @@ func TestRepository_CreateHandover(t *testing.T) {
 		requestID := insertRequest(t, tx, "student-001", itemID, "approved")
 		otherID := insertRequest(t, tx, "student-002", itemID, "rejected") // คำขออื่นของชิ้นเดียวกัน
 
-		res, err := NewRepository(txRepo{tx}).CreateHandover(ctx, sampleRecord(requestID), ready)
+		res, err := NewRepository(txRepo{tx}).CreateHandover(ctx, sampleRecord(requestID), ready, nil)
 		if err != nil {
 			t.Fatalf("CreateHandover error = %v", err)
 		}
@@ -98,7 +98,7 @@ func TestRepository_CreateHandover(t *testing.T) {
 		itemID := insertItem(t, tx, "T06-NA-0001", "unavailable")
 		requestID := insertRequest(t, tx, "student-001", itemID, "approved")
 
-		_, err := NewRepository(txRepo{tx}).CreateHandover(ctx, sampleRecord(requestID), ready)
+		_, err := NewRepository(txRepo{tx}).CreateHandover(ctx, sampleRecord(requestID), ready, nil)
 		if !errors.Is(err, ErrItemNotAvailable) {
 			t.Fatalf("error = %v ต้องเป็น ErrItemNotAvailable", err)
 		}
@@ -112,7 +112,7 @@ func TestRepository_CreateHandover(t *testing.T) {
 		itemID := insertItem(t, tx, "T06-NR-0001", "available")
 		requestID := insertRequest(t, tx, "student-001", itemID, "requested")
 
-		_, err := NewRepository(txRepo{tx}).CreateHandover(ctx, sampleRecord(requestID), ready)
+		_, err := NewRepository(txRepo{tx}).CreateHandover(ctx, sampleRecord(requestID), ready, nil)
 		if !errors.Is(err, ErrRequestNotReady) {
 			t.Fatalf("error = %v ต้องเป็น ErrRequestNotReady", err)
 		}
@@ -123,7 +123,7 @@ func TestRepository_CreateHandover(t *testing.T) {
 
 	t.Run("ไม่มีคำขอ", func(t *testing.T) {
 		tx := rollbackTx(t, conn)
-		_, err := NewRepository(txRepo{tx}).CreateHandover(ctx, sampleRecord(-1), ready)
+		_, err := NewRepository(txRepo{tx}).CreateHandover(ctx, sampleRecord(-1), ready, nil)
 		if !errors.Is(err, ErrRequestNotFound) {
 			t.Fatalf("error = %v ต้องเป็น ErrRequestNotFound", err)
 		}
@@ -217,7 +217,7 @@ func TestHandover_ConcurrentSameItem(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
-			_, err := repo.CreateHandover(ctx, rec, ready)
+			_, err := repo.CreateHandover(ctx, rec, ready, nil)
 			errs <- err
 		}()
 	}

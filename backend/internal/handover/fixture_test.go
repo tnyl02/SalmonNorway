@@ -26,9 +26,10 @@ var (
 	dbContainer *tcpostgres.PostgresContainer
 )
 
-// TestMain ปิด container หลัง test ทั้ง package จบ test ที่ไม่ใช้ฐานข้อมูลไม่ต้องมี Docker
+// TestMain ปิด container และลบโฟลเดอร์รูปของ test หลัง test ทั้ง package จบ test ที่ไม่ใช้ฐานข้อมูลไม่ต้องมี Docker
 func TestMain(m *testing.M) {
 	code := m.Run()
+	_ = os.RemoveAll(testPhotoRoot)
 	if dbContainer != nil {
 		_ = testcontainers.TerminateContainer(dbContainer)
 	}

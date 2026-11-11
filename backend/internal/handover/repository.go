@@ -28,6 +28,12 @@ var (
 	ErrItemNotAvailable = errors.New("equipment item not available")
 )
 
+// PhotoSaver เขียนและลบรูปของการยืม 1 รายการ (FR-HND-06) แยกจาก repository เพื่อให้ test ใช้ตัวจำลองได้
+type PhotoSaver interface {
+	SavePhotos(loanID int) ([]StoredPhoto, error)
+	RemovePhotos(loanID int)
+}
+
 // TxBeginner คือส่วนของ pgxpool.Pool (หรือ pgx.Conn) ที่ repository ใช้เปิด transaction
 type TxBeginner interface {
 	Begin(ctx context.Context) (pgx.Tx, error)
@@ -69,7 +75,9 @@ type HandoverResult struct {
 // ตรวจว่าอุปกรณ์ "ว่าง" และคำขออยู่ใน readyStatuses แล้วสร้าง Loan + แถว handover
 // เปลี่ยนอุปกรณ์เป็น "ถูกยืม" และคำขอเป็น "ส่งมอบแล้ว" ไม่แตะคำขออื่นของอุปกรณ์ชิ้นเดียวกัน (ASM-HND-08)
 // ถ้าไม่ผ่านข้อใด transaction ถูกยกเลิก ไม่มีอะไรเปลี่ยน
-func (r *Repository) CreateHandover(ctx context.Context, rec HandoverRecord, readyStatuses []string) (HandoverResult, error) {
+// photos (ว่างได้) เขียนรูปลงดิสก์หลังสร้าง Loan แล้วบันทึกแถว handover_photo ใน transaction เดียวกัน
+// ถ้าขั้นใดหลังเขียนรูปล้มเหลว ลบรูปทิ้ง ไม่ให้มีไฟล์ค้าง (FR-HND-06, plan.md ข้อ 4)
+func (r *Repository) CreateHandover(ctx context.Context, rec HandoverRecord, readyStatuses []string, photos PhotoSaver) (HandoverResult, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return HandoverResult{}, err
@@ -144,7 +152,27 @@ func (r *Repository) CreateHandover(ctx context.Context, rec HandoverRecord, rea
 		return HandoverResult{}, fmt.Errorf("update request: %w", err)
 	}
 
+	// FR-HND-06: เขียนรูปลงดิสก์ก่อน commit แล้วบันทึก path ผูกกับการยืมนี้
+	if photos != nil {
+		stored, err := photos.SavePhotos(res.LoanID)
+		if err != nil {
+			return HandoverResult{}, fmt.Errorf("save photos: %w", err)
+		}
+		for _, p := range stored {
+			if _, err := tx.Exec(ctx,
+				`INSERT INTO handover_photo (loan_id, file_path, content_type, size_bytes) VALUES ($1, $2, $3, $4)`,
+				res.LoanID, p.Path, p.ContentType, p.Size,
+			); err != nil {
+				photos.RemovePhotos(res.LoanID)
+				return HandoverResult{}, fmt.Errorf("insert handover_photo: %w", err)
+			}
+		}
+	}
+
 	if err := tx.Commit(ctx); err != nil {
+		if photos != nil {
+			photos.RemovePhotos(res.LoanID)
+		}
 		return HandoverResult{}, err
 	}
 	return res, nil

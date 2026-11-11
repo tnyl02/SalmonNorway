@@ -229,7 +229,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-07, T-10
 - เสร็จเมื่อ: `TestAC_HND_06_TwoJpgPhotosSaved` ผ่าน (JPG 2 รูป รูปละ 2 MB ได้ 201 มี `handover_photo` 2 แถวผูก Loan และไฟล์อยู่บนดิสก์ ชนิดไฟล์ตรวจจากเนื้อไฟล์ ไม่ใช่นามสกุล)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 #### จุดตรวจเฟส 5
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_06_TwoJpgPhotosSaved และ test ของเฟส 0-4
