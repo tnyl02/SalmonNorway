@@ -612,3 +612,23 @@
 
 ### สิ่งที่เกือบต้องเดา
 - ไม่มี: วิธีตรวจ "ไม่เคยเป็นว่างระหว่างทาง" ด้วย trigger มาจาก plan.md ข้อ 6
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-09 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 4)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำ task ต่อไปเลย" -> `/implement T-09 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/returns/handler_test.go`: `TestAC_RET_04_ConditionRequired`
+- `backend/internal/returns/handler.go`: ไม่ต้องแก้ (T-04 ตอบ 422 `CONDITION_REQUIRED` ก่อนแตะฐานข้อมูลอยู่แล้ว ผ่าน `ErrUnknownCondition` ใน service)
+
+### ผล test (`cd backend && go test ./internal/returns -v`)
+- TestAC_RET_04_ConditionRequired PASS (ไม่ส่ง / ว่าง / lost / broken / "ปกติ" ภาษาไทย -> 422 CONDITION_REQUIRED, การยืม สถานะ รูป ไม่เปลี่ยน)
+- test เดิมของ returns ยัง PASS
+
+### สิ่งที่เกือบต้องเดา
+- ไม่มี

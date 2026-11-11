@@ -447,3 +447,57 @@ func TestAC_RET_02_DamagedReturnBecomesUnavailable(t *testing.T) {
 		t.Errorf("ประวัติสถานะ = %v, want [unavailable] (เปลี่ยนครั้งเดียว ไม่ผ่าน available)", history)
 	}
 }
+
+// AC-RET-04 (FR-RET-02 สภาพ)
+//
+//	Given เจ้าหน้าที่กำลังบันทึกการรับคืน
+//	When  ไม่ได้ระบุสภาพ แล้วกดบันทึก
+//	Then  ระบบไม่บันทึก แจ้งให้เลือกสภาพ ปกติ หรือ ชำรุด และไม่มีตัวเลือก "สูญหาย"
+//
+// ฝั่งหลังบ้าน: ไม่มีสภาพ / ค่าว่าง / "lost" / ค่าอื่น -> 422 CONDITION_REQUIRED และการยืมกับสถานะไม่เปลี่ยน
+// ฝั่งหน้าจอ (ตัวเลือกมีแค่ 2 ค่า และข้อความแจ้ง) อยู่ใน T-10
+func TestAC_RET_04_ConditionRequired(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+	ctx := context.Background()
+
+	// Given
+	insertBorrowedItem(t, pool, "T09-AC04", 2*time.Hour)
+
+	cases := map[string]map[string]string{
+		"ไม่ส่งฟิลด์สภาพ":               {"assetCode": "T09-AC04"},
+		"สภาพว่าง":                      {"assetCode": "T09-AC04", "condition": ""},
+		"สูญหาย (ไม่ใช่สภาพ FR-RET-02)": {"assetCode": "T09-AC04", "condition": "lost"},
+		"ค่าที่ไม่รู้จัก":               {"assetCode": "T09-AC04", "condition": "broken"},
+		"ภาษาไทยแทนค่าในระบบ":           {"assetCode": "T09-AC04", "condition": "ปกติ"},
+	}
+	for name, fields := range cases {
+		// When
+		rec := postReturn(t, router, "mock-staff-001", fields, tinyJPEG)
+
+		// Then
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Errorf("%s: status = %d, want 422", name, rec.Code)
+			continue
+		}
+		var body struct {
+			Code string `json:"code"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || body.Code != "CONDITION_REQUIRED" {
+			t.Errorf("%s: code = %q, want CONDITION_REQUIRED", name, body.Code)
+		}
+	}
+
+	var returnedAt *time.Time
+	var status string
+	var photos int
+	if err := pool.QueryRow(ctx, `
+		SELECT l.returned_at, i.status, (SELECT count(*) FROM loan_return_photo p WHERE p.loan_id = l.id)
+		FROM loan l JOIN equipment_item i ON i.id = l.item_id
+		WHERE i.asset_code = 'T09-AC04'`).Scan(&returnedAt, &status, &photos); err != nil {
+		t.Fatal(err)
+	}
+	if returnedAt != nil || status != "borrowed" || photos != 0 {
+		t.Errorf("ต้องไม่บันทึกอะไรเลย: returned_at=%v status=%q photos=%d", returnedAt, status, photos)
+	}
+}
