@@ -1,6 +1,6 @@
 package returns
 
-// test ของ migration 0006 และค่าใน config ที่ 006 ใช้ อยู่ใน package ของ 006 เอง ไม่แก้ test ของ 001
+// test ของ migration 0009 และค่าใน config ที่ 006 ใช้ อยู่ใน package ของ 006 เอง ไม่แก้ test ของ 001
 // (ย้ายมาจาก platform/migrate_test.go และ config/config_test.go 2569-11-11)
 
 import (
@@ -40,7 +40,7 @@ func TestMigration006_AuditLogReturnActions(t *testing.T) {
 			t.Errorf("action %q ของ 006 ต้องบันทึกได้ แต่ได้ error: %v", a, err)
 		}
 	}
-	// ค่าเดิมของ 001 และ 003 ต้องยังใช้ได้หลัง 0006 แทนที่ CHECK
+	// ค่าเดิมของ 001 และ 003 ต้องยังใช้ได้หลัง 0009 แทนที่ CHECK
 	for _, a := range []string{"list", "search", "detail", "cancel"} {
 		stmt := `INSERT INTO audit_log (actor_id, actor_role, action, outcome) VALUES ('student-001', 'student', '` + a + `', 'ok')`
 		if err := execRolledBack(t, pool, stmt); err != nil {

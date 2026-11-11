@@ -22,7 +22,7 @@ FR-RET-04 อยู่ใน plan (data-model.md ให้ 006 ยืนยั�
 | Auth จำลอง `Authorization: Bearer mock-<รหัสผู้ใช้>` | ASM-02 (รอ Q-SH-03) | ใช้ `auth.Principal{UserID, Role, DepartmentID}` ของ 001 T-03 |
 
 ## 3. โมเดลข้อมูล
-ใช้ตารางร่วมที่มีแล้ว (`backend/db/migrations/0001`, `0002`) และเพิ่มด้วย migration ใหม่ 1 ไฟล์ (`0006_return.up.sql` จองแล้วใน data-model.md)
+ใช้ตารางร่วมที่มีแล้ว (`backend/db/migrations/0001`, `0002`) และเพิ่มด้วย migration ใหม่ 1 ไฟล์ (`0009_return.up.sql` จองใน data-model.md)
 
 **`loan` (DM-05 ใช้ร่วม) เพิ่มคอลัมน์ ว่างได้ทั้งหมด เพื่อไม่ให้กระทบ 001 และ 005:**
 | คอลัมน์ | ชนิด | รองรับ |
@@ -131,7 +131,7 @@ FR-RET-04 อยู่ใน plan (data-model.md ให้ 006 ยืนยั�
 NFR-DATA-01 ตรวจโดย AC-EQS-05 ของ 001 (ไม่ทำ test ซ้ำใน 006)
 
 ## 7. ลำดับงาน
-1. Migration `0006_return.up.sql` (คอลัมน์ `loan`, ค่า action ใหม่ของ `audit_log`) + แถวใหม่ใน data-model.md (FR-RET-02, 06, 07)
+1. Migration `0009_return.up.sql` (คอลัมน์ `loan`, ค่า action ใหม่ของ `audit_log`) + แถวใหม่ใน data-model.md (FR-RET-02, 06, 07)
 2. ค่าใน `config.go` / `config.js` ตามตารางข้อ 5 (FR-RET-02 ถึง 04)
 3. Repository + สิทธิ์ (staff + ภาควิชา) และ `GET /returns/lookup` (FR-RET-01(ก), AC-RET-03, 08, 11)
 4. `POST /returns` สภาพปกติ: transaction ปิดการยืม + `available` + audit (FR-RET-02, 03, 07, AC-RET-01, 04, 07, 09)
@@ -159,5 +159,5 @@ Open points ของ plan (ไม่ใช่ข้อกำหนด ทีม
 - Q-P1 หน้ารายการที่ยังไม่คืนต้องแบ่งหน้าไหม spec ไม่บอก plan คืนทั้งหมดของภาควิชา (ขนาดข้อมูล prototype เล็ก)
 - Q-P2 [ไม่ใช้แล้ว 2569-11-11 เพราะ FR-RET-05 ยกเลิก]
 - Q-P3 [ไม่ใช้แล้ว 2569-11-11 เพราะ FR-RET-05 ยกเลิก]
-- Q-P4 [ปิดแล้ว 2569-11-10] ใช้ `0006_return.up.sql` เจ้าของ 006 จองเอง
+- Q-P4 [ปิดแล้ว 2569-11-10, เปลี่ยนเลข 2569-11-11] เดิมใช้ `0006_return.up.sql` แต่ 0006 และ 0007 เป็นของ 005 ส่วน 0004 และ 0005 เป็นของ 003, 0008 เป็นของ 004 จึงย้ายไป `0009_return.up.sql`
 - Q-P5 หน้าจอแสดง `borrowerId` แทนชื่อ เพราะยังไม่มีที่มาของชื่อผู้ยืม (ประเด็นเดียวกับ 001 จาก T-02)

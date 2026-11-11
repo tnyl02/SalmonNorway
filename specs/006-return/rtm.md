@@ -15,7 +15,7 @@
 | NFR-DATA-01 | AC-EQS-05 (ของ 001) | ไม่มีใน 006 (001 T-16) | `RecordReturn` เขียนทันทีใน transaction / `writeJSON` ตั้ง `Cache-Control: no-store` | ไม่มี: test ของ AC-EQS-05 ยังไม่มีใน 001 | ยังไม่ถึง (รอ 001 T-16) |
 | NFR-SEC-01 | ไม่มี AC ใน 006 (ส่วน auth: AC-RET-08) | T-03, T-22 | ทุก route ผ่าน `auth.Middleware` + `staffOnly` / TLS: ไม่มีใน `deploy/docker-compose.yml` | `TestReturns_Skeleton_RoutedThroughAuth` (ผ่าน) / TLS ไม่มี test | ยังไม่ถึง (TLS เป็น deploy ของกลาง ยังไม่ทำ) |
 | NFR-AVAIL-01 | ไม่มี AC | ไม่มี | ไม่มี | ไม่มี | ช่องโหว่ (F-04) |
-| CON-TECH-01 | ไม่มี AC ตรง | T-01 | migration `0006_return.up.sql`, `pgxpool` ผ่าน `platform.OpenDB` | `TestMigration006_*` บน PostgreSQL 16 จริง (ผ่าน) | ครบ |
+| CON-TECH-01 | ไม่มี AC ตรง | T-01 | migration `0009_return.up.sql`, `pgxpool` ผ่าน `platform.OpenDB` | `TestMigration006_*` บน PostgreSQL 16 จริง (ผ่าน) | ครบ |
 | CON-TECH-02 | ไม่มี AC ตรง | T-03 (ใช้ deploy ของ 001) | ใช้ `deploy/docker-compose.yml` เดิม ยังไม่มี HTTPS / reverse proxy | ไม่มี | ยังไม่ถึง (deploy ของกลาง) |
 | CON-DATA-01 | AC-RET-01, 02, 03 | T-01, T-04, T-08, T-18 | เขียนเฉพาะ `available` / `unavailable` จาก `borrowed` (CHECK เดิมของ 0001) | `TestAC_RET_01_*`, `TestAC_RET_02_*`, `TestAC_RET_03_*`, `TestMigration_StatusCheck` (001) (ผ่าน) | ครบ |
 | CON-DATA-03 | AC-RET-01, 03 | T-04, T-05 | หาการยืมด้วย `asset_code` (UNIQUE) ใน `FindOpenLoan`, `RecordReturn`, `checkItemDepartment` | `TestReturns_Lookup_FoundOpenLoan`, `TestAC_RET_03_*` (ผ่าน) | ครบ |
@@ -37,7 +37,7 @@
 | `repository.go: checkItemDepartment` | FR-RET-01, ASM-03 | ตรง | ตรวจภาควิชาก่อนการยืมค้าง ตามลำดับใน plan ข้อ 4 |
 | `handler.go: respond`, `errorResponse` / `audit.go: outcomeFor` | DOM-AUDIT-01 | ตรงบางส่วน | การจับคู่ outcome และ fail closed เป็นการตัดสินใจของ AI (F-01, F-02) |
 | `audit.go` (package returns) | DOM-AUDIT-01, FR-RET-07 | ตรง | 001 ยังไม่มี package `audit` กลาง (plan 001 ข้อ 3) ถ้ามีภายหลังควรย้ายไปใช้ |
-| `backend/db/migrations/0006_return.up.sql` | FR-RET-02, 06, 07 | ตรง | ไม่มีตารางรูป (FR-RET-05 ยกเลิก) ตรวจแล้ว / แทนที่ CHECK action ของ 0002 โดยคงค่าเดิมครบ |
+| `backend/db/migrations/0009_return.up.sql` | FR-RET-02, 06, 07 | ตรง | ไม่มีตารางรูป (FR-RET-05 ยกเลิก) ตรวจแล้ว / แทนที่ CHECK action ของ 0002 โดยคงค่าเดิมครบ |
 | `backend/db/seed/seed_006_return.sql` | (ข้อมูลตัวอย่าง จุดตรวจ AC-RET-10, 11) | ตรง | ข้อมูลตัวอย่าง ไม่ใช่ข้อมูลจริง |
 | `backend/internal/config/config.go`: `Timezone`, `ReturnConditionStatus` | glossary, FR-RET-02 ถึง 04 | ตรง | ไม่พบตัวเลขจาก spec ฝังในโค้ด 006 |
 | `frontend/src/config.js`: `TIMEZONE`, `STATUS_LABELS`, `RETURN_CONDITIONS` | glossary, CON-DATA-01, FR-RET-02 | ตรง | |

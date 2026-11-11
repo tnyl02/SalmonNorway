@@ -10,7 +10,7 @@ import (
 	"salmonnorway/backend/internal/auth"
 )
 
-// ค่า action ของ 006 ในตาราง audit_log (DM-07 ใน specs/000-shared/data-model.md, migration 0006)
+// ค่า action ของ 006 ในตาราง audit_log (DM-07 ใน specs/000-shared/data-model.md, migration 0009)
 const (
 	actionReturnList   = "return_list"   // เปิดหน้ารายการที่ยังไม่คืน
 	actionReturnLookup = "return_lookup" // ค้นการยืมจากรหัสครุภัณฑ์

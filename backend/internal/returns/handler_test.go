@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// testPool เปิด PostgreSQL 16 ใน container ครั้งเดียว รัน migration (รวม 0006) และข้อมูลตัวอย่างของ 001 และ 006
+// testPool เปิด PostgreSQL 16 ใน container ครั้งเดียว รัน migration (รวม 0009) และข้อมูลตัวอย่างของ 001 และ 006
 // (plan.md ข้อ 6: integration ด้วย testcontainers + migration จริง)
 func testPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
@@ -126,7 +126,7 @@ func TestReturns_Skeleton_RoutedThroughAuth(t *testing.T) {
 	}
 }
 
-// T-03 เสร็จเมื่อ (ข้อมูลตัวอย่าง): seed_006_return.sql ใส่ได้หลัง seed.sql และ migration 0006
+// T-03 เสร็จเมื่อ (ข้อมูลตัวอย่าง): seed_006_return.sql ใส่ได้หลัง seed.sql และ migration 0009
 // ภาควิชา 1 มีการยืมที่ยังไม่คืน 2 รายการ และคืนแล้ว 2 รายการ / ภาควิชา 2 มีการยืมที่ยังไม่คืน 1 รายการ
 func TestReturns_Seed006Loaded(t *testing.T) {
 	pool := testPool(t)

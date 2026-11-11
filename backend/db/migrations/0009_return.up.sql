@@ -1,5 +1,5 @@
--- 0006 การรับคืนอุปกรณ์ของ 006-return (UC-09) ตาม specs/006-return/plan.md ข้อ 3
--- เลข 0006 เจ้าของ 006 จองไว้ใน specs/000-shared/data-model.md หัวข้อ "เลข migration"
+-- 0009 การรับคืนอุปกรณ์ของ 006-return (UC-09) ตาม specs/006-return/plan.md ข้อ 3
+-- เลข 0009 ตาม specs/000-shared/data-model.md หัวข้อ "เลข migration" (เดิม 0006 ย้ายเมื่อ 2569-11-11 เพราะ 0004-0008 เป็นของ 003, 004, 005)
 -- ห้ามแก้ไฟล์ 0001, 0002 จึงเพิ่มคอลัมน์และค่า CHECK ด้วยไฟล์นี้
 
 -- DM-05 การยืม: ข้อมูลตอนรับคืน ว่างได้ทั้งหมด เพื่อไม่ให้กระทบ 001 (อ่าน) และ 005 (สร้างการยืม)
@@ -22,6 +22,9 @@ ALTER TABLE loan
 --   return_lookup ค้นการยืมจากรหัสครุภัณฑ์
 --   return_detail เปิดรายละเอียดการยืม
 --   return        บันทึกการรับคืน
+-- CHECK ใหม่มีค่าเดิมเฉพาะที่อยู่ใน DM-07 ของ branch นี้ตอนนี้ (0002 ของ 001: list, search, detail, cancel)
+-- ยังไม่ใส่ค่าของ 0005 (003), 0007 (005), 0008 (004) เพราะยังไม่ merge และ test ของ 001 ปฏิเสธค่าที่ไม่อยู่ใน DM-07
+-- เมื่อฟีเจอร์เหล่านั้น merge แล้ว 0009 รันหลังสุดจะทับ CHECK ของเขา -> ต้องรวมค่าของเขาเพิ่มที่นี่ (ตกลงในกลุ่มตอน merge)
 ALTER TABLE audit_log DROP CONSTRAINT audit_log_action_check;
 ALTER TABLE audit_log ADD CONSTRAINT audit_log_action_check
     CHECK (action IN ('list', 'search', 'detail', 'cancel',

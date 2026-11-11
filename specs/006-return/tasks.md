@@ -3,7 +3,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2.1) | Plan: plan.md Draft v1.1 | สร้�
 
 สรุป
 - 14 เฟส (ฐานราก + 12 เฟส + รอคำตอบ) รวม 27 task
-- รอ Q-xx 4 task (T-24 Q-04, T-25 Q-03, T-26 Q-09, T-27 Q-SH-08) (เลข migration 0006 จองแล้ว)
+- รอ Q-xx 4 task (T-24 Q-04, T-25 Q-03, T-26 Q-09, T-27 Q-SH-08) (เลข migration 0009 เปลี่ยนจาก 0006 เมื่อ 2569-11-11 เพราะ 0006 เป็นของ 005)
 - เฟสแรกที่ลองใช้งานได้จริง: เฟส 1 (เจ้าหน้าที่กรอกรหัสครุภัณฑ์ บันทึกคืนสภาพปกติ แล้วอุปกรณ์กลับเป็น "ว่าง")
 
 เลข task และเฟสถูกเลื่อน 2569-11-11 (ทีมสั่ง): ลบ task รูปเดิม T-11 ถึง T-13 และเฟส 5 เดิม (FR-RET-05 ยกเลิก)
@@ -42,7 +42,7 @@ task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้�
 ### T-01 สร้าง migration ของการรับคืน
 - รองรับ: FR-RET-02, FR-RET-06, FR-RET-07, CON-TECH-01, CON-DATA-01, DOM-AUDIT-01
 - ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นงานพื้นฐานของ T-04, T-08, T-11, T-13, T-23
-- ไฟล์ที่แตะ: `backend/db/migrations/0006_return.up.sql`, `specs/000-shared/data-model.md` (เพิ่มแถว action `return_list`, `return_lookup`, `return_detail`, `return` ใน DM-07 และคอลัมน์ใหม่ของ DM-05), `backend/internal/platform/migrate_test.go`
+- ไฟล์ที่แตะ: `backend/db/migrations/0009_return.up.sql`, `specs/000-shared/data-model.md` (เพิ่มแถว action `return_list`, `return_lookup`, `return_detail`, `return` ใน DM-07 และคอลัมน์ใหม่ของ DM-05), `backend/internal/platform/migrate_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: migration รันบน DB ว่างได้ ตาราง `loan` มี `return_condition`, `returned_late` พร้อม CHECK และ `audit_log` รับ action ใหม่ 4 ค่า (ตาราง `loan_return_photo` ถอดออก 2569-11-11 พร้อม FR-RET-05) (test ใน `migrate_test.go` ผ่าน)
