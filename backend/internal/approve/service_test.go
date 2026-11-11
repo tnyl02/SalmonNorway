@@ -463,3 +463,63 @@ func TestAC_APV_09(t *testing.T) {
 		t.Errorf("ผลเดิมต้องคงไว้ (approved, 1 แถว) แต่ได้ %q, %d แถว", s, decisions)
 	}
 }
+
+// assertHistory ตรวจประวัติของคำขอ 1 ใบ (FR-APV-01 ฌ, RQ-25): แถว approval_decision ที่มีรหัสคำขอ ผล เหตุผล
+// ผู้ดำเนินการ และวันเวลา และ audit_log action ตรงกรณี 1 แถว ใช้ใน TestAC_APV_15 และกรณีปฏิเสธอัตโนมัติของ T-29
+func assertHistory(t *testing.T, tx pgx.Tx, requestID int, result, reason, actorID, action string) {
+	t.Helper()
+	var gotResult, gotActor string
+	var gotReason *string
+	var decidedAt time.Time
+	if err := tx.QueryRow(context.Background(), `
+		SELECT result, reason, actor_id, decided_at FROM approval_decision WHERE request_id = $1`, requestID).
+		Scan(&gotResult, &gotReason, &gotActor, &decidedAt); err != nil {
+		t.Errorf("คำขอ %d ต้องมีแถว approval_decision: %v", requestID, err)
+		return
+	}
+	r := ""
+	if gotReason != nil {
+		r = *gotReason
+	}
+	if gotResult != result || r != reason || gotActor != actorID || decidedAt.IsZero() {
+		t.Errorf("คำขอ %d ประวัติไม่ตรง: ได้ (%q, %q, %q, %v) ต้องการ (%q, %q, %q, มีวันเวลา)",
+			requestID, gotResult, r, gotActor, decidedAt, result, reason, actorID)
+	}
+	var audits int
+	if err := tx.QueryRow(context.Background(),
+		`SELECT count(*) FROM audit_log WHERE request_id = $1 AND action = $2 AND actor_id = $3`, requestID, action, actorID).Scan(&audits); err != nil {
+		t.Fatal(err)
+	}
+	if audits != 1 {
+		t.Errorf("คำขอ %d ต้องมี audit_log action %q 1 แถว แต่ได้ %d", requestID, action, audits)
+	}
+}
+
+// AC-APV-15 (FR-APV-01 ฌ, RQ-25)
+// Given การอนุมัติ ปฏิเสธ หรือปฏิเสธอัตโนมัติใด ๆ
+// When  ระบบบันทึกผลสำเร็จ
+// Then  มีประวัติใหม่ที่มีรหัสคำขอ ผล เหตุผล (ถ้ามี) ผู้ดำเนินการ และวันเวลา
+//
+//	T-28 ตรวจอนุมัติ ปฏิเสธ และปฏิเสธตาม / กรณีปฏิเสธอัตโนมัติเพิ่มใน T-29
+//	ชื่อเจ้าหน้าที่ (actor_name) ยังว่างได้เพราะ Principal ยังไม่มีชื่อ (T-38)
+func TestAC_APV_15(t *testing.T) {
+	tx := devTx(t)
+	svc := NewService(NewRepository(tx))
+	ctx := staffCtx("staff-001", 1)
+
+	a := requestIDOf(t, tx, "AP-TEST-0001", "student-001")
+	b := requestIDOf(t, tx, "AP-TEST-0001", "student-002")
+	rejected := requestIDOf(t, tx, "AP-TEST-0003", "student-002")
+
+	// อนุมัติ A (B ถูกปฏิเสธตาม) และปฏิเสธคำขอของ AP-TEST-0003 พร้อมเหตุผล
+	if _, err := svc.Approve(ctx, a, time.Time{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Reject(ctx, rejected, "อุปกรณ์ต้องใช้สอบ", time.Time{}); err != nil {
+		t.Fatal(err)
+	}
+
+	assertHistory(t, tx, a, config.ApprovalKindApproved, "", "staff-001", config.AuditActionApprove)
+	assertHistory(t, tx, rejected, config.ApprovalKindRejected, "อุปกรณ์ต้องใช้สอบ", "staff-001", config.AuditActionReject)
+	assertHistory(t, tx, b, config.ApprovalKindRejected, config.ApprovalSupersededReason, "staff-001", config.AuditActionReject)
+}
