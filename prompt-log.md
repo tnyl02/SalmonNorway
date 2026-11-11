@@ -3957,3 +3957,26 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ฟีเจอร์: 004-approve-request
 - คำสั่ง: "ตรวจสอบแล่วผ่าน"
 - สิ่งที่แก้: tasks.md T-28 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-29 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "ตรวจสอบแล่วผ่าน" (T-28 -> เสร็จ)
+- คำสั่ง: "/implement T-29"
+- ไฟล์ที่สร้าง: `backend/internal/approve/autoreject.go` (`AutoRejecter`, `autoRejectCutoff` = 00:00 น. ของวันนี้ตามเวลาไทย, `Run` ตื่นทุกเที่ยงคืน, `RejectStale` ปฏิเสธคำขอยืมปกติ requested ที่ส่งก่อน cutoff: rejected + approval_decision auto_rejected ผู้ดำเนินการ system/System + audit_log auto_reject + Email ปฏิเสธอัตโนมัติ, `lockStaleRequests` ใช้ FOR UPDATE แบบรอ), `autoreject_test.go` (`TestAC_APV_13`)
+- ไฟล์ที่แก้: `service_test.go` (`TestAC_APV_15` เพิ่มกรณีปฏิเสธอัตโนมัติ), `config.go` (`ApprovalSystemActorName = "System"`), `specs/004-approve-request/tasks.md`
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): ใช้ FOR UPDATE แบบรอ (ไม่ใช่ SKIP LOCKED) เพราะงานรันวันละครั้ง ถ้าข้ามคำขอที่กำลังถูกพิจารณาจะค้างไปอีกวัน; actor_role ของ audit_log ใช้ "system"; ภาควิชาของผู้ดำเนินการ System = ภาควิชาเจ้าของอุปกรณ์ (plan ข้อ 3); ยังไม่เริ่ม goroutine ใน main.go และยังไม่ไล่ปฏิเสธตอนเริ่มทำงาน (T-30)
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-29 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจสอบแล่วผ่าน"
+- สิ่งที่แก้: tasks.md T-29 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)

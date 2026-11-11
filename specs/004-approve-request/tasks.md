@@ -462,11 +462,11 @@ Updated: 2569-11-12
 ### T-29 สร้างงานเที่ยงคืนปฏิเสธคำขอยืมปกติที่ค้าง
 - รองรับ: FR-APV-01 (ฉ)(ฌ), FR-APV-02 (ค), ASM-05, Q-APV-14, Q-APV-15
 - ตรวจด้วย: AC-APV-13, AC-APV-15 (กรณีปฏิเสธอัตโนมัติ)
-- ไฟล์ที่แตะ: `backend/internal/approve/autoreject.go`, `backend/internal/approve/autoreject_test.go`, `backend/internal/approve/service_test.go`
+- ไฟล์ที่แตะ: `backend/internal/approve/autoreject.go`, `backend/internal/approve/autoreject_test.go`, `backend/internal/approve/service_test.go`, `backend/internal/config/config.go` (`ApprovalSystemActorName`)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-15, T-28
 - เสร็จเมื่อ: `TestAC_APV_13` ผ่านด้วยนาฬิกาจำลอง: ที่ 00:00 น. หลังวันที่ D คำขอยืมปกติ `requested` ที่ส่งวัน D เป็น `rejected` result `auto_rejected` ผู้ดำเนินการ `system` เหตุผล `ApprovalAutoRejectReason` และมี Email ปฏิเสธอัตโนมัติภายใน 60 วินาที / คำขอที่ส่งวัน D+1 และคำขอค้างคืนไม่ถูกแตะ / `TestAC_APV_15` เพิ่มกรณีปฏิเสธอัตโนมัติ (`audit_log` action `auto_reject`) แล้วผ่าน
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน `TestAC_APV_13`, `TestAC_APV_15` กรณีปฏิเสธอัตโนมัติ ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 #### จุดตรวจเฟส 14
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_13`, `TestAC_APV_15` (รวมกรณีปฏิเสธอัตโนมัติ) และ test ของเฟส 0 ถึง 13

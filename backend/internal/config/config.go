@@ -121,6 +121,9 @@ const ApprovalPickupLocation = "คณะวิทยาศาสตร์ ต�
 // ApprovalSystemActorID คือผู้ดำเนินการของการปฏิเสธอัตโนมัติ (FR-APV-01 ฉ "ผู้ดำเนินการคือ System", plan.md ข้อ 3)
 const ApprovalSystemActorID = "system"
 
+// ApprovalSystemActorName คือชื่อผู้ดำเนินการของการปฏิเสธอัตโนมัติ (FR-APV-01 ฉ "ผู้ดำเนินการคือ System", plan.md ข้อ 3)
+const ApprovalSystemActorName = "System"
+
 // ค่า action ของ audit log ที่ 004 บันทึก (RQ-25, FR-APV-01 ฌ) ต้องตรงกับ CHECK ใน migration 0008
 const (
 	AuditActionApprove    = "approve"

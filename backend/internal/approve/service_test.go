@@ -522,4 +522,18 @@ func TestAC_APV_15(t *testing.T) {
 	assertHistory(t, tx, a, config.ApprovalKindApproved, "", "staff-001", config.AuditActionApprove)
 	assertHistory(t, tx, rejected, config.ApprovalKindRejected, "อุปกรณ์ต้องใช้สอบ", "staff-001", config.AuditActionReject)
 	assertHistory(t, tx, b, config.ApprovalKindRejected, config.ApprovalSupersededReason, "staff-001", config.AuditActionReject)
+
+	// T-29: ปฏิเสธอัตโนมัติ คำขอของ AP-TEST-0004 ส่งเมื่อวาน แล้วงานเที่ยงคืนทำงาน
+	stale := requestIDOf(t, tx, "AP-TEST-0004", "student-001")
+	midnight := autoRejectCutoff(time.Now())
+	if _, err := tx.Exec(context.Background(), `UPDATE borrow_request SET submitted_at = $2 WHERE id = $1`,
+		stale, midnight.Add(-time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	job := &AutoRejecter{db: tx, now: func() time.Time { return midnight.Add(time.Minute) }}
+	if _, err := job.RejectStale(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	assertHistory(t, tx, stale, config.ApprovalKindAutoRejected, config.ApprovalAutoRejectReason,
+		config.ApprovalSystemActorID, config.AuditActionAutoReject)
 }
