@@ -115,3 +115,13 @@ test('T-12: บันทึกสำเร็จแล้วกด "ดูรา
   await screen.findByRole('region', { name: 'รายละเอียดการยืม' })
   expect(client.returns.loanDetail).toHaveBeenCalledWith(1)
 })
+
+// T-15: เปิดจากหน้ารายการที่ยังไม่คืน ReturnPage กรอกรหัสและค้นหาให้ทันที (FR-RET-01(ข))
+test('T-15: ได้ initialAssetCode แล้วกรอกรหัสไว้และแสดงการยืมทันที', async () => {
+  const client = fakeClient()
+  render(<ReturnPage client={client} initialAssetCode="CS-NB-0004" />)
+
+  await screen.findByText('Notebook ตัวอย่างรุ่น A')
+  expect(client.returns.lookup).toHaveBeenCalledWith('CS-NB-0004')
+  expect(screen.getByLabelText('รหัสครุภัณฑ์').value).toBe('CS-NB-0004')
+})

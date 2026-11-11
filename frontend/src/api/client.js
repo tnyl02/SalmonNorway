@@ -38,6 +38,9 @@ async function request(path, options = {}) {
 export const api = {
   // ---- 006-return (specs/006-return/plan.md ข้อ 4) ----
   returns: {
+    // openLoans รายการการยืมที่ยังไม่คืนของภาควิชาเจ้าหน้าที่ (FR-RET-01(ข))
+    openLoans: () => request('/v1/returns/open-loans'),
+
     // lookup หาการยืมที่ยังไม่คืนจากรหัสครุภัณฑ์ (FR-RET-01(ก))
     lookup: (assetCode) =>
       request(`/v1/returns/lookup?assetCode=${encodeURIComponent(assetCode)}`),

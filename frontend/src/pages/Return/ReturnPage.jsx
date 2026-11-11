@@ -1,7 +1,7 @@
 // หน้าบันทึกการรับคืนอุปกรณ์ของเจ้าหน้าที่ (006-return, UC-09)
 // ไม่มี mockup ทีมออกแบบเอง (spec ไม่มี UI ID) ตาม plan.md ข้อ 4 หน้าจอ ReturnPage
 // หลังบ้านเป็นผู้ตรวจทุกกฎ หน้านี้แค่ส่งข้อมูลและแสดงผล ข้อความ error แยกตามกรณีอยู่ใน T-10, T-19, T-21
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../../api/client.js'
 import LoanDetailPage from './LoanDetailPage.jsx'
 import { RETURN_CONDITIONS, STATUS_LABELS, TIMEZONE } from '../../config.js'
@@ -15,8 +15,9 @@ function formatDateTime(iso) {
 export const conditionRequiredMessage = `กรุณาเลือกสภาพ ${RETURN_CONDITIONS.map((c) => c.label).join(' หรือ ')}`
 
 // ReturnPage: กรอกรหัสครุภัณฑ์ (FR-RET-01(ก)) เลือกสภาพ (FR-RET-02) แล้วบันทึก (FR-RET-03, FR-RET-04)
-export default function ReturnPage({ client = api }) {
-  const [assetCode, setAssetCode] = useState('')
+// initialAssetCode: รหัสที่เลือกมาจากหน้ารายการที่ยังไม่คืน (FR-RET-01(ข)) ถ้ามี หน้านี้กรอกและค้นหาให้ทันที
+export default function ReturnPage({ client = api, initialAssetCode = '' }) {
+  const [assetCode, setAssetCode] = useState(initialAssetCode)
   const [loan, setLoan] = useState(null) // การยืมที่ยังไม่คืนที่หาเจอ
   const [condition, setCondition] = useState('')
   const [result, setResult] = useState(null) // ผลการบันทึกที่สำเร็จ
@@ -27,12 +28,22 @@ export default function ReturnPage({ client = api }) {
   // หาการยืมที่ยังไม่คืนจากรหัสครุภัณฑ์ (FR-RET-01(ก))
   async function handleLookup(e) {
     e.preventDefault()
+    await lookup(assetCode)
+  }
+
+  // มาจากหน้ารายการที่ยังไม่คืน: ค้นหาให้ทันทีตอนเปิดหน้า (FR-RET-01(ข))
+  useEffect(() => {
+    if (initialAssetCode) lookup(initialAssetCode)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ค้นหาครั้งเดียวตอนเปิด App.jsx เปลี่ยน key เมื่อเลือกแถวใหม่
+  }, [])
+
+  async function lookup(code) {
     setBusy(true)
     setError('')
     setLoan(null)
     setResult(null)
     setShowDetail(false)
-    const res = await client.returns.lookup(assetCode.trim())
+    const res = await client.returns.lookup(code.trim())
     setBusy(false)
     if (res.ok) {
       setLoan(res.data)

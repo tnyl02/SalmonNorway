@@ -744,3 +744,28 @@
 ### สิ่งที่เกือบต้องเดา
 - ฐานข้อมูลทดสอบใช้ร่วมกันทุก test นับ "3 รายการพอดี" ในภาควิชา 1 ไม่ได้ จึงสร้างภาควิชาใหม่และเจ้าหน้าที่จำลองเฉพาะ test (ผ่าน `auth.Provider` ไม่แก้ mock ของกลาง)
 - ไม่แบ่งหน้า ตาม plan.md Q-P1 ที่ยังรอทีมยืนยัน
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-15 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 7)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำเลย" -> `/implement T-15 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- ตามช่องไฟล์ที่แตะ: สร้าง `frontend/src/pages/Return/OpenLoansPage.jsx` (ตาราง รหัสครุภัณฑ์ รุ่น ผู้ยืม กำหนดคืน ปุ่ม "เลือก", รายการว่าง, error ตาม code),
+  `frontend/src/pages/Return/__tests__/OpenLoansPage.test.jsx`, แก้ `frontend/src/api/client.js` (`api.returns.openLoans`),
+  `frontend/src/pages/Return/ReturnPage.jsx` (รับ `initialAssetCode` แล้วกรอกและค้นหาให้ทันที)
+- นอกช่องไฟล์ที่แตะ: `frontend/src/App.jsx` (แสดง OpenLoansPage ใต้ ReturnPage และเปิด ReturnPage ใหม่ด้วย key เมื่อเลือกแถว),
+  `ReturnPage.test.jsx` (test ของ initialAssetCode) เพราะแอปยังไม่มี router
+
+### ผล test (`cd frontend && npm test`)
+- OpenLoansPage.test.jsx 3 tests PASS (AC-RET-10: 3 แถว + กดเลือกส่งรหัส / รายการว่าง / โหลดไม่สำเร็จ)
+- ReturnPage.test.jsx เพิ่ม 1 test PASS (initialAssetCode) / รวม 14 tests PASS / `vite build` สำเร็จ
+- มีคำเตือน act(...) จาก `setup.test.jsx` (test โครงของรายวิชา) เพราะ App โหลดรายการตอนเปิด test ยังผ่าน ไม่ได้แก้ไฟล์นั้น
+
+### สิ่งที่เกือบต้องเดา
+- ไม่มี router "เปิด ReturnPage ที่กรอกรหัสไว้" จึงทำด้วย state ใน App.jsx แทนการเปลี่ยนหน้า
+- รายการไม่รีเฟรชเองหลังบันทึกคืน (spec ไม่ได้กำหนด) ต้องโหลดหน้าใหม่ ป้าย "เลยกำหนดคืน" อยู่ใน T-17
