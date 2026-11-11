@@ -975,3 +975,27 @@
 ### ผล test
 - `cd backend && go test ./...`: PASS ทั้งหมด (platform ของ 001 เท่าเดิม, returns 20 tests)
 - `cd frontend && npm test`: 20 tests PASS
+
+---
+
+## 2569-11-11 คำสั่ง: /verify (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return
+- เครื่องมือ: Claude Code (`.claude/commands/verify.md`)
+- คำสั่ง: "ตอนท้ายรัน /verify ทำ rtm.md ของฟีเจอร์ตัวเอง" -> `/verify specs/006-return/spec.md`
+- ผลลัพธ์: `specs/006-return/rtm.md` (รอบแรก) ไม่ได้แก้โค้ด test spec plan tasks
+
+### ผล test (ดูอย่างเดียว)
+- `cd backend && go test ./... -v`: 30 ผ่าน 0 ไม่ผ่าน (auth 3, platform 7, returns 20)
+- `cd frontend && npm test`: 20 ผ่าน 0 ไม่ผ่าน
+
+### ตารางไปข้างหน้า 18 แถว
+- ครบ 9 / ยังไม่ถึง 3 (NFR-DATA-01 รอ 001 T-16, NFR-SEC-01 และ CON-TECH-02 รอ TLS ของ deploy กลาง) / รอ 1 (DOM-REQ-01 รอ Q-08) /
+  ช่องโหว่ 4 (FR-RET-01, FR-RET-07, DOM-AUDIT-01, NFR-AVAIL-01) / ยกเลิก 1 (FR-RET-05)
+
+### ข้อค้นพบใหม่
+- F-01 เดา: การจับคู่ outcome ของ audit (409/422/404 = error) ไม่มีที่มาใน spec/DM-07
+- F-02 เดา: fail closed 503 เมื่อเขียน audit ไม่ได้ ใช้แนว Q-P4 ของ 001 ที่ยังไม่มีคำตอบ
+- F-03 test อ่อน: การต่อ OpenLoansPage -> ReturnPage ใน App.jsx ไม่มี test (AC-RET-10)
+- F-04 FR ไม่มี AC: NFR-AVAIL-01
