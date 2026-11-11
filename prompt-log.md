@@ -654,3 +654,24 @@
 
 ### สิ่งที่เกือบต้องเดา
 - ข้อความ "กรุณาเลือกสภาพ ปกติ หรือ ชำรุด" ไม่มี mockup ทีมออกแบบเอง ใช้ถ้อยคำตาม Then ของ AC-RET-04
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-11 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 5)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำ task ต่อเลย" -> `/implement T-11 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- `backend/internal/returns/repository.go`: `LoanDetail`, `GetLoan`, `ErrLoanNotFound`
+- `backend/internal/returns/handler.go`: `GET /api/v1/returns/loans/{loanId}` -> 200 / 404 `LOAN_NOT_FOUND` / 503
+- `backend/internal/returns/handler_test.go`: `TestReturns_LoanDetail`
+
+### ผล test (`cd backend && go test ./internal/returns -v`)
+- TestReturns_LoanDetail PASS (คืนแล้ว: ข้อมูลครบ condition damaged returnedLate false / ยังไม่คืน: returnedAt null / ไม่มีหรือไม่ใช่ตัวเลข: 404)
+- test เดิมของ returns ยัง PASS (8 tests)
+
+### สิ่งที่เกือบต้องเดา
+- error code `LOAN_NOT_FOUND` (404) ไม่มีในตาราง error ของ plan ข้อ 4 AI ตั้งเอง ทีมต้องยืนยันและเพิ่มใน plan

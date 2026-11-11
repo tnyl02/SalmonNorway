@@ -37,7 +37,7 @@ type ReturnRecord struct {
 // RecordReturn ปิดการยืม และเปลี่ยนสถานะอุปกรณ์ ใน transaction เดียว (plan.md ข้อ 4)
 //   - เวลาคืน = now() ของฐานข้อมูลตอนบันทึก ไม่รับจาก client (FR-RET-02, ASM-04)
 //   - สถานะเปลี่ยนครั้งเดียวจาก "ถูกยืม" ไปเป็น newStatus (FR-RET-03, CON-DATA-01)
-//   - returned_late = now() > due_at ต้องใส่พร้อมกันเพราะ CHECK loan_return_fields_complete (FR-RET-06, test ใน T-16)
+//   - returned_late = now() > due_at ต้องใส่พร้อมกันเพราะ CHECK loan_return_fields_complete (FR-RET-06, test ใน T-13)
 //
 // ล็อกแถวด้วย FOR UPDATE: ถ้าบันทึกพร้อมกัน คนที่สองจะไม่พบการยืมที่ยังไม่คืน ได้ ErrNoOpenLoan
 func (r *Repository) RecordReturn(ctx context.Context, assetCode, condition, newStatus string) (ReturnRecord, error) {
@@ -92,7 +92,7 @@ type OpenLoan struct {
 
 // FindOpenLoan หาการยืมที่ยังไม่คืนของอุปกรณ์ assetCode (FR-RET-01(ก), CON-DATA-03 รหัสครุภัณฑ์ไม่ซ้ำ จึงได้ไม่เกิน 1 รายการ)
 // isOverdue = now() > due_at คำนวณที่ฐานข้อมูล ใช้ due_at ที่ 005 บันทึก ไม่คำนวณ 16:00 เอง (ASM-01)
-// ไม่พบ หรือสถานะไม่ใช่ "ถูกยืม" -> ErrNoOpenLoan / การกรองภาควิชาทำใน T-23
+// ไม่พบ หรือสถานะไม่ใช่ "ถูกยืม" -> ErrNoOpenLoan / การกรองภาควิชาทำใน T-20
 func (r *Repository) FindOpenLoan(ctx context.Context, assetCode string) (OpenLoan, error) {
 	var ol OpenLoan
 	err := r.pool.QueryRow(ctx, `
@@ -106,4 +106,35 @@ func (r *Repository) FindOpenLoan(ctx context.Context, assetCode string) (OpenLo
 		return OpenLoan{}, ErrNoOpenLoan
 	}
 	return ol, err
+}
+
+// ErrLoanNotFound หมายถึงไม่มีการยืมรหัสนี้ (FR-RET-06 หน้ารายละเอียดการยืม)
+var ErrLoanNotFound = errors.New("loan not found")
+
+// LoanDetail คือรายละเอียดการยืม 1 รายการตาม plan.md ข้อ 4 (FR-RET-06)
+// ยังไม่คืน: returnedAt, condition, returnedLate เป็น null
+type LoanDetail struct {
+	LoanID       int        `json:"loanId"`
+	AssetCode    string     `json:"assetCode"`
+	BorrowerID   string     `json:"borrowerId"`
+	DueAt        time.Time  `json:"dueAt"`
+	ReturnedAt   *time.Time `json:"returnedAt"`
+	Condition    *string    `json:"condition"`
+	ReturnedLate *bool      `json:"returnedLate"`
+}
+
+// GetLoan อ่านรายละเอียดการยืมจากรหัสการยืม (FR-RET-06) ใช้ returned_late ที่บันทึกตอนรับคืน ไม่คำนวณใหม่
+// ไม่พบ -> ErrLoanNotFound / การกรองภาควิชาทำใน T-20
+func (r *Repository) GetLoan(ctx context.Context, loanID int) (LoanDetail, error) {
+	var d LoanDetail
+	err := r.pool.QueryRow(ctx, `
+		SELECT l.id, i.asset_code, l.borrower_id, l.due_at, l.returned_at, l.return_condition, l.returned_late
+		FROM loan l
+		JOIN equipment_item i ON i.id = l.item_id
+		WHERE l.id = $1`, loanID).
+		Scan(&d.LoanID, &d.AssetCode, &d.BorrowerID, &d.DueAt, &d.ReturnedAt, &d.Condition, &d.ReturnedLate)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return LoanDetail{}, ErrLoanNotFound
+	}
+	return d, err
 }

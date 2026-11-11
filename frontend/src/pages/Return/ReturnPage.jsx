@@ -1,6 +1,6 @@
 // หน้าบันทึกการรับคืนอุปกรณ์ของเจ้าหน้าที่ (006-return, UC-09)
 // ไม่มี mockup ทีมออกแบบเอง (spec ไม่มี UI ID) ตาม plan.md ข้อ 4 หน้าจอ ReturnPage
-// หลังบ้านเป็นผู้ตรวจทุกกฎ หน้านี้แค่ส่งข้อมูลและแสดงผล ข้อความ error แยกตามกรณีอยู่ใน T-10, T-13, T-22, T-24
+// หลังบ้านเป็นผู้ตรวจทุกกฎ หน้านี้แค่ส่งข้อมูลและแสดงผล ข้อความ error แยกตามกรณีอยู่ใน T-10, T-19, T-21
 import { useState } from 'react'
 import { api } from '../../api/client.js'
 import { RETURN_CONDITIONS, STATUS_LABELS, TIMEZONE } from '../../config.js'

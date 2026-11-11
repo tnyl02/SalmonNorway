@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -285,7 +287,7 @@ func TestReturns_Lookup_FoundOpenLoan(t *testing.T) {
 		}
 	}
 
-	// การยืมที่คืนแล้วต้องหาไม่พบ (CS-NB-0001 คืนแล้วใน seed_006_return.sql) กรณีอื่นของ AC-RET-03 อยู่ใน T-21
+	// การยืมที่คืนแล้วต้องหาไม่พบ (CS-NB-0001 คืนแล้วใน seed_006_return.sql) กรณีอื่นของ AC-RET-03 อยู่ใน T-18
 	if rec := call(router, http.MethodGet, "/api/v1/returns/lookup?assetCode=CS-NB-0001", "mock-staff-001"); rec.Code != http.StatusConflict {
 		t.Errorf("อุปกรณ์ที่ไม่มีการยืมค้าง: status = %d, want 409", rec.Code)
 	}
@@ -476,5 +478,65 @@ func TestAC_RET_04_ConditionRequired(t *testing.T) {
 	}
 	if returnedAt != nil || status != "borrowed" {
 		t.Errorf("ต้องไม่บันทึกอะไรเลย: returned_at=%v status=%q", returnedAt, status)
+	}
+}
+
+// T-11 เสร็จเมื่อ: การยืมที่คืนแล้วได้ {loanId, assetCode, borrowerId, dueAt, returnedAt, condition, returnedLate} (FR-RET-06)
+// เป็นงานพื้นฐานของ T-16 (AC-RET-13)
+func TestReturns_LoanDetail(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+
+	// Given การยืมที่คืนแล้วสภาพชำรุด (บันทึกผ่าน POST จริง)
+	insertBorrowedItem(t, pool, "T11-DETAIL", 2*time.Hour)
+	rec := postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "T11-DETAIL", "condition": "damaged"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("เตรียมข้อมูล: status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	var created struct {
+		LoanID int `json:"loanId"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	// When เปิดรายละเอียดการยืม
+	rec = call(router, http.MethodGet, fmt.Sprintf("/api/v1/returns/loans/%d", created.LoanID), "mock-staff-001")
+
+	// Then ได้ข้อมูลครบตาม plan.md ข้อ 4
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+	var got LoanDetail
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.LoanID != created.LoanID || got.AssetCode != "T11-DETAIL" || got.BorrowerID != "student-001" || got.DueAt.IsZero() {
+		t.Errorf("response = %+v ข้อมูลการยืมไม่ครบ", got)
+	}
+	if got.ReturnedAt == nil || got.Condition == nil || *got.Condition != "damaged" || got.ReturnedLate == nil || *got.ReturnedLate {
+		t.Errorf("returnedAt=%v condition=%v returnedLate=%v, want มีเวลาคืน, damaged, false", got.ReturnedAt, got.Condition, got.ReturnedLate)
+	}
+	if rec.Header().Get("Cache-Control") != "no-store" {
+		t.Error("ต้องมี Cache-Control: no-store")
+	}
+
+	// การยืมที่ยังไม่คืน: ข้อมูลตอนคืนเป็น null
+	insertBorrowedItem(t, pool, "T11-OPEN", 2*time.Hour)
+	var openID int
+	if err := pool.QueryRow(context.Background(),
+		`SELECT l.id FROM loan l JOIN equipment_item i ON i.id = l.item_id WHERE i.asset_code = 'T11-OPEN'`).Scan(&openID); err != nil {
+		t.Fatal(err)
+	}
+	rec = call(router, http.MethodGet, fmt.Sprintf("/api/v1/returns/loans/%d", openID), "mock-staff-001")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"returnedAt":null`) {
+		t.Errorf("การยืมที่ยังไม่คืน: status = %d body=%s, want 200 และ returnedAt null", rec.Code, rec.Body.String())
+	}
+
+	// ไม่มีการยืมนี้ / รหัสไม่ใช่ตัวเลข -> 404
+	for _, path := range []string{"/api/v1/returns/loans/999999", "/api/v1/returns/loans/abc"} {
+		if rec := call(router, http.MethodGet, path, "mock-staff-001"); rec.Code != http.StatusNotFound {
+			t.Errorf("%s: status = %d, want 404", path, rec.Code)
+		}
 	}
 }
