@@ -1,5 +1,5 @@
 # Constraint ที่ใช้ร่วมทุกฟีเจอร์ (shared constraints)
-Status: v4 | Updated: 2569-11-11 (ปิด Q-SH-04, Q-SH-05, Q-SH-06 บางส่วน และแก้ขอบเขต BL-23 ใน Q-SH-07) | Source: Miro (Requirement table, Use Case Diagram, Architecture), spec 001
+Status: v5 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบบและรายการรหัส error กลาง ตาม CR-004) | Source: Miro (Requirement table, Use Case Diagram, Architecture), spec 001
 
 กติกา: Constraint ที่ใช้มากกว่า 1 ฟีเจอร์ เขียนที่นี่ **ที่เดียว** spec ของแต่ละฟีเจอร์อ้าง ID ในหมวด Constraints ไม่ copy ข้อความ
 ถ้าแก้ไฟล์นี้ ต้องทำ CR และดู Impact Analysis กับทุก spec ที่อ้าง ID นั้น (ดู rtm.md ของแต่ละฟีเจอร์)
@@ -8,6 +8,21 @@ Status: v4 | Updated: 2569-11-11 (ปิด Q-SH-04, Q-SH-05, Q-SH-06 บาง�
 ## เทคโนโลยี (CON-TECH)
 - CON-TECH-01 ใช้ฐานข้อมูล PostgreSQL ตาม Infrastructure ที่กำหนดไว้
 - CON-TECH-02 ให้บริการผ่าน HTTPS เท่านั้น deploy ด้วย Docker บน on-campus server หรือ cloud VM
+- CON-TECH-03 ทุก endpoint ตอบ error ด้วย body `{"code": "<รหัส>", "message": "<ข้อความภาษาไทยสำหรับผู้ใช้>"}`
+  โดยใช้รหัสจากรายการกลางด้านล่าง หน้าจอตัดสินใจจากรหัส ไม่ใช่จากข้อความ (CR-004 2569-11-11)
+
+  | รหัส | HTTP | ความหมาย | ใครใช้แล้ว |
+  |---|---|---|---|
+  | `UNAUTHENTICATED` | 401 | ไม่มี session หรือหมดอายุ | 001, 002 |
+  | `PRINCIPAL_INCOMPLETE` | 403 | ยืนยันตัวตนได้ แต่ไม่มีภาควิชาหรือบทบาทไม่รู้จัก | 001, 002 |
+  | `FORBIDDEN_DEPARTMENT` | 403 | เข้าถึงอุปกรณ์ของภาควิชาอื่น ต้องไม่ส่งข้อมูลอุปกรณ์กลับ | 001, 002 |
+  | `UPSTREAM_UNAVAILABLE` | 503 | ฐานข้อมูลหรือระบบภายนอกไม่ตอบ | 001, 002 |
+  | `VALIDATION_FAILED` | 422 | ข้อมูลที่ส่งมาไม่ครบหรือผิดกติกา แนบรายชื่อช่องที่ผิด | 002 |
+  | `ITEM_NOT_AVAILABLE` | 409 | อุปกรณ์ไม่ได้อยู่ในสถานะ "ว่าง" แล้ว | 002 |
+  | `DUPLICATE_REQUEST` | 409 | ผู้ขอคนเดิมมีคำขอที่ยังไม่จบของอุปกรณ์ชิ้นเดิมอยู่แล้ว | 002 |
+  | `HAS_OVERDUE_LOAN` | 409 | ผู้ขอมีอุปกรณ์ที่คืนเกินกำหนดค้างอยู่ | 002 |
+
+  ฟีเจอร์ที่ต้องการรหัสใหม่ ให้เพิ่มแถวในตารางนี้ก่อนใช้ ห้ามตั้งรหัสเองในโค้ดโดยไม่ลงทะเบียน
 
 ## ข้อมูล (CON-DATA)
 - CON-DATA-01 สถานะอุปกรณ์มีค่าที่เป็นไปได้ 3 ค่าเท่านั้น: ว่าง, ถูกยืม, ไม่พร้อมใช้งาน (RQ-09, CR-002)
@@ -70,6 +85,7 @@ Status: v4 | Updated: 2569-11-11 (ปิด Q-SH-04, Q-SH-05, Q-SH-06 บาง�
 |---|---|
 | CON-TECH-01 | 001-equipment-status, 002-borrow-request |
 | CON-TECH-02 | 001-equipment-status, 002-borrow-request |
+| CON-TECH-03 | 001-equipment-status (รหัสเดิม 4 ตัว), 002-borrow-request |
 | CON-DATA-01 | 001-equipment-status, 002-borrow-request (ส่งคำขอได้เฉพาะชิ้นที่ "ว่าง") |
 | CON-DATA-03 | 001-equipment-status, 002-borrow-request |
 | DOM-PRIV-01 | 001-equipment-status, 002-borrow-request (ไม่เปิดเผยชื่อผู้ขอรายอื่น FR-BRQ-05) |
