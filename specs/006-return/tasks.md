@@ -56,7 +56,7 @@ task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: มี `Timezone` และ `ReturnConditionStatus` ใน config.go และ `TIMEZONE`, `STATUS_LABELS`, `RETURN_CONDITIONS` ใน config.js ทุกตัวมีคอมเมนต์อ้าง ID (ค่ารูปถอดออก 2569-11-11 พร้อม FR-RET-05)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ 
 - ความสำคัญ: ต้องทำ
 
 ### T-03 สร้างโครง package returns ผูก route และข้อมูลตัวอย่าง
