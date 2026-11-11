@@ -107,6 +107,8 @@ func writeServiceError(w http.ResponseWriter, err error) {
 		writeJSON(w, http.StatusUnprocessableEntity, ValidationErrorDTO{
 			Code: "VALIDATION_FAILED", Message: config.ApprovalMessages["VALIDATION_FAILED"], Fields: []string{"reason"},
 		})
+	case errors.Is(err, ErrApprovalCutoff):
+		writeError(w, http.StatusConflict, "APPROVAL_CUTOFF_PASSED") // FR-APV-01 (ค)(ซ), AC-APV-16
 	case errors.Is(err, ErrItemNotAvailable):
 		writeError(w, http.StatusConflict, "ITEM_NOT_AVAILABLE") // FR-APV-01 (ค)(ซ), AC-APV-08
 	case errors.Is(err, ErrNotFirst):

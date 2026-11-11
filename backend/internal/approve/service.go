@@ -72,7 +72,9 @@ var ErrNotRequested = errors.New("คำขอนี้ไม่ได้อย�
 //
 //   - อนุมัติได้เฉพาะอุปกรณ์ที่ "ว่าง" (FR-APV-01 ค, T-19)
 //
-// การตรวจเวลาตัด 16:00 (T-21) และภาควิชา (T-25) เพิ่มใน task ของแต่ละเรื่อง
+//   - อนุมัติไม่ได้เมื่อเลย 16:00 น. ของวันที่เริ่มยืม (FR-APV-01 ค, T-21)
+//
+// การตรวจภาควิชา (T-25) เพิ่มใน task ของเรื่องนั้น
 func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
 	p, err := staff(ctx)
 	if err != nil {
@@ -98,6 +100,11 @@ func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
 		// FR-APV-01 (ค), CON-DATA-01: อนุมัติได้เมื่ออุปกรณ์รายชิ้นมีสถานะ "ว่าง" เท่านั้น (AC-APV-08, T-19)
 		if target.ItemStatus != config.ItemStatusAvailable {
 			return ErrItemNotAvailable
+		}
+		// FR-APV-01 (ค), Q-APV-11, DOM-LOAN-01: อนุมัติไม่ได้เมื่อเลย 16:00 น. ของวันที่เริ่มยืม (AC-APV-16, T-21)
+		// คำขอนั้นยังเป็นคำขอแรก เจ้าหน้าที่ปฏิเสธเองหรือรอเที่ยงคืน (Q-APV-16)
+		if s.now().After(approvalCutoff(target.StartAt)) {
+			return ErrApprovalCutoff
 		}
 		if err := tx.setStatus(ctx, target.ID, config.StatusApproved); err != nil {
 			return err
@@ -126,6 +133,16 @@ func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
 		return nil
 	})
 	return out, err
+}
+
+// ErrApprovalCutoff เกิดเมื่ออนุมัติหลัง 16:00 น. ของวันที่เริ่มยืม (FR-APV-01 ค ซ, AC-APV-16, APPROVAL_CUTOFF_PASSED)
+var ErrApprovalCutoff = errors.New("เลย 16:00 น. ของวันที่ยืมแล้ว อนุมัติไม่ได้")
+
+// approvalCutoff คือเวลาตัด = config.LoanNormalReturnHour (16:00 น.) ของวันที่เริ่มยืม ตามเวลาไทย (glossary)
+// ใช้ค่าของ 002 ร่วม ไม่ประกาศ 16 ซ้ำ (AGENTS.md กฎข้อ 9, DOM-LOAN-01)
+func approvalCutoff(startAt time.Time) time.Time {
+	lt := localTime(startAt)
+	return time.Date(lt.Year(), lt.Month(), lt.Day(), config.LoanNormalReturnHour, 0, 0, 0, lt.Location())
 }
 
 // ErrItemNotAvailable เกิดเมื่ออุปกรณ์รายชิ้นไม่ได้อยู่ในสถานะ "ว่าง" (FR-APV-01 ค ซ, AC-APV-08, ITEM_NOT_AVAILABLE)

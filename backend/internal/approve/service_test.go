@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -307,5 +308,81 @@ func TestAC_APV_08(t *testing.T) {
 		if reqStatus != "requested" || itemStatus != c.itemStatus {
 			t.Errorf("%s สถานะต้องคงเดิม (requested / %s) แต่ได้ %s / %s", c.asset, c.itemStatus, reqStatus, itemStatus)
 		}
+	}
+}
+
+// AC-APV-16 (FR-APV-01 ค, DOM-LOAN-01) [ID รอทีมอนุมัติ Q-APV-13]
+// Given คำขอแรกสถานะ requested ของอุปกรณ์ที่ "ว่าง" และเวลาปัจจุบันเลย 16:00 น. ของวันที่เริ่มยืมแล้ว
+// When  เจ้าหน้าที่พยายามอนุมัติ
+// Then  ระบบไม่อนุมัติ แสดงข้อความกรณีเลย 16:00 น. และสถานะคงเดิม
+//
+//	(T-21 เสร็จเมื่อ: คำขอนั้นยังเป็นคำขอแรก คำขอถัดไปยังได้ NOT_FIRST_IN_QUEUE และปฏิเสธเองได้)
+func TestAC_APV_16(t *testing.T) {
+	tx := devTx(t)
+	a := requestIDOf(t, tx, "AP-TEST-0001", "student-001")
+	b := requestIDOf(t, tx, "AP-TEST-0001", "student-002")
+	var startAt time.Time
+	if err := tx.QueryRow(context.Background(), `SELECT start_at FROM borrow_request WHERE id = $1`, a).Scan(&startAt); err != nil {
+		t.Fatal(err)
+	}
+
+	// นาฬิกาจำลอง: เลยเวลาตัดของวันที่เริ่มยืม 1 นาที / ก่อนเวลาตัด 1 นาทียังอนุมัติได้ (ตรวจด้วย approvalCutoff ตรง ๆ)
+	cutoff := approvalCutoff(startAt)
+	if h := localTime(cutoff).Hour(); h != config.LoanNormalReturnHour {
+		t.Fatalf("เวลาตัดต้องเป็น %d:00 น. เวลาไทย แต่ได้ %v", config.LoanNormalReturnHour, localTime(cutoff))
+	}
+	clock := &fakeClock{t: cutoff.Add(time.Minute)}
+	svc := NewService(NewRepository(tx))
+	svc.now = clock.Now
+	srv := auth.Middleware(auth.NewMockProvider(), NewHandler(svc).Routes())
+
+	// When: อนุมัติ A
+	w := postJSON(srv, tokenStaffDept1, fmt.Sprintf("%srequests/%d/approve", PathPrefix, a), `{}`)
+
+	// Then: 409 APPROVAL_CUTOFF_PASSED พร้อมข้อความ และสถานะคงเดิม
+	if w.Code != http.StatusConflict {
+		t.Fatalf("ต้องได้ 409 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	var e ErrorDTO
+	_ = json.Unmarshal(w.Body.Bytes(), &e)
+	if e.Code != "APPROVAL_CUTOFF_PASSED" || e.Message != "เลย 16:00 น. ของวันที่ยืมแล้ว อนุมัติไม่ได้" {
+		t.Errorf("ได้ %+v", e)
+	}
+	var status string
+	if err := tx.QueryRow(context.Background(), `SELECT status FROM borrow_request WHERE id = $1`, a).Scan(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status != "requested" {
+		t.Errorf("สถานะของ A ต้องคงเป็น requested แต่ได้ %q", status)
+	}
+
+	// A ยังเป็นคำขอแรก: อนุมัติ B ได้ NOT_FIRST_IN_QUEUE (Q-APV-16)
+	if _, err := svc.Approve(staffCtx("staff-001", 1), b); err != ErrNotFirst {
+		t.Errorf("B ต้องได้ ErrNotFirst เพราะ A ยังเป็นคำขอแรก แต่ได้ %v", err)
+	}
+	// เจ้าหน้าที่ปฏิเสธ A เองได้ (Q-APV-16)
+	if _, err := svc.Reject(staffCtx("staff-001", 1), a, "เลยเวลาที่อนุมัติได้"); err != nil {
+		t.Errorf("ปฏิเสธ A ต้องทำได้ แต่ได้ %v", err)
+	}
+
+	// เวลาตัดเป็นวันเดียวกับวันที่เริ่มยืม (ไม่ใช่วันที่ส่งหรือวันนี้) กันกรณีคิดผิดวัน
+	if localTime(cutoff).Format("2006-01-02") != localTime(startAt).Format("2006-01-02") {
+		t.Errorf("เวลาตัดต้องอยู่วันเดียวกับวันที่เริ่มยืม: start %v cutoff %v", localTime(startAt), localTime(cutoff))
+	}
+}
+
+// T-21: ก่อนเวลาตัด 1 นาทีอนุมัติได้ (ขอบเขตของ "เลย 16:00 น.")
+func TestApprove_BeforeCutoffAllowed(t *testing.T) {
+	tx := devTx(t)
+	id := requestIDOf(t, tx, "AP-TEST-0002", "student-001")
+	var startAt time.Time
+	if err := tx.QueryRow(context.Background(), `SELECT start_at FROM borrow_request WHERE id = $1`, id).Scan(&startAt); err != nil {
+		t.Fatal(err)
+	}
+	clock := &fakeClock{t: approvalCutoff(startAt).Add(-time.Minute)}
+	svc := NewService(NewRepository(tx))
+	svc.now = clock.Now
+	if _, err := svc.Approve(staffCtx("staff-001", 1), id); err != nil {
+		t.Errorf("ก่อน 16:00 น. ต้องอนุมัติได้ แต่ได้ %v", err)
 	}
 }

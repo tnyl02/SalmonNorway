@@ -325,11 +325,11 @@ Updated: 2569-11-12
 ### T-21 ตรวจเวลาตัด 16:00 น. ก่อนอนุมัติ
 - รองรับ: FR-APV-01 (ค)(ซ), DOM-LOAN-01, Q-APV-11, Q-APV-16
 - ตรวจด้วย: AC-APV-16
-- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/service_test.go`
+- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/service_test.go`, `backend/internal/approve/handler.go` (แปลงเป็น 409 APPROVAL_CUTOFF_PASSED)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-07
 - เสร็จเมื่อ: `TestAC_APV_16` ผ่านด้วยนาฬิกาจำลอง: เลย `LoanNormalReturnHour` (16:00 น.) ของวันที่เริ่มยืม (Asia/Bangkok) ได้ 409 `APPROVAL_CUTOFF_PASSED` สถานะคงเดิม คำขอนั้นยังเป็นคำขอแรก (คำขอถัดไปยังได้ `NOT_FIRST_IN_QUEUE`) และปฏิเสธเองได้ (ID ของ AC-APV-16 รอ Q-APV-13 ถ้าทีมเปลี่ยน ID ให้เปลี่ยนชื่อ test ตาม)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน `TestAC_APV_16`, `TestApprove_BeforeCutoffAllowed` ตามลำดับการทดสอบที่ทีมตัดสิน / ID ของ AC-APV-16 ยังรอ Q-APV-13)
 
 ### T-22 แสดงข้อความ APPROVAL_CUTOFF_PASSED บนหน้าจอ
 - รองรับ: FR-APV-01 (ซ)
