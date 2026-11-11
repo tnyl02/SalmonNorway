@@ -540,3 +540,69 @@ func TestReturns_LoanDetail(t *testing.T) {
 		}
 	}
 }
+
+// AC-RET-06 (FR-RET-06, DOM-LOAN-01)
+//
+//	Given การยืมแบบปกติ กำหนดคืน 16:00
+//	When  ระบบบันทึกการรับคืนเวลา 17:00 และอีกกรณีบันทึกเวลา 15:00
+//	Then  กรณี 17:00 การยืมถูกบันทึกว่าคืนเกินกำหนด กรณี 15:00 ไม่ถูกบันทึก
+//
+// เวลาคืนมาจาก now() ของฐานข้อมูล (ASM-04) จึงแทน 17:00 / 15:00 ด้วยกำหนดคืนที่ผ่านไปแล้ว 1 ชั่วโมง / อีก 1 ชั่วโมง (plan.md ข้อ 6)
+// กำหนดคืนอ่านจาก due_at ที่ 005 บันทึก ไม่คำนวณ 16:00 เอง (ASM-01)
+func TestAC_RET_06_LateReturnFlagged(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+	ctx := context.Background()
+
+	cases := []struct {
+		assetCode string
+		dueIn     time.Duration
+		wantLate  bool
+	}{
+		{"T13-LATE", -1 * time.Hour, true},   // คืน "17:00" หลังกำหนด 16:00
+		{"T13-ONTIME", 1 * time.Hour, false}, // คืน "15:00" ก่อนกำหนด 16:00
+	}
+	for _, tc := range cases {
+		// Given
+		insertBorrowedItem(t, pool, tc.assetCode, tc.dueIn)
+
+		// When
+		rec := postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": tc.assetCode, "condition": "normal"})
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d body=%s", tc.assetCode, rec.Code, rec.Body.String())
+		}
+
+		// Then: ทั้งใน response และในฐานข้อมูล
+		var resp struct {
+			ReturnedLate bool `json:"returnedLate"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+			t.Fatal(err)
+		}
+		var stored *bool
+		if err := pool.QueryRow(ctx, `
+			SELECT l.returned_late FROM loan l JOIN equipment_item i ON i.id = l.item_id
+			WHERE i.asset_code = $1`, tc.assetCode).Scan(&stored); err != nil {
+			t.Fatal(err)
+		}
+		if resp.ReturnedLate != tc.wantLate || stored == nil || *stored != tc.wantLate {
+			t.Errorf("%s: returnedLate response=%v stored=%v, want %v", tc.assetCode, resp.ReturnedLate, stored, tc.wantLate)
+		}
+	}
+
+	// ค่าที่บันทึกแล้วไม่เปลี่ยนตามกำหนดคืนภายหลัง (FR-RET-06 "บันทึก" ไม่ใช่คำนวณใหม่)
+	if _, err := pool.Exec(ctx, `
+		UPDATE loan SET due_at = now() + interval '1 day'
+		WHERE item_id = (SELECT id FROM equipment_item WHERE asset_code = 'T13-LATE')`); err != nil {
+		t.Fatal(err)
+	}
+	var stillLate bool
+	if err := pool.QueryRow(ctx, `
+		SELECT l.returned_late FROM loan l JOIN equipment_item i ON i.id = l.item_id
+		WHERE i.asset_code = 'T13-LATE'`).Scan(&stillLate); err != nil {
+		t.Fatal(err)
+	}
+	if !stillLate {
+		t.Error("returned_late ต้องคงค่าที่บันทึกตอนรับคืน")
+	}
+}

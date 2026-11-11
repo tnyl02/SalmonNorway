@@ -698,3 +698,24 @@
 ### สิ่งที่เกือบต้องเดา
 - แอปยังไม่มี router (plan ไม่ได้กำหนด) "ลิงก์" จึงเป็นปุ่มที่เปิด LoanDetailPage ในหน้าเดียวกัน ไม่เพิ่ม library ใหม่
 - ป้าย "คืนเกินกำหนด" ยังไม่แสดง เป็นงานของ T-17
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-13 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 6)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำต่อเลย" -> `/implement T-13 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/returns/handler_test.go`: `TestAC_RET_06_LateReturnFlagged`
+- `backend/internal/returns/repository.go`: ไม่ต้องแก้ (T-04 บันทึก `returned_late = (now() > due_at)` ไว้แล้ว เพราะ CHECK ของ T-01 บังคับ)
+
+### ผล test (`cd backend && go test ./internal/returns -v`)
+- TestAC_RET_06_LateReturnFlagged PASS (กำหนดคืนผ่านไปแล้ว -> true / ยังไม่ถึง -> false ทั้งใน response และฐานข้อมูล,
+  แก้ due_at ภายหลังแล้ว returned_late ไม่เปลี่ยน)
+- test เดิมของ returns ยัง PASS (9 tests)
+
+### สิ่งที่เกือบต้องเดา
+- AC ใช้เวลา 17:00 / 15:00 ตายตัว แต่เวลาคืนมาจาก now() ของฐานข้อมูล จึงใช้กำหนดคืนสัมพัทธ์ +/- 1 ชั่วโมงแทน ตาม plan.md ข้อ 6
