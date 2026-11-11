@@ -483,7 +483,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-27
 - เสร็จเมื่อ: `TestAC_CXL_16_NotifyFailureStillCancelled` ผ่านส่วนที่ไม่เกี่ยวกับ audit (Notifier ปลอมคืน error -> 200 สถานะ `cancelled`) ส่วนบันทึกใน audit_log อยู่ที่ T-32
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 15
 - test ที่ต้องผ่านทั้งหมด: `TestAC_CXL_16_NotifyFailureStillCancelled` (ส่วนที่ไม่ใช่ audit) และ test ของเฟส 0-14
