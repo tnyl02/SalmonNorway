@@ -85,7 +85,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี (spec ไม่มี UI ID และไม่มี mockup ทีมออกแบบเอง)
 - ต้องทำหลัง: T-04
 - เสร็จเมื่อ: `AC-HND-14.test.jsx` ผ่าน (client จำลองคืน 2 คำขอ หน้าจอแสดง 2 แถว)
-- สถานะ: พร้อมทำ (หลัง T-04)
+- สถานะ: เสร็จ รอทีมตรวจ
 
 #### จุดตรวจเฟส 1
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_14_ListApprovedOnly, AC-HND-14.test.jsx และ test ของเฟส 0

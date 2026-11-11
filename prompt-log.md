@@ -1637,3 +1637,18 @@
 - ไฟล์ที่แก้: `backend/internal/handover/handler_test.go`
 - ผล test: `TestAC_HND_11_HandoverAfter1600` ผ่าน (นาฬิกา 16:30 ได้ 201 เวลาส่งมอบ 16:30 อุปกรณ์ borrowed) ไม่ตรวจ `due_at` ตามที่ spec สั่ง (รอ Q-HND-03, T-25)
 - ข้อสังเกต: ตอนนี้โค้ดตั้งกำหนดคืนเป็น 16:00 ของวันเดียวกันแม้ส่งมอบหลัง 16:00 (เลยกำหนดทันที) จนกว่าทีมตอบ Q-HND-03
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-05
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover (แก้ของกลาง `frontend/src/App.jsx` และ `frontend/src/api/client.js` เพิ่มต่อท้ายเท่านั้น)
+- เครื่องมือ: Claude Code
+- ไฟล์ที่สร้าง/แก้: `frontend/src/pages/Handover/HandoverList.jsx`, `frontend/src/pages/Handover/HandoverPage.jsx` (ไม่อยู่ในช่อง "ไฟล์ที่แตะ" เพิ่มเป็นหน้าที่รวมรายการกับฟอร์มของ T-11 เพื่อให้ App.jsx ไม่ต้องแก้อีก),
+  `frontend/src/api/client.js` (บล็อก 005 `handoverApi` และ helper ที่อ่าน `{code, fields}` ตาม CON-TECH-03 ไม่แก้ `api` เดิมของ 001),
+  `frontend/src/App.jsx` (เปิดหน้าส่งมอบเมื่อ path ขึ้นต้นด้วย `/handover` ไม่เพิ่มปุ่มหรือเมนู), `frontend/src/__tests__/AC-HND-14.test.jsx`
+- ผล test: `AC-HND-14.test.jsx` ผ่าน (client จำลองคืน 2 คำขอ ตารางแสดง 2 แถว) `npx vitest run` 11 ไฟล์ 18 test ผ่าน `vite build` ผ่าน
+- ไม่มี mockup ทีมออกแบบเอง หัวคอลัมน์และข้อความ "เลือก" "ไม่มีคำขอที่รอส่งมอบ" ทีมเลือกเอง ไม่ได้มาจาก spec
+- ไม่มี router ใน template จึงใช้ path ของเบราว์เซอร์ตรง ๆ แทนการเพิ่ม library (plan ไม่ได้ระบุ)
+- หมายเหตุ: App.jsx ใช้ CRLF แก้ด้วย Edit
