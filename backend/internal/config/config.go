@@ -155,6 +155,14 @@ var ApprovalEmailTemplates = map[string][]string{
 	},
 }
 
+// ApprovalPurposeLabels คือข้อความวัตถุประสงค์ที่แสดงใน Email ผลอนุมัติ (FR-APV-02 ก) ตาม 3 ค่าของ FR-BRQ-02
+// "อื่น ๆ" แสดงข้อความที่ผู้ขอพิมพ์แทน ต้องตรงกับ PURPOSE_OPTIONS ใน frontend/src/config.js (T-14)
+var ApprovalPurposeLabels = map[string]string{
+	"study":      "เพื่อการเรียน",
+	"activity":   "เพื่อทำกิจกรรม",
+	PurposeOther: "อื่น ๆ",
+}
+
 // ApprovalAutoRejectEmail คือค่าตายตัวใน Email ปฏิเสธอัตโนมัติ (FR-APV-02 ค)
 var ApprovalAutoRejectEmail = struct {
 	Status   string

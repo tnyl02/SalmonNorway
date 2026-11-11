@@ -210,11 +210,11 @@ Updated: 2569-11-12
 ### T-14 สร้าง Mailer, RecipientResolver (ตัวจำลอง) และตัวสร้าง Email 3 แบบ
 - รองรับ: FR-APV-02 (ก)(ข)(ค), IF-NOT-01
 - ตรวจด้วย: AC-APV-04
-- ไฟล์ที่แตะ: `backend/internal/approve/mailer.go`, `backend/internal/approve/email.go`, `backend/internal/approve/email_test.go`
+- ไฟล์ที่แตะ: `backend/internal/approve/mailer.go`, `backend/internal/approve/email.go`, `backend/internal/approve/email_test.go`, `backend/internal/config/config.go` (เพิ่ม `ApprovalPurposeLabels`)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-02
 - เสร็จเมื่อ: test ยืนยันว่า Email แต่ละแบบมีหัวข้อและข้อมูลครบตาม FR-APV-02 (ก)(ข)(ค) จาก config และ Email ผลอนุมัติไม่มีจำนวนอุปกรณ์ / `RecipientResolver` ตัวจำลองคืนที่อยู่ตายตัวต่อผู้ขอ (ตัวจริงรอ Q-APV-04 ดู T-37)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน `TestBuildEmail_Contents`, `TestBuildEmail_PurposeOther`, `TestMockRecipientResolver` ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 ### T-15 เขียน outbox ใน transaction เดียวกับผล และตัวส่งเบื้องหลัง
 - รองรับ: FR-APV-02, IF-NOT-01

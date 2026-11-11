@@ -3628,3 +3628,27 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ฟีเจอร์: 004-approve-request
 - คำสั่ง: "ตรวจสอบผ่าน"
 - สิ่งที่แก้: tasks.md T-13 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-14 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "ตรวจสอบผ่าน" (T-13 -> เสร็จ)
+- คำสั่ง: "/implement T-14"
+- คำถามที่ AI ถามระหว่างทำ และคำตอบ: รูปแบบเนื้อ Email (spec กำหนดแค่หัวข้อและรายการข้อมูล) -> "หัวข้อ: ค่า บรรทัดละช่อง" เรียงตาม spec ไม่มีคำขึ้นต้น/ลงท้าย เวลาเป็น พ.ศ. แบบ 003
+- ไฟล์ที่สร้าง: `backend/internal/approve/mailer.go` (`Email`, `Mailer`, `LogMailer` เขียนลง log, `RecipientResolver`, `MockRecipientResolver` คืน `<รหัสผู้ใช้>@example.com`), `email.go` (`EmailData`, `BuildEmail` 3 แบบ, formatDateTime / formatDate แบบ พ.ศ.), `email_test.go` (`TestBuildEmail_Contents` เทียบทุกบรรทัด, `TestBuildEmail_PurposeOther`, `TestMockRecipientResolver`)
+- ไฟล์ที่แก้: `backend/internal/config/config.go` (เพิ่ม `ApprovalPurposeLabels` ข้อความวัตถุประสงค์ภาษาไทยฝั่งหลังบ้าน), `specs/004-approve-request/tasks.md`
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): "รายการอุปกรณ์ที่ขอยืม" = "ชื่อรุ่น (รหัสครุภัณฑ์)"; "วันที่ยื่นคำขอ" แสดงแค่วันที่ ส่วนวันเวลาอื่นแสดงถึงนาที; "ชื่อผู้อนุมัติ/ผู้พิจารณา" ใช้รหัสเจ้าหน้าที่ไปก่อนเพราะ Principal ยังไม่มีชื่อ (T-38); เขียน formatter เวลาเองแบบเดียวกับ FormatNoticeTime ของ 003 ไม่ import package ของ 003; ที่อยู่ Email จำลองใช้โดเมน example.com ซึ่งสงวนไว้สำหรับตัวอย่าง
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-14 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจแล้วผ่าน"
+- สิ่งที่แก้: tasks.md T-14 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
