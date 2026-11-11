@@ -30,13 +30,19 @@ type DB interface {
 type Handler struct {
 	db       DB
 	verifier BorrowerVerifier // FR-HND-02 ยืนยันผู้ยืมที่เคาน์เตอร์ (ASM-HND-09)
+	svc      *Service
 }
 
 // NewHandler สร้าง Handler จาก connection pool และระบบยืนยันตัวตน
 // ผู้ยืมล็อกอินบัญชีมหาวิทยาลัยบนเครื่องเจ้าหน้าที่ (ASM-HND-09) prototype ใช้ provider จำลองตัวเดียวกับ middleware (Q-SH-03)
 func NewHandler(db DB, provider auth.Provider) *Handler {
-	return &Handler{db: db, verifier: NewMockBorrowerVerifier(provider)}
+	verifier := NewMockBorrowerVerifier(provider)
+	return &Handler{db: db, verifier: verifier, svc: NewService(NewRepository(db), verifier)}
 }
+
+// multipartMaxMemory คือขนาดที่อ่านเข้าหน่วยความจำตอนแยก multipart ส่วนเกินพักไว้ในไฟล์ชั่วคราว (ทีมเลือกเอง ไม่ได้มาจาก spec)
+// ขนาดสูงสุดของรูปตรวจใน T-28 ตาม config.HandoverPhotoMaxBytes
+const multipartMaxMemory = 8 << 20
 
 // requestIDFrom อ่าน {requestId} จาก path ok = false ถ้าไม่ใช่ตัวเลขบวก
 func requestIDFrom(r *http.Request) (int, bool) {
@@ -136,7 +142,44 @@ func (h *Handler) verifyBorrower(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, VerifyBorrowerResult{Result: result, UserID: userID})
 }
 
-// handover: POST /v1/handover/requests/{requestId}/handover (FR-HND-02 ถึง 08) ทำใน T-10
-func (h *Handler) handover(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+// handover: POST /v1/handover/requests/{requestId}/handover (multipart) บันทึกการส่งมอบ (FR-HND-02 ถึง 07, AC-HND-02, 07)
+// ช่อง: borrowerCredential, borrowerFirstName, borrowerLastName, cardChecked=true, photos (รูปทำใน T-15)
+func (h *Handler) handover(w http.ResponseWriter, r *http.Request) {
+	requestID, ok := requestIDFrom(r)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	if err := r.ParseMultipartForm(multipartMaxMemory); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, codeValidationFailed)
+		return
+	}
+	defer r.MultipartForm.RemoveAll() //nolint:errcheck // ลบไฟล์ชั่วคราวของ multipart
+
+	staff, _ := auth.FromContext(r.Context()) // requireStaff ตรวจแล้วว่ามีและเป็นเจ้าหน้าที่
+	out, err := h.svc.Handover(r.Context(), HandoverInput{
+		RequestID:          requestID,
+		StaffID:            staff.UserID,
+		BorrowerCredential: r.FormValue("borrowerCredential"),
+		BorrowerFirstName:  r.FormValue("borrowerFirstName"),
+		BorrowerLastName:   r.FormValue("borrowerLastName"),
+		CardChecked:        r.FormValue("cardChecked") == "true",
+	})
+	var missing *MissingFieldsError
+	switch {
+	case err == nil:
+		writeJSON(w, http.StatusCreated, out)
+	case errors.As(err, &missing):
+		writeError(w, http.StatusUnprocessableEntity, codeValidationFailed, missing.Fields...)
+	case errors.Is(err, ErrCardNotChecked):
+		writeError(w, http.StatusUnprocessableEntity, codeValidationFailed, "cardChecked") // FR-HND-03
+	case errors.Is(err, ErrBorrowerNotVerified):
+		writeError(w, http.StatusUnprocessableEntity, codeValidationFailed, "borrowerCredential")
+	case errors.Is(err, ErrRequestNotFound):
+		http.NotFound(w, r)
+	case errors.Is(err, ErrItemNotAvailable):
+		writeError(w, http.StatusConflict, codeItemNotAvailable) // FR-HND-04
+	default:
+		writeUpstreamError(w, err)
+	}
 }

@@ -1,13 +1,17 @@
 package handover
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -219,5 +223,177 @@ func TestVerifyBorrower_OtherResults(t *testing.T) {
 
 	if rec := doJSON(h, http.MethodPost, verifyPath(999999), tokenStaff, `{"borrowerCredential":"`+tokenStudentA+`"}`); rec.Code != http.StatusNotFound {
 		t.Errorf("ไม่มีคำขอ: HTTP %d ต้องเป็น 404", rec.Code)
+	}
+}
+
+// testJPEG คือข้อมูลที่ขึ้นต้นด้วย signature ของ JPEG ยาว size byte (ใช้แทนรูปจริงใน test)
+func testJPEG(size int) []byte {
+	b := make([]byte, size)
+	copy(b, []byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00})
+	return b
+}
+
+// photoFile คือรูป 1 ไฟล์ที่แนบในฟอร์ม
+type photoFile struct {
+	name        string
+	contentType string
+	data        []byte
+}
+
+// twoJPEGs คือรูปขั้นต่ำที่ถูกต้อง JPG 2 รูป (FR-HND-06)
+func twoJPEGs() []photoFile {
+	return []photoFile{
+		{"1.jpg", "image/jpeg", testJPEG(1024)},
+		{"2.jpg", "image/jpeg", testJPEG(1024)},
+	}
+}
+
+// validForm คือช่องในฟอร์มบันทึกการส่งมอบที่ถูกต้องของผู้ยืม credential
+func validForm(credential string) map[string]string {
+	return map[string]string{
+		"borrowerCredential": credential,
+		"borrowerFirstName":  "สมชาย",
+		"borrowerLastName":   "ใจดี",
+		"cardChecked":        "true",
+	}
+}
+
+// postHandover ส่งฟอร์ม multipart ไปที่ POST .../handover
+func postHandover(t *testing.T, h http.Handler, token string, requestID int, fields map[string]string, photos []photoFile) *httptest.ResponseRecorder {
+	t.Helper()
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	for k, v := range fields {
+		_ = mw.WriteField(k, v)
+	}
+	for _, p := range photos {
+		hdr := textproto.MIMEHeader{}
+		hdr.Set("Content-Disposition", `form-data; name="photos"; filename="`+p.name+`"`)
+		hdr.Set("Content-Type", p.contentType)
+		part, err := mw.CreatePart(hdr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _ = part.Write(p.data)
+	}
+	_ = mw.Close()
+	req := httptest.NewRequest(http.MethodPost, PathPrefix+"requests/"+strconv.Itoa(requestID)+"/handover", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	return rec
+}
+
+func countLoans(t *testing.T, pool *pgxpool.Pool, itemID int) int {
+	t.Helper()
+	var n int
+	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM loan WHERE item_id = $1`, itemID).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+func statusOf(t *testing.T, pool *pgxpool.Pool, table string, id int) string {
+	t.Helper()
+	var s string
+	if err := pool.QueryRow(context.Background(), `SELECT status FROM `+table+` WHERE id = $1`, id).Scan(&s); err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
+// AC-HND-02 ส่วนบันทึกการส่งมอบ (T-10)
+func TestAC_HND_02_HandoverRecordsBorrower(t *testing.T) {
+	pool := testPool(t)
+	h := routesOnly(pool)
+
+	t.Run("ตรวจบัตรแล้ว บันทึกชื่อ นามสกุล รหัสนักศึกษา และเวลาที่ส่งมอบ", func(t *testing.T) {
+		itemID := createItem(t, pool, "T02-HO-0001", "available")
+		requestID := createRequest(t, pool, "student-001", itemID, "approved")
+		before := time.Now().Add(-time.Second)
+
+		rec := postHandover(t, h, tokenStaff, requestID, validForm(tokenStudentA), twoJPEGs())
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
+		}
+		var first, last, studentID, method, by string
+		var at time.Time
+		if err := pool.QueryRow(context.Background(),
+			`SELECT borrower_first_name, borrower_last_name, borrower_student_id, handed_over_at, identity_method, handed_over_by
+			 FROM handover WHERE request_id = $1`, requestID).Scan(&first, &last, &studentID, &at, &method, &by); err != nil {
+			t.Fatalf("ไม่พบแถว handover: %v", err)
+		}
+		if first != "สมชาย" || last != "ใจดี" || studentID != "student-001" {
+			t.Errorf("ผู้ยืม = %q %q %q", first, last, studentID)
+		}
+		if at.Before(before) || at.After(time.Now().Add(time.Second)) {
+			t.Errorf("handed_over_at = %v ต้องเป็นเวลาที่ส่งมอบจริง", at)
+		}
+		if method != "auth_api" || by != "staff-001" {
+			t.Errorf("identity_method = %q handed_over_by = %q", method, by)
+		}
+	})
+
+	t.Run("ไม่ยืนยันการตรวจบัตร ไม่บันทึก", func(t *testing.T) {
+		itemID := createItem(t, pool, "T02-HO-0002", "available")
+		requestID := createRequest(t, pool, "student-001", itemID, "approved")
+		form := validForm(tokenStudentA)
+		form["cardChecked"] = "false"
+
+		rec := postHandover(t, h, tokenStaff, requestID, form, twoJPEGs())
+		var e ErrorDTO
+		_ = json.Unmarshal(rec.Body.Bytes(), &e)
+		if rec.Code != http.StatusUnprocessableEntity || e.Code != "VALIDATION_FAILED" || len(e.Fields) != 1 || e.Fields[0] != "cardChecked" {
+			t.Fatalf("HTTP %d %+v ต้องเป็น 422 VALIDATION_FAILED ช่อง cardChecked", rec.Code, e)
+		}
+		if n := countLoans(t, pool, itemID); n != 0 {
+			t.Errorf("มี Loan %d รายการ ต้องไม่มี", n)
+		}
+		if s := statusOf(t, pool, "equipment_item", itemID); s != "available" {
+			t.Errorf("สถานะอุปกรณ์ = %q ต้องเป็น available", s)
+		}
+	})
+}
+
+// AC-HND-07 (FR-HND-07, DOM-REQ-01)
+// Given คำขอยืมแบบปกติที่ได้รับอนุมัติแล้ว อุปกรณ์รายชิ้นมีสถานะ "ว่าง" และยืนยันตัวตนผู้ยืมแล้ว
+// When  เจ้าหน้าที่บันทึกการส่งมอบ
+// Then  มี Loan ใหม่ 1 รายการของผู้ยืมและอุปกรณ์ชิ้นนั้น ที่ยังไม่มีเวลาคืน
+//
+//	สถานะอุปกรณ์เป็น "ถูกยืม" และสถานะของคำขอเป็น "ส่งมอบแล้ว"
+func TestAC_HND_07_HandoverCreatesLoan(t *testing.T) {
+	pool := testPool(t)
+	itemID := createItem(t, pool, "T07-HO-0001", "available")
+	requestID := createRequest(t, pool, "student-001", itemID, "approved")
+
+	rec := postHandover(t, routesOnly(pool), tokenStaff, requestID, validForm(tokenStudentA), twoJPEGs())
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
+	}
+	var out HandoverOutput
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.LoanID == 0 || out.AssetCode != "T07-HO-0001" || out.HandedOverAt.IsZero() || out.DueAt.IsZero() {
+		t.Errorf("response = %+v", out)
+	}
+
+	var n int
+	var borrower string
+	if err := pool.QueryRow(context.Background(),
+		`SELECT count(*), max(borrower_id) FROM loan WHERE item_id = $1 AND returned_at IS NULL`, itemID).Scan(&n, &borrower); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 || borrower != "student-001" {
+		t.Errorf("Loan ที่ยังไม่คืน = %d รายการ ผู้ยืม %q ต้องเป็น 1 รายการของ student-001", n, borrower)
+	}
+	if s := statusOf(t, pool, "equipment_item", itemID); s != "borrowed" {
+		t.Errorf("สถานะอุปกรณ์ = %q ต้องเป็น borrowed", s)
+	}
+	if s := statusOf(t, pool, "borrow_request", requestID); s != "handed_over" {
+		t.Errorf("สถานะคำขอ = %q ต้องเป็น handed_over", s)
 	}
 }

@@ -1515,3 +1515,19 @@
   `go test ./...` ผ่าน
 - สิ่งที่ AI ตัดสินในขอบเขตที่ plan ให้: ล็อกอินไม่สำเร็จไม่อยู่ใน result 3 ค่าของ plan จึงตอบ 422 VALIDATION_FAILED ช่อง `borrowerCredential`
   ไม่มีคำขอ = 404 แบบเดียวกับ 001 (plan ไม่ได้กำหนดรหัส), mismatch ตอบ 200 พร้อม result (ส่วน 409 BORROWER_MISMATCH อยู่ที่ POST handover ใน T-20)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-10
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่สร้าง/แก้: `backend/internal/handover/service.go` (`Service.Handover`, `normalDueAt`), `handler.go` (`handover` รับ multipart), `handler_test.go`
+- ผล test: `TestAC_HND_02_HandoverRecordsBorrower` ผ่าน 2 กรณี (ตรวจบัตรแล้ว 201 บันทึกชื่อ นามสกุล รหัสนักศึกษา เวลา / ไม่ตรวจบัตร 422 ช่อง cardChecked ไม่มี Loan)
+  `TestAC_HND_07_HandoverCreatesLoan` ผ่าน (Loan 1 รายการที่ยังไม่คืน อุปกรณ์ borrowed คำขอ handed_over) `go test ./...` ผ่าน
+- ต่างจากช่อง "เสร็จเมื่อ" เล็กน้อย: test ส่วนบันทึกของ AC-HND-02 แยกเป็น `TestAC_HND_02_HandoverRecordsBorrower` (ชื่อยังมี AC ID) เพราะต้องใช้ข้อมูลคนละชุดกับ subtest verify_borrower ของ T-09
+- สิ่งที่ AI ตัดสินในขอบเขตที่ plan ให้: หลังบ้านยืนยันผู้ยืมซ้ำด้วย `borrowerCredential` (plan v1.4) รหัสนักศึกษา = รหัสผู้ใช้ (ASM-HND-09)
+  ช่องที่ขาดตอบ 422 VALIDATION_FAILED พร้อมชื่อช่อง, กำหนดคืนใช้ `LoanNormalReturnHour` กับ time.Now (นาฬิกาที่ inject ได้อยู่ใน T-14)
+- ยังไม่ทำใน task นี้ (เป็นของ task อื่น): รูป (T-15) test ส่งรูป JPG 2 รูปไว้แล้วแต่ยังไม่ถูกเก็บ, เทียบผู้ยืมกับผู้ขอ (T-20),
+  timeout 10 วินาที (T-13), REQUEST_NOT_APPROVED (T-16 ตอนนี้คำขอที่ไม่พร้อมได้ 503 ชั่วคราว)
