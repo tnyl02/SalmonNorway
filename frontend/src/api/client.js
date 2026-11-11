@@ -35,6 +35,27 @@ async function getJSON(path) {
   return res.json()
 }
 
+// postJSON ส่ง body เป็น JSON แบบเดียวกับ getJSON (เพิ่มโดย 004 T-09 plan.md ข้อ 4)
+// ไม่สำเร็จ throw ApiError ที่มี code จากหลังบ้าน (CON-TECH-03) ให้หน้าจอเลือกข้อความจากรหัส
+async function postJSON(path, body) {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${MOCK_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    cache: 'no-store',
+  })
+  if (!res.ok) {
+    let code
+    try {
+      code = (await res.json()).code
+    } catch {
+      code = undefined
+    }
+    throw new ApiError(res.status, code)
+  }
+  return res.json()
+}
+
 // 001 FR-EQS-02: แปลงตัวกรอง { categories: [...], statuses: [...] } เป็น query string
 // แต่ละค่าส่งเป็นชื่อซ้ำ เช่น ?status=available&status=borrowed (รูปแบบที่หลังบ้านรับใน T-32)
 function filterQuery(filter = {}) {
@@ -61,4 +82,9 @@ export const api = {
   //   -> { items: [{ requestId, requesterName, studentCode, modelName, assetCode, purpose, purposeOther?,
   //                  startAt, endAt, submittedAt, isFirst }], loadedAt }
   getApprovalRequests: () => getJSON('/v1/approvals/requests'),
+
+  // 004 FR-APV-01 (ค): อนุมัติคำขอ ส่ง loadedAt ที่ได้จาก getApprovalRequests
+  //   -> { requestId, status, decidedAt, rejectedRequestIds }
+  approveRequest: (requestId, loadedAt) =>
+    postJSON(`/v1/approvals/requests/${encodeURIComponent(requestId)}/approve`, { loadedAt }),
 }

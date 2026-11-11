@@ -1,5 +1,5 @@
 // test หน้าจอ ApproveRequests ของ 004 ใช้ client จำลองแทนหลังบ้าน (plan.md ข้อ 6)
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import ApproveRequests from './ApproveRequests.jsx'
 import { APPROVAL_MESSAGES } from '../../config.js'
 
@@ -50,4 +50,29 @@ test('AC-APV-11 หลังบ้านตอบ error แสดงข้อค
 
   expect((await screen.findByRole('alert')).textContent).toBe(APPROVAL_MESSAGES.FORBIDDEN_ROLE)
   expect(screen.queryByRole('table')).toBeNull()
+})
+
+// AC-APV-01 (FR-APV-01, CON-DATA-01) ฝั่งหน้าจอ (สถานะคำขอและอุปกรณ์ตรวจที่หลังบ้านใน TestAC_APV_01)
+//   Given เจ้าหน้าที่เห็นคำขอแรกของอุปกรณ์ที่ "ว่าง" ในรายการ
+//   When  กด "อนุมัติ" ที่คำขอนั้น
+//   Then  ส่งรหัสคำขอและ loadedAt ของรายการไปหลังบ้าน แล้วคำขอนั้นหายจากรายการ
+test('AC-APV-01 กดอนุมัติแล้วส่ง loadedAt และคำขอหายจากรายการ', async () => {
+  const calls = []
+  const client = {
+    ...fakeClient(),
+    approveRequest: async (requestId, loadedAt) => {
+      calls.push({ requestId, loadedAt })
+      return { requestId, status: 'approved', decidedAt: '2026-11-12T03:05:00Z', rejectedRequestIds: [] }
+    },
+  }
+  render(<ApproveRequests client={client} />)
+
+  const table = await screen.findByRole('table')
+  const first = within(table).getAllByRole('row')[1]
+  fireEvent.click(within(first).getByRole('button', { name: 'อนุมัติ' }))
+
+  await waitFor(() => expect(within(table).getAllByRole('row').slice(1)).toHaveLength(1))
+  expect(calls).toEqual([{ requestId: 1, loadedAt: '2026-11-12T03:00:00Z' }])
+  expect(screen.queryByText('นักศึกษาตัวอย่าง ก')).toBeNull()
+  expect(screen.getByText('นักศึกษาตัวอย่าง ข')).toBeTruthy()
 })
