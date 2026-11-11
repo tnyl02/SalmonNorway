@@ -19,6 +19,18 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ล็อกอินจำลอง: เจ้าหน้าที่ `Authorization: Bearer mock-staff-001` (ภาควิชา 1), นักศึกษา `mock-student-001`
 - test: `cd backend && go test ./... -v` และ `cd frontend && npm test`
 
+## ลำดับความสำคัญ (ทีมขอ 2569-11-11 AI ร่าง ทีมตรวจ)
+task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้าม task ไหน RTM จาก /verify จะแสดงว่า AC นั้นยังไม่ผ่าน "ควรทำ" จึงไม่ได้แปลว่าตัดทิ้งได้
+
+| ความสำคัญ | task | เกณฑ์ |
+|---|---|---|
+| ต้องทำ | T-01 ถึง T-04 (เสร็จ), T-05, T-06, T-08, T-09, T-11, T-21, T-23, T-25, T-26 | ไม่ทำแล้วระบบทำงานผิดหรือไม่ปลอดภัย: ทางหลักของการบันทึกคืน, บังคับสภาพและรูป (FR-RET-02, 05), กันบันทึกซ้อน, กันภาควิชาอื่น (ASM-03), กันนักศึกษา (AC-RET-08), audit (DOM-AUDIT-01) |
+| ควรทำ | T-07, T-10, T-12, T-13, T-14, T-15, T-16, T-17, T-18, T-19, T-20, T-22, T-24 | มี AC รองรับ แต่ระบบหลักใช้ได้แม้ยังไม่ทำ: test ของโค้ดที่ทำแล้ว (T-07, T-16), ข้อความ error บนหน้าจอ, จำกัดขนาด request, ดูรูป, หน้ารายการที่ยังไม่คืน, ป้ายคืนเกินกำหนด |
+| ไม่ต้องทำตอนนี้ | T-27, T-28, T-29, T-30 | ติด Open Question (Q-04, Q-03, Q-09, Q-SH-08) ทำไม่ได้จนกว่าจะได้คำตอบ |
+
+ลำดับที่แนะนำ: T-05 -> T-06 (จบเฟส 1) -> T-25 -> T-23 -> T-21 -> T-11 -> T-09 -> T-08 -> T-26 -> T-07, T-16 -> ที่เหลือของ "ควรทำ"
+หมายเหตุ: ช่อง "ต้องทำหลัง" ของ T-25 ระบุ T-17, T-14 (กลุ่ม "ควรทำ") และ T-23 ระบุ T-21 ถ้าจะทำ T-25 ก่อน ต้องให้ทีมปรับช่องนั้นก่อน
+
 ---
 
 ## เฟส 0: ฐานราก
@@ -31,6 +43,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: migration รันบน DB ว่างได้ ตาราง `loan` มี `return_condition`, `returned_late` พร้อม CHECK, มีตาราง `loan_return_photo` และ `audit_log` รับ action ใหม่ 4 ค่า (test ใน `migrate_test.go` ผ่าน)
 - สถานะ: เสร็จ รอทีมตรวจ
+- ความสำคัญ: ต้องทำ
 
 ### T-02 เพิ่มค่าที่ตั้งได้ของการรับคืน
 - รองรับ: FR-RET-02, FR-RET-03, FR-RET-04, FR-RET-05
@@ -40,6 +53,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: มี `ReturnPhotoMin`, `ReturnPhotoMax`, `ReturnPhotoMaxBytes`, `ReturnPhotoTypes`, `ReturnRequestMaxBytes`, `ReturnConditionStatus`, `Timezone` ใน config.go และค่าคู่กันใน config.js ทุกตัวมีคอมเมนต์อ้าง ID ตาม plan.md ข้อ 5
 - สถานะ: เสร็จ รอทีมตรวจ (config.go 2569-11-10, config.js เพิ่มตามทีมสั่ง 2569-11-11)
+- ความสำคัญ: ต้องทำ
 
 ### T-03 สร้างโครง package returns ผูก route และข้อมูลตัวอย่าง
 - รองรับ: IF-IDP-01, CON-TECH-02
@@ -49,6 +63,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-01
 - เสร็จเมื่อ: เรียก `/api/v1/returns/open-loans` ด้วย token เจ้าหน้าที่ได้ 501 (ยังไม่ทำ) และไม่มี token ได้ 401 ตาม middleware ของ 001
 - สถานะ: เสร็จ รอทีมตรวจ
+- ความสำคัญ: ต้องทำ
 
 ---
 
@@ -62,6 +77,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-01, T-02, T-03
 - เสร็จเมื่อ: `TestAC_RET_01_NormalReturnBecomesAvailable` ผ่าน (1 transaction: `SELECT ... FOR UPDATE` ปิดการยืมด้วย `now()` เก็บรูป เปลี่ยนสถานะเป็น `available`)
 - สถานะ: เสร็จ รอทีมตรวจ
+- ความสำคัญ: ต้องทำ
 
 ### T-05 ทำ `GET /api/v1/returns/lookup?assetCode=`
 - รองรับ: FR-RET-01, CON-DATA-03
@@ -71,6 +87,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-03
 - เสร็จเมื่อ: `TestReturns_Lookup_FoundOpenLoan` ผ่าน (คืน `{loanId, assetCode, modelName, borrowerId, loanType, dueAt, isOverdue}`)
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ต้องทำ
 
 ### T-06 สร้างหน้า `ReturnPage` กรอกรหัส เลือกสภาพ แนบรูป บันทึก
 - รองรับ: FR-RET-01, FR-RET-02, FR-RET-05
@@ -80,6 +97,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-04, T-05
 - เสร็จเมื่อ: vitest ด้วย client จำลอง: กรอกรหัส เห็นการยืม เลือก "ปกติ" แนบ 1 รูป กดบันทึก แล้วเห็นผล "บันทึกการรับคืนแล้ว สถานะ: ว่าง"
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ต้องทำ
 
 #### จุดตรวจเฟส 1
 - test ที่ต้องผ่านทั้งหมด: `TestAC_RET_01_NormalReturnBecomesAvailable`, `TestReturns_Lookup_FoundOpenLoan`, `ReturnPage.test.jsx` และ test เดิมของ 001 ต้องยังผ่าน
@@ -102,6 +120,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-04
 - เสร็จเมื่อ: `TestAC_RET_09_ReturnTimeFromServer` ผ่าน (ส่ง `returnedAt` มาแล้ว `returned_at` ยังเป็น `now()` ของ DB)
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ควรทำ
 
 #### จุดตรวจเฟส 2
 - test ที่ต้องผ่านทั้งหมด: `TestAC_RET_09_ReturnTimeFromServer` และ test ของเฟส 1
@@ -124,6 +143,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-04
 - เสร็จเมื่อ: `TestAC_RET_02_DamagedReturnBecomesUnavailable` ผ่าน (trigger ใน test เก็บประวัติสถานะ แล้วพบว่าไม่เคยเป็น `available`)
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ต้องทำ
 
 #### จุดตรวจเฟส 3
 - test ที่ต้องผ่านทั้งหมด: `TestAC_RET_02_DamagedReturnBecomesUnavailable` และ test ของเฟส 1-2
@@ -146,6 +166,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-04
 - เสร็จเมื่อ: `TestAC_RET_04_ConditionRequired` ผ่าน (422 `CONDITION_REQUIRED` การยืมไม่เปลี่ยน)
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ต้องทำ
 
 ### T-10 แจ้งให้เลือกสภาพบนหน้าจอ และมีแค่ 2 ตัวเลือก
 - รองรับ: FR-RET-02
@@ -155,6 +176,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-09
 - เสร็จเมื่อ: vitest: ตัวเลือกมีแค่ "ปกติ" กับ "ชำรุด" (ไม่มี "สูญหาย") และกดบันทึกโดยไม่เลือก แล้วเห็นข้อความให้เลือกสภาพ
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ควรทำ
 
 #### จุดตรวจเฟส 4
 - test ที่ต้องผ่านทั้งหมด: `TestAC_RET_04_ConditionRequired`, `ReturnPage.test.jsx` และ test ของเฟส 1-3
@@ -177,6 +199,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-04
 - เสร็จเมื่อ: `TestAC_RET_12_PhotoRulesEnforced` ผ่านทั้ง 4 กรณีย่อย (`PHOTO_REQUIRED`, `PHOTO_TOO_MANY`, `PHOTO_TYPE`, `PHOTO_TOO_LARGE`) และ DB ไม่เปลี่ยน ใช้ค่าจาก config ไม่ฝังตัวเลข
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ต้องทำ
 
 ### T-12 จำกัดขนาด request รวมของ `POST /returns`
 - รองรับ: FR-RET-05
@@ -186,6 +209,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-11
 - เสร็จเมื่อ: request ใหญ่กว่า `ReturnRequestMaxBytes` ได้ 422 `PHOTO_TOO_LARGE` โดยไม่อ่านเข้าหน่วยความจำทั้งก้อน (`http.MaxBytesReader`) test ผ่าน
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ควรทำ
 
 ### T-13 แจ้งเหตุผลรูปไม่ผ่านบนหน้าจอ
 - รองรับ: FR-RET-05
@@ -195,6 +219,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-11
 - เสร็จเมื่อ: vitest: ตรวจก่อนส่งด้วยค่าจาก `config.js` และแสดงข้อความตาม error code ทั้ง 4 แบบจาก client จำลอง
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ควรทำ
 
 #### จุดตรวจเฟส 5
 - test ที่ต้องผ่านทั้งหมด: `TestAC_RET_12_PhotoRulesEnforced`, test ของ T-12, `ReturnPage.test.jsx` และ test ของเฟส 1-4
@@ -217,6 +242,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-04, T-11
 - เสร็จเมื่อ: `TestAC_RET_05_PhotosStoredAndViewable` ผ่าน (1 JPG + 4 PNG บันทึกได้ มี 5 รูปใน detail และ GET รูปได้ bytes กับ Content-Type เดิม)
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ควรทำ
 
 ### T-15 สร้างหน้า `LoanDetailPage` แสดงเวลาคืน สภาพ และรูป
 - รองรับ: FR-RET-05
@@ -226,6 +252,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-14, T-06
 - เสร็จเมื่อ: vitest: แสดงเวลาคืน สภาพ และรูป 5 รูปจาก client จำลอง และ `ReturnPage` มีลิงก์ไปหน้านี้หลังบันทึกสำเร็จ
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ควรทำ
 
 #### จุดตรวจเฟส 6
 - test ที่ต้องผ่านทั้งหมด: `TestAC_RET_05_PhotosStoredAndViewable`, `LoanDetailPage.test.jsx` และ test ของเฟส 1-5
@@ -248,6 +275,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-04
 - เสร็จเมื่อ: `TestAC_RET_06_LateReturnFlagged` ผ่าน (`due_at` ก่อน now 1 ชั่วโมงได้ `true` / หลัง now 1 ชั่วโมงได้ `false` อ่าน `due_at` จากการยืม ไม่คำนวณ 16:00 เอง)
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ควรทำ
 
 #### จุดตรวจเฟส 7
 - test ที่ต้องผ่านทั้งหมด: `TestAC_RET_06_LateReturnFlagged` และ test ของเฟส 1-6
@@ -270,6 +298,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-03
 - เสร็จเมื่อ: `TestAC_RET_10_OpenLoansOwnDepartment` ผ่าน (ภาควิชาตน 3 เปิด + 2 คืนแล้ว + ภาควิชาอื่น 1 เปิด ได้ 3 รายการพอดี เรียงตาม `dueAt`)
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ควรทำ
 
 ### T-18 สร้างหน้า `OpenLoansPage` เลือกแถวแล้วไปบันทึกคืน
 - รองรับ: FR-RET-01
@@ -279,6 +308,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-17, T-06
 - เสร็จเมื่อ: vitest: แสดง 3 แถวจาก client จำลอง กดแถวแล้วเปิด `ReturnPage` ที่กรอกรหัสครุภัณฑ์ไว้แล้ว
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ควรทำ
 
 #### จุดตรวจเฟส 8
 - test ที่ต้องผ่านทั้งหมด: `TestAC_RET_10_OpenLoansOwnDepartment`, `OpenLoansPage.test.jsx` และ test ของเฟส 1-7
@@ -301,6 +331,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-14, T-16, T-17
 - เสร็จเมื่อ: `TestAC_RET_13_OverdueShownToStaff` ผ่าน (การยืมที่คืนเกินกำหนดได้ `returnedLate=true` และการยืมที่ยังไม่คืนแต่เลยกำหนดได้ `isOverdue=true`)
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ควรทำ
 
 ### T-20 แสดงป้าย "คืนเกินกำหนด" และ "เลยกำหนดคืน" บนหน้าจอ
 - รองรับ: FR-RET-06
@@ -310,6 +341,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-19, T-15, T-18
 - เสร็จเมื่อ: vitest: `LoanDetailPage` แสดง "คืนเกินกำหนด" เมื่อ `returnedLate`, `OpenLoansPage` แสดง "เลยกำหนดคืน" เมื่อ `isOverdue`
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ควรทำ
 
 #### จุดตรวจเฟส 9
 - test ที่ต้องผ่านทั้งหมด: `TestAC_RET_13_OverdueShownToStaff`, `LoanDetailPage.test.jsx`, `OpenLoansPage.test.jsx` และ test ของเฟส 1-8
@@ -332,6 +364,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-04, T-05
 - เสร็จเมื่อ: `TestAC_RET_03_NoOpenLoanRejected` ผ่าน (อุปกรณ์ `available` และ `unavailable` ได้ 409 ทั้ง lookup และ POST สถานะไม่เปลี่ยน) และ `TestReturns_ConcurrentReturn_OneWins` ผ่าน (2 request พร้อมกันได้ 200 หนึ่งครั้ง 409 หนึ่งครั้ง)
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ต้องทำ
 
 ### T-22 แจ้ง "อุปกรณ์นี้ไม่มีการยืมที่ยังไม่คืน" บนหน้าจอ
 - รองรับ: FR-RET-01
@@ -341,6 +374,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-21
 - เสร็จเมื่อ: vitest: client จำลองตอบ `NO_OPEN_LOAN` แล้วหน้าจอแสดงข้อความ และไม่แสดงฟอร์มสภาพ/รูป
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ควรทำ
 
 #### จุดตรวจเฟส 10
 - test ที่ต้องผ่านทั้งหมด: `TestAC_RET_03_NoOpenLoanRejected`, `TestReturns_ConcurrentReturn_OneWins`, `ReturnPage.test.jsx` และ test ของเฟส 1-9
@@ -363,6 +397,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-21
 - เสร็จเมื่อ: `TestAC_RET_11_OtherDepartmentForbidden` ผ่าน (lookup, POST, loan detail และรูป ได้ 403 การยืมและสถานะไม่เปลี่ยน)
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ต้องทำ
 
 ### T-24 แจ้ง "ไม่มีสิทธิ์" บนหน้าจอ
 - รองรับ: FR-RET-01
@@ -372,6 +407,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-23
 - เสร็จเมื่อ: vitest: client จำลองตอบ `FORBIDDEN_DEPARTMENT` แล้วหน้าจอแสดงข้อความไม่มีสิทธิ์
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ควรทำ
 
 #### จุดตรวจเฟส 11
 - test ที่ต้องผ่านทั้งหมด: `TestAC_RET_11_OtherDepartmentForbidden`, `ReturnPage.test.jsx` และ test ของเฟส 1-10
@@ -394,6 +430,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-03, T-17, T-14
 - เสร็จเมื่อ: `TestAC_RET_08_StudentForbidden` ผ่าน (token นักศึกษาเรียกทั้ง 5 endpoint ได้ 403 `FORBIDDEN_ROLE` body ไม่มีข้อมูลการยืม DB ไม่เปลี่ยน)
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ต้องทำ
 
 #### จุดตรวจเฟส 12
 - test ที่ต้องผ่านทั้งหมด: `TestAC_RET_08_StudentForbidden` และ test ของเฟส 1-11
@@ -416,6 +453,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-01, T-21, T-23, T-25
 - เสร็จเมื่อ: `TestAC_RET_07_ReturnAudited` ผ่าน (บันทึกสำเร็จมีแถว `action='return'` `outcome='ok'` อยู่ใน transaction เดียวกัน, ถูกปฏิเสธมี `outcome='forbidden'`, การอ่านมี `return_list` / `return_lookup` / `return_detail`)
 - สถานะ: พร้อมทำ
+- ความสำคัญ: ต้องทำ
 
 #### จุดตรวจเฟส 13
 - test ที่ต้องผ่านทั้งหมด: `TestAC_RET_07_ReturnAudited` และ test ทั้งหมดของเฟส 1-12
@@ -438,6 +476,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-08
 - เสร็จเมื่อ: กำหนดเมื่อได้คำตอบ Q-04
 - สถานะ: รอ Q-04
+- ความสำคัญ: ไม่ต้องทำตอนนี้ (รอคำตอบ)
 
 ### T-28 ให้ผู้ยืมเห็นเครื่องหมายคืนเกินกำหนดของตนเอง
 - รองรับ: FR-RET-06
@@ -447,6 +486,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-19
 - เสร็จเมื่อ: กำหนดเมื่อได้คำตอบ Q-03
 - สถานะ: รอ Q-03
+- ความสำคัญ: ไม่ต้องทำตอนนี้ (รอคำตอบ)
 
 ### T-29 บันทึกสถานะก่อน/หลังใน audit ของการเขียน
 - รองรับ: FR-RET-07, DOM-AUDIT-01
@@ -456,6 +496,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-26
 - เสร็จเมื่อ: กำหนดเมื่อได้คำตอบ Q-09
 - สถานะ: รอ Q-09
+- ความสำคัญ: ไม่ต้องทำตอนนี้ (รอคำตอบ)
 
 ### T-30 จัดการกรณีระบบยืนยันตัวตนเชื่อมต่อไม่ได้
 - รองรับ: IF-IDP-01
@@ -465,6 +506,7 @@ Spec: SPEC-RET-006 (spec.md Draft v2) | Plan: plan.md Draft v1 | สร้าง
 - ต้องทำหลัง: T-25
 - เสร็จเมื่อ: กำหนดเมื่อได้คำตอบ Q-SH-08
 - สถานะ: รอ Q-SH-08
+- ความสำคัญ: ไม่ต้องทำตอนนี้ (รอคำตอบ)
 
 ---
 
