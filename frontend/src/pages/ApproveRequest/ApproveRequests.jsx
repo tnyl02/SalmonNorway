@@ -14,30 +14,41 @@ function purposeLabel(r) {
 
 // หน้ารายการคำขอยืมแบบปกติที่รอพิจารณาของภาควิชาตนเอง (FR-APV-01 ก, AC-APV-11)
 // เรียงตามเวลาที่ส่งจากเก่าไปใหม่ตามที่หลังบ้านส่งมา ไม่เรียงใหม่ที่หน้าจอ (DOM-REQ-01)
-// ปุ่มอนุมัติ (T-09) / ปฏิเสธเพิ่มใน T-11 / หน้าจอไม่มี mockup ทีมออกแบบเอง (plan.md ข้อ 4)
+// ปุ่มอนุมัติ (T-09) / ปฏิเสธพร้อมช่องเหตุผล (T-11) / หน้าจอไม่มี mockup ทีมออกแบบเอง (plan.md ข้อ 4)
 // client ส่งเข้ามาได้ ตอน test ใช้ client จำลองแทนหลังบ้านจริง
 export default function ApproveRequests({ client = api }) {
   const [list, setList] = useState(null) // { items, loadedAt } จาก GET /v1/approvals/requests
   const [errorCode, setErrorCode] = useState(null) // โหลดรายการไม่สำเร็จ
   const [actionError, setActionError] = useState(null) // อนุมัติไม่สำเร็จ แสดงเหนือรายการ รายการยังอยู่
   const [busyId, setBusyId] = useState(null) // คำขอที่กำลังส่งอยู่ กันกดซ้ำ
+  const [rejectingId, setRejectingId] = useState(null) // คำขอที่เปิดช่องเหตุผลการปฏิเสธอยู่ (T-11)
+  const [reason, setReason] = useState('')
 
-  // อนุมัติ (FR-APV-01 ค, AC-APV-01) ส่ง loadedAt ของรายการที่เห็นอยู่ (plan.md ข้อ 4)
+  // ส่งผลการพิจารณา 1 คำขอ ส่ง loadedAt ของรายการที่เห็นอยู่ (plan.md ข้อ 4)
   // สำเร็จแล้วเอาคำขอนั้น และคำขอที่หลังบ้านปฏิเสธตาม (FR-APV-01 จ) ออกจากรายการ
   // ไม่สำเร็จแสดงข้อความตามรหัส (FR-APV-01 ซ, CON-TECH-03) และไม่เปลี่ยนรายการ
-  async function approve(requestId) {
+  async function decide(requestId, send) {
     setBusyId(requestId)
     setActionError(null)
     try {
-      const res = await client.approveRequest(requestId, list.loadedAt)
+      const res = await send()
       const gone = new Set([res.requestId, ...(res.rejectedRequestIds ?? [])])
       setList((cur) => ({ ...cur, items: cur.items.filter((r) => !gone.has(r.requestId)) }))
+      setRejectingId(null)
+      setReason('')
     } catch (err) {
       setActionError(err?.code ?? 'UPSTREAM_UNAVAILABLE')
     } finally {
       setBusyId(null)
     }
   }
+
+  // อนุมัติ (FR-APV-01 ค, AC-APV-01)
+  const approve = (requestId) => decide(requestId, () => client.approveRequest(requestId, list.loadedAt))
+
+  // ปฏิเสธพร้อมเหตุผลที่เจ้าหน้าที่พิมพ์ (FR-APV-01 ง, AC-APV-02) ข้อความเมื่อไม่ระบุเหตุผลเป็นงานของ T-13
+  const reject = (requestId) =>
+    decide(requestId, () => client.rejectRequest(requestId, reason, list.loadedAt))
 
   useEffect(() => {
     let active = true
@@ -101,7 +112,53 @@ export default function ApproveRequests({ client = api }) {
                   className="rounded bg-teal-700 px-3 py-1 text-white disabled:opacity-50"
                 >
                   อนุมัติ
-                </button>
+                </button>{' '}
+                {rejectingId === r.requestId ? (
+                  // ช่องเหตุผลการปฏิเสธ (FR-APV-01 ง) ทีมออกแบบเอง ไม่มี mockup
+                  <span className="mt-1 grid gap-1">
+                    <label className="grid gap-1">
+                      เหตุผลในการปฏิเสธ
+                      <textarea
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        rows={2}
+                        className="rounded border border-slate-300 p-1"
+                      />
+                    </label>
+                    <span className="flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => reject(r.requestId)}
+                        disabled={busyId != null}
+                        className="rounded bg-red-700 px-3 py-1 text-white disabled:opacity-50"
+                      >
+                        ยืนยันการปฏิเสธ
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRejectingId(null)
+                          setReason('')
+                        }}
+                        className="rounded border border-slate-400 px-3 py-1"
+                      >
+                        ยกเลิก
+                      </button>
+                    </span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRejectingId(r.requestId)
+                      setReason('')
+                    }}
+                    disabled={busyId != null}
+                    className="rounded border border-red-700 px-3 py-1 text-red-700 disabled:opacity-50"
+                  >
+                    ปฏิเสธ
+                  </button>
+                )}
               </td>
             </tr>
           ))}

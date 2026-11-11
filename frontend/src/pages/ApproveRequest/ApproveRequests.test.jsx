@@ -76,3 +76,29 @@ test('AC-APV-01 กดอนุมัติแล้วส่ง loadedAt แล
   expect(screen.queryByText('นักศึกษาตัวอย่าง ก')).toBeNull()
   expect(screen.getByText('นักศึกษาตัวอย่าง ข')).toBeTruthy()
 })
+
+// AC-APV-02 (FR-APV-01) ฝั่งหน้าจอ (สถานะคำขอและอุปกรณ์ตรวจที่หลังบ้านใน TestAC_APV_02)
+//   Given เจ้าหน้าที่เห็นคำขอสถานะ requested ในรายการ
+//   When  กด "ปฏิเสธ" พิมพ์เหตุผล แล้วกด "ยืนยันการปฏิเสธ"
+//   Then  ส่งรหัสคำขอ เหตุผล และ loadedAt ไปหลังบ้าน แล้วคำขอนั้นหายจากรายการ
+test('AC-APV-02 ปฏิเสธพร้อมเหตุผลแล้วคำขอหายจากรายการ', async () => {
+  const calls = []
+  const client = {
+    ...fakeClient(),
+    rejectRequest: async (requestId, reason, loadedAt) => {
+      calls.push({ requestId, reason, loadedAt })
+      return { requestId, status: 'rejected', decidedAt: '2026-11-12T03:05:00Z', rejectedRequestIds: [] }
+    },
+  }
+  render(<ApproveRequests client={client} />)
+
+  const table = await screen.findByRole('table')
+  const second = within(table).getAllByRole('row')[2]
+  fireEvent.click(within(second).getByRole('button', { name: 'ปฏิเสธ' }))
+  fireEvent.change(within(second).getByLabelText('เหตุผลในการปฏิเสธ'), { target: { value: 'อุปกรณ์ต้องใช้สอบ' } })
+  fireEvent.click(within(second).getByRole('button', { name: 'ยืนยันการปฏิเสธ' }))
+
+  await waitFor(() => expect(within(table).getAllByRole('row').slice(1)).toHaveLength(1))
+  expect(calls).toEqual([{ requestId: 2, reason: 'อุปกรณ์ต้องใช้สอบ', loadedAt: '2026-11-12T03:00:00Z' }])
+  expect(screen.queryByText('นักศึกษาตัวอย่าง ข')).toBeNull()
+})

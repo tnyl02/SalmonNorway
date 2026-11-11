@@ -87,4 +87,8 @@ export const api = {
   //   -> { requestId, status, decidedAt, rejectedRequestIds }
   approveRequest: (requestId, loadedAt) =>
     postJSON(`/v1/approvals/requests/${encodeURIComponent(requestId)}/approve`, { loadedAt }),
+
+  // 004 FR-APV-01 (ง): ปฏิเสธคำขอพร้อมเหตุผล -> { requestId, status, decidedAt, rejectedRequestIds }
+  rejectRequest: (requestId, reason, loadedAt) =>
+    postJSON(`/v1/approvals/requests/${encodeURIComponent(requestId)}/reject`, { reason, loadedAt }),
 }
