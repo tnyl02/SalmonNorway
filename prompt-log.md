@@ -1689,3 +1689,28 @@
 - ไฟล์ที่สร้าง/แก้: `frontend/src/pages/Handover/HandoverForm.jsx` (ตรวจจำนวนและชนิดรูปจาก `HANDOVER_MIN_PHOTOS`, `HANDOVER_PHOTO_TYPES` ก่อนส่ง), `frontend/src/__tests__/AC-HND-12.test.jsx`
 - ผล test: `AC-HND-12.test.jsx` ผ่าน 2 กรณี ((ก) 1 รูป, (ข) GIF ไม่เรียก client และแสดงข้อความแจ้ง) `npx vitest run` 13 ไฟล์ผ่านทั้งหมด `vite build` ผ่าน
 - ข้อความแจ้งเรียบเรียงจาก FR-HND-06 (อย่างน้อย 2 รูป JPG หรือ PNG) ตัวเลขอ่านจาก config.js ขนาดไฟล์ยังไม่ตรวจ (T-28 รอ Q-HND-10)
+
+---
+
+## 2569-11-12 แก้ให้ PR ของ 005 ไม่กระทบฟีเจอร์อื่นตอน merge
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover (คืนไฟล์ของกลาง `App.jsx`, `api/client.js` เป็นแบบเดียวกับ main แก้ `main.jsx` และ `config.js` ของกลางแทน)
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ถาม ถ้าจะ pr ไป main ตอนนี้จะกระทบใคร และอะไรมั้ย มีอะไรบ้างที่ต้อง merge" แล้ว "แก้ไขมาให้ไม่กระทบคนอื่นก่อน"
+- สิ่งที่ AI พบจากการลอง merge จำลองกับ branch ของทุกคน:
+  1. 002 ประกาศ `const LoanNormalReturnHour` ใน config.go เหมือน 005 git merge ได้เองแต่ build พัง (ประกาศซ้ำ)
+  2. 002 commit `App.jsx`, `client.js`, `config.js`, `migrate.go` เป็น CRLF ทั้งไฟล์ ใครแก้ไฟล์เหล่านี้จะชนกับ 002 ทั้งไฟล์ (ไม่ใช่ปัญหาของ 005)
+  3. 003 แก้ `App.jsx` (ปุ่มเลือกหน้า) และต่อท้าย `config.js` ชนกับ 005
+- สิ่งที่แก้:
+  1. config.go เปลี่ยนชื่อค่าของ 005 เป็น `HandoverDueHour` ชั่วคราว (ค่าเดียวกับ `LoanNormalReturnHour` ของ 002 ต้องรวมเป็นตัวเดียวหลัง 002 merge)
+  2. ย้าย `handoverApi` จาก `api/client.js` ไปไฟล์ใหม่ `frontend/src/api/handover.js` (ใช้ BASE และ ApiError ของ client.js) แล้วคืน client.js เป็นแบบ main
+  3. คืน `App.jsx` เป็นแบบ main (รอบแรกย้ายไป `main.jsx` แต่ 002 เปลี่ยนท้ายบรรทัดของ main.jsx ด้วย จึงย้ายอีกครั้ง)
+     เปิดหน้าส่งมอบจากไฟล์ใหม่ `frontend/handover.html` + `src/handover-main.jsx` (Vite เปิดได้ที่ /handover.html โดยไม่ต้องแก้ vite.config.js) ไม่แก้ไฟล์เดิมของใคร
+  4. ย้ายบล็อก 005 ใน `frontend/src/config.js` ไปไว้ต้นไฟล์ ไม่ชนกับ 002, 003 ที่ต่อท้าย
+- ผล test: `go test ./...` ผ่านทุก package `npx vitest run` 13 ไฟล์ 23 test ผ่าน `vite build` ผ่าน
+- ชนที่เหลือและหลีกไม่ได้: เอกสารที่ต่อท้าย (prompt-log, CHANGELOG, constraints.md, data-model.md) และ config.js กับ 002 เพราะ 002 เปลี่ยนท้ายบรรทัดทั้งไฟล์
+- รอบที่ 2 (เอกสารของกลาง) หลังลอง merge จำลองซ้ำ:
+  - 004 ลงทะเบียน `FORBIDDEN_ROLE` ไว้ใน branch ของตัวเองด้วย (รหัสเดียวกัน) AI ใช้แถวที่ข้อความตรงกับของ 004 ทุกตัวอักษรในตำแหน่งเดียวกัน git จึง merge ได้โดยไม่ชนและไม่เกิดแถวซ้ำ
+    แถว `REQUEST_NOT_APPROVED`, `BORROWER_MISMATCH` ย้ายไปไว้ใต้ `ITEM_NOT_AVAILABLE` ไม่ติดกับจุดที่ 004 เพิ่ม
+  - คืน `data-model.md` เป็นแบบ main เพราะ 003 แก้ตาราง "เลข migration" แถวเดียวกัน (003 เขียนว่า "0006 ขึ้นไป ฟีเจอร์ถัดไป") เลข 0006, 0007 ของ 005 บันทึกใน plan.md และต้องแจ้งกลุ่ม ลงตารางหลัง 003 merge

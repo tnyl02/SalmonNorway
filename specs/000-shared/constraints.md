@@ -19,11 +19,11 @@ Status: v5.1 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบ�
   | `UPSTREAM_UNAVAILABLE` | 503 | ฐานข้อมูลหรือระบบภายนอกไม่ตอบ | 001, 002 |
   | `VALIDATION_FAILED` | 422 | ข้อมูลที่ส่งมาไม่ครบหรือผิดกติกา แนบรายชื่อช่องที่ผิด | 002 |
   | `ITEM_NOT_AVAILABLE` | 409 | อุปกรณ์ไม่ได้อยู่ในสถานะ "ว่าง" แล้ว | 002 |
-  | `DUPLICATE_REQUEST` | 409 | ผู้ขอคนเดิมมีคำขอที่ยังไม่จบของอุปกรณ์ชิ้นเดิมอยู่แล้ว | 002 |
-  | `HAS_OVERDUE_LOAN` | 409 | ผู้ขอมีอุปกรณ์ที่คืนเกินกำหนดค้างอยู่ | 002 |
-  | `FORBIDDEN_ROLE` | 403 | ยืนยันตัวตนแล้วและบทบาทถูกต้อง แต่บทบาทนี้ไม่มีสิทธิ์ทำสิ่งนี้ (เช่น นักศึกษาเรียกงานของเจ้าหน้าที่) | 005 (ลงทะเบียน 2569-11-11) |
   | `REQUEST_NOT_APPROVED` | 409 | คำขอยืมไม่อยู่ในสถานะที่ทำสิ่งนี้ได้ (ยังไม่อนุมัติ หรือส่งมอบไปแล้ว) | 005 (ลงทะเบียน 2569-11-11) |
   | `BORROWER_MISMATCH` | 409 | ผู้ที่ยืนยันตัวตนไม่ใช่ผู้ส่งคำขอ | 005 (ลงทะเบียน 2569-11-11) |
+  | `DUPLICATE_REQUEST` | 409 | ผู้ขอคนเดิมมีคำขอที่ยังไม่จบของอุปกรณ์ชิ้นเดิมอยู่แล้ว | 002 |
+  | `HAS_OVERDUE_LOAN` | 409 | ผู้ขอมีอุปกรณ์ที่คืนเกินกำหนดค้างอยู่ | 002 |
+  | `FORBIDDEN_ROLE` | 403 | ยืนยันตัวตนได้และบทบาทรู้จัก แต่บทบาทนี้ไม่มีสิทธิ์ทำรายการนี้ (เช่น นักศึกษาเรียกการอนุมัติ) | 004 |
 
   ฟีเจอร์ที่ต้องการรหัสใหม่ ให้เพิ่มแถวในตารางนี้ก่อนใช้ ห้ามตั้งรหัสเองในโค้ดโดยไม่ลงทะเบียน
 
@@ -88,7 +88,7 @@ Status: v5.1 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบ�
 |---|---|
 | CON-TECH-01 | 001-equipment-status, 002-borrow-request, 005-handover |
 | CON-TECH-02 | 001-equipment-status, 002-borrow-request, 005-handover |
-| CON-TECH-03 | 001-equipment-status (รหัสเดิม 4 ตัว), 002-borrow-request, 005-handover (ลงทะเบียน FORBIDDEN_ROLE, REQUEST_NOT_APPROVED, BORROWER_MISMATCH) |
+| CON-TECH-03 | 001-equipment-status (รหัสเดิม 4 ตัว), 002-borrow-request, 005-handover (ใช้ FORBIDDEN_ROLE ร่วมกับ 004, ลงทะเบียน REQUEST_NOT_APPROVED, BORROWER_MISMATCH) |
 | CON-DATA-01 | 001-equipment-status, 002-borrow-request (ส่งคำขอได้เฉพาะชิ้นที่ "ว่าง"), 005-handover |
 | CON-DATA-03 | 001-equipment-status, 002-borrow-request, 005-handover |
 | DOM-PRIV-01 | 001-equipment-status, 002-borrow-request (ไม่เปิดเผยชื่อผู้ขอรายอื่น FR-BRQ-05) |

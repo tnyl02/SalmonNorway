@@ -98,7 +98,7 @@ audit log: ถ้า `backend/internal/audit/writer.go` ของ 001 (T-19 ข�
 | ค่า | มาจาก ID | ชื่อตัวแปรและไฟล์ |
 |---|---|---|
 | 10 วินาที | FR-HND-02, ASM-HND-02 | `BorrowerAuthTimeout` ใน `backend/internal/config/config.go` |
-| 16:00 น. | DOM-LOAN-01, FR-HND-05 | `LoanNormalReturnHour = 16` ใน `config.go` **ชื่อเดียวกับ plan ของ 002** (002 สร้าง 005 ใช้ตัวเดิม ถ้า 005 ทำก่อนให้สร้างชื่อนี้ ห้ามมี 2 ค่า ตามกฎข้อ 9) |
+| 16:00 น. | DOM-LOAN-01, FR-HND-05 | `HandoverDueHour = 16` ใน `config.go` **ชื่อแยกชั่วคราว** เพราะ 002 ประกาศ `LoanNormalReturnHour` ไว้ใน branch ที่ยังไม่ merge ถ้าใช้ชื่อเดียวกันจะประกาศซ้ำตอน merge เมื่อ 002 merge แล้วให้เปลี่ยนไปใช้ของ 002 แล้วลบตัวนี้ (กฎข้อ 9) |
 | สถานะคำขอที่ส่งมอบได้ | FR-HND-01, data-model v9 | `HandoverReadyStatuses()` ใน `config.go` = `approved` |
 | Asia/Bangkok | glossary, FR-HND-05 | `TimeZone` ใน `config.go` (มีแล้ว), `TIME_ZONE` ใน `frontend/src/config.js` (มีแล้ว) |
 | อย่างน้อย 2 รูป | FR-HND-06, ASM-HND-07 | `HandoverMinPhotos` ใน `config.go`, `HANDOVER_MIN_PHOTOS` ใน `frontend/src/config.js` |

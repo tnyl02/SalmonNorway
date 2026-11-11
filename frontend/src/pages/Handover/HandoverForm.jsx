@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { handoverApi } from '../../api/client.js'
+import { handoverApi } from '../../api/handover.js'
 import { HANDOVER_MIN_PHOTOS, HANDOVER_PHOTO_TYPES, TIME_ZONE } from '../../config.js'
 
 // ตรวจรูปก่อนส่งเพื่อความสะดวก (FR-HND-06, ASM-HND-07) หลังบ้านตรวจซ้ำจากเนื้อไฟล์เสมอ ขนาดไฟล์ตรวจใน T-28 (รอ Q-HND-10)

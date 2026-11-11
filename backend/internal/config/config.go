@@ -45,10 +45,10 @@ func getenv(key, fallback string) string {
 // แล้วใช้ผลการตรวจบัตรแทน (FR-HND-02, ASM-HND-02, IF-IDP-01)
 const BorrowerAuthTimeout = 10 * time.Second
 
-// LoanNormalReturnHour คือชั่วโมงของกำหนดคืนการยืมแบบปกติ = 16:00 น. (DOM-LOAN-01, FR-HND-05)
-// ชื่อเดียวกับ plan ของ 002 (FR-BRQ-03 ค) ให้ทุกฟีเจอร์ใช้ค่านี้ค่าเดียว ห้ามสร้างซ้ำ (AGENTS.md กฎข้อ 9)
-// เทียบด้วยเขตเวลา TimeZone
-const LoanNormalReturnHour = 16
+// HandoverDueHour คือชั่วโมงของกำหนดคืนการยืมแบบปกติ = 16:00 น. ที่ 005 ใช้ตอนส่งมอบ (DOM-LOAN-01, FR-HND-05) เทียบด้วยเขตเวลา TimeZone
+// ค่าเดียวกับ LoanNormalReturnHour ของ 002 ที่ยังไม่ merge เข้า main ใช้ชื่อแยกชั่วคราวเพื่อไม่ให้ประกาศชื่อซ้ำตอน merge
+// เมื่อ 002 merge แล้ว ให้ 005 เปลี่ยนไปใช้ LoanNormalReturnHour แล้วลบค่านี้ (AGENTS.md กฎข้อ 9 ค่าเดียวที่เดียว)
+const HandoverDueHour = 16
 
 // HandoverMinPhotos คือจำนวนรูปสภาพอุปกรณ์ขั้นต่ำที่ต้องแนบตอนส่งมอบ (FR-HND-06, ASM-HND-07)
 const HandoverMinPhotos = 2
