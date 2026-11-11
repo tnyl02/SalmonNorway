@@ -67,7 +67,7 @@ var ErrNotRequested = errors.New("คำขอนี้ไม่ได้อย�
 //   - ไม่เปลี่ยนสถานะอุปกรณ์ ยังเป็น "ว่าง" จนกว่า 005 ส่งมอบ (CON-DATA-01, data-model.md แถว UC-12)
 //
 // การตรวจคำขอแรก (T-17), อุปกรณ์ว่าง (T-19), เวลาตัด 16:00 (T-21), ภาควิชา (T-25),
-// ปฏิเสธคำขออื่นตาม (T-16) และ Email (T-15) เพิ่มใน task ของแต่ละเรื่อง
+// และปฏิเสธคำขออื่นตาม (T-16) เพิ่มใน task ของแต่ละเรื่อง
 func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
 	p, err := staff(ctx)
 	if err != nil {
@@ -100,6 +100,10 @@ func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
 		if err := tx.insertAudit(ctx, p.UserID, string(p.Role), config.AuditActionApprove, target.AssetCode, target.ID); err != nil {
 			return err
 		}
+		// FR-APV-02: Email ผลอนุมัติลงคิวใน transaction เดียวกัน ตัวส่งเบื้องหลังส่งภายใน 60 วินาที (T-15)
+		if err := tx.insertEmail(ctx, target.ID, config.ApprovalKindApproved, s.now()); err != nil {
+			return err
+		}
 		out = Result{RequestID: target.ID, Status: config.StatusApproved, DecidedAt: at, RejectedBy: []int{}}
 		return nil
 	})
@@ -113,7 +117,7 @@ var ErrReasonRequired = errors.New("ต้องระบุเหตุผล�
 //   - คำขอเป็น rejected บันทึกเหตุผลใน approval_decision และ audit_log action reject (RQ-25)
 //   - ไม่เปลี่ยนสถานะอุปกรณ์ (CON-DATA-01)
 //
-// การตรวจภาควิชา (T-25), Email (T-15) และข้อความกรณีพิจารณาแล้ว (T-23) เพิ่มใน task ของแต่ละเรื่อง
+// การตรวจภาควิชา (T-25) และข้อความกรณีพิจารณาแล้ว (T-23) เพิ่มใน task ของแต่ละเรื่อง
 func (s *Service) Reject(ctx context.Context, requestID int, reason string) (Result, error) {
 	p, err := staff(ctx)
 	if err != nil {
@@ -149,6 +153,10 @@ func (s *Service) Reject(ctx context.Context, requestID int, reason string) (Res
 			return err
 		}
 		if err := tx.insertAudit(ctx, p.UserID, string(p.Role), config.AuditActionReject, target.AssetCode, target.ID); err != nil {
+			return err
+		}
+		// FR-APV-02 (ข): Email ผลปฏิเสธลงคิวใน transaction เดียวกัน (T-15)
+		if err := tx.insertEmail(ctx, target.ID, config.ApprovalKindRejected, s.now()); err != nil {
 			return err
 		}
 		out = Result{RequestID: target.ID, Status: config.StatusRejected, DecidedAt: at, RejectedBy: []int{}}

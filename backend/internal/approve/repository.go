@@ -150,3 +150,13 @@ VALUES ($1, $2, $3, $4, $5, 'ok')`,
 		actorID, actorRole, action, assetCode, requestID)
 	return err
 }
+
+// insertEmail ใส่ Email แจ้งผล 1 ฉบับลงคิว (outbox) ใน transaction เดียวกับผลการพิจารณา (plan.md ข้อ 1, FR-APV-02)
+// ถ้าบันทึกผลไม่สำเร็จ Email ก็ไม่ถูกสร้าง และถ้าบันทึกผลสำเร็จ Email ไม่หาย แม้ระบบดับก่อนส่ง
+func (r *Repository) insertEmail(ctx context.Context, requestID int, kind string, now time.Time) error {
+	_, err := r.db.Exec(ctx, `
+INSERT INTO approval_email (request_id, kind, status, next_attempt_at, created_at)
+VALUES ($1, $2, $3, $4, $4)`,
+		requestID, kind, config.ApprovalEmailPending, now)
+	return err
+}

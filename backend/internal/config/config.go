@@ -128,6 +128,20 @@ const (
 	ApprovalKindAutoRejected = "auto_rejected"
 )
 
+// สถานะการส่ง Email (FR-APV-02 ง) ต้องตรงกับ CHECK ของ approval_email ใน migration 0008
+const (
+	ApprovalEmailPending = "pending"
+	ApprovalEmailSent    = "sent"
+	ApprovalEmailFailed  = "failed"
+)
+
+// ApprovalSenderPollInterval คือความถี่ที่ตัวส่งเบื้องหลังตรวจ Email ที่รอส่ง ต้องน้อยกว่า ApprovalEmailDeadline มาก
+// เพื่อให้ส่งทันภายใน 60 วินาที (FR-APV-02) ทีมเลือกเอง ไม่ได้มาจาก spec (T-15)
+const ApprovalSenderPollInterval = 5 * time.Second
+
+// ApprovalSenderBatchSize คือจำนวน Email สูงสุดที่ตัวส่งหยิบต่อรอบ ทีมเลือกเอง ไม่ได้มาจาก spec (T-15)
+const ApprovalSenderBatchSize = 50
+
 // ApprovalEmailSubjects คือหัวข้อ Email แต่ละแบบ (FR-APV-02 ก ข ค)
 var ApprovalEmailSubjects = map[string]string{
 	ApprovalKindApproved:     "แจ้งผลการอนุมัติการยืมอุปกรณ์ภาคคอมพิวเตอร์",

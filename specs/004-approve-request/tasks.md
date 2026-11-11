@@ -219,11 +219,11 @@ Updated: 2569-11-12
 ### T-15 เขียน outbox ใน transaction เดียวกับผล และตัวส่งเบื้องหลัง
 - รองรับ: FR-APV-02, IF-NOT-01
 - ตรวจด้วย: AC-APV-04
-- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/sender.go`, `backend/internal/approve/sender_test.go`
+- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/sender.go`, `backend/internal/approve/sender_test.go`, `backend/internal/approve/repository.go` (insertEmail), `backend/internal/config/config.go` (สถานะการส่ง, ช่วงตรวจคิว, จำนวนต่อรอบ)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10, T-14
 - เสร็จเมื่อ: `TestAC_APV_04` ผ่านด้วยนาฬิกาจำลอง: หลังอนุมัติหรือปฏิเสธมีแถว `approval_email` สถานะ `pending` แล้วตัวส่งจำลองได้รับ Email ภายใน `ApprovalEmailDeadline` และแถวเป็น `sent`
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน `TestAC_APV_04`, `TestSender_PollWithinDeadline` ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 #### จุดตรวจเฟส 5
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_04`, test ของ `email_test.go` และ test ของเฟส 0 ถึง 4

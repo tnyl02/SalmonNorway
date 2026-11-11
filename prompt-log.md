@@ -3652,3 +3652,26 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ฟีเจอร์: 004-approve-request
 - คำสั่ง: "ตรวจแล้วผ่าน"
 - สิ่งที่แก้: tasks.md T-14 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-15 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "ตรวจแล้วผ่าน" (T-14 -> เสร็จ)
+- คำสั่ง: "/implement T-15"
+- ไฟล์ที่สร้าง: `backend/internal/approve/sender.go` (`Sender` + `Run` ตรวจคิวทุก ApprovalSenderPollInterval, `SendDue` หยิบ Email pending ที่ถึงเวลาด้วย FOR UPDATE SKIP LOCKED แล้วส่งผ่าน Mailer, `markAttempt` บันทึก sent หรือ attempts/last_error/next_attempt_at), `sender_test.go` (`TestAC_APV_04` ด้วยนาฬิกาจำลองและ Mailer จำลอง, `TestSender_PollWithinDeadline`)
+- ไฟล์ที่แก้: `service.go` (Approve / Reject ใส่ Email ลงคิวใน transaction เดียวกับผล), `repository.go` (`insertEmail`), `config.go` (`ApprovalEmailPending/Sent/Failed`, `ApprovalSenderPollInterval` = 5 วินาที, `ApprovalSenderBatchSize` = 50), `specs/004-approve-request/tasks.md`
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): ช่วงตรวจคิว 5 วินาทีและจำนวนต่อรอบ 50 ฉบับ (ทีมเลือกเอง ไม่ได้มาจาก spec อยู่ใน config); ส่ง Email ภายใน transaction ที่ล็อกแถวไว้ (ง่ายและพอสำหรับ prototype); ส่งไม่สำเร็จตอนนี้ยังเป็น pending ลองใหม่ทุก 1 นาทีไม่จำกัดครั้ง การหยุดหลังครบ 3 ครั้งแล้วเป็น failed เป็นงานของ T-32; ยังไม่เริ่ม goroutine ใน main.go (T-30) ระหว่างนี้ระบบจริงยังไม่ส่ง Email
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-15 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจแล้วผ่าน"
+- สิ่งที่แก้: tasks.md T-15 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
