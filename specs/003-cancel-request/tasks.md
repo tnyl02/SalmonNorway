@@ -284,7 +284,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
 - ต้องทำหลัง: T-07 (เดิม T-07, T-15 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
 - เสร็จเมื่อ: vitest `AC_CXL_02 shows already approved message and reloads` ผ่าน (client จำลองตอบ 409 `ALREADY_APPROVED` -> แสดง `MSG_ALREADY_APPROVED` แล้วโหลดรายการใหม่)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 8
 - test ที่ต้องผ่านทั้งหมด: `TestAC_CXL_02_ApprovedNotCancellable`, vitest `AC_CXL_02 ...` และ test ของเฟส 0-7

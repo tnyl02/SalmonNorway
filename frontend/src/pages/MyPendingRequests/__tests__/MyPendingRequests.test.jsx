@@ -69,3 +69,32 @@ test('AC_CXL_12 load failed shows retry and recovers', async () => {
   expect(screen.queryByRole('alert')).toBeNull()
 })
 
+// AC-CXL-02 (FR-CXL-02) ฝั่งหน้าจอ T-16
+//   Given นักศึกษาเปิดหน้ารายการ แล้วคำขอถูกอนุมัติก่อนกดยืนยัน (หลังบ้านตอบ 409 ALREADY_APPROVED)
+//   When  กดยกเลิก พิมพ์เหตุผล แล้วกดยืนยัน
+//   Then  กล่องปิด แสดง "ยกเลิกไม่ได้ เพราะคำขอได้รับการอนุมัติแล้ว" และโหลดรายการใหม่ (คำขอที่อนุมัติแล้วหายไป)
+test('AC_CXL_02 shows already approved message and reloads', async () => {
+  // Given รอบแรกเห็น REQ_A1 หลังอนุมัติ หลังบ้านไม่ส่ง REQ_A1 แล้ว
+  const client = fakeClient([REQ_A1, REQ_A2])
+  client.listMyPendingRequests
+    .mockResolvedValueOnce({ items: [REQ_A1, REQ_A2] })
+    .mockResolvedValueOnce({ items: [REQ_A2] })
+  client.cancelRequest.mockRejectedValueOnce(new ApiError(409, 'ALREADY_APPROVED'))
+  render(<MyPendingRequests client={client} />)
+  const rows = await screen.findAllByRole('listitem')
+
+  // When
+  fireEvent.click(within(rows[0]).getByRole('button', { name: 'ยกเลิก' }))
+  const dialog = await screen.findByRole('dialog')
+  fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'ไม่ต้องใช้อุปกรณ์แล้ว' } })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'ยืนยัน' }))
+
+  // Then
+  expect((await screen.findByRole('alert')).textContent).toBe('ยกเลิกไม่ได้ เพราะคำขอได้รับการอนุมัติแล้ว')
+  expect(screen.queryByRole('dialog')).toBeNull()
+  await waitFor(() => expect(client.listMyPendingRequests).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1))
+  expect(screen.getByRole('listitem').textContent).toContain('CS-PJ-0001')
+  expect(screen.queryByRole('status')).toBeNull() // ไม่มีข้อความยกเลิกสำเร็จ
+})
+

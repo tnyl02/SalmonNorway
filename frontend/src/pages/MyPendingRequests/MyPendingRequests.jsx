@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client.js'
-import { LABEL_RETRY, MSG_CANCEL_SUCCESS, MSG_LOAD_FAILED, MSG_NO_PENDING } from '../../config.js'
+import { LABEL_RETRY, MSG_ALREADY_APPROVED, MSG_CANCEL_SUCCESS, MSG_LOAD_FAILED, MSG_NO_PENDING } from '../../config.js'
 import { formatDueAt } from '../EquipmentDetail/EquipmentDetail.jsx'
 import CancelDialog from './CancelDialog.jsx'
 
@@ -12,7 +12,8 @@ const formatSubmittedAt = formatDueAt
 // แสดงเฉพาะคำขอของนักศึกษาที่เข้าสู่ระบบที่ยังยกเลิกได้ หลังบ้านกรองและเรียงใหม่ไปเก่ามาแล้ว (FR-CXL-03, CON-CXL-02)
 // กดยกเลิกแล้วต้องยืนยันพร้อมเหตุผลก่อน ยกเลิกสำเร็จแล้วแถวหายจากหน้า (FR-CXL-07, FR-CXL-01)
 // ไม่มีคำขอแสดง MSG_NO_PENDING โหลดไม่สำเร็จแสดง MSG_LOAD_FAILED พร้อมปุ่มลองใหม่ ไม่แสดงรายการเก่า (FR-CXL-06, ASM-13)
-// ข้อความเมื่อยกเลิกไม่ได้อยู่ใน T-16, T-18, T-20, T-24
+// ยกเลิกไม่ได้เพราะอนุมัติแล้ว (409 ALREADY_APPROVED) แสดง MSG_ALREADY_APPROVED แล้วโหลดรายการใหม่ (FR-CXL-02, plan.md ข้อ 4)
+// ข้อความของกรณีอื่นอยู่ใน T-18, T-20, T-24
 export default function MyPendingRequests({ client = api }) {
   const [items, setItems] = useState(null)
   const [loadFailed, setLoadFailed] = useState(false)
@@ -20,6 +21,7 @@ export default function MyPendingRequests({ client = api }) {
   const [target, setTarget] = useState(null) // คำขอที่เปิดกล่องยืนยันอยู่
   const [busy, setBusy] = useState(false)
   const [success, setSuccess] = useState(null) // ข้อความยกเลิกสำเร็จ ค้างจนเริ่มยกเลิกรายการถัดไป (ทีมตัดสิน 2569-11-11 T-07)
+  const [cancelError, setCancelError] = useState(null) // ข้อความเมื่อยกเลิกไม่ได้ ค้างจนเริ่มยกเลิกรายการถัดไป แบบเดียวกับ success
 
   useEffect(() => {
     let active = true
@@ -40,6 +42,7 @@ export default function MyPendingRequests({ client = api }) {
   // เปิดกล่องยืนยัน (FR-CXL-07)
   function openDialog(request) {
     setSuccess(null)
+    setCancelError(null)
     setTarget(request)
   }
 
@@ -52,8 +55,14 @@ export default function MyPendingRequests({ client = api }) {
       setItems((current) => current.filter((r) => r.requestId !== request.requestId))
       setSuccess(MSG_CANCEL_SUCCESS(request.modelName, request.assetCode))
       setTarget(null)
-    } catch {
-      // ยกเลิกไม่สำเร็จ: คงแถวและกล่องไว้ ข้อความของแต่ละกรณีอยู่ใน T-16, T-18, T-20, T-24
+    } catch (err) {
+      if (err?.status === 409 && err.code === 'ALREADY_APPROVED') {
+        // FR-CXL-02, FR-CXL-04: เจ้าหน้าที่อนุมัติไปก่อน ปิดกล่อง แจ้งเหตุผล แล้วโหลดรายการใหม่ให้ตรงกับฐานข้อมูล
+        setTarget(null)
+        setCancelError(MSG_ALREADY_APPROVED)
+        setReloadKey((k) => k + 1)
+      }
+      // กรณีอื่น: คงแถวและกล่องไว้ ข้อความอยู่ใน T-18, T-20, T-24
     } finally {
       setBusy(false)
     }
@@ -65,6 +74,11 @@ export default function MyPendingRequests({ client = api }) {
       {success && (
         <p role="status" className="rounded border border-green-300 bg-green-50 p-3 text-sm text-green-800">
           {success}
+        </p>
+      )}
+      {cancelError && (
+        <p role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+          {cancelError}
         </p>
       )}
       {loadFailed ? (
