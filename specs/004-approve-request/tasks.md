@@ -18,7 +18,7 @@ Updated: 2569-11-12
 - หลังบ้าน: `docker compose -f deploy/docker-compose.yml up -d db` แล้ว `cd backend && go run ./cmd/server` (port 8000)
 - ข้อมูลตัวอย่างของ 004 (โหลดเองหลังหลังบ้านรัน migration และ seed.sql แล้ว แบบเดียวกับ `handover_dev.sql` ของ 005):
   `docker compose -f deploy/docker-compose.yml exec -T db psql -U salmon -d salmon < backend/db/seed/approve_dev.sql`
-- หน้าจอ (ในฐานะเจ้าหน้าที่ภาควิชา 1): `cd frontend && VITE_MOCK_TOKEN=mock-staff-001 npm run dev`
+- หน้าจอ (ในฐานะเจ้าหน้าที่ภาควิชา 1): `cd frontend && VITE_MOCK_TOKEN=mock-staff-001 npm run dev` แล้วเปิด `/approve.html`
 - test: `cd backend && go test ./... -v` และ `cd frontend && npm test`
 
 ---
@@ -41,7 +41,7 @@ Updated: 2569-11-12
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: ค่าครบทุกแถวในตาราง "ค่าที่ตั้งได้" ของ plan ข้อ 5 (รวมข้อความ error 9 ข้อความ และ `ApprovalEmailRetryCount` = 3 นับเฉพาะครั้งที่ส่งซ้ำ) อยู่ที่เดียวพร้อมคอมเมนต์อ้าง ID และค้นในโค้ดแล้วไม่เจอค่าเหล่านี้ที่อื่น / ค่าที่ 002 ประกาศไว้แล้วใช้ร่วม ไม่ประกาศซ้ำ: เวลาตัด 16:00 น. ใช้ `LoanNormalReturnHour` (DOM-LOAN-01) และค่าสถานะของคำขอใช้ `RequestStatuses` / `StatusRequested`
-- สถานะ: เสร็จ รอทีมตรวจ (ยังไม่ได้รัน `TestConfig_ApprovalValues`, `TestConfig_ApprovalMessagesMatchFrontend` เครื่องไม่มี Go)
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน `TestConfig_ApprovalValues`, `TestConfig_ApprovalMessagesMatchFrontend` ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 ### T-03 เพิ่มข้อมูลตัวอย่างสำหรับลองระบบของ 004
 - รองรับ: FR-APV-01 (ก)(ข)(จ)
@@ -86,11 +86,11 @@ Updated: 2569-11-12
 ### T-06 สร้างหน้าจอ ApproveRequests แสดงรายการคำขอ
 - รองรับ: FR-APV-01 (ก)
 - ตรวจด้วย: AC-APV-11
-- ไฟล์ที่แตะ: `frontend/src/pages/ApproveRequest/ApproveRequests.jsx`, `frontend/src/pages/ApproveRequest/ApproveRequests.test.jsx`, `frontend/src/api/client.js` (เพิ่ม `getApprovalRequests`), `frontend/src/App.jsx` (เพิ่ม route)
+- ไฟล์ที่แตะ: `frontend/src/pages/ApproveRequest/ApproveRequests.jsx`, `frontend/src/pages/ApproveRequest/ApproveRequests.test.jsx`, `frontend/src/api/client.js` (เพิ่ม `getApprovalRequests`), `frontend/approve.html` + `frontend/src/approve-main.jsx` (หน้าแยกแบบ handover.html ของ 005 ไม่แตะ App.jsx ของ 001 ทีมตัดสิน 2569-11-12)
 - แบบหน้าจอ: ไม่มี (ไม่มี mockup และไม่มี UI ID ใน spec ทีมออกแบบเอง ตาม plan ข้อ 4)
 - ต้องทำหลัง: T-05
 - เสร็จเมื่อ: vitest `AC-APV-11` ผ่านด้วย client จำลอง แสดงชื่อผู้ขอ อุปกรณ์ วัตถุประสงค์ ช่วงเวลาที่ต้องการยืม เรียงตามเวลาที่ส่ง
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน vitest `AC-APV-11` ตามลำดับการทดสอบที่ทีมตัดสิน และเครื่องยังไม่มี node_modules)
 
 #### จุดตรวจเฟส 1
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_11` (repository + HTTP), vitest `AC-APV-11` และ test ของเฟส 0
@@ -546,7 +546,7 @@ Updated: 2569-11-12
 ### T-34 สร้างหน้าจอ FailedEmails พร้อมปุ่มส่งซ้ำ
 - รองรับ: FR-APV-02 (ง), ASM-08
 - ตรวจด้วย: AC-APV-14
-- ไฟล์ที่แตะ: `frontend/src/pages/ApproveRequest/FailedEmails.jsx`, `frontend/src/pages/ApproveRequest/FailedEmails.test.jsx`, `frontend/src/api/client.js` (เพิ่ม `getFailedEmails`, `resendEmail`), `frontend/src/App.jsx`
+- ไฟล์ที่แตะ: `frontend/src/pages/ApproveRequest/FailedEmails.jsx`, `frontend/src/pages/ApproveRequest/FailedEmails.test.jsx`, `frontend/src/api/client.js` (เพิ่ม `getFailedEmails`, `resendEmail`), `frontend/src/approve-main.jsx` (แสดงต่อจาก ApproveRequests ในหน้า /approve.html)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-09, T-33
 - เสร็จเมื่อ: vitest `AC-APV-14` ผ่าน แสดงรายการ "Email ที่ส่งไม่สำเร็จ" พร้อมสาเหตุและเวลา กดส่งซ้ำแล้วรายการหายไป

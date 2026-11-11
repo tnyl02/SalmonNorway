@@ -56,4 +56,9 @@ export const api = {
 
   // 001 FR-EQS-04: รายละเอียดอุปกรณ์รายชิ้น -> { assetCode, status, dueAt? } (dueAt มีเฉพาะถูกยืม)
   getItem: (assetCode) => getJSON(`/v1/equipment/items/${encodeURIComponent(assetCode)}`),
+
+  // 004 FR-APV-01 (ก)(ข): คำขอยืมปกติที่รอพิจารณาของภาควิชาเจ้าหน้าที่ เรียงตามเวลาที่ส่ง
+  //   -> { items: [{ requestId, requesterName, studentCode, modelName, assetCode, purpose, purposeOther?,
+  //                  startAt, endAt, submittedAt, isFirst }], loadedAt }
+  getApprovalRequests: () => getJSON('/v1/approvals/requests'),
 }
