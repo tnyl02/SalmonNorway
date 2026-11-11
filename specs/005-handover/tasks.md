@@ -162,7 +162,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี (ไม่มี mockup ทีมออกแบบเอง)
 - ต้องทำหลัง: T-11
 - เสร็จเมื่อ: `AC-HND-02.test.jsx` ผ่านกรณียืนยันตัวตนผู้ยืมก่อนบันทึก
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 #### จุดตรวจเฟส 2
 - test ที่ต้องผ่านทั้งหมด: TestRepository_CreateHandover, TestPhotoStore_SaveAndRemove, TestVerifier_Mock, TestAC_HND_02_AuthApiVerifiedAndCardChecked, TestAC_HND_07_HandoverCreatesLoan, AC-HND-02.test.jsx และ test ของเฟส 0-1

@@ -9,7 +9,18 @@ const fmt = (iso) => new Date(iso).toLocaleString('th-TH', { timeZone: TIME_ZONE
 // - ยืนยันว่าตรวจบัตรแล้วทุกครั้ง ไม่ติ๊ก = บันทึกไม่ได้ (FR-HND-03, ASM-HND-01)
 // - แนบรูปสภาพอุปกรณ์ (FR-HND-06) หลังบ้านตรวจจำนวนและชนิดเสมอ
 // - บันทึก แล้วแสดงเวลาที่ส่งมอบและกำหนดคืน (FR-HND-05, FR-HND-07)
+// ผลการยืนยันผู้ยืม (plan.md ข้อ 4) verified / unavailable บันทึกต่อได้ mismatch บันทึกไม่ได้ (FR-HND-02, ASM-HND-04)
+const VERIFY_TEXT = {
+  verified: 'ยืนยันตัวตนผู้ยืมแล้ว',
+  mismatch: 'ผู้ยืมไม่ใช่ผู้ส่งคำขอนี้',
+  unavailable: 'เชื่อมต่อระบบยืนยันตัวตนไม่สำเร็จ ใช้ผลการตรวจบัตรแทน',
+}
+
 export default function HandoverForm({ request, client = handoverApi, onBack }) {
+  // FR-HND-02, ASM-HND-09: ผู้ยืมล็อกอินบัญชีมหาวิทยาลัยบนเครื่องเจ้าหน้าที่ prototype ใช้ token จำลอง (Q-SH-03)
+  const [credential, setCredential] = useState('')
+  const [verify, setVerify] = useState(null) // { result, userId }
+  const [verifyError, setVerifyError] = useState(null)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [cardChecked, setCardChecked] = useState(false)
@@ -18,10 +29,24 @@ export default function HandoverForm({ request, client = handoverApi, onBack }) 
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
 
+  async function verifyBorrower() {
+    setVerify(null)
+    setVerifyError(null)
+    try {
+      setVerify(await client.verifyBorrower(request.requestId, credential))
+    } catch (err) {
+      setVerifyError(err.serverMessage ?? 'ยืนยันตัวตนผู้ยืมไม่สำเร็จ')
+    }
+  }
+
+  // บันทึกได้เมื่อยืนยันผู้ยืมแล้ว (หรือระบบยืนยันตัวตนไม่ตอบ) และตรวจบัตรแล้ว หลังบ้านตรวจซ้ำเสมอ
+  const canSave = cardChecked && (verify?.result === 'verified' || verify?.result === 'unavailable')
+
   async function submit(e) {
     e.preventDefault()
-    if (!cardChecked) return // FR-HND-03
+    if (!canSave) return // FR-HND-02, FR-HND-03
     const form = new FormData()
+    form.append('borrowerCredential', credential)
     form.append('borrowerFirstName', firstName)
     form.append('borrowerLastName', lastName)
     form.append('cardChecked', 'true')
@@ -58,6 +83,35 @@ export default function HandoverForm({ request, client = handoverApi, onBack }) 
       <h2 className="text-lg font-semibold text-slate-900">บันทึกการส่งมอบ {request.assetCode}</h2>
       <p className="text-sm text-slate-600">ผู้ส่งคำขอ {request.requesterStudentId}</p>
 
+      <fieldset className="grid gap-1 rounded border p-2">
+        <legend className="px-1">ผู้ยืมล็อกอินบัญชีมหาวิทยาลัย</legend>
+        <label className="grid gap-1">
+          บัญชีผู้ยืม
+          <input
+            type="password"
+            className="rounded border px-2 py-1"
+            value={credential}
+            onChange={(e) => {
+              setCredential(e.target.value)
+              setVerify(null)
+            }}
+          />
+        </label>
+        <button type="button" className="justify-self-start rounded border px-3 py-1" onClick={verifyBorrower} disabled={!credential}>
+          ยืนยันตัวตนผู้ยืม
+        </button>
+        {verify && (
+          <p role="status" className={verify.result === 'mismatch' ? 'text-red-700' : 'text-slate-700'}>
+            {VERIFY_TEXT[verify.result]} {verify.userId && `(${verify.userId})`}
+          </p>
+        )}
+        {verifyError && (
+          <p role="alert" className="text-red-700">
+            {verifyError}
+          </p>
+        )}
+      </fieldset>
+
       <label className="grid gap-1">
         ชื่อผู้ยืม (ตามบัตร)
         <input className="rounded border px-2 py-1" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
@@ -84,7 +138,7 @@ export default function HandoverForm({ request, client = handoverApi, onBack }) 
         <button
           type="submit"
           className="rounded bg-teal-700 px-3 py-1 text-white disabled:opacity-50"
-          disabled={!cardChecked || saving}
+          disabled={!canSave || saving}
         >
           บันทึกการส่งมอบ
         </button>
