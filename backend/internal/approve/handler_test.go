@@ -1,9 +1,12 @@
 package approve
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"salmonnorway/backend/internal/auth"
@@ -95,5 +98,65 @@ func TestApprovals_RequiresStaff(t *testing.T) {
 
 	if w := getJSON(srv, "", PathPrefix+"requests"); w.Code != http.StatusUnauthorized {
 		t.Errorf("ไม่มี token ต้องได้ 401 แต่ได้ %d", w.Code)
+	}
+}
+
+// postJSON ยิง POST ด้วย token และ body ที่ให้
+func postJSON(srv http.Handler, token, path, body string) *httptest.ResponseRecorder {
+	r := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	if token != "" {
+		r.Header.Set("Authorization", "Bearer "+token)
+	}
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, r)
+	return w
+}
+
+// AC-APV-01 (FR-APV-01, CON-DATA-01) ยิงผ่าน HTTP จริง
+// Given เจ้าหน้าที่ภาควิชา 1 และคำขอแรกของอุปกรณ์ที่ "ว่าง" (AP-TEST-0002)
+// When  POST /v1/approvals/requests/{id}/approve พร้อม loadedAt
+// Then  ได้ 200 สถานะ approved และสถานะอุปกรณ์ยังเป็น "ว่าง"
+func TestAC_APV_01_HTTP(t *testing.T) {
+	tx := devTx(t)
+	srv := newTestServer(tx)
+	id := requestIDOf(t, tx, "AP-TEST-0002", "student-001")
+
+	w := postJSON(srv, tokenStaffDept1, fmt.Sprintf("%srequests/%d/approve", PathPrefix, id), `{"loadedAt":"2026-11-12T03:00:00Z"}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("อนุมัติสำเร็จต้องได้ 200 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	var got ResultDTO
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.RequestID != id || got.Status != "approved" || got.DecidedAt.IsZero() || got.RejectedRequestIDs == nil {
+		t.Errorf("คำตอบไม่ถูกต้อง: %+v", got)
+	}
+
+	var itemStatus string
+	if err := tx.QueryRow(context.Background(), `
+		SELECT i.status FROM borrow_request r JOIN equipment_item i ON i.id = r.item_id WHERE r.id = $1`, id).Scan(&itemStatus); err != nil {
+		t.Fatal(err)
+	}
+	if itemStatus != "available" {
+		t.Errorf("สถานะอุปกรณ์ต้องยังเป็น available แต่ได้ %q (CON-DATA-01)", itemStatus)
+	}
+}
+
+// Q-APV-25: รหัสคำขอที่ไม่มีอยู่หรือไม่ใช่ตัวเลข ได้ 404 REQUEST_NOT_FOUND พร้อมข้อความจาก config
+func TestApproveHTTP_NotFound(t *testing.T) {
+	srv := newTestServer(devTx(t))
+	for _, path := range []string{PathPrefix + "requests/999999/approve", PathPrefix + "requests/abc/approve"} {
+		w := postJSON(srv, tokenStaffDept1, path, `{}`)
+		if w.Code != http.StatusNotFound {
+			t.Errorf("%s ต้องได้ 404 แต่ได้ %d", path, w.Code)
+			continue
+		}
+		var e ErrorDTO
+		_ = json.Unmarshal(w.Body.Bytes(), &e)
+		if e.Code != "REQUEST_NOT_FOUND" || e.Message != config.ApprovalMessages["REQUEST_NOT_FOUND"] {
+			t.Errorf("%s ต้องได้ {REQUEST_NOT_FOUND, ไม่พบคำขอนี้} แต่ได้ %+v", path, e)
+		}
 	}
 }

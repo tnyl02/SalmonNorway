@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 
 	"salmonnorway/backend/internal/config"
 )
@@ -29,6 +30,7 @@ func NewHandler(svc *Service) *Handler {
 func (h *Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET "+PathPrefix+"requests", h.list)
+	mux.HandleFunc("POST "+PathPrefix+"requests/{id}/approve", h.approve)
 	return requireStaff(mux)
 }
 
@@ -57,9 +59,34 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+// approve: POST /v1/approvals/requests/{id}/approve อนุมัติคำขอยืมปกติ (FR-APV-01 ค, AC-APV-01)
+// body { loadedAt } มาจาก GET รายการ ใช้แยก "พิจารณาแล้ว" กับ "กดพร้อมกัน" ใน T-23 (plan.md ข้อ 4)
+func (h *Handler) approve(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "REQUEST_NOT_FOUND") // Q-APV-25
+		return
+	}
+	var in DecideInputDTO
+	// ยังไม่ใช้ loadedAt จนถึง T-23 จึงไม่ปฏิเสธ body ที่อ่านไม่ออกหรือว่าง (การตรวจเป็นงานของ T-23)
+	_ = json.NewDecoder(r.Body).Decode(&in)
+
+	res, err := h.svc.Approve(r.Context(), id)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toResultDTO(res))
+}
+
 // writeServiceError แปลง error ของ service เป็น {code, message} ตาม CON-TECH-03 ข้อความจาก config (FR-APV-01 ซ)
 func writeServiceError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, ErrRequestNotFound):
+		writeError(w, http.StatusNotFound, "REQUEST_NOT_FOUND") // Q-APV-25
+	case errors.Is(err, ErrNotRequested):
+		// ชั่วคราวจนถึง T-23 ที่แยกเป็น REQUEST_CANCELLED / REQUEST_ALREADY_DECIDED / REQUEST_DECIDED_CONCURRENTLY
+		writeError(w, http.StatusConflict, "REQUEST_ALREADY_DECIDED")
 	case errors.Is(err, ErrNoPrincipal):
 		// กันพลาดเมื่อผูก router ผิด ข้อความใช้แบบ auth.Middleware ไม่มี message ใน spec ของ 004 (ดู plan.md ข้อ 8)
 		writeError(w, http.StatusUnauthorized, "UNAUTHENTICATED")

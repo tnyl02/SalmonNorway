@@ -74,6 +74,8 @@ error (CON-TECH-03) ข้อความตาม FR-APV-01 (ซ) อยู่�
 | `REQUEST_DECIDED_CONCURRENTLY` | 409 | ถูกพิจารณาหลังหน้าจอโหลด (กดพร้อมกัน) | ลงทะเบียนแล้ว 2569-11-12 (Q-APV-19) | AC-APV-10 |
 | `NOT_FIRST_IN_QUEUE` | 409 | ไม่ใช่คำขอแรกของชิ้นนั้น | ลงทะเบียนแล้ว 2569-11-12 (Q-APV-19) | AC-APV-07 |
 | `APPROVAL_CUTOFF_PASSED` | 409 | เลย 16:00 น. ของวันที่เริ่มยืม | ลงทะเบียนแล้ว 2569-11-12 (Q-APV-19) | AC-APV-16 |
+| `REQUEST_NOT_FOUND` | 404 | ไม่มีคำขอรหัสนี้ หรือเป็นคำขอค้างคืน (นอกขอบเขต Q-APV-01) | ลงทะเบียนแล้ว 2569-11-12 (Q-APV-25) | ไม่มี AC (พบตอน T-08) |
+| `UPSTREAM_UNAVAILABLE` | 503 | ฐานข้อมูลไม่ตอบ | มีแล้ว (Q-APV-24) | ไม่มี AC |
 
 - แยก `REQUEST_ALREADY_DECIDED` กับ `REQUEST_DECIDED_CONCURRENTLY` ด้วยการเทียบ `approval_decision.decided_at` กับ `loaded_at` ที่หน้าจอส่งมา (ทีมเลือกเอง ไม่ได้มาจาก spec)
 - auth.Middleware ของกลางตอบแค่ `{code}` ไม่มี `message` ดูข้อ 8 / handler ของ 004 ตอบครบทั้ง `code` และ `message`

@@ -117,11 +117,11 @@ Updated: 2569-11-12
 ### T-08 สร้าง POST /v1/approvals/requests/{id}/approve
 - รองรับ: FR-APV-01, CON-TECH-03, IF-IDP-01
 - ตรวจด้วย: AC-APV-01
-- ไฟล์ที่แตะ: `backend/internal/approve/handler.go`, `backend/internal/approve/dto.go`, `backend/internal/approve/handler_test.go`
+- ไฟล์ที่แตะ: `backend/internal/approve/handler.go`, `backend/internal/approve/dto.go`, `backend/internal/approve/handler_test.go`, `backend/internal/config/config.go` + `frontend/src/config.js` + `backend/internal/config/config_approval_test.go` (REQUEST_NOT_FOUND ตาม Q-APV-25)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-05, T-07
 - เสร็จเมื่อ: `TestAC_APV_01` ทาง HTTP ผ่าน รับ `loaded_at` และคืนผลพร้อมรายการคำขอที่ถูกปฏิเสธตาม (ว่างในเฟสนี้)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน `TestAC_APV_01_HTTP`, `TestApproveHTTP_NotFound` ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 ### T-09 เพิ่มปุ่มอนุมัติบนหน้าจอ ApproveRequests
 - รองรับ: FR-APV-01 (ข)(ค)

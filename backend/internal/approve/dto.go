@@ -46,3 +46,24 @@ func toPendingDTO(p PendingRequest) PendingRequestDTO {
 		IsFirst:       p.IsFirst,
 	}
 }
+
+// DecideInputDTO คือ body ของการอนุมัติ (และการปฏิเสธใน T-10) (plan.md ข้อ 4)
+type DecideInputDTO struct {
+	LoadedAt time.Time `json:"loadedAt"` // เวลาที่หน้าจอโหลดรายการ ใช้ใน T-23
+}
+
+// ResultDTO คือคำตอบเมื่ออนุมัติหรือปฏิเสธสำเร็จ (plan.md ข้อ 4)
+type ResultDTO struct {
+	RequestID          int       `json:"requestId"`
+	Status             string    `json:"status"`             // approved / rejected
+	DecidedAt          time.Time `json:"decidedAt"`          // FR-APV-01 ฌ
+	RejectedRequestIDs []int     `json:"rejectedRequestIds"` // คำขออื่นที่ถูกปฏิเสธตาม (FR-APV-01 จ, T-16) ว่างได้
+}
+
+func toResultDTO(r Result) ResultDTO {
+	ids := r.RejectedBy
+	if ids == nil {
+		ids = []int{}
+	}
+	return ResultDTO{RequestID: r.RequestID, Status: r.Status, DecidedAt: r.DecidedAt, RejectedRequestIDs: ids}
+}

@@ -30,6 +30,7 @@ export const APPROVAL_MESSAGES = {
   FORBIDDEN_ROLE: 'บทบาทของคุณไม่มีสิทธิ์ทำรายการนี้',
   FORBIDDEN_DEPARTMENT: 'คำขอนี้เป็นของอุปกรณ์ภาควิชาอื่น คุณไม่มีสิทธิ์พิจารณา',
   UPSTREAM_UNAVAILABLE: 'ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง',
+  REQUEST_NOT_FOUND: 'ไม่พบคำขอนี้',
 }
 // ---- จบ 004-approve-request ----
 

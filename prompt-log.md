@@ -2364,3 +2364,26 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ฟีเจอร์: 004-approve-request
 - คำสั่ง: "ตรวจแล้วผ่าน"
 - สิ่งที่แก้: tasks.md T-07 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-08 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "ตรวจแล้วผ่าน" (T-07 -> เสร็จ), "ขอคำสั่ง commit"
+- คำสั่ง: "/implement T-08"
+- คำถามที่ AI ถามระหว่างทำ และคำตอบ: Q-APV-25 พิจารณาคำขอที่ไม่มีอยู่หรือเป็นคำขอค้างคืน ตอบรหัสอะไร -> "ลงทะเบียน REQUEST_NOT_FOUND" (404, "ไม่พบคำขอนี้") เพิ่มใน constraints.md CON-TECH-03, spec FR-APV-01 (ซ), plan ข้อ 4, config.go, config.js
+- ไฟล์ที่แก้: `backend/internal/approve/handler.go` (`POST /v1/approvals/requests/{id}/approve`, map ErrRequestNotFound / ErrNotRequested), `dto.go` (`DecideInputDTO`, `ResultDTO`), `handler_test.go` (`TestAC_APV_01_HTTP`, `TestApproveHTTP_NotFound`), config 3 ไฟล์, `specs/000-shared/constraints.md`, `spec.md`, `plan.md`, `tasks.md`
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): รับ `loadedAt` แต่ยังไม่ใช้และไม่ปฏิเสธ body ที่อ่านไม่ออก จนถึง T-23; ErrNotRequested ตอบ `REQUEST_ALREADY_DECIDED` ชั่วคราวจนถึง T-23 ที่แยกเป็น 3 รหัส; คำตอบสำเร็จคือ `{requestId, status, decidedAt, rejectedRequestIds}` (รายการว่างจนถึง T-16)
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-08 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจแล้วผ่าน"
+- สิ่งที่แก้: tasks.md T-08 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
