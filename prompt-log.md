@@ -1768,3 +1768,33 @@
   - เก็บเหตุผลตามที่ส่งมา ยังไม่ตรวจว่างหรือยาวเกิน (T-09)
 - สถานะใน tasks.md: T-06 เสร็จ รอทีมตรวจ
 
+---
+
+## 2569-11-11 /implement T-09 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-09 ตรวจเหตุผลที่หลังบ้าน
+- หมายเหตุ: ก่อนเริ่ม ทีมเปลี่ยนสถานะ T-06 เป็น "เสร็จ" ใน tasks.md เอง (ยังไม่ได้ commit ตอนนั้น)
+- ไฟล์ที่แก้ (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - service.go: ValidateReason (trim ว่าง -> ErrReasonRequired, นับ code point ของข้อความเดิมเกิน config.CancelReasonMaxLen -> ErrReasonTooLong) เรียกก่อนเปิด transaction
+  - handler.go: 400 REASON_REQUIRED / REASON_TOO_LONG
+  - handler_test.go: TestAC_CXL_14_ReasonValidation, TestValidateReason_Boundary
+- ผล test: AC_CXL_14 ผ่าน, TC-CXL-14-1, 14-3, 14-4, 14-5, 14-6 ผ่านครบ ไม่ผ่านตามคาด: TC-CXL-01-6 (T-15), 01-7 (T-19)
+- สิ่งที่เกือบต้องเดา: ไม่มี (FR-CXL-08, ASM-13)
+- ที่ AI เลือกเองในขอบเขต task: นับความยาวจากข้อความเดิมไม่ตัดช่องว่าง ให้ตรงกับตัวนับบนหน้าจอ (T-10) เก็บเหตุผลตามที่ส่งมา
+  เจ้าหน้าที่ตรวจ 403 ก่อนตรวจเหตุผล
+- สถานะใน tasks.md: T-09 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-11 ทีมตรวจ T-09 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ: `go test -run "AC_CXL_14|ValidateReason|TC_CXL_14" ./internal/cancelrequest/` ผ่าน 7 ตัว
+  และเรียก POST /v1/borrow-requests/3002/cancel ด้วยเหตุผล "   " ได้ 400 REASON_REQUIRED คำขอไม่ถูกยกเลิก
+  ไม่ได้ทดสอบหน้าเว็บ เพราะ T-09 ไม่แตะ frontend และหน้าเว็บกันเหตุผลผิดไว้แล้วตั้งแต่ T-10
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-09 เป็น "เสร็จ" (T-06 ทีมเปลี่ยนเป็น "เสร็จ" เองก่อนหน้า)
+

@@ -116,7 +116,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-04
 - เสร็จเมื่อ: `TestAC_CXL_01_CancelPendingNormal` ผ่าน (`POST /api/v1/borrow-requests/{id}/cancel` ด้วย UPDATE แบบมีเงื่อนไขคำสั่งเดียว ตอบ 200 สถานะเป็น `cancelled` เก็บ cancel_reason และ cancelled_at และ `equipment_item.status` ยังเป็น `available`)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ
 
 ### T-07 สร้างกล่องยืนยันการยกเลิกและแสดงผลสำเร็จ
 - รองรับ: FR-CXL-01, FR-CXL-07, FR-CXL-08
@@ -169,7 +169,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06
 - เสร็จเมื่อ: `TestAC_CXL_14_ReasonValidation` ผ่าน (ว่าง และช่องว่างล้วน -> 400 `REASON_REQUIRED`, 201 ตัวอักษร -> 400 `REASON_TOO_LONG` สถานะไม่เปลี่ยน, "ไม่ต้องใช้อุปกรณ์แล้ว" -> 200 และ cancel_reason ตรงกัน)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 ### T-10 ปิดปุ่มยืนยันเมื่อเหตุผลว่างหรือเกิน และแสดงจำนวนตัวอักษร
 - รองรับ: FR-CXL-08, FR-CXL-07

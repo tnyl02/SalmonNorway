@@ -74,6 +74,10 @@ func (h *Handler) cancel(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case errors.Is(err, ErrStudentOnly):
 		writeJSON(w, http.StatusForbidden, ErrorDTO{Code: "STUDENT_ONLY"})
+	case errors.Is(err, ErrReasonRequired):
+		writeJSON(w, http.StatusBadRequest, ErrorDTO{Code: "REASON_REQUIRED"}) // FR-CXL-08
+	case errors.Is(err, ErrReasonTooLong):
+		writeJSON(w, http.StatusBadRequest, ErrorDTO{Code: "REASON_TOO_LONG"}) // FR-CXL-08
 	case errors.Is(err, ErrNotCancelled):
 		writeJSON(w, http.StatusConflict, ErrorDTO{Code: "NOT_CANCELLABLE"}) // แยกสาเหตุใน T-15, T-17, T-19
 	case err != nil:

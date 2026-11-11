@@ -4,8 +4,11 @@ package cancelrequest
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 	"time"
+
+	"salmonnorway/backend/internal/config"
 )
 
 // อุปกรณ์ว่างเพิ่มเติมจาก seed.sql ของ 001 (ตาราง 0003 ห้ามคำขอที่ยังไม่จบของผู้ขอคนเดิมซ้ำชิ้น จึงใช้คนละชิ้น)
@@ -125,6 +128,55 @@ func TestCancel_SecondTimeDoesNotOverwrite(t *testing.T) {
 	tcWantStatus(t, rec, http.StatusConflict)
 	if r := tcRow(t, id); r.CancelReason == nil || *r.CancelReason != "ครั้งแรก" {
 		t.Errorf("cancel_reason = %v ต้องยังเป็น ครั้งแรก", r.CancelReason)
+	}
+}
+
+// AC-CXL-14 (FR-CXL-08) T-09
+//
+//	Given A มีคำขอ requested
+//	When  ยกเลิกด้วยเหตุผลว่าง / ช่องว่างล้วน / 201 ตัวอักษร / ภาษาไทย 201 code point
+//	Then  ได้ 400 REASON_REQUIRED หรือ REASON_TOO_LONG สถานะยัง requested
+//	When  ยกเลิกด้วย "ไม่ต้องใช้อุปกรณ์แล้ว"
+//	Then  ได้ 200 และ cancel_reason ตรงกัน
+func TestAC_CXL_14_ReasonValidation(t *testing.T) {
+	srv := tcServer(t)
+	id := tcInsert(t, tcUserA, tcItemAvailable, "normal", "requested", time.Now())
+
+	cases := []struct {
+		reason, code string
+	}{
+		{"", "REASON_REQUIRED"},
+		{"   ", "REASON_REQUIRED"},
+		{"\t\n ", "REASON_REQUIRED"},
+		{strings.Repeat("a", config.CancelReasonMaxLen+1), "REASON_TOO_LONG"},
+		{strings.Repeat("ที่", 67), "REASON_TOO_LONG"}, // 201 code point
+	}
+	for _, c := range cases {
+		rec := tcCancel(t, srv, id, c.reason, tcTokenA)
+		tcWantStatus(t, rec, http.StatusBadRequest)
+		if code := tcDecode[tcErrorBody](t, rec).Code; code != c.code {
+			t.Errorf("เหตุผลยาว %d: code = %q ต้องเป็น %s", len(c.reason), code, c.code)
+		}
+	}
+	if s := tcRow(t, id).Status; s != "requested" {
+		t.Fatalf("สถานะ = %s ต้องยังเป็น requested", s)
+	}
+
+	rec := tcCancel(t, srv, id, "ไม่ต้องใช้อุปกรณ์แล้ว", tcTokenA)
+	tcWantStatus(t, rec, http.StatusOK)
+	if r := tcRow(t, id); r.CancelReason == nil || *r.CancelReason != "ไม่ต้องใช้อุปกรณ์แล้ว" {
+		t.Errorf("cancel_reason = %v ต้องเป็น ไม่ต้องใช้อุปกรณ์แล้ว", r.CancelReason)
+	}
+}
+
+// FR-CXL-08: ขอบ 200 code point พอดียกเลิกได้ (นับเหมือนหน้าจอ)
+func TestValidateReason_Boundary(t *testing.T) {
+	ok := strings.Repeat("ที่", 66) + "ab" // 200 code point
+	if err := ValidateReason(ok); err != nil {
+		t.Errorf("200 code point ต้องผ่าน ได้ %v", err)
+	}
+	if err := ValidateReason(ok + "c"); err != ErrReasonTooLong {
+		t.Errorf("201 code point ต้องได้ ErrReasonTooLong ได้ %v", err)
 	}
 }
 
