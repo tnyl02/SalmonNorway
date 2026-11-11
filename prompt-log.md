@@ -1798,3 +1798,36 @@
   ไม่ได้ทดสอบหน้าเว็บ เพราะ T-09 ไม่แตะ frontend และหน้าเว็บกันเหตุผลผิดไว้แล้วตั้งแต่ T-10
 - ผล: เปลี่ยนสถานะใน tasks.md ของ T-09 เป็น "เสร็จ" (T-06 ทีมเปลี่ยนเป็น "เสร็จ" เองก่อนหน้า)
 
+---
+
+## 2569-11-11 /implement T-15 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-15 แยกสาเหตุเมื่อยกเลิกไม่สำเร็จ กรณีอนุมัติแล้ว
+- ไฟล์ที่แก้ (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - repository.go: OwnStatus (SELECT status WHERE id AND requester_id ใน transaction เดียวกัน)
+  - service.go: UPDATE ไม่เจอแถว -> อ่านสถานะ ถ้า approved -> ErrAlreadyApproved นอกนั้นยังเป็น ErrNotCancelled
+  - handler.go: 409 ALREADY_APPROVED
+  - handler_test.go: TestAC_CXL_02_ApprovedNotCancellable
+- ผล test: AC_CXL_02 ผ่าน, TC-CXL-01-6 ผ่าน, test อื่นในแพ็กเกจยังผ่าน ไม่ผ่านตามคาด: TC-CXL-01-7 (T-19)
+- สิ่งที่เกือบต้องเดา: ไม่มี (plan.md ข้อ 4 ขั้น 2)
+- สถานะใน tasks.md: T-15 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-11 ทีมตรวจ T-15 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ: `go test -run "AC_CXL_02|TC_CXL_01_6" ./internal/cancelrequest/` ผ่าน
+  หลังบ้านจริง: POST cancel ของ 3005 (approved) ได้ 409 ALREADY_APPROVED สถานะยัง approved
+  ไม่ได้ทดสอบหน้าเว็บ เพราะ T-15 ไม่แตะ frontend ข้อความบนหน้าเว็บอยู่ใน T-16
+- ปัญหาที่พบตอนตรวจ (ไม่ใช่บั๊กของโค้ด):
+  - รอบแรกได้ NOT_CANCELLABLE เพราะหลังบ้านที่รันอยู่เปิดก่อนเขียนโค้ด T-15 ต้องปิดแล้วเปิด go run ใหม่ทุกครั้งหลังแก้โค้ด
+  - คำสั่ง curl ที่ AI ให้แบบ -d "{\"reason\":...}" ใช้ไม่ได้ใน PowerShell 5.1 (body เสีย ได้ REASON_REQUIRED)
+    ข้อความที่มีช่องว่างก็ถูกตัด ใช้ -d '{\"reason\":\"test\"}' หรือเขียน body ลงไฟล์แล้ว --data-binary @body.json
+    การตรวจ T-09 ด้วย curl รอบก่อนจึงยังไม่ได้พิสูจน์อะไร AI ตรวจซ้ำด้วย body ที่ถูกต้องแล้ว: เหตุผล "   " ได้ 400 REASON_REQUIRED
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-15 เป็น "เสร็จ"
+

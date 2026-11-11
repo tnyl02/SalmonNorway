@@ -180,3 +180,24 @@ func TestValidateReason_Boundary(t *testing.T) {
 	}
 }
 
+// AC-CXL-02 (FR-CXL-02, FR-CXL-04, CON-CXL-02) T-15
+//
+//	Given A มีคำขอที่เจ้าหน้าที่อนุมัติแล้ว (approved)
+//	When  A ยกเลิกคำขอนั้นพร้อมเหตุผล
+//	Then  ได้ 409 ALREADY_APPROVED สถานะยัง approved ไม่มีเหตุผลหรือเวลายกเลิกถูกบันทึก
+func TestAC_CXL_02_ApprovedNotCancellable(t *testing.T) {
+	srv := tcServer(t)
+	id := tcInsert(t, tcUserA, tcItemAvailable, "normal", "approved", time.Now())
+
+	rec := tcCancel(t, srv, id, "ไม่ต้องใช้อุปกรณ์แล้ว", tcTokenA)
+
+	tcWantStatus(t, rec, http.StatusConflict)
+	if code := tcDecode[tcErrorBody](t, rec).Code; code != "ALREADY_APPROVED" {
+		t.Errorf("code = %q ต้องเป็น ALREADY_APPROVED", code)
+	}
+	r := tcRow(t, id)
+	if r.Status != "approved" || r.CancelReason != nil || r.CancelledAt != nil {
+		t.Errorf("แถว = %+v ต้องยังเป็น approved ไม่มีเหตุผลและเวลายกเลิก", r)
+	}
+}
+

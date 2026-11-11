@@ -84,3 +84,19 @@ func (r *Repository) Cancel(ctx context.Context, tx pgx.Tx, requestID int, reque
 	}
 	return true, nil
 }
+
+// ownStatusSQL อ่านสถานะปัจจุบันของคำขอของผู้ขอคนนี้ ใช้แยกสาเหตุเมื่อ UPDATE ไม่เจอแถว (FR-CXL-02, plan.md ข้อ 4 ขั้น 2)
+const ownStatusSQL = `SELECT status FROM borrow_request WHERE id = $1 AND requester_id = $2`
+
+// OwnStatus คืนสถานะของคำขอ requestID ที่เป็นของ requesterID ใน transaction tx found = false ถ้าไม่พบ
+func (r *Repository) OwnStatus(ctx context.Context, tx pgx.Tx, requestID int, requesterID string) (status string, found bool, err error) {
+	err = tx.QueryRow(ctx, ownStatusSQL, requestID, requesterID).Scan(&status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return status, true, nil
+}
+

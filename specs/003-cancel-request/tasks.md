@@ -275,7 +275,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06
 - เสร็จเมื่อ: `TestAC_CXL_02_ApprovedNotCancellable` ผ่าน (UPDATE ไม่เจอแถว แล้ว SELECT แยกสาเหตุ คำขอ `approved` -> 409 `ALREADY_APPROVED` สถานะยัง `approved`)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 ### T-16 แสดงข้อความเมื่อคำขอได้รับการอนุมัติแล้ว
 - รองรับ: FR-CXL-02
