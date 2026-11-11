@@ -2261,3 +2261,27 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน (รันหลัง implement ทุก task)
 - สิ่งที่ AI เลือกเอง (ทีมตรวจ): ผู้ขอ `student-003` ไม่มีใน MockProvider ใช้เป็นข้อมูลอย่างเดียว (unique index ของ 002 ห้ามผู้ขอคนเดิมมีคำขอค้างบนชิ้นเดิมเกิน 1 ใบ); วันที่เริ่มยืม = วันนี้ถ้าโหลดก่อน 16:00 ไม่อย่างนั้นพรุ่งนี้ (กันชนเวลาตัด FR-APV-01 ค); เวลาที่ส่ง = now() ลบไม่กี่นาที; สร้าง Loan ให้อุปกรณ์ที่ถูกยืม; attachment_path ของคำขอค้างคืนเป็น path ตัวอย่างไม่มีไฟล์จริง
 - ข้อสังเกต: วันที่เริ่มยืมเป็นพรุ่งนี้ถ้าโหลดหลัง 16:00 ซึ่งเป็นการยืมปกติล่วงหน้า (ยังรอ 002 ยืนยันว่าทำได้ไหม จาก Q-APV-15)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-04 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "ทีมตรวจแล้วผ่าน" -> เปลี่ยนสถานะ T-03 เป็น "เสร็จ" (T-04 ต้องรอ T-03)
+- คำสั่ง: "/implement T-04"
+- คำถามที่ AI ถามระหว่างทำ และคำตอบ: Q-APV-23 คำขอแรก (FR-APV-01 ข) นับคำขอค้างคืนด้วยไหม -> "นับเฉพาะยืมปกติ" (ไม่อย่างนั้นคำขอปกติหลังคำขอค้างคืนจะอนุมัติไม่ได้ตลอด) แก้ spec.md FR-APV-01 (ข) และปิด Q-APV-23
+- ไฟล์ที่สร้าง: `backend/internal/approve/model.go` (`PendingRequest`), `backend/internal/approve/repository.go` (`Querier`, `Repository.ListPending` ใช้ row_number() หา is_first ต่ออุปกรณ์รายชิ้น), `backend/internal/approve/repository_test.go` (TestMain/testPool แบบ 002, `devTx` โหลด approve_dev.sql ใน transaction, `TestAC_APV_11`, `TestListPending_OvernightDoesNotBlockQueue`)
+- ไฟล์ที่แก้: `backend/internal/config/config.go` (เพิ่ม `LoanTypeNormal`), `specs/004-approve-request/spec.md`, `tasks.md`
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): เรียงซ้ำด้วย id เมื่อเวลาที่ส่งเท่ากัน; รายการว่างคืน [] ไม่ใช่ null; Querier รับได้ทั้ง pool และ transaction เพื่อใช้ต่อใน T-07
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-04 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ทีมตรวจแล้วผ่าน"
+- สิ่งที่แก้: tasks.md T-04 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)

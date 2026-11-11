@@ -66,6 +66,10 @@ const (
 	StatusRejected = "rejected"
 )
 
+// LoanTypeNormal คือประเภทการยืมแบบปกติ (DM-05, DM-06) 004 พิจารณาเฉพาะประเภทนี้ (FR-APV-01, Q-APV-01)
+// ลำดับคำขอแรกและงานเที่ยงคืนนับเฉพาะประเภทนี้ (Q-APV-23, Q-APV-14) ค่าเดียวกับ CHECK ของ borrow_request ใน 0003
+const LoanTypeNormal = "normal"
+
 // ApprovalEmailDeadline คือเวลาที่ต้องส่ง Email แจ้งผลให้ผู้ขอหลังบันทึกผล (FR-APV-02)
 const ApprovalEmailDeadline = 60 * time.Second
 

@@ -50,7 +50,7 @@ Updated: 2569-11-12
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
 - เสร็จเมื่อ: โหลด `approve_dev.sql` หลัง seed.sql ได้โดยไม่ error (โหลดร่วมกับ `handover_dev.sql` ได้) เพิ่มรุ่นและอุปกรณ์ชุดของตัวเอง (รหัสครุภัณฑ์ขึ้นต้น `AP-TEST-` ไม่แตะอุปกรณ์ของ seed.sql) และมีคำขอ `requested` ยืมปกติของภาควิชา 1 อย่างน้อย 3 ใบ (2 ใบอยู่บนอุปกรณ์ชิ้นเดียวกัน), คำขอค้างคืน 1 ใบบนชิ้นเดียวกันนั้น, คำขอของอุปกรณ์ภาควิชา 2 อย่างน้อย 1 ใบ, คำขอ 1 ใบบนอุปกรณ์ที่ `borrowed` และคำขอ `cancelled` 1 ใบ / seed.sql ไม่เปลี่ยน และ `TestSeed_BorrowRequestScenarios` ยังผ่าน
-- สถานะ: เสร็จ รอทีมตรวจ (ยังไม่ได้รัน `TestSeed_ApproveDevScenarios` และยังไม่ได้โหลดจริงด้วย psql ตามลำดับการทดสอบที่ทีมตัดสิน)
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน `TestSeed_ApproveDevScenarios` และยังไม่ได้โหลดจริงด้วย psql ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 #### จุดตรวจเฟส 0
 - test ที่ต้องผ่านทั้งหมด: `TestMigration_ApprovalTables`, `TestMigration_ApprovalAuditActions` และ test เดิมของ 001 / 002 / 005 ทั้งหมดต้องยังผ่าน (รวม `TestSeed_BorrowRequestScenarios`)
@@ -68,11 +68,11 @@ Updated: 2569-11-12
 ### T-04 สร้าง repository อ่านรายการคำขอรอพิจารณา
 - รองรับ: FR-APV-01 (ก)(ข), DOM-REQ-01, ASM-06
 - ตรวจด้วย: AC-APV-11
-- ไฟล์ที่แตะ: `backend/internal/approve/model.go`, `backend/internal/approve/repository.go`, `backend/internal/approve/repository_test.go`
+- ไฟล์ที่แตะ: `backend/internal/approve/model.go`, `backend/internal/approve/repository.go`, `backend/internal/approve/repository_test.go`, `backend/internal/config/config.go` (เพิ่ม `LoanTypeNormal` ตามกฎข้อ 9)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01, T-03
 - เสร็จเมื่อ: query คืนเฉพาะคำขอ `requested` + `loan_type = 'normal'` ของภาควิชาที่ระบุ เรียงตาม `submitted_at` พร้อม `is_first` ถูกต้องต่ออุปกรณ์รายชิ้น และ `TestAC_APV_11` ระดับ repository ผ่าน
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน `TestAC_APV_11`, `TestListPending_OvernightDoesNotBlockQueue` ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 ### T-05 สร้าง GET /v1/approvals/requests พร้อมตัวตรวจบทบาทและผูก route
 - รองรับ: FR-APV-01 (ก), IF-IDP-01, NFR-SEC-01, CON-TECH-02, CON-TECH-03
