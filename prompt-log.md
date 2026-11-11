@@ -1142,3 +1142,855 @@
   - CR-004 เขียนว่า 001 "ไม่ต้องแก้โค้ด" แต่ body error ของ 001 ยังไม่มี message จึงเพิ่ม T-37
   - 404 / 405 ตอบเป็นข้อความธรรมดาของ Go ไม่ตรง CON-TECH-03 และรายการกลางยังไม่มีรหัส ต้องให้ทีมเพิ่ม
   - migration 0003 ของ 002 เพิ่ม action `request` ใน CHECK ของ audit_log แล้ว migration `notify` ของ 003 ต้องใส่ `request` ด้วย
+## 2569-11-11 /implement T-02 (002-borrow-request)
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 0 ฐานราก ค่าที่ตั้งได้จาก spec)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-02`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/config/config.go` (ตรงกับช่องไฟล์ที่แตะ) เพิ่ม 9 ค่า + ฟิลด์ AttachmentDir
+- `frontend/src/config.js` (ตรงกับช่องไฟล์ที่แตะ) เพิ่ม 5 ค่า
+- `backend/internal/config/config_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** เป็น test ของ "เสร็จเมื่อ"
+  (เหตุผลเดียวกับ T-01 และทำแบบเดียวกับที่ 001 เคยทำ)
+
+### ค่าที่เพิ่ม ทุกตัวมีคอมเมนต์อ้าง ID
+- config.go: LoanNormalReturnHour (DOM-LOAN-01), OverdueBlockUntilNextDayStart (FR-BRQ-06 ข),
+  AttachmentMaxBytes และ AttachmentAllowedTypes (FR-BRQ-10 ก), PurposeValues และ PurposeOther (FR-BRQ-02),
+  RequestStatuses และ StatusRequested (data-model v9, FR-BRQ-04), AuditActionRequest (Q-BRQ-07),
+  AttachmentDir อ่านจาก env (ASM-BRQ-07)
+- config.js: LOAN_NORMAL_RETURN_HOUR, ATTACHMENT_MAX_BYTES, ATTACHMENT_ALLOWED_TYPES,
+  PURPOSE_OPTIONS (พร้อมข้อความไทยจากคำตอบ Q-BRQ-16), PURPOSE_OTHER
+- **ไม่ได้เพิ่ม TimeZone ซ้ำ** เพราะ 001 ประกาศไว้แล้วใน config.go ใช้ตัวเดิม
+
+### ผล test
+- `go test ./internal/config/ -v`: TestConfig_BorrowRequestValues PASS, TestConfig_AttachmentDirFromEnv PASS
+- `go test ./...`: auth, config, equipment, platform ok ทั้งหมด
+- `npm test` (รันใน Ubuntu หลัง `npm install` ครั้งแรกของเครื่องนี้): **10 ไฟล์ 17 test ผ่านหมด**
+- ตรวจด้วย grep แล้วไม่มีค่าเหล่านี้ฝังอยู่นอกไฟล์ config (ที่เจอเป็นคอมเมนต์และข้อมูลทดสอบของ 001)
+
+### สิ่งที่ AI เกือบต้องเดา
+- ค่าเริ่มต้นของ AttachmentDir (`./var/attachments`) เป็นค่าของเครื่องพัฒนาแบบเดียวกับรหัสผ่าน DB ของ T-01
+  ไม่ใช่ requirement เปลี่ยนด้วย ATTACHMENT_DIR ได้
+- OverdueBlockUntilNextDayStart เป็น bool ที่เป็น true เสมอ ทำตามชื่อที่ plan ข้อ 5 กำหนดไว้
+  เพื่อให้กฎจาก spec อยู่ใน config ไม่ฝังในเงื่อนไข ถ้าทีมเห็นว่าไม่จำเป็นให้บอก จะถอดออกและแก้ plan
+
+### หมายเหตุสภาพแวดล้อม
+- เครื่องนี้ไม่เคยติดตั้ง node_modules ของ frontend มาก่อน (อยู่ใน .gitignore)
+  ติดตั้ง Node ใน Ubuntu แล้ว `npm install` ครั้งแรก
+  **ต้องติดตั้งและรันฝั่งเดียวกันเสมอ** ถ้าลงจาก Windows แล้วมารันใน WSL จะพังเพราะ shim คนละแบบ
+
+---
+
+## 2569-11-11 /implement T-03 (002-borrow-request) — ปิดเฟส 0
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 0 ฐานราก ข้อมูลตัวอย่าง)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-03`
+
+### ข้อค้นพบ: ไม่ต้องเพิ่มข้อมูลใหม่เลย
+ตรวจ seed.sql แล้วพบว่า 3 กรณีที่ "เสร็จเมื่อ" ของ T-03 ต้องการ มีอยู่แล้วครบจาก T-02 ของ 001
+- CS-NB-0001 ถึง 0003 ว่างและเป็นของภาควิชา 1
+- XX-NB-0001 ว่างแต่เป็นของภาควิชา 2 (รุ่น 3 -> department_id 2)
+- ชิ้นที่ 5 ถูกยืมโดย student-002 กำหนดคืน 16:00 เมื่อวาน ยังไม่คืน
+
+AI จึง**ไม่เพิ่มแถวใหม่** เพราะจะเป็นข้อมูลที่ไม่มีใครใช้ และเสี่ยงทำให้ test ของ 001
+ที่นับจำนวน (รุ่น 1 มี 5 ชิ้น ว่าง 3 ชิ้น) พัง
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/db/seed/seed.sql` (ตรงกับช่องไฟล์ที่แตะ) **แก้เฉพาะคอมเมนต์หัวไฟล์**
+  ระบุว่าแถวไหนรองรับจุดตรวจข้อไหนของ 002 และระบุว่าตาราง borrow_request ต้องไม่มีข้อมูลตั้งต้น
+- `backend/internal/platform/migrate_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** เพิ่ม TestSeed_BorrowRequestScenarios
+  (เหตุผลเดียวกับ T-01 และ T-02)
+
+### ผล test
+- `go test ./internal/platform/ -run TestSeed -v`
+  - TestSeed_Model1HasFiveItemsThreeAvailable PASS (5.22s) ของ 001 ยังผ่าน
+  - TestSeed_BorrowRequestScenarios PASS (0.01s)
+  - ok salmonnorway/backend/internal/platform 5.804s
+
+### สิ่งที่ AI เพิ่มเองโดยไม่ได้สั่ง (ทีมตรวจได้)
+- test ข้อสุดท้ายบังคับว่า **ตาราง borrow_request ต้องว่างเปล่าในข้อมูลตั้งต้น**
+  เพื่อกันไม่ให้ใครใส่คำขอไว้ล่วงหน้าแล้วทำให้จุดตรวจของเฟสถัดไปผ่านแบบไม่จริง
+  ไม่ได้อยู่ใน "เสร็จเมื่อ" แต่เป็นเกราะที่สอดคล้องกับ FR-BRQ-04 ที่ว่าคำขอเกิดจากการส่งเท่านั้น
+
+### หมายเหตุ
+- เฟส 0 ครบทั้ง 3 task แล้ว เหลือรันจุดตรวจเฟส 0 ให้ครบ (go test ./... และลองมือด้วย psql)
+
+---
+
+## 2569-11-11 /implement T-04 (002-borrow-request) — เริ่มเฟส 1
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 1 ส่งคำขอยืมสำเร็จ AC-BRQ-04)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-04`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/model.go` (ตรงกับช่องไฟล์ที่แตะ) โครงข้อมูลและ error ของฟีเจอร์
+- `backend/internal/borrowrequest/repository.go` (ตรงกับช่องไฟล์ที่แตะ) INSERT ... SELECT และ ItemStatus
+- `backend/internal/borrowrequest/service.go` (ตรงกับช่องไฟล์ที่แตะ) กฎของฟีเจอร์ อ่านผู้ขอจาก auth
+- `backend/internal/borrowrequest/service_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** เป็น test ของ "เสร็จเมื่อ"
+  (เหตุผลเดียวกับ T-01 ถึง T-03) ใช้ชุดเปิด container แบบเดียวกับ handler_test.go ของ 001
+
+### การตัดสินใจด้านโครงสร้าง
+- ใช้ `INSERT ... SELECT ... WHERE asset_code = $10 AND status = 'available' RETURNING` คำสั่งเดียว
+  การอ่านสถานะกับการเขียนคำขอจึงอยู่ในคำสั่งเดียวกัน ไม่มีช่องให้สถานะเปลี่ยนระหว่างกลาง
+  (plan.md ข้อ 3 สั่งให้อยู่ในทรานแซกชันเดียวกัน คำสั่งเดียวคือทรานแซกชันเดียวโดยปริยาย)
+- ไม่มีคำสั่งใดใน repository แตะตาราง equipment_item เลย (DOM-REQ-01) และ test ตรวจซ้ำหลังส่งคำขอ
+- `requester_id` มาจาก auth.FromContext เท่านั้น ไม่ใช่ student_code ที่ผู้ขอพิมพ์ (ASM-BRQ-06)
+
+### ผล test
+- `go test ./internal/borrowrequest/ -v`: ok 4.680s (TestAC_BRQ_04,
+  TestCreate_RejectsItemNotAvailable, TestCreate_RequiresPrincipal)
+- `go test ./...`: auth, borrowrequest, config, equipment, platform ok ทั้งหมด
+
+### สิ่งที่ AI ทำล่วงหน้าหรือคาบเกี่ยว task อื่น (ทีมตรวจได้)
+- ใส่ `WHERE status = 'available'` ไว้แล้วใน T-04 เพราะ CON-DATA-01 อยู่ในช่อง "รองรับ" ของ T-04
+  เหลือให้ T-09 ทำเรื่องการแจ้งสถานะล่าสุดและแปลงเป็น HTTP 409
+- เพิ่มเมท็อด `ItemStatus()` ใน repository ซึ่งยังไม่มีใครเรียกในรอบนี้ เตรียมไว้ให้ T-09
+- `Service` มีฟิลด์ `now` ที่ยังไม่ได้ใช้ เตรียมไว้ให้ T-12 และ T-13 ที่ต้องฉีดนาฬิกา
+
+---
+
+## 2569-11-11 /implement T-05 (002-borrow-request) — ปิดเฟส 1
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 1 ส่งคำขอยืมสำเร็จ AC-BRQ-04)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-05`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/handler.go` (ตรงกับช่องไฟล์ที่แตะ) POST /v1/loan-requests
+- `backend/internal/borrowrequest/dto.go` (ตรงกับช่องไฟล์ที่แตะ) CreateRequestDTO, CreatedDTO, ErrorDTO
+- `backend/cmd/server/main.go` (ตรงกับช่องไฟล์ที่แตะ) ผูก handler เข้า router หลัง auth.Middleware
+- `backend/internal/borrowrequest/handler_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** เป็น test ของ "เสร็จเมื่อ"
+
+### การตัดสินใจ
+- `ErrorDTO` ของฟีเจอร์นี้เป็น `{code, message}` ตาม CON-TECH-03 (CR-004)
+  ต่างจาก ErrorDTO ของ 001 ที่มีแค่ `{code}` เพราะเขียนก่อนมี constraint นี้
+  CR-004 ระบุไว้แล้วว่า 001 ไม่ต้องแก้โค้ด
+- path เป็น `/v1/loan-requests` ไม่ใช่ `/api/v1/...` เพราะ proxy ใน vite.config.js ตัด /api ออก
+  (แบบเดียวกับ equipment.PathPrefix ของ 001)
+- ตั้งชื่อ test ว่า `TestAC_BRQ_04_HTTP` เพราะชื่อ `TestAC_BRQ_04` ถูกใช้ใน T-04 แล้ว
+  ชื่อซ้ำกันใน package เดียวไม่ได้ แต่ยังมี AC ID อยู่ในชื่อตามกติกา
+
+### ผล test
+- `go test ./internal/borrowrequest/ -v`: ok 4.947s
+  (TestAC_BRQ_04, TestAC_BRQ_04_HTTP, TestCreate_WithoutToken_401, TestCreate_BadJSON_422,
+   TestRoutes_OnlyPost, TestCreate_RejectsItemNotAvailable, TestCreate_RequiresPrincipal)
+- `go build ./...` ผ่าน ยืนยันว่า main.go ที่แก้คอมไพล์ได้
+- `go test ./...`: ทุกแพ็กเกจ ok
+
+### สิ่งที่ AI ทำคาบเกี่ยว task อื่น (ทีมตรวจได้)
+- แปลง ErrItemNotAvailable เป็น 409 ITEM_NOT_AVAILABLE แล้วใน handler
+  แต่ **ยังไม่แนบสถานะล่าสุดกลับไปใน body** ซึ่งเป็นส่วนที่ T-09 ต้องเติม (เขียนคอมเมนต์กำกับไว้)
+- body ที่อ่านไม่ออกตอบ 422 VALIDATION_FAILED ถือเป็นเรื่องของ handler
+  ไม่ใช่การตรวจความครบถ้วนรายช่องซึ่งเป็นงานของ T-06
+
+---
+
+## 2569-11-11 /implement T-06 (002-borrow-request) — เฟส 2 ตรวจความครบถ้วนของฟอร์ม
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 2 AC-BRQ-03)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-06`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/validate.go` (ตรงกับช่องไฟล์ที่แตะ) ฟังก์ชัน missingFields ตรวจ 5 ช่อง
+- `backend/internal/borrowrequest/handler.go` (ตรงกับช่องไฟล์ที่แตะ) เรียก missingFields ก่อนเรียก service
+  และเพิ่ม writeValidationError
+- `backend/internal/borrowrequest/handler_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** ต่อ test ท้ายไฟล์เดิม
+
+### การตัดสินใจ
+- CR-004 ระบุว่า VALIDATION_FAILED ต้อง "แนบรายชื่อช่องที่ผิด" แต่ ErrorDTO ใน dto.go มีแค่ {code, message}
+  และ dto.go ไม่อยู่ในช่องไฟล์ที่แตะของ T-06 จึงประกาศ validationErrorDTO ไว้ใน handler.go แทน
+  ยังมี code กับ message ครบตาม CON-TECH-03 เพิ่มแค่ fields
+  **ถ้าทีมอยากให้รวมไว้ที่ dto.go ให้ทำตอน task หลังที่แตะ dto.go อยู่แล้ว**
+- ใช้ strings.TrimSpace ไม่ให้ช่องว่างล้วนผ่าน และ time.IsZero สำหรับวันเวลาที่ไม่ได้ส่งมา
+- เขียนคอมเมนต์กันขอบเขตไว้ใน validate.go ว่าค่าวัตถุประสงค์ 3 ค่าเป็นของ T-07
+  และกฎเวลาคืน 16:00 เป็นของ T-08
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run "TestAC_BRQ_03|TestValidation" -v`: PASS
+- `go test ./...`: ทุกแพ็กเกจ ok (borrowrequest 4.922s)
+
+### สิ่งที่ AI ไม่ได้ทำ (ตามขอบเขต)
+- ไม่ตรวจว่า assetCode ว่างหรือไม่ เพราะไม่ได้อยู่ใน 5 ช่องที่ทีมตัดสิน
+  รหัสครุภัณฑ์มาจาก FR-EQS-06 ไม่ใช่ช่องที่ผู้ขอพิมพ์ ถ้าไม่มีจะถูกปฏิเสธที่ชั้นฐานข้อมูลเป็น ITEM_NOT_AVAILABLE
+- ไม่ตรวจว่า purpose เป็น 1 ใน 3 ค่า (T-07) และไม่ตรวจกฎ 16:00 (T-08)
+
+---
+
+## 2569-11-12 /implement T-07 (002-borrow-request) — ปิดเฟส 3
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 3 AC-BRQ-02 และ AC-BRQ-14)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-07`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/validate.go` (ตรงกับช่องไฟล์ที่แตะ) เพิ่ม purposeProblems
+- `backend/internal/borrowrequest/service.go` (ตรงกับช่องไฟล์ที่แตะ) เพิ่ม normalizePurpose
+- `backend/internal/borrowrequest/handler_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** ต่อ test ท้ายไฟล์เดิม
+
+### ข้อจำกัดที่ต้องออกแบบรอบ
+`handler.go` **ไม่อยู่ในช่องไฟล์ที่แตะของ T-07** จึงเพิ่ม branch ใหม่ใน handler ไม่ได้
+ทางออกคือให้กฎใหม่ไหลผ่าน missingFields() ที่ handler เรียกอยู่แล้ว (เรียก purposeProblems ต่อท้าย)
+ผลคือไม่ต้องแตะ handler เลย แต่ชื่อ missingFields ตอนนี้ครอบคลุมทั้ง "ไม่ได้กรอก" และ "กรอกค่าที่ไม่รู้จัก"
+แก้คอมเมนต์หัวฟังก์ชันให้ตรงความหมายใหม่แล้ว **ถ้าทีมอยากเปลี่ยนชื่อเป็น invalidFields
+ต้องทำตอน task ที่มี handler.go อยู่ในรายการ**
+
+### การตัดสินใจอื่น
+- ค่าที่ไม่รู้จัก (เช่น "exam" หรือส่งข้อความไทย "เพื่อการเรียน" มาแทน value) ถือเป็นปัญหาของช่อง purpose
+  เหมือนกับกรณีไม่ได้เลือก ชี้ช่องเดียวกัน ไม่แยกรหัส error ใหม่
+- normalizePurpose ล้างข้อความพิมพ์ระบุทิ้งเมื่อไม่ได้เลือก "อื่น ๆ" (FR-BRQ-02 ข้อ ข)
+  กันข้อความค้างจากการที่ผู้ขอพิมพ์ไว้แล้วเปลี่ยนใจ
+- ใช้ config.PurposeValues และ config.PurposeOther จาก T-02 ไม่มีการเขียน "study" หรือ "other" ฝังในตรรกะ
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run "TestAC_BRQ_02|TestAC_BRQ_14" -v`: PASS
+- `go test ./...`: ทุกแพ็กเกจ ok (borrowrequest 4.936s)
+## 2569-11-11 เขียน FR ของ UC-08 ใน SRS หัวข้อ 3.1.5
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "อ่าน AGENTS.md, specs/000-shared/ (ทั้ง 3 ไฟล์) และ SRS หัวข้อ 3.0 กับหัวข้อของฟีเจอร์ตัวเอง (005-handover)"
+  แล้ว "เขียน FR ของตัวเองใน SRS (ตอนนี้ยังเป็น [เติม])"
+- ไฟล์ที่แก้: `docs/srs/SRS.md` หัวข้อ 3.1.5 แทน `[เติม]` ด้วย FR-HND-01 ถึง FR-HND-08 และคำถาม Q-HND-01 ถึง Q-HND-06
+- ที่มา: RQ-04, RQ-08, RQ-14, RQ-15, RQ-17, RQ-19, RQ-23, RQ-25 และ `specs/000-shared/` เท่านั้น
+  AI ไม่มีข้อความ US-008 และ Use Case Specification ของ UC-08 (อยู่บน Miro) เจ้าของฟีเจอร์ต้องเทียบเอง
+- ข้อที่ AI ไม่ตัดสินแทน (เขียนเป็นคำถาม): RQ-19 กับ RQ-23 และ US-003 เรื่องตรวจบัตร, รายละเอียดรูป RQ-04,
+  ส่งมอบหลัง 16:00, ข้อจำกัดพื้นที่มหาวิทยาลัย, ชื่อสถานะคำขอ "ส่งมอบแล้ว", ค่า action ของ audit log
+
+---
+
+## 2569-11-11 สร้าง spec.md ของ 005-handover (Draft v1)
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover (แก้ของกลาง `specs/000-shared/constraints.md` เพราะฟีเจอร์ 005)
+- เครื่องมือ: Claude Code
+- คำสั่ง: สร้าง `specs/00N-<feature>/spec.md` ครบ 6 ส่วน + Assumptions & Open Questions, Constraint ร่วมอ้าง ID แบบ "ใช้ร่วม",
+  ใส่ชื่อตัวเองในช่อง Owner, เพิ่มชื่อฟีเจอร์ในตาราง "ใครอ้างใช้บ้าง" ท้าย constraints.md
+- ไฟล์ที่สร้าง: `specs/005-handover/spec.md` (FR-HND-01 ถึง 08 จาก SRS 3.1.5, AC-HND-01 ถึง 09, Q-HND-01 ถึง 09)
+- ไฟล์ที่แก้: `specs/000-shared/constraints.md` (ตาราง "ใครอ้างใช้บ้าง" เพิ่ม 005-handover 8 แถว),
+  `specs/README.md` (สถานะ spec Draft v1), `specs/CHANGELOG.md`, `docs/srs/SRS.md` หัวข้อ 3.1.5 (อ้าง Draft v1 และ Q-HND-07 ถึง 09)
+- ID ใหม่ที่ AI เสนอ (ทีมตรวจ): CON-HND-01 บทบาทเจ้าหน้าที่เท่านั้น (จาก actor ของ UC-08), Q-HND-07 ถึง Q-HND-09
+- ข้อที่ AI ไม่ตัดสินแทน: ส่งมอบยืมค้างคืนต้องทดสอบเทอมนี้ไหม (Q-HND-07), เลือกรายชิ้นตอนส่งมอบถ้า Q-16 ของ 001 เปลี่ยน (Q-HND-08),
+  เวลาตอบสนอง (Q-HND-09) และคำถามเดิม Q-HND-01 ถึง 06
+- ยังไม่ได้เทียบกับ US-008 และ Use Case Specification ของ UC-08 บน Miro
+
+---
+
+## 2569-11-11 คำสั่ง: /clarify
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์: specs/005-handover/spec.md (v1)
+
+### คำถามที่ AI ถาม (ทั้งหมด)
+
+1. ตอนส่งมอบ ต้องตรวจบัตรทุกครั้ง (RQ-19) หรือเฉพาะเมื่อ Auth API ใช้ไม่ได้ (RQ-23) และระบบต้องบันทึกอะไรจากการตรวจบัตร? (FR-HND-02, FR-HND-03)
+2. ณ เคาน์เตอร์ ผู้ยืมยืนยันตัวตนผ่าน Auth API อย่างไร และรอนานกี่วินาทีจึงถือว่าเชื่อมต่อไม่สำเร็จ? (FR-HND-02, IF-IDP-01)
+3. คำขอยืมระบุอุปกรณ์รายชิ้นมาแล้ว หรือเจ้าหน้าที่ต้องเลือกรหัสครุภัณฑ์ตอนส่งมอบ? (FR-HND-04, FR-HND-07, Q-16 ของ 001)
+4. ถ้าคนที่ยืนยันตัวตนตอนรับของไม่ใช่ผู้ส่งคำขอ ระบบต้องปฏิเสธการส่งมอบไหม? (FR-HND-01, FR-HND-02)
+5. เจ้าหน้าที่หาคำขอที่อนุมัติแล้วเพื่อส่งมอบอย่างไร? (FR-HND-01)
+6. หลังส่งมอบแล้ว คำขออื่นที่ค้างอยู่ของอุปกรณ์ชิ้นเดียวกันเป็นอย่างไร? (FR-HND-07, DOM-REQ-01, Q-SH-06)
+7. ถ้าส่งมอบยืมปกติหลัง 16:00 ระบบต้องห้ามบันทึก หรือให้กำหนดคืนเป็นวันถัดไป? (FR-HND-05)
+8. รูปสภาพอุปกรณ์ตอนส่งมอบบังคับแนบไหม แนบได้กี่รูป และไฟล์ชนิดใด ขนาดไม่เกินเท่าไร? (FR-HND-06)
+
+### คำตอบของทีมและเหตุผล
+
+ทีมตอบในแชต (Banlu C) ไม่ได้ระบุว่าถามผู้ใช้จริง จึงบันทึกเป็น ASM (ทีมตัดสิน)
+1. ทุกครั้ง บันทึกชื่อ นามสกุล รหัสนักศึกษา วันเดือนปีเวลาที่ส่งมอบ -> ASM-HND-01
+2. เกิน 10 วินาที -> ASM-HND-02 ส่วนวิธียืนยันตัวตนที่เคาน์เตอร์ไม่ได้ตอบ ย้ายไป Q-HND-11 (ถามนักเทคโนโลยีสารสนเทศ)
+3. ระบุรายชิ้น -> ASM-HND-03 (ขัดกับคำตอบเบื้องต้นของ Q-16 ใน 001 ถ้า Q-16 ยืนยันเป็นระดับรุ่นต้องทำ CR)
+4. ปฏิเสธ -> ASM-HND-04
+5. ดูรายการทั้งหมด -> ASM-HND-05 (AI ตีความเป็นรายการคำขอที่ได้รับอนุมัติแล้วและยังไม่ส่งมอบทั้งหมด)
+6. ปฏิเสธ และตอบกลับผู้ใช้งาน -> ASM-HND-08 ช่องทางแจ้งย้ายไป Q-HND-12 (Q-SH-06 เป็นคำถามร่วม ต้องตกลงกับ 002-004)
+7. บันทึกตามเวลาที่ส่งจริงได้เลย แต่ไม่มีให้ยืมหลัง 16:00 -> ASM-HND-06 (AI ตีความว่าส่งมอบหลัง 16:00 ระบบไม่บันทึก)
+8. บังคับอย่างน้อย 2 รูป jpg/png ไม่เกิน 10 MB -> ASM-HND-07 "10 MB ต่อรูปหรือรวม" ย้ายไป Q-HND-10
+
+### สิ่งที่แก้ใน spec.md (v1 เป็น v2)
+
+- FR-HND-01, 02, 03, 05, 06, 07 ปรับข้อความตามคำตอบ (ID เดิม ไม่เพิ่ม FR) FR-HND-04 เปลี่ยนคำเป็น "การยืม"
+- AC-HND-02, 03, 06, 07 ปรับ, เพิ่ม AC-HND-10 ถึง 14
+- เพิ่ม ASM-HND-01 ถึง 08, Q-HND-10 ถึง 15 ปิด Q-HND-01, 02, 03, 08 เพิ่มหัวข้อ Clarifications
+- Status เป็น Draft v2
+- ไฟล์อื่น: `docs/srs/SRS.md` หัวข้อ 3.1.5 และตาราง 4.3 (RQ-19 vs US-003), `specs/CHANGELOG.md`, `specs/README.md`
+
+---
+
+## 2569-11-11 คำสั่ง: /clarify (ยืนยันการตีความ)
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์: specs/005-handover/spec.md (v2 เป็น v2.1)
+
+### คำถามที่ AI ถาม
+
+1. Q5 "ดูรายการทั้งหมด" คือคำขอที่อนุมัติแล้วและยังไม่ส่งมอบทั้งหมดใช่ไหม
+2. Q7 "ไม่มีให้ยืมหลัง 16:00" หมายความว่าระบบปฏิเสธการส่งมอบหลัง 16:00 ใช่ไหม
+3. Q6 ปฏิเสธคำขออื่นหลังส่งมอบ เป็นคำถามร่วม Q-SH-06 ยังไม่ได้แก้ constraints.md
+
+### คำตอบของทีมและเหตุผล
+
+1. ใช่ -> ASM-HND-05 ยืนยันแล้ว
+2. ไม่ใช่ ระบบบันทึกการส่งมอบหลัง 16:00 ได้ -> แก้ FR-HND-05, ASM-HND-06, AC-HND-11
+   AI ชี้ว่ายังไม่รู้กำหนดคืนของกรณีนี้ (16:00 วันเดียวกันจะเลยกำหนดทันที) -> เปิด Q-HND-03 อีกครั้ง (ถามนักคอมพิวเตอร์)
+3. ทีมถามกลับว่ากระทบใครบ้าง -> AI อธิบายในแชต ยังไม่แก้ไฟล์ของกลาง
+
+### สิ่งที่แก้ใน spec.md (v2 เป็น v2.1)
+
+- FR-HND-05, AC-HND-11, ASM-HND-05, ASM-HND-06, Q-HND-03 (เปิดอีกครั้ง), Clarifications เพิ่ม session ยืนยันการตีความ
+- ไฟล์อื่น: `docs/srs/SRS.md` 3.1.5, `specs/CHANGELOG.md`, `specs/README.md`
+
+---
+
+## 2569-11-11 คำสั่ง: /clarify (Q6 หาแนวทางที่ไม่กระทบฟีเจอร์อื่น)
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์: specs/005-handover/spec.md (v2.1 เป็น v2.2)
+
+### คำถามที่ AI ถาม / เสนอ
+
+1. ทีมถาม: Q6 มีแนวทางที่ไม่กระทบคนอื่นไหม AI เสนอ 2 แบบ
+   - แบบ A: 005 ไม่แตะคำขออื่น เจ้าหน้าที่ปฏิเสธเองผ่าน UC-12 (RQ-14) และ 004 แจ้งผล (RQ-21) FR-HND-04 กันส่งมอบซ้ำอยู่แล้ว
+   - แบบ B: แบบ A + เตือนเจ้าหน้าที่ว่ามีคำขอค้าง (AI ไม่แนะนำ เพราะเป็นความต้องการใหม่ที่ไม่มี RQ)
+2. ทีมถาม: 002 กระทบอย่างไร ต้องทำอะไรเพิ่ม
+
+### คำตอบของทีมและเหตุผล
+
+1. เลือกแบบ A -> แก้ FR-HND-07, ASM-HND-08, AC-HND-13, Scope ยกเลิก Q-HND-12
+2. AI ตอบในแชต: 002 ไม่ต้องเพิ่มพฤติกรรม เหลือยืนยันชื่อสถานะ "ส่งมอบแล้ว" และฟิลด์ในคำขอ -> รวมไว้ใน Q-HND-05
+
+### สิ่งที่แก้ใน spec.md (v2.1 เป็น v2.2)
+
+- Scope, FR-HND-07, AC-HND-13, ASM-HND-08, Q-HND-05, Q-HND-12 (ยกเลิก), Q-SH-06, Clarifications
+- ไฟล์อื่น: `docs/srs/SRS.md` 3.1.5, `specs/CHANGELOG.md`, `specs/README.md`
+- ไม่ได้แก้ไฟล์ของกลาง (`specs/000-shared/`) Q-SH-06 ยังเปิด
+
+---
+
+## 2569-11-11 คำสั่ง: /plan
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ก่อนทำ: ทีมสั่งให้ทิ้ง commit `c90274b 005: spec v2.1` บน GitHub (spec ฉบับเก่าจาก session ก่อน) ทั้ง commit
+  แล้วใช้ spec v2.2 ของ session นี้แทน AI แก้ชื่อ commit เป็น `67b2d07 005: spec v2.1` และ force push (with lease) ทับ
+- ผลลัพธ์: specs/005-handover/plan.md (Draft v1) อ้าง spec Draft v2.2
+  - โค้ดอยู่ที่ `backend/internal/handover/` และ `frontend/src/pages/Handover/` migration ใหม่ `00NN_handover` (เลขรอจองในกลุ่ม)
+  - บันทึกการส่งมอบเป็น transaction เดียว ใช้ `SELECT ... FOR UPDATE` กันส่งมอบชิ้นเดียวกันพร้อมกัน
+  - ค่าที่ตั้งได้: 10 วินาที, 16:00, อย่างน้อย 2 รูป, 10 MB, JPG/PNG อยู่ใน `config.go` และ `frontend/src/config.js`
+- Constraint ที่ AI ยังไม่ได้ใช้: DOM-LOAN-01 ส่วน "ใช้ได้เฉพาะในพื้นที่มหาวิทยาลัย" (รอ Q-HND-04)
+- สิ่งที่ AI บอกว่าอยากเดาแต่ไม่ได้เดา: กำหนดคืนเมื่อส่งมอบหลัง 16:00 (Q-HND-03), วิธียืนยันตัวตนผู้ยืมที่เคาน์เตอร์ (Q-HND-11),
+  ชื่อสถานะ "ส่งมอบแล้ว" และค่า action (Q-HND-05, 06), ที่มาของชื่อ-นามสกุลผู้ยืม (Q-HND-13), 10 MB ต่อรูปหรือรวม (Q-HND-10)
+- คำถามใหม่จากการวางแผน: Q-P1 ที่เก็บไฟล์รูป, Q-P2 กฎของ 004 ที่ให้อนุมัติได้ทีละ 1 คำขอต่อชิ้น (กระทบ AC-HND-13)
+
+---
+
+## 2569-11-11 คำสั่ง: /plan (ตอบคำถามจากการวางแผน)
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำถามที่ AI ถาม: Q-P1 เก็บไฟล์รูปที่ไหน (AI เสนอ A: Docker volume, B: bytea ในฐานข้อมูล, C: MinIO)
+  Q-P2 spec ของ 004 กระทบ 005 อย่างไร (AI อ่าน spec ของ 004 แล้วพบ 5 จุด และเสนอทางที่ไม่กระทบฟีเจอร์อื่น)
+- คำตอบของทีม: Q-P1 เลือก A / Q-P2 เลือกทำจุด 1 (ปรับ AC-HND-13, 14 ให้ตรงกับ AC-APV-08 ของ 004)
+- สิ่งที่แก้: plan.md (Q-P1 ปิด, Q-P2 ปิดบางส่วน, อ้าง spec v2.3), spec.md Draft v2.3 (AC-HND-13, 14),
+  `specs/CHANGELOG.md`, `specs/README.md`, `docs/srs/SRS.md` (อ้าง Draft v2.3)
+- ยังรอทีม: จุด 3 ส่งมอบหลัง 16:00 (3A กำหนดคืน 16:00 เสมอ / 3B ไม่ให้ส่งมอบตั้งแต่ 16:00) และจุด 4 จำกัดภาควิชาของเจ้าหน้าที่ไหม
+
+---
+
+## 2569-11-11 คำสั่ง: /tasks
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- อินพุต: specs/005-handover/plan.md (Draft v1), spec.md (Draft v2.3)
+- ผลลัพธ์: specs/005-handover/tasks.md (v1) 14 เฟส (ฐานราก + 12 เฟสตาม AC + รอคำตอบ) รวม 31 task รอ Q-xx 16 task
+  - เฟส 2 รวม AC-HND-02 กับ AC-HND-07 เพราะการส่งมอบสำเร็จครั้งแรกต้องยืนยันผู้ยืมและตรวจบัตรก่อนเสมอ
+  - AC-HND-08 ย้ายไปเฟสรอคำตอบทั้งเฟส (Q-HND-06, Q-HND-14)
+  - task ที่ติดมากที่สุดคือ Q-HND-05 (7 task) และ Q-HND-13 (2 task) เฟสแรกที่ลองได้จริง (เฟส 1) ต้องรอ Q-HND-05 และ migration 0003 ของ 002
+  - task ที่เริ่มได้ทันที: T-01 (config), T-03 (package + กันบทบาท), T-07 (ที่เก็บรูป), T-08 (BorrowerVerifier)
+- ข้อที่ AI ทำต่างจาก plan และต้องให้ทีมยืนยัน: แยกการเพิ่มค่า `action` ของ audit_log ออกจาก migration ของ T-02 ไปไว้ T-26
+  (plan ข้อ 3 บอก 1 ไฟล์) เพื่อไม่ให้ทุกเฟสรอ Q-HND-06
+- สิ่งที่ AI พบ: plan อ้าง package `audit` ของกลาง แต่ใน repo ยังไม่มี
+- AC ที่ทดสอบยาก: AC-HND-03 (Auth API ไม่ตอบ 10 วินาที) ใช้ verifier จำลองที่ค้าง + timeout สั้นใน test,
+  T-18 (ส่งมอบพร้อมกัน) ใช้ 2 goroutine กับ PostgreSQL จริง
+
+---
+
+## 2569-11-11 คำสั่ง: /tasks แก้รอบที่ 1 (ไม่กระทบฟีเจอร์อื่น)
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "เช็คว่าที่ทำจะมีอะไรไปกระทบของคนอื่นมั้ย" แล้ว "ลองทำแบบที่ไม่กระทบมาให้หน่อย"
+- AI เช็ค branch ของ 001, 002, 003, 004, 006 บน GitHub พบ 8 จุด แก้ใน plan.md (v1.1) และ tasks.md (v1.1) ของ 005 เท่านั้น ไม่แตะไฟล์ของฟีเจอร์อื่นหรือไฟล์ของกลาง
+- แก้อะไร เพราะอะไร:
+  1. เลิก ALTER `loan` ย้ายข้อมูลการส่งมอบไปตาราง `handover` ของ 005 (T-02, T-06) เพราะ seed และ test ของ 001 INSERT `loan` 4 คอลัมน์จะพัง และไม่ต้องแก้ DM-05
+  2. migration 2 ไฟล์ เลขถัดจาก 0005 ของ 003 ไฟล์ action ต้องมีทุกค่าเดิมใน CHECK (T-02, T-26) เพราะ 003 และ 004 ก็แก้ CHECK เดียวกัน
+  3. ใช้ `NormalLoanReturnTime` ชื่อเดียวกับ plan ของ 004 แทน `NormalLoanDueHour/Minute` (T-01, T-14) เพราะกฎข้อ 9 ห้ามมีค่าเดียวกัน 2 ที่
+  4. audit log ใช้ writer.go ของ 001 ถ้ามี ไม่มีใช้แผนสำรองแบบ 003 (T-26) เพราะ package `audit` ยังไม่มี
+  5. สถานะคำขอที่ส่งมอบได้อ่านจาก `HandoverReadyStatuses()` ใน config (T-04) และ 005 ไม่อ่านตารางของ 004 (T-14)
+  6. ไฟล์ของกลางเพิ่มต่อท้ายเป็นบล็อกของ 005 ทำหลัง merge 003, test migration อยู่ใน package handover ไม่แตะ `platform/migrate_test.go`, volume รูปเป็น named volume ใหม่
+- ผลข้างเคียง: T-02 ไม่ติด Q แล้ว (เหลือรอ 002 merge 0003 และจองเลข) task ที่รอ Q ลดจาก 16 เป็น 15
+- ยังต้องให้ทีมตัดสิน (AI ไม่ได้ตัดสินแทน): Q-P3 ใหม่ กำหนดคืน 2 ที่ (`approval_decision.return_due_at` ของ 004 กับ `loan.due_at` ของ 005) ตอบพร้อม Q-HND-03,
+  Q-HND-05 เหลือคำถามว่าสถานะที่ส่งมอบได้คือ `approved_by_officer` หรือ `approved`
+
+---
+
+## 2569-11-11 pull main (002 spec v3 + CR-003) แล้วตรวจผลกระทบต่อ 005
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ไป pull main มาหน่อย เพื่อนเพิ่ม cr003 เข้ามา แล้วก็ดูงานของกูว่ามีอะไรกระทบมั้ย แล้วรายงานมา" แล้ว "อัปเดตตามนี้"
+- merge: conflict 3 ไฟล์ (prompt-log.md, CHANGELOG.md, constraints.md) AI เก็บทั้งสองฝั่ง ไม่ลบบันทึกของใคร
+  ตาราง "ใครอ้างใช้บ้าง" รวมแถวให้มีทั้ง 002 และ 005 commit `867412c 005: merge main (002 spec v3 + CR-003)`
+- ผลกระทบที่ AI พบ 7 จุด แก้ใน spec v2.4, plan v1.2, tasks v1.2:
+  1. Q-HND-05 ปิดบางส่วนจาก data-model v9: ส่งมอบได้เมื่อ `approved` แล้วตั้งเป็น `handed_over`
+  2. Q-SH-04 ปิด + CR-003 ให้ 005 แปลงวันสิ้นสุดการยืมของค้างคืนเป็นกำหนดคืน -> แก้ FR-HND-05 และ SRS 3.1.5
+  3. 002 รับคำขอค้างคืนแล้ว -> แก้ Scope และ Q-HND-07 (ยังขึ้นกับ UC-14 ของ 004)
+  4. FR-BRQ-06 ของ 002 อยู่ใน prototype -> แก้ข้อความ Q-HND-03 (ถ้ากำหนดคืน 16:00 วันเดียวกัน ผู้ยืมจะถูกปฏิเสธคำขอใหม่ทันที)
+  5. Q-SH-06 ปิดบางส่วน (004 ปฏิเสธคำขออื่นอัตโนมัติ) -> Given ของ AC-HND-13 ไม่เกิดจริง ใส่หมายเหตุ ไม่แก้ตัว AC
+  6. 002 เพิ่ม action `request` -> migration action ของ 005 ต้องมีค่านี้
+  7. (แจ้งเฉย ๆ) ชื่อในใบคำขอของ 002 เป็นอีกทางเลือกของ Q-HND-13, ที่เก็บไฟล์แนบของ 002 ควรตกลงร่วมกับ volume รูป
+- tasks: T-04, 05, 06, 16, 20 ไม่รอ Q แล้ว task ที่รอ Q ลดจาก 15 เป็น 10 เฟส 1 ไม่ติด Q (รอแค่ 002 merge 0003)
+- ยังต้องให้ทีมตัดสิน (AI ไม่ได้ตัดสินแทน): แก้หรือยกเลิก AC-HND-13 (ต้องทำ CR), Q-HND-07 ต้องถาม 004 เรื่อง UC-14
+
+---
+
+## 2569-11-11 pull main รอบ 2 (002 plan/tasks/migration 0003 + CR-004) แล้วแก้ 005 ตามผลกระทบ
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover (แก้ของกลาง `specs/000-shared/constraints.md` แถว CON-TECH-03 ในตาราง "ใครอ้างใช้บ้าง" เพราะ 005)
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ตอนนี้เพื่อน push main ไปใหม่ละ pull ลงมาแล้ว recheck สรุปอีกครั้งมาหน่อย" / "ว่ามันกระทบของเราตรงไหนบ้าง" แล้ว "แก้ตามนี้"
+- merge: conflict 3 ไฟล์ (prompt-log.md, CHANGELOG.md, constraints.md) เก็บทั้งสองฝั่ง commit `32c0700`
+- ผลกระทบที่ AI พบและแก้ (spec v2.5, plan v1.3, tasks v1.3):
+  1. CON-TECH-03 (CR-004): เพิ่มในบรรทัด "ใช้ร่วม" error contract ใช้ `{code, message}` เปลี่ยน `CARD_NOT_CHECKED`, `PHOTO_INVALID` เป็น `VALIDATION_FAILED`
+     รหัส `FORBIDDEN_ROLE`, `REQUEST_NOT_APPROVED`, `BORROWER_MISMATCH` ไม่อยู่ในรายการกลาง -> Q-P4 ใหม่ AI ไม่ได้เพิ่มแถวในตารางรหัสของกลางเอง
+  2. migration 0003 merge แล้ว: Q-HND-05 ปิด (`requester_id`, `item_id`, `end_at`) T-02 ไม่รอ 002
+  3. CHECK ของ action ใช้ชื่อ `audit_log_action_check` ตามที่ 0003 ตกลงกับ 003
+  4. ค่า 16:00 ใช้ `LoanNormalReturnHour` ของ 002 แทน `NormalLoanReturnTime` ของ 004 (004 spec v1 ไม่มีแล้ว)
+  5. 004 spec v1 (force-push): AC-APV-08 ไม่มีแล้ว เปลี่ยนไปอ้าง FR-APV-01 (ค), UC-14 ออกจาก scope -> แก้ Q-HND-07, Q-P3 หมดไป
+  6. Q-HND-13: เพิ่มทางเลือกชื่อที่ผู้ขอพิมพ์ในคำขอของ 002
+- ผลข้างเคียง: task ที่รอ Q เพิ่มจาก 10 เป็น 13 (T-03, T-16, T-20 รอ Q-P4) T-30 รอแค่ Q-HND-07
+- ยังต้องให้ทีมตัดสิน: Q-P4 ลงทะเบียนรหัส error 3 ตัว (แจ้งกลุ่มก่อนแก้ constraints.md), AC-HND-13 แก้หรือยกเลิก, Q-HND-07
+
+---
+
+## 2569-11-11 กำหนดเลข migration และคำสั่ง /implement T-08 (หยุดก่อนเริ่ม)
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover (แก้ของกลาง `specs/000-shared/data-model.md` ตาราง "เลข migration" เพราะ 005 จองเลข)
+- เครื่องมือ: Claude Code
+- คำสั่ง: "migration เอาเป็น 6 กับ 7 แล้วก็ /implement task ที่จะไม่กระทบกับคนอื่นมาก่อนได้เลย"
+- สิ่งที่แก้: plan.md และ tasks.md ใช้ `0006_handover.up.sql`, `0007_audit_log_handover_action.up.sql` แทน `00NN`
+  data-model.md เพิ่ม 2 แถวในตาราง "เลข migration" (ระบุว่ารอกลุ่มยืนยัน) T-02 ไม่ต้องรอจองเลขแล้ว
+- /implement: AI เลือก T-08 (แตะแค่ไฟล์ใน `backend/internal/handover/`) แต่ตรวจก่อนเริ่มไม่ผ่านข้อ 2 ของคำสั่ง
+  เพราะช่อง "ต้องทำหลัง" ของ T-08 คือ T-01 ซึ่งยังไม่เสร็จ AI หยุดและถามทีม ไม่ได้สร้างโค้ด
+- ทุก task ที่ไม่กระทบคนอื่นต้องทำหลัง T-01 (หรือ task ที่รอ Q) ส่วน T-01 แตะ `config.go`, `config.js` ของกลาง (เพิ่มบล็อกต่อท้าย)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-01
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover (แก้ของกลาง `config.go`, `config.js` เพราะ 005 เพิ่มบล็อกต่อท้ายเท่านั้น)
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ทีละ task แล้ว commit `00N: ...` ทุกขั้น" (หลังเลือกทำ T-01 ก่อน T-08)
+- ไฟล์ที่แก้: `backend/internal/config/config.go` (บล็อก 005: `BorrowerAuthTimeout`, `LoanNormalReturnHour`, `HandoverMinPhotos`, `HandoverPhotoMaxBytes`, `HandoverPhotoTypes()`, `PhotoDir()` และ import `time`)
+  `frontend/src/config.js` (บล็อก 005: `HANDOVER_MIN_PHOTOS`, `HANDOVER_PHOTO_MAX_BYTES`, `HANDOVER_PHOTO_TYPES`)
+- ผล test: `go test ./...` ผ่านทุก package (auth, equipment, platform ใช้ PostgreSQL ใน testcontainers) `npx vitest run` 10 ไฟล์ 17 test ผ่าน (ต้อง `npm ci` ก่อน)
+- ไม่ได้สร้าง config_test.go เพราะไม่อยู่ในช่อง "ไฟล์ที่แตะ" และ branch ของ 003 มีไฟล์ชื่อนี้อยู่แล้ว (จะชนตอน merge)
+- สิ่งที่ AI เกือบต้องเดา: ค่าเริ่มต้นของ `PHOTO_DIR` (plan บอกแค่ `/data/photos/handover/`) ใช้ `/data/photos` ตามที่ plan v1.1 เขียนว่า volume mount ที่ `/data/photos`
+  และใช้ชื่อ `LoanNormalReturnHour` ตาม plan ของ 002 ที่ยังไม่ได้ใส่ในโค้ด ต้องแจ้งเจ้าของ 002 ให้ใช้ตัวนี้
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-08
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่สร้าง: `backend/internal/handover/verifier.go` (interface `BorrowerVerifier`, `MockBorrowerVerifier`, `ErrBorrowerNotVerified`), `backend/internal/handover/verifier_test.go`
+- ผล test: `TestVerifier_Mock` ผ่าน (2 subtest: token ถูกต้องคืนรหัสผู้ใช้ / token ว่างหรือไม่รู้จักคืน ErrBorrowerNotVerified)
+- สิ่งที่ AI เกือบต้องเดาแต่ไม่ทำ: ไม่ตรวจว่าผู้ยืมต้องเป็นบทบาทนักศึกษา (spec ไม่บอก), ไม่คืนชื่อ-นามสกุล (ที่มารอ Q-HND-13),
+  credential เป็น token จำลองเท่านั้น (รูปแบบจริงรอ Q-HND-11) ไม่ใส่ timeout (เป็นงานของ T-13)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-02
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover (เพิ่มไฟล์ใหม่ใน `backend/db/migrations/` และ `backend/db/seed/` ซึ่งเป็นโฟลเดอร์ของกลาง ไม่ได้แก้ไฟล์ของใคร)
+- เครื่องมือ: Claude Code
+- ไฟล์ที่สร้าง: `backend/db/migrations/0006_handover.up.sql` (ตาราง `handover`, `handover_photo` ไม่ ALTER `loan`),
+  `backend/internal/handover/fixture_test.go` (testcontainers แบบเดียวกับ 001 + helper เพิ่มคำขอและการยืม),
+  `backend/internal/handover/migration_test.go`, `backend/db/seed/handover_dev.sql` (ข้อมูลลองระบบ ทีมเลือกเอง)
+- ผล test: `TestMigration_HandoverIdentityMethod` (4 กรณี), `TestMigration_HandoverPhotoContentType` (4 กรณี), `TestMigration_HandoverNoCardNumberColumn` ผ่าน
+  `go test ./...` ทุก package ผ่าน (test ของ 001 ใน equipment และ platform ยังผ่าน)
+  `handover_dev.sql` ลองโหลดใน container ของ test ชั่วคราวแล้ว ได้คำขอ approved 2, handed_over 1, แถว handover 1 (ลบไฟล์ test ชั่วคราวแล้ว)
+- สิ่งที่ AI ตัดสินในขอบเขตที่ plan ให้: `card_checked` ใส่ CHECK ให้เป็น true เสมอ (ASM-HND-01 ตรวจบัตรทุกครั้ง),
+  ชื่อ-นามสกุลเป็น NOT NULL เพราะ FR-HND-03 บังคับบันทึก (ที่มายังรอ Q-HND-13), ไม่เขียน down migration เพราะไม่อยู่ในช่อง "ไฟล์ที่แตะ"
+  ข้อมูลลองระบบเพิ่มรุ่นและอุปกรณ์ชุดใหม่ (HO-TEST-*) ไม่แตะอุปกรณ์ของ seed.sql ของ 001
+- ต้องแจ้งทีม: เลข 0006 มาก่อน 0004, 0005 ของ 003 ที่ยังไม่ merge ฐานข้อมูลในเครื่องที่รัน 0006 ไปแล้ว golang-migrate จะไม่รัน 0004, 0005 ย้อนหลัง
+  ต้องล้างฐานข้อมูลในเครื่อง (docker compose down -v) หลัง 003 merge
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-06
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover (แก้ของกลาง `config.go` เพิ่ม `HandoverReadyStatuses()` ในบล็อกของ 005 ตามกติกา /implement ที่ให้เพิ่มค่าที่ตั้งได้ได้)
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ทำ T-06 ต่อได้เลย และอันที่กระทบคนอื่นสำคัญ ๆ รายงานด้วย"
+- ไฟล์ที่สร้าง/แก้: `backend/internal/handover/repository.go` (`CreateHandover` transaction เดียว), `backend/internal/handover/repository_test.go`,
+  `backend/internal/config/config.go` (`HandoverReadyStatuses()` = approved ซึ่ง T-04 ระบุไว้ ย้ายมาเพิ่มตอนนี้เพราะ T-06 ใช้ก่อน)
+- ผล test: `TestRepository_CreateHandover` ผ่าน 4 กรณี (สำเร็จ / อุปกรณ์ไม่ว่าง / คำขอไม่พร้อม / ไม่มีคำขอ) `go test ./...` ทุก package ผ่าน
+- สิ่งที่ AI ตัดสินในขอบเขตที่ plan ให้: ลำดับล็อกตาม plan ข้อ 4 (อุปกรณ์ FOR UPDATE ก่อน แล้วคำขอ FOR UPDATE),
+  `loan.loan_type` เอาจากคำขอ, `loan.borrower_id` = รหัสผู้ใช้ที่ยืนยันแล้ว, รูปยังไม่บันทึก (T-15)
+  error ของ repository (`ErrItemNotAvailable`, `ErrRequestNotReady`) ยังไม่ผูกรหัส HTTP (T-10, T-16, T-17)
+- ผลกระทบต่อฟีเจอร์อื่นที่ต้องแจ้ง (เปลี่ยนข้อมูล ไม่ได้แก้ไฟล์ของใคร):
+  001 เห็นอุปกรณ์เป็น "ถูกยืม" และกำหนดคืนจาก Loan ที่ 005 สร้าง / 002 คำขอ `handed_over` หลุดจาก unique index ผู้ขอส่งคำขอชิ้นเดิมได้อีก
+  003 คำขอ `handed_over` ยกเลิกไม่ได้ / 004 ต้องล็อกแถวอุปกรณ์หรือคำขอลำดับเดียวกันถ้ามี transaction ที่แตะ 2 ตารางนี้ (กัน deadlock)
+  006 ปิด Loan ที่ 005 สร้าง ต้องรู้ว่ามีแถว `handover` ผูก (FK จาก handover ไป loan ทำให้ลบ Loan ไม่ได้)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-18
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/repository_test.go` (เพิ่ม `TestHandover_ConcurrentSameItem`)
+- ผล test: ผ่าน 5 รอบติด (`-count=5`) สำเร็จ 1 ได้ ErrItemNotAvailable 1 มี Loan 1 แถว `go test ./...` ทุก package ผ่าน
+- รอบแรกไม่ผ่าน: ปิด pool ก่อน cleanup ลบข้อมูล ทำให้ข้อมูลค้างและรอบถัดไปชน asset_code ซ้ำ แก้ให้ปิด pool ใน t.Cleanup (ทำงานหลังการลบ)
+- test นี้ใช้ pool และ commit จริง (transaction ที่ยกเลิกทิ้งทดสอบการแย่งกันข้าม connection ไม่ได้) แล้วลบข้อมูลที่สร้างตอนจบ
+- ข้อมูลตั้งต้นใช้คำขออนุมัติแล้ว 2 รายการของชิ้นเดียวกัน ซึ่งในระบบจริงไม่เกิด (004 FR-APV-01 ค) ตั้งเองเพื่อบังคับให้แย่งล็อกกัน
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-07
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ทำไปยาว ๆ เลย"
+- ไฟล์ที่สร้าง: `backend/internal/handover/photostore.go` (`PhotoStore.Save`, `RemoveLoan`, `DefaultPhotoRoot`), `backend/internal/handover/photostore_test.go`
+- ผล test: `TestPhotoStore_SaveAndRemove` ผ่าน (เขียน jpg/png ลง `<root>/<loanId>/`, ชนิดอื่นไม่เขียน, ลำดับซ้ำไม่เขียนทับ, ลบทั้งโฟลเดอร์ได้และลบซ้ำไม่ error) `go test ./...` ผ่าน
+- **ไม่ได้แก้ `deploy/docker-compose.yml`** แม้อยู่ในช่อง "ไฟล์ที่แตะ" เพราะไฟล์นี้ตอนนี้มีแค่ service `db` ไม่มี service ของหลังบ้าน
+  volume `photos` จึงไม่มีที่ mount (หลังบ้านรันด้วย `go run` เก็บรูปที่ `PHOTO_DIR` ค่าเริ่มต้น `/data/photos`)
+  การเพิ่ม volume ที่ไม่มีใครใช้คือการแตะไฟล์ร่วมโดยไม่จำเป็น ต้องเพิ่มเมื่อทีมเพิ่ม service หลังบ้านใน compose (ตามหมายเหตุ HTTPS ของ 001)
+- ตั้งชื่อไฟล์เองเป็น `<ลำดับ>.jpg|.png` ไม่ใช้ชื่อไฟล์ที่ผู้ใช้ส่งมา (กัน path traversal) การตรวจชนิดจากเนื้อไฟล์เป็นงานของ T-15
+
+---
+
+## 2569-11-11 ตอบ Q-HND-11, Q-HND-13, Q-P4
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover (แก้ของกลาง `specs/000-shared/constraints.md` เพิ่มรหัส error 3 ตัวใน CON-TECH-03 เพราะ 005)
+- เครื่องมือ: Claude Code
+- คำตอบรอบแรกของทีม: "q-hnd-11 ชื่อนามสกุลบัตรนักศึกหรือบัตรประชาชน / q-hnd-13 บัตรนักศึกษาหรือบัตรประชาชน / q-p4 อธิบายเพิ่มเติมหน่อยคืออะไร"
+- AI ชี้ว่าคำตอบ Q-HND-11 เป็นเรื่องตรวจบัตร ไม่ได้ตอบวิธียืนยันผ่าน Auth API (FR-HND-02) เสนอ A ล็อกอินบนเครื่องเจ้าหน้าที่ / B เจ้าหน้าที่พิมพ์รหัสให้ระบบค้น / C ตรวจบัตรอย่างเดียว (ต้องทำ CR)
+  และอธิบาย Q-P4 (CON-TECH-03 ของ CR-004) เสนอ 1 ลงทะเบียนรหัสใหม่ 3 ตัว / 2 ใช้รหัสเดิมที่ความหมายไม่ตรง
+- คำตอบสุดท้าย: "Q-HND-11 a / Q-P4 เอาทางเลือกที่ 1" (Q-HND-13 ใช้คำตอบรอบแรก ซึ่งตรงกับแบบ A ที่ให้เจ้าหน้าที่พิมพ์ชื่อจากบัตร)
+- สิ่งที่แก้: spec Draft v2.6 (ASM-HND-09, ASM-HND-10, FR-HND-02, 03, Clarifications), plan v1.4, tasks v1.4, constraints.md v5.1, SRS 3.1.5, CHANGELOG, README
+- ระหว่างแก้ AI ลบบรรทัด Q-HND-12 [ยกเลิก] ผิดตัว แล้วใส่คืนจาก commit ก่อนหน้า (ID ที่ยกเลิกต้องคงไว้)
+- สิ่งที่ AI ตัดสินในขอบเขต plan แต่ทีมควรตรวจ: รหัสนักศึกษาที่บันทึก = รหัสผู้ใช้จากการล็อกอิน (บัตรประชาชนไม่มีรหัสนักศึกษา)
+  และหลังบ้านยืนยันผู้ยืมซ้ำเองตอนบันทึก ไม่เชื่อ `identityMethod` ที่หน้าจอส่ง (กันการปลอมผล)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-03
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover (แก้ของกลาง `backend/cmd/server/main.go` เพิ่ม 2 บรรทัดผูก route ของ 005 และ import)
+- เครื่องมือ: Claude Code
+- ไฟล์ที่สร้าง/แก้: `backend/internal/handover/handler.go` (3 route + `requireStaff`), `errors.go` (รหัสและข้อความตาม CON-TECH-03), `handler_test.go`, `backend/cmd/server/main.go`
+- ผล test: `TestHandover_NonStaffForbidden` ผ่าน 3 route (นักศึกษาได้ 403 `{code: FORBIDDEN_ROLE, message}` / ไม่มี token ได้ 401) `go test ./...` ผ่าน
+- สิ่งที่ AI ตัดสินในขอบเขตที่ plan ให้: path หลังบ้านเป็น `/v1/handover/` เพราะ proxy ตัด `/api` แบบเดียวกับ 001,
+  ข้อความภาษาไทยของ error ทีมเลือกเอง ไม่ได้มาจาก spec, route ของ T-04, T-09, T-10 ตอบ 501 ชั่วคราวจนกว่า task นั้นเสร็จ
+  `NewHandler(db, provider)` รับ provider ไว้ใช้ยืนยันผู้ยืม (T-09) เพื่อไม่ต้องแก้ main.go อีกใน task ถัดไป
+- ข้อสังเกตถึง 001: `auth.Middleware` ของ 001 ตอบ error เป็น `{code}` ไม่มี message ยังไม่ตรง CON-TECH-03 ทั้งหมด (CR-004 บอกว่า 001 ควรแก้รอบถัดไป)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-04
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/repository.go` (`ListReadyRequests`, `ReadyRequestDTO`), `handler.go` (`listRequests`), `handler_test.go`
+  (`HandoverReadyStatuses()` ใน config.go เพิ่มไปแล้วตอน T-06)
+- ผล test: `TestAC_HND_14_ListApprovedOnly` ผ่าน (อนุมัติแล้ว 2 รายการ คนละชิ้น ยังไม่อนุมัติ 1 ส่งมอบแล้ว 1 ได้กลับมา 2 รายการพร้อม assetCode) `go test ./...` ผ่าน
+- สิ่งที่ AI ตัดสินในขอบเขตที่ plan ให้: ตอบเป็น JSON array ตาม plan ข้อ 4 (001 ใช้ `{items, total}` แต่ plan ของ 005 เขียนเป็น array),
+  เรียงตามเวลาที่ส่งคำขอเก่าก่อน (spec ไม่บอก ทีมเลือกเอง), test ผ่าน HTTP ใช้ pool และ commit จริงแล้วลบข้อมูลทดสอบตอนจบ
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-09
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/handler.go` (`verifyBorrower`, Handler ถือ `BorrowerVerifier`), `repository.go` (`GetRequester`), `handler_test.go`
+- ผล test: `TestAC_HND_02_AuthApiVerifiedAndCardChecked/verify_borrower` ผ่าน (verified ของ student-001)
+  `TestVerifyBorrower_OtherResults` ผ่าน (ผู้ยืมคนอื่น = mismatch, credential ใช้ไม่ได้ / ว่าง / ไม่ใช่ JSON = 422 VALIDATION_FAILED, ไม่มีคำขอ = 404)
+  `go test ./...` ผ่าน
+- สิ่งที่ AI ตัดสินในขอบเขตที่ plan ให้: ล็อกอินไม่สำเร็จไม่อยู่ใน result 3 ค่าของ plan จึงตอบ 422 VALIDATION_FAILED ช่อง `borrowerCredential`
+  ไม่มีคำขอ = 404 แบบเดียวกับ 001 (plan ไม่ได้กำหนดรหัส), mismatch ตอบ 200 พร้อม result (ส่วน 409 BORROWER_MISMATCH อยู่ที่ POST handover ใน T-20)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-10
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่สร้าง/แก้: `backend/internal/handover/service.go` (`Service.Handover`, `normalDueAt`), `handler.go` (`handover` รับ multipart), `handler_test.go`
+- ผล test: `TestAC_HND_02_HandoverRecordsBorrower` ผ่าน 2 กรณี (ตรวจบัตรแล้ว 201 บันทึกชื่อ นามสกุล รหัสนักศึกษา เวลา / ไม่ตรวจบัตร 422 ช่อง cardChecked ไม่มี Loan)
+  `TestAC_HND_07_HandoverCreatesLoan` ผ่าน (Loan 1 รายการที่ยังไม่คืน อุปกรณ์ borrowed คำขอ handed_over) `go test ./...` ผ่าน
+- ต่างจากช่อง "เสร็จเมื่อ" เล็กน้อย: test ส่วนบันทึกของ AC-HND-02 แยกเป็น `TestAC_HND_02_HandoverRecordsBorrower` (ชื่อยังมี AC ID) เพราะต้องใช้ข้อมูลคนละชุดกับ subtest verify_borrower ของ T-09
+- สิ่งที่ AI ตัดสินในขอบเขตที่ plan ให้: หลังบ้านยืนยันผู้ยืมซ้ำด้วย `borrowerCredential` (plan v1.4) รหัสนักศึกษา = รหัสผู้ใช้ (ASM-HND-09)
+  ช่องที่ขาดตอบ 422 VALIDATION_FAILED พร้อมชื่อช่อง, กำหนดคืนใช้ `LoanNormalReturnHour` กับ time.Now (นาฬิกาที่ inject ได้อยู่ใน T-14)
+- ยังไม่ทำใน task นี้ (เป็นของ task อื่น): รูป (T-15) test ส่งรูป JPG 2 รูปไว้แล้วแต่ยังไม่ถูกเก็บ, เทียบผู้ยืมกับผู้ขอ (T-20),
+  timeout 10 วินาที (T-13), REQUEST_NOT_APPROVED (T-16 ตอนนี้คำขอที่ไม่พร้อมได้ 503 ชั่วคราว)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-14
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/service.go` (Service รับนาฬิกา `now`), `handler.go` (`newHandler` ใส่ verifier และนาฬิกาได้), `handler_test.go`
+- ผล test: `TestAC_HND_05_DueAt1600SameDay` ผ่าน (นาฬิกา 2569-11-12 10:00 Asia/Bangkok ได้เวลาส่งมอบ 10:00 และกำหนดคืน 16:00 วันเดียวกัน ตรวจจากฐานข้อมูล) `go test ./...` ผ่าน
+- ค่า 16:00 อ่านจาก `config.LoanNormalReturnHour` เขตเวลาจาก `config.TimeZone` ไม่อ่านตารางของ 004
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-16
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/handler.go` (แปลง `ErrRequestNotReady` เป็น 409 `REQUEST_NOT_APPROVED`), `handler_test.go`
+  ช่อง "ไฟล์ที่แตะ" ระบุ service.go แต่การตรวจสถานะอยู่ใน transaction ของ T-06 แล้ว งานที่เหลือคือแปลง error ซึ่งอยู่ใน handler.go
+- ผล test: `TestAC_HND_01_RequestNotApproved` ผ่าน 2 กรณี (requested / handed_over ได้ 409 ไม่มี Loan อุปกรณ์ยัง available สถานะคำขอไม่เปลี่ยน) `go test ./...` ผ่าน
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-17
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/handler_test.go`
+- ผล test: `TestAC_HND_04_ItemNotAvailable` ผ่าน 2 กรณี (unavailable / borrowed ได้ 409 ITEM_NOT_AVAILABLE ไม่มี Loan ใหม่ สถานะอุปกรณ์ไม่เปลี่ยน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-20
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/repository.go` (เทียบผู้ยืมกับ `requester_id` ใน transaction เดียวกับการล็อกคำขอ `ErrBorrowerMismatch`),
+  `handler.go` (409 `BORROWER_MISMATCH`), `handler_test.go`, `repository_test.go`
+  ช่อง "ไฟล์ที่แตะ" ระบุ service.go แต่ AI ย้ายการเทียบไปไว้ใน transaction เพื่อใช้แถวคำขอที่ล็อกแล้ว ไม่ต้องอ่านคำขอซ้ำ
+- ผล test: `TestAC_HND_10_BorrowerMismatch` ผ่าน (นักศึกษา B ล็อกอินรับของคำขอของ A ได้ 409 ไม่มี Loan อุปกรณ์ available คำขอยัง approved)
+- test ที่ไม่ผ่านระหว่างทาง: `TestHandover_ConcurrentSameItem` (T-18) เพราะข้อมูลตั้งต้นใช้ผู้ยืม student-001 กับคำขอของ student-002 ด้วย
+  แก้ข้อมูลตั้งต้นของ test ให้ผู้ยืมตรงกับผู้ขอของแต่ละคำขอ (ไม่ใช่ test ที่ขึ้นต้นด้วย TestTC_ และไม่ได้ลดสิ่งที่ test ตรวจ) ผ่าน 3 รอบติด
+- `go test ./...` ผ่านทุก package
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-15
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่สร้าง/แก้: `backend/internal/handover/photos.go` (ตรวจจำนวนขั้นต่ำและชนิดจากเนื้อไฟล์ด้วย `http.DetectContentType`, `photoSaver`),
+  `service.go` (ตรวจรูปก่อนยืนยันผู้ยืม), `repository.go` (`CreateHandover` รับ `PhotoSaver` เขียนรูปหลังสร้าง Loan บันทึก `handover_photo` ใน transaction เดียวกัน ลบรูปเมื่อขั้นต่อไปล้มเหลว),
+  `handler.go` (อ่านช่อง `photos`, 422 VALIDATION_FAILED ช่อง photos), `handler_test.go`, `repository_test.go` (ส่ง nil เป็น PhotoSaver), `fixture_test.go` (ลบโฟลเดอร์รูปของ test ตอนจบ)
+- ผล test: `TestAC_HND_06_TwoJpgPhotosSaved` ผ่าน (JPG 2 รูป รูปละ 2 MB ได้ 201 มี 2 แถวผูกกับ Loan ไฟล์อยู่ที่ `<root>/<loanId>/` ขนาดตรง) `go test ./...` ผ่าน
+- test เก็บรูปที่โฟลเดอร์ชั่วคราวของระบบ ไม่เขียนลง `/data/photos` ของเครื่อง
+- ขนาด 10 MB ยังไม่ตรวจ (T-28 รอ Q-HND-10)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-21
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/handler_test.go`
+- ผล test: `TestAC_HND_12_InvalidPhotos` ผ่าน 3 กรณี ((ก) 1 รูป, (ข) GIF, (ข) GIF ที่ตั้งชื่อและ Content-Type เป็น jpg) ได้ 422 ช่อง photos ไม่มี Loan อุปกรณ์ available ไม่มีไฟล์ค้าง
+- กรณี (ค) 11 MB ยังไม่ทำ (T-28 รอ Q-HND-10)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-19
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/handler_test.go` (ไม่ได้แก้ fixture_test.go เพราะ helper ใน handler_test.go พอแล้ว)
+- ผล test: `TestAC_HND_13_OtherRequestUntouched` ผ่าน (ส่งมอบ X สำเร็จ สถานะ Y ยัง requested / ตั้ง Y เป็น approved แล้วส่งมอบ Y ได้ 409 ITEM_NOT_AVAILABLE มี Loan 1 รายการ)
+- ข้อมูลตั้งต้นตาม AC ตรง ๆ ซึ่งในระบบจริงไม่เกิดแล้ว (Q-SH-06 ปิดบางส่วน) เขียนหมายเหตุใน test ถ้าทีมแก้หรือยกเลิก AC-HND-13 ต้องแก้ test นี้ตาม
+- ขั้น "ส่งมอบ Y" ต้องตั้ง Y เป็น approved เองก่อน เพราะ 005 ส่งมอบได้เฉพาะคำขอที่อนุมัติแล้ว (ถ้าไม่ตั้ง จะได้ REQUEST_NOT_APPROVED แทน ITEM_NOT_AVAILABLE ตามที่ AC เขียน)
+- gofmt จัดรูปแบบคอมเมนต์ของ test ใหม่ (ย่อหน้าใน doc comment)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-23
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/handler_test.go`
+- ผล test: `TestAC_HND_09_StudentForbidden` ผ่าน (`mock-student-001` เรียก POST handover ของคำขออนุมัติแล้ว ได้ 403 FORBIDDEN_ROLE ไม่มี Loan อุปกรณ์ available คำขอยัง approved)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-24
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/handler_test.go`
+- ผล test: `TestAC_HND_11_HandoverAfter1600` ผ่าน (นาฬิกา 16:30 ได้ 201 เวลาส่งมอบ 16:30 อุปกรณ์ borrowed) ไม่ตรวจ `due_at` ตามที่ spec สั่ง (รอ Q-HND-03, T-25)
+- ข้อสังเกต: ตอนนี้โค้ดตั้งกำหนดคืนเป็น 16:00 ของวันเดียวกันแม้ส่งมอบหลัง 16:00 (เลยกำหนดทันที) จนกว่าทีมตอบ Q-HND-03
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-05
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover (แก้ของกลาง `frontend/src/App.jsx` และ `frontend/src/api/client.js` เพิ่มต่อท้ายเท่านั้น)
+- เครื่องมือ: Claude Code
+- ไฟล์ที่สร้าง/แก้: `frontend/src/pages/Handover/HandoverList.jsx`, `frontend/src/pages/Handover/HandoverPage.jsx` (ไม่อยู่ในช่อง "ไฟล์ที่แตะ" เพิ่มเป็นหน้าที่รวมรายการกับฟอร์มของ T-11 เพื่อให้ App.jsx ไม่ต้องแก้อีก),
+  `frontend/src/api/client.js` (บล็อก 005 `handoverApi` และ helper ที่อ่าน `{code, fields}` ตาม CON-TECH-03 ไม่แก้ `api` เดิมของ 001),
+  `frontend/src/App.jsx` (เปิดหน้าส่งมอบเมื่อ path ขึ้นต้นด้วย `/handover` ไม่เพิ่มปุ่มหรือเมนู), `frontend/src/__tests__/AC-HND-14.test.jsx`
+- ผล test: `AC-HND-14.test.jsx` ผ่าน (client จำลองคืน 2 คำขอ ตารางแสดง 2 แถว) `npx vitest run` 11 ไฟล์ 18 test ผ่าน `vite build` ผ่าน
+- ไม่มี mockup ทีมออกแบบเอง หัวคอลัมน์และข้อความ "เลือก" "ไม่มีคำขอที่รอส่งมอบ" ทีมเลือกเอง ไม่ได้มาจาก spec
+- ไม่มี router ใน template จึงใช้ path ของเบราว์เซอร์ตรง ๆ แทนการเพิ่ม library (plan ไม่ได้ระบุ)
+- หมายเหตุ: App.jsx ใช้ CRLF แก้ด้วย Edit
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-11
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่สร้าง/แก้: `frontend/src/pages/Handover/HandoverForm.jsx`, `HandoverPage.jsx` (รายการ -> ฟอร์ม), `frontend/src/api/client.js` (เก็บ message จากหลังบ้านไว้แสดง), `frontend/src/__tests__/AC-HND-02.test.jsx`
+- ผล test: `AC-HND-02.test.jsx` ผ่าน 2 test (ไม่ติ๊กตรวจบัตร ปุ่มใช้ไม่ได้และไม่ส่ง / ติ๊กแล้วส่งชื่อ นามสกุล cardChecked=true รูป 2 ไฟล์ และแสดงเวลาที่ส่งมอบ) `npx vitest run` 12 ไฟล์ 20 test ผ่าน
+- ไม่มี mockup ข้อความบนฟอร์มทีมเลือกเอง ไม่ได้มาจาก spec ข้อผิดพลาดแสดง message ที่หลังบ้านส่งมา (CON-TECH-03)
+- ช่องล็อกอินของผู้ยืม (borrowerCredential) ยังไม่มี เป็นงานของ T-12 ระหว่างนี้หลังบ้านจะตอบ 422 ถ้ายังไม่ได้ทำ T-12
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-12
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `frontend/src/pages/Handover/HandoverForm.jsx` (ส่วน "ผู้ยืมล็อกอินบัญชีมหาวิทยาลัย" ปุ่มยืนยันตัวตนผู้ยืม แสดงผล verified / mismatch / unavailable),
+  `frontend/src/__tests__/AC-HND-02.test.jsx` (2 test เดิมเพิ่มขั้นยืนยันผู้ยืม + test ใหม่กรณียังไม่ยืนยันและ mismatch)
+- ผล test: `AC-HND-02.test.jsx` 3 test ผ่าน `npx vitest run` 12 ไฟล์ 21 test ผ่าน `vite build` ผ่าน
+- ปุ่มบันทึกใช้ได้เมื่อผลเป็น verified หรือ unavailable และติ๊กตรวจบัตรแล้ว หลังบ้านยืนยันผู้ยืมซ้ำเองเสมอ (plan v1.4)
+- ช่องบัญชีผู้ยืมเป็นช่องรหัสผ่าน prototype กรอก token จำลอง (เช่น mock-student-001) จนกว่าจะรู้โปรโตคอลของ Auth API (Q-SH-03)
+- ข้อความบนหน้าจอทีมเลือกเอง ไม่ได้มาจาก spec
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-22
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่สร้าง/แก้: `frontend/src/pages/Handover/HandoverForm.jsx` (ตรวจจำนวนและชนิดรูปจาก `HANDOVER_MIN_PHOTOS`, `HANDOVER_PHOTO_TYPES` ก่อนส่ง), `frontend/src/__tests__/AC-HND-12.test.jsx`
+- ผล test: `AC-HND-12.test.jsx` ผ่าน 2 กรณี ((ก) 1 รูป, (ข) GIF ไม่เรียก client และแสดงข้อความแจ้ง) `npx vitest run` 13 ไฟล์ผ่านทั้งหมด `vite build` ผ่าน
+- ข้อความแจ้งเรียบเรียงจาก FR-HND-06 (อย่างน้อย 2 รูป JPG หรือ PNG) ตัวเลขอ่านจาก config.js ขนาดไฟล์ยังไม่ตรวจ (T-28 รอ Q-HND-10)
+
+---
+
+## 2569-11-12 แก้ให้ PR ของ 005 ไม่กระทบฟีเจอร์อื่นตอน merge
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover (คืนไฟล์ของกลาง `App.jsx`, `api/client.js` เป็นแบบเดียวกับ main แก้ `main.jsx` และ `config.js` ของกลางแทน)
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ถาม ถ้าจะ pr ไป main ตอนนี้จะกระทบใคร และอะไรมั้ย มีอะไรบ้างที่ต้อง merge" แล้ว "แก้ไขมาให้ไม่กระทบคนอื่นก่อน"
+- สิ่งที่ AI พบจากการลอง merge จำลองกับ branch ของทุกคน:
+  1. 002 ประกาศ `const LoanNormalReturnHour` ใน config.go เหมือน 005 git merge ได้เองแต่ build พัง (ประกาศซ้ำ)
+  2. 002 commit `App.jsx`, `client.js`, `config.js`, `migrate.go` เป็น CRLF ทั้งไฟล์ ใครแก้ไฟล์เหล่านี้จะชนกับ 002 ทั้งไฟล์ (ไม่ใช่ปัญหาของ 005)
+  3. 003 แก้ `App.jsx` (ปุ่มเลือกหน้า) และต่อท้าย `config.js` ชนกับ 005
+- สิ่งที่แก้:
+  1. config.go เปลี่ยนชื่อค่าของ 005 เป็น `HandoverDueHour` ชั่วคราว (ค่าเดียวกับ `LoanNormalReturnHour` ของ 002 ต้องรวมเป็นตัวเดียวหลัง 002 merge)
+  2. ย้าย `handoverApi` จาก `api/client.js` ไปไฟล์ใหม่ `frontend/src/api/handover.js` (ใช้ BASE และ ApiError ของ client.js) แล้วคืน client.js เป็นแบบ main
+  3. คืน `App.jsx` เป็นแบบ main (รอบแรกย้ายไป `main.jsx` แต่ 002 เปลี่ยนท้ายบรรทัดของ main.jsx ด้วย จึงย้ายอีกครั้ง)
+     เปิดหน้าส่งมอบจากไฟล์ใหม่ `frontend/handover.html` + `src/handover-main.jsx` (Vite เปิดได้ที่ /handover.html โดยไม่ต้องแก้ vite.config.js) ไม่แก้ไฟล์เดิมของใคร
+  4. ย้ายบล็อก 005 ใน `frontend/src/config.js` ไปไว้ต้นไฟล์ ไม่ชนกับ 002, 003 ที่ต่อท้าย
+- ผล test: `go test ./...` ผ่านทุก package `npx vitest run` 13 ไฟล์ 23 test ผ่าน `vite build` ผ่าน
+- ชนที่เหลือและหลีกไม่ได้: เอกสารที่ต่อท้าย (prompt-log, CHANGELOG, constraints.md, data-model.md) และ config.js กับ 002 เพราะ 002 เปลี่ยนท้ายบรรทัดทั้งไฟล์
+- รอบที่ 2 (เอกสารของกลาง) หลังลอง merge จำลองซ้ำ:
+  - 004 ลงทะเบียน `FORBIDDEN_ROLE` ไว้ใน branch ของตัวเองด้วย (รหัสเดียวกัน) AI ใช้แถวที่ข้อความตรงกับของ 004 ทุกตัวอักษรในตำแหน่งเดียวกัน git จึง merge ได้โดยไม่ชนและไม่เกิดแถวซ้ำ
+    แถว `REQUEST_NOT_APPROVED`, `BORROWER_MISMATCH` ย้ายไปไว้ใต้ `ITEM_NOT_AVAILABLE` ไม่ติดกับจุดที่ 004 เพิ่ม
+  - คืน `data-model.md` เป็นแบบ main เพราะ 003 แก้ตาราง "เลข migration" แถวเดียวกัน (003 เขียนว่า "0006 ขึ้นไป ฟีเจอร์ถัดไป") เลข 0006, 0007 ของ 005 บันทึกใน plan.md และต้องแจ้งกลุ่ม ลงตารางหลัง 003 merge
+
+---
+
+## 2569-11-12 merge main (PR #9 ของ 002) เข้า 005 และใช้ค่า 16:00 ของ 002
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ตรวจสอบ commit เมื่อ 7 นาทีที่แล้วของ branch main อีกครั้งหน่อย เพื่อนเพิ่งอัพเข้ามา" แล้ว "แก้ไขที่เราก่อน"
+- main ได้ฟีเจอร์ 002 (PR #9) มี `LoanNormalReturnHour = 16` ใน config.go แล้ว
+- conflict 2 ไฟล์: `frontend/src/config.js` (ใช้ของ main + บล็อก 005 ต้นไฟล์ 10 บรรทัดแรกที่ 002 ยังเป็น CRLF ถูกแปลงกลับเป็น LF ตาม autocrlf ซึ่งตรงกับก่อน 002)
+  และ `prompt-log.md` (เก็บทั้งสองฝั่ง ของ main ก่อน)
+- ลบ `HandoverDueHour` ของ 005 ใช้ `config.LoanNormalReturnHour` ของ 002 แทน (กฎข้อ 9 ค่าเดียวที่เดียว) แก้ plan ข้อ 5 และ tasks (หัวไฟล์, T-01, T-14)
+- ผล test: `go test ./...` ผ่านทุก package รวม borrowrequest และ config_test ของ 002 `npx vitest run` ผ่าน
+
+---
+
+## 2569-11-12 ตรวจก่อน push และเปิด PR ไป main
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "recheck ให้ชัวว่า push + pr แล้ว merge ไปแล้วงานของคนอื่นไม่พัง หรืองานเราไม่ได้ไปทับของคนอื่น จัดการมาได้เลย"
+- ตรวจ: branch มี main ล่าสุด (9e16c56) แล้ว ลอง merge จำลองกับ main ไม่ชน ไฟล์นอก 005 ที่แตะ 8 ไฟล์ ทุกบรรทัดที่เปลี่ยนในไฟล์ของคนอื่นเป็นการเติม
+  ข้อความเดิมของ 001, 002 ในตาราง "ใครอ้างใช้บ้าง" ยังอยู่ครบ prompt-log ไม่มีบรรทัดถูกลบ
+- แก้: ข้อความ Status ของ constraints.md v5.1 ให้ตรงว่าเพิ่ม 2 รหัสใหม่ และ FORBIDDEN_ROLE แถวเดียวกับของ 004
+- ผล test: `go test -p 1 ./...` ผ่านทุก package (auth, borrowrequest, config, equipment, handover, platform) `npx vitest run` 23 test ผ่าน `vite build` ผ่าน
+  รอบแรกที่รันพร้อมกันหลาย package test ของ equipment ล้มเพราะ testcontainers ต่อ Docker ไม่ได้ชั่วคราว รันซ้ำแล้วผ่าน ไม่ใช่ปัญหาของโค้ด
+
+---
+
+## 2569-11-12 ตรวจชื่อ commit ให้ตรงรูปแบบหลัก
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ไป recheck ชื่อ commit ไป push ไปดูของคนอื่น แล้วทำในรูปแบบหลัก" แล้ว "อนุญาต force push"
+- รูปแบบหลัก (specs/README.md ขั้น 2-5 และ commit ใน main): `00N: spec vX`, `00N: plan vX`, `00N: tasks vX`, `00N: T-xx done` รายละเอียดเพิ่มต่อด้วย ` - `
+- แก้ชื่อ 2 commit (เนื้อหาไฟล์ไม่เปลี่ยน ตรวจด้วย git diff): `005: spec v2.6 ปิด ...` เป็น `005: spec v2.6 - ปิด ...`
+  และ `005: spec v2.5, plan v1.3, tasks v1.3` เป็น `005: tasks v1.3 - รวม spec v2.5 และ plan v1.3 ...` (ไม่มี commit tasks v1 แยกตาม README)
+- force push ด้วย `--force-with-lease=005-handover:3e24726` ตามที่ทีมอนุญาต (branch ของ 005 คนเดียว ยังไม่มี PR) remote เป็น 1876206
+- ไม่ได้สร้าง commit `T-xx reviewed` เพราะต้องให้คนในทีมตรวจจริงก่อน
