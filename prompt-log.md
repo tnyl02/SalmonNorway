@@ -970,3 +970,30 @@
 - สิ่งที่ AI พบและไม่ได้ตัดสินเอง: index (requester_id, status, submitted_at DESC) ไม่อยู่ในโครงของ 002 ยังไม่รู้ว่าใครเพิ่ม (บันทึกใน plan หัวข้อ 8)
 - 002 ขอคำตอบกลับ 2 ข้อ: ชนิดข้อมูลตรงไหม (ตรง) และต้องได้ตารางเมื่อไร (เร็วที่สุด)
 
+---
+
+## 2569-11-11 บันทึกคำตอบรอบที่ 2 ของเจ้าของ 002 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (อ่านจาก https://claude.ai/artifact/SrBS61rXxEcNSCGiZkK5uW ส่วน "รอบที่ 2")
+- คำตอบ: (3) data-model v5-v8 อยู่ในเครื่อง 002 ยังไม่ push 003 นำแถว notify ไปวางบน v8 เป็น v9
+  (4) 002 ใส่ index idx_request_owner_status ใน 0003 (5) constraint ชื่อ audit_log_action_check 0005 ใส่ค่าครบรวม request
+  002 ขอ: ห้าม push 0005 เข้า main ก่อน 0003
+- ไฟล์ที่แก้: spec.md (Draft v3.6 ASM-11, ASM-12, Clarifications), plan.md (v1.4 หัวข้อ 3, 8), tasks.md (หัวไฟล์, T-30, T-31), CHANGELOG, README
+- สิ่งที่ AI พบและไม่ได้ตัดสินเอง: audit_log เป็น append-only (trigger ใน 0002) เมื่อมี FK จาก 0003 ตัวช่วย test ล้าง borrow_request ไม่ได้
+  และแผนเดิมที่ให้ลบแถว audit_log ก่อนทำไม่ได้ บันทึกทางเลือก 3 ทางใน plan หัวข้อ 8 ให้ทีมตัดสินก่อน T-31
+
+---
+
+## 2569-11-11 บันทึกคำตอบของเจ้าของ 001 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code
+- คำตอบของพรรณธร: รับ action notify (migration ใหม่ ไม่แก้ 0002, constraint audit_log_action_check), writer.go (T-19 ของ 001) จะรับ pool และ pgx.Tx
+  ยังไม่ระบุวันเสร็จ รอไม่ไหวใช้แผนสำรองได้, ขอให้ยืนยันเลข 0003/0004 ในกลุ่ม, รับทราบ App.jsx และ formatDueAt
+- ไฟล์ที่แก้: spec.md (Draft v3.7 ASM-12, Clarifications), plan.md (v1.5 หัวข้อ 3, 8), tasks.md (หัวไฟล์), CHANGELOG, README
+- สิ่งที่ AI พบ: 001 เขียนว่า CHECK ต้องมี 5 ค่า (ไม่มี request) ขัดกับที่ตกลงกับ 002 ว่า 0005 ต้องมี 6 ค่า ใช้ 6 ค่าและต้องแจ้ง 001
+  คำตอบเรื่องวันเสร็จของ T-19 ยังเป็นช่องว่าง "[ใส่วันที่]" ไม่ได้เดาวันที่
+

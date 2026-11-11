@@ -2,6 +2,21 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [SPEC-CXL-003 Draft v3.7 + plan v1.5] - 2569-11-11
+เจ้าของ 001 (พรรณธร) ตอบ ไม่มี CR ไม่เปลี่ยน FR หรือ AC
+
+### Changed
+- ASM-12: 001 รับ action notify, writer.go จะรับ pool และ pgx.Tx (ยังไม่มีวันเสร็จ) แผนสำรองยังใช้ได้
+- plan.md หัวข้อ 3 และ 8, tasks.md หัวไฟล์
+
+## [SPEC-CXL-003 Draft v3.6 + plan v1.4] - 2569-11-11
+เจ้าของ 002 ตอบรอบที่ 2 อีก 3 ข้อ ไม่มี CR ไม่เปลี่ยน FR หรือ AC
+
+### Changed
+- ASM-11: 002 ใส่ index idx_request_owner_status ใน 0003, ห้าม push 0004/0005 เข้า main ก่อน 0003
+- ASM-12: constraint ชื่อ audit_log_action_check, 0005 รวมค่า request ของ 002, data-model ของ 003 จะเป็น v9 บน v8 ของ 002 แทน v4.1
+- plan.md หัวข้อ 3, 8 (เพิ่มเรื่องที่ยังไม่ตัดสิน: การล้างข้อมูลระหว่าง test เพราะ audit_log append-only), tasks.md หัวไฟล์, T-30, T-31
+
 ## [SPEC-CXL-003 Draft v3.5 + plan v1.3] - 2569-11-11
 เจ้าของ 002 (ธัญลักษณ์) ตอบ 4 ข้อเรื่องตาราง borrow_request ไม่มี CR เพราะเป็นการตอบข้อตกลงที่เปิดไว้ ไม่เปลี่ยน FR หรือ AC
 

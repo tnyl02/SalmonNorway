@@ -1,5 +1,5 @@
 # Implementation Plan: ยกเลิกคำขอยืม (Cancel Borrow Request)
-Spec: SPEC-CXL-003 (specs/003-cancel-request/spec.md, Draft v3.5) | Plan status: Draft v1.3 | Updated: 2569-11-11 (002 สร้าง borrow_request เอง ASM-11)
+Spec: SPEC-CXL-003 (specs/003-cancel-request/spec.md, Draft v3.7) | Plan status: Draft v1.5 | Updated: 2569-11-11 (001 รับ action notify และ writer.go รับ pgx.Tx)
 Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
 
 ## 1. สรุปแนวทาง
@@ -56,7 +56,7 @@ borrow_request(
   cancelled_at  TIMESTAMPTZ NULL                                      * เวลาที่ยกเลิก (FR-CXL-05, FR-CXL-09) ของ 003
 )
 ALTER TABLE audit_log ADD CONSTRAINT fk_audit_log_request FOREIGN KEY (request_id) REFERENCES borrow_request (id)   -- 002 เพิ่มใน 0003
-INDEX (requester_id, status, submitted_at DESC)   -- FR-CXL-06 ดึงรายการของตนเรียงใหม่ไปเก่า ยังไม่อยู่ในโครงที่ 002 ส่งมา ยังไม่ตัดสินว่าใครเพิ่ม (หัวข้อ 8)
+CREATE INDEX idx_request_owner_status ON borrow_request (requester_id, status, submitted_at DESC)   -- FR-CXL-06 002 ใส่ใน 0003
 ```
 การแมปชื่อสถานะ (CON-CXL-02): Requested=`requested`, Approved by Officer=`approved_by_officer`,
 Pending Advisor Approval=`pending_advisor_approval`, Approved=`approved`, Rejected=`rejected`,
@@ -68,6 +68,7 @@ Handed Over=`handed_over`, Returned=`returned`, ยกเลิก=`cancelled`
 003 เพิ่ม migration ใหม่ให้ CHECK ของ `action` รับ `notify` (ASM-12) ห้ามแก้ไฟล์ 0002 ตามกติกาในไฟล์นั้น
 การแมปกรณี -> action / outcome / request_id / query ตามตารางใน FR-CXL-05 ของ spec (ASM-12)
 ถ้า 001 ทำ `backend/internal/audit/writer.go` (T-19 ของ 001) ที่รับ transaction ได้แล้ว ให้ใช้ของเดิม ถ้ายังไม่มีให้เขียนใน repository ของ 003 ภายใน transaction เดียวกัน
+(001 ยืนยัน 2569-11-11: writer.go จะรับได้ทั้ง pool และ pgx.Tx คือรับอะไรก็ได้ที่มี Exec และอนุญาตแผนสำรองถ้ารอไม่ไหว)
 บันทึกเฉพาะผู้ใช้ที่ยืนยันตัวตนแล้ว (ASM-07) ไม่เก็บเหตุผลการยกเลิกใน audit_log (เก็บที่ borrow_request แล้ว)
 
 ### staff_contact (จำลอง ASM-10)
@@ -217,6 +218,16 @@ frontend: vitest ใน `frontend/src/pages/MyPendingRequests/__tests__/` ใช
 - ~~migration `audit_log` ยังไม่มี~~ มีแล้วใน main (0002) โครงกลางก็ merge เข้า main แล้ว (2569-11-10)
 - เลข migration: data-model.md จอง `0003_borrow_request` ให้ 002 และ `0004` ขึ้นไปให้ 003 เป็นต้นไป จองในกลุ่มแล้ว 2569-11-11: 003 ได้ `0004` และ `0005`
 - ~~ชื่อคอลัมน์และค่าสถานะของ `borrow_request` ต้องตกลงกับเจ้าของ 002~~ ตกลงแล้ว 2569-11-11 (ASM-09, ASM-11) **ยังรอ 002 push `0003_borrow_request` เข้า main**
-- index `(requester_id, status, submitted_at DESC)` ไม่อยู่ในโครงที่ 002 ส่งมา ต้องตัดสินว่าขอ 002 เพิ่มใน 0003 หรือ 003 เพิ่มใน 0004
-- ตัวช่วย test `tcServer` ล้างข้อมูลด้วย `DELETE FROM borrow_request` เมื่อมี FK จาก audit_log ต้องลบแถว audit_log ที่อ้างคำขอก่อน (แก้ใน T-31)
+- ~~index ใครเพิ่ม~~ 002 ใส่ `idx_request_owner_status` ใน 0003 แล้ว (ตกลง 2569-11-11)
+- ลำดับ push: 0004 และ 0005 ของ 003 ห้ามเข้า main ก่อน 0003 ของ 002 (ถ้าฐานข้อมูลรันถึงเลข 5 แล้ว golang-migrate จะไม่ย้อนรัน 0003 ที่มาทีหลัง)
+- 0005 เขียนแบบ `ALTER TABLE audit_log DROP CONSTRAINT audit_log_action_check;` แล้ว `ADD CONSTRAINT audit_log_action_check CHECK (action IN ('list','search','detail','cancel','request','notify'))` (ASM-12)
+- data-model.md: รอ 002 push v5 ถึง v8 แล้วนำแถว notify ของ 003 ไปวางบน v8 เป็น v9 (ตอน merge main เข้า branch 003 ให้แก้ conflict ตามนี้)
+- ~~001 รับ action notify ไหม~~ รับแล้ว 2569-11-11 (ASM-12)
+- writer.go ของ 001 (T-19) ยังไม่มี ยังไม่ได้วันที่เสร็จ ถ้าไม่เสร็จก่อน 003 ถึง T-31 ใช้แผนสำรอง (เขียน audit ใน repository ของ 003)
+- ถ้า merge migration ไม่ตรงลำดับเลข ทุกคนต้องล้างฐานข้อมูลในเครื่องด้วย `docker compose -f deploy/docker-compose.yml down -v` (001 แจ้ง)
+- **ยังไม่ตัดสิน: การล้างข้อมูลระหว่าง test** ตัวช่วย test `tcServer` ใช้ `DELETE FROM borrow_request` แต่เมื่อ 0003 เพิ่ม FK จาก audit_log
+  และ audit_log เป็น append-only (trigger ใน 0002 ห้าม DELETE, UPDATE, TRUNCATE) ลบคำขอที่มีแถว audit อ้างอยู่ไม่ได้ และลบแถว audit ก็ไม่ได้
+  ทางเลือก: (ก) ไม่ลบข้อมูลระหว่าง test ให้แต่ละ test ใช้คำขอที่สร้างใหม่และตรวจด้วย requestId ของตัวเอง
+  (ข) ตอนล้างใน test ตั้ง `SET session_replication_role = replica` ปิด trigger และ FK ชั่วคราว (ทำได้เพราะ testcontainers ใช้ superuser)
+  (ค) สร้างฐานข้อมูลใหม่ต่อ test (ช้า) ต้องตัดสินก่อนทำ T-31
 - 004 ต้องใช้เงื่อนไขสถานะตอนอนุมัติ เพื่อไม่ให้อนุมัติคำขอที่ถูกยกเลิกแล้ว (ASM-05) เจ้าของ 004 รับกฎแล้ว 2569-11-11 และหน้าอนุมัติซ่อนคำขอ cancelled

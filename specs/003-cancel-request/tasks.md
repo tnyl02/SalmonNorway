@@ -23,6 +23,11 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
   จองในกลุ่มแล้ว 2569-11-11: 003 ได้ `0004` และ `0005`
 - ~~ชื่อคอลัมน์และค่าสถานะของ `borrow_request` ต้องตกลงกับเจ้าของ 002 ก่อนทำ T-01~~ ตกลงแล้ว 2569-11-11: 002 สร้างเองใน 0003 พร้อม cancel_reason, cancelled_at และ FK ของ audit_log (ASM-09, ASM-11)
   **T-01 ยังต้องรอ 002 push `0003_borrow_request` เข้า main และ 003 merge main เข้า branch**
+  002 ใส่ index `idx_request_owner_status` ใน 0003 ให้แล้ว (ตกลงรอบที่ 2)
+- ห้าม push 0004 และ 0005 ของ 003 เข้า main ก่อน 0003 ของ 002 (ตกลงกับ 002 2569-11-11)
+  ถ้าเผลอ merge ไม่ตรงลำดับ ทุกคนต้องรัน `docker compose -f deploy/docker-compose.yml down -v` (001 แจ้ง)
+- 001 รับ action notify แล้ว (2569-11-11) และ writer.go (T-19 ของ 001) จะรับ pgx.Tx ได้ ยังไม่ได้วันเสร็จ (T-31)
+- data-model.md: 002 มี v5 ถึง v8 ยังไม่ได้ push ตอน merge main ให้นำแถว notify ของ 003 ไปวางบน v8 เป็น v9 ไม่ใช้ v4.1
 - 004 ต้องใช้เงื่อนไขสถานะตอนอนุมัติ (ASM-05) ไม่กระทบ task ของ 003 แต่กระทบผลของ AC-CXL-04 ตอนลองทั้งระบบ
   ณัฐสุดายืนยันแล้ว 2569-11-11: รับกฎไปเขียนใน spec ของ 004 และหน้าอนุมัติซ่อนคำขอ cancelled
 - task ที่แตะไฟล์ของกลาง (`backend/internal/platform/http.go`, `backend/cmd/server/main.go`, `frontend/src/App.jsx`, `frontend/src/api/client.js`, `backend/internal/config/config.go`, `backend/db/migrations/`) ต้องจดใน prompt-log ว่าแก้เพราะ 003 (AGENTS.md)
@@ -516,16 +521,16 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 ### T-30 เพิ่ม action notify ใน audit_log
 - รองรับ: FR-CXL-05, FR-CXL-09, ASM-12, CON-TECH-01
 - ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นงานพื้นฐานของ T-31, T-32
-- ไฟล์ที่แตะ: `backend/db/migrations/0005_audit_log_notify_action.up.sql` (ของกลาง ไฟล์ใหม่ เลขจองในกลุ่ม ห้ามแก้ 0002 และต้องคง action `request` ที่ 002 เพิ่มใน 0003), `backend/internal/cancelrequest/migration_test.go`
+- ไฟล์ที่แตะ: `backend/db/migrations/0005_audit_log_notify_action.up.sql` (ของกลาง ไฟล์ใหม่ เลขจองในกลุ่ม ห้ามแก้ 0002: DROP แล้ว ADD `audit_log_action_check` ชื่อเดิม ค่า list, search, detail, cancel, request, notify), `backend/internal/cancelrequest/migration_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
-- เสร็จเมื่อ: `TestMigration_AuditLogAcceptsNotify` ผ่าน (insert action `notify` ได้ ค่า action อื่นนอกตาราง DM-07 ยังถูกปฏิเสธ และ action เดิมของ 001 ยังใช้ได้)
+- เสร็จเมื่อ: `TestMigration_AuditLogAcceptsNotify` ผ่าน (insert action `notify` ได้ ค่า action อื่นนอกตาราง DM-07 ยังถูกปฏิเสธ และ action เดิมของ 001 กับ `request` ของ 002 ยังใช้ได้)
 - สถานะ: พร้อมทำ
 
 ### T-31 บันทึก audit_log ทุกครั้งที่พยายามยกเลิก
 - รองรับ: FR-CXL-05, ASM-07
 - ตรวจด้วย: AC-CXL-06, AC-CXL-07 (ส่วน audit)
-- ไฟล์ที่แตะ: `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/repository.go`, `backend/internal/cancelrequest/handler_test.go` (ถ้า `backend/internal/audit/writer.go` ของ 001 รับ transaction ได้ ให้เรียกใช้แทนเขียนเอง), `backend/internal/cancelrequest/tc_helpers_test.go` (ตัวช่วย ไม่ใช่ TC: ลบแถว audit_log ที่อ้างคำขอก่อน `DELETE FROM borrow_request` เพราะมี FK จาก 0003 ของ 002)
+- ไฟล์ที่แตะ: `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/repository.go`, `backend/internal/cancelrequest/handler_test.go` (ถ้า `backend/internal/audit/writer.go` ของ 001 รับ transaction ได้ ให้เรียกใช้แทนเขียนเอง), `backend/internal/cancelrequest/tc_helpers_test.go` (ตัวช่วย ไม่ใช่ TC: แก้วิธีล้างข้อมูล เพราะ FK จาก 0003 และ audit_log ลบไม่ได้ ต้องตัดสินทางเลือกใน plan หัวข้อ 8 ก่อน)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-30, T-09, T-19, T-25
 - เสร็จเมื่อ: `TestAC_CXL_06_AuditLogAttempts` ผ่าน (3 แถว action `cancel`: `ok` 1, `forbidden` 2 มี request_id และ cause ใน query ตามตาราง FR-CXL-05 เขียนใน transaction เดียวกับการยกเลิก) และ `TestAC_CXL_07_ExpiredSessionNoCancel` ตรวจเพิ่มว่าไม่มีแถวใหม่

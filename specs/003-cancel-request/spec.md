@@ -1,7 +1,7 @@
 # specs/003-cancel-request/spec.md
 # Feature: ยกเลิกคำขอยืม (Cancel Borrow Request)
 Spec ID: SPEC-CXL-003 | Source: RQ-03, RQ-25, คำตอบของเจ้าของฟีเจอร์ (2569-11-10) และ /clarify รอบที่ 1 | Use case: UC-15
-Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np) | Status: Draft v3.5 | Updated: 2569-11-11 (เจ้าของ 002 ตอบเรื่องตาราง borrow_request ASM-09, ASM-11)
+Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np) | Status: Draft v3.7 | Updated: 2569-11-11 (เจ้าของ 001 รับ action notify และ writer.go ASM-12)
 Backlog: BL-20 (specs/backlog.md)
 
 ## Goal
@@ -231,11 +231,21 @@ Backlog: BL-20 (specs/backlog.md)
   ชื่อคอลัมน์ (id SERIAL, requester_id, item_id, loan_type, purpose, status, submitted_at) และค่าสถานะ 8 ค่าตาม CON-CXL-02 ใช้ตามที่ 003 เสนอ
   002 ประกาศครบ 8 ค่าใน CHECK ตั้งแต่ไฟล์แรก และเพิ่ม foreign key จาก audit_log.request_id ไป borrow_request.id ในไฟล์ 0003 เดียวกัน
   003 ใช้เลข migration ที่กลุ่มจองให้: 0004 staff_contact (ASM-10), 0005 action notify (ASM-12)
+  [รอบที่ 2] 002 ใส่ index `idx_request_owner_status (requester_id, status, submitted_at DESC)` ให้ใน 0003 (FR-CXL-06)
+  003 ห้าม push 0004 และ 0005 เข้า main ก่อน 0003 ของ 002 เข้า main
 - ASM-12 [ทีมตัดสิน 2569-11-11] การบันทึก audit_log ของ 003 (FR-CXL-05, FR-CXL-09) ใช้ตารางใน FR-CXL-05
   `error` ใช้เฉพาะความผิดพลาดของระบบ กรณีที่กฎไม่อนุญาตใช้ `forbidden` และเก็บสาเหตุใน `query`
   คำขอที่ไม่มีอยู่ให้ `request_id` ว่าง เพราะ 002 จะเพิ่ม foreign key ไป borrow_request
   เพิ่ม action `notify` (ใช้ร่วมได้ เช่น 004 แจ้งผลอนุมัติ RQ-21) ด้วย migration ใหม่ตามกติกาของ DM-07 แทน `cancel_notify_failed` ที่ขอไว้เดิม
   การบันทึกกรณีเหตุผลไม่ผ่าน (`reason_invalid`) AI ตีความคำว่า "ทุกครั้ง" ใน FR-CXL-05 ทีมยืนยันแล้ว
+  [ตกลงกับ 002 2569-11-11] constraint ของ audit_log.action ชื่อ `audit_log_action_check` ทุกฟีเจอร์ DROP แล้ว ADD ชื่อเดิมพร้อมค่าครบทุกค่าก่อนหน้า
+  0005 ของ 003 = list, search, detail, cancel, request (ของ 002) และ notify
+  data-model.md: 002 มี v5 ถึง v8 ที่ยังไม่ได้ push และเพิ่มแถว `request` ใน DM-07 ที่เดียวกับ `notify` ของ 003 (v4.1)
+  ตกลงว่ารอ 002 push ก่อน แล้ว 003 นำเฉพาะแถว notify ไปวางบน v8 เป็น v9 ไม่ใช้เลข v4.1
+  [เจ้าของ 001 (พรรณธร) ตอบ 2569-11-11] รับ action notify (แถวใหม่ใน DM-07 + migration ใหม่ ไม่แก้ 0002) ยืนยันชื่อ audit_log_action_check
+  001 ตอบว่า 5 ค่า (ไม่มี request) เพราะยังไม่รู้เรื่อง 0003 ของ 002 ใช้ 6 ค่าตามที่ตกลงกับ 002 (ต้องแจ้ง 001)
+  audit/writer.go (T-19 ของ 001) จะรับได้ทั้ง pool และ pgx.Tx ใช้ใน transaction เดียวกับการยกเลิกได้ ยังไม่ได้วันที่เสร็จ
+  ถ้ารอไม่ไหว 001 อนุญาตให้เขียน audit ใน repository ของ 003 ไปก่อน
 - ASM-13 [ทีมตัดสิน 2569-11-11 ตอบจุดที่ spec ไม่ได้บอก จาก /testcases] ยังไม่ได้ถามผู้ใช้จริง
   - เวลาที่ส่งเท่ากัน เรียงตามรหัสคำขอจากมากไปน้อย (FR-CXL-06) ทีมตอบว่า "เรียงตาม requestId" AI ตีความทิศให้ตรงกับ "ใหม่ไปเก่า"
   - เจ้าหน้าที่เรียกหน้า "คำขอที่รออนุมัติของฉัน" -> 403 ถูกปฏิเสธ AI ตีความให้ใช้กับการสั่งยกเลิกด้วย (FR-CXL-03)
@@ -322,6 +332,17 @@ Backlog: BL-20 (specs/backlog.md)
 - Q: ขอเพิ่ม cancel_reason และ cancelled_at -> A: 002 สร้างให้ใน 0003 เป็น VARCHAR(200) NULL และ TIMESTAMPTZ NULL (ASM-09)
 - Q: audit_log.request_id มี foreign key ไหม -> A: มี 002 เพิ่มในไฟล์ 0003 (ASM-11, ASM-12)
 - แจ้งเพิ่ม: Q-SH-06 ปิดแล้ว (ปฏิเสธอัตโนมัติเป็น rejected), 002 เพิ่ม action `request` ใน audit_log ที่ 0003, การยืมเป็นรายชิ้น 1 คำขอ = 1 ชิ้น
+### Session 2569-11-11 (เจ้าของ 002 ธัญลักษณ์ ตอบรอบที่ 2)
+- Q: ของกลางบน GitHub เป็น v4 แต่ 002 อ้าง v8 -> A: v5 ถึง v8 อยู่ในเครื่องของ 002 ยังไม่ได้ push ตาราง action ของ DM-07 จะชนกับ v4.1 ของ 003
+  ให้รอ 002 push แล้ว 003 นำแถว notify ไปวางบน v8 เป็น v9 (ASM-12)
+- Q: index (requester_id, status, submitted_at DESC) ใครเพิ่ม -> A: 002 ใส่ใน 0003 ชื่อ idx_request_owner_status (ASM-11)
+- Q: ชื่อ constraint ของ audit_log.action -> A: `audit_log_action_check` (ชื่อที่ PostgreSQL ตั้งให้ใน 0002) ทุกฟีเจอร์ใช้ชื่อเดิม (ASM-12)
+- 002 ขอเพิ่ม: อย่า push 0005 ของ 003 เข้า main ก่อน 0003 (ASM-11)
+### Session 2569-11-11 (เจ้าของ 001 พรรณธร ตอบ)
+- Q: รับ action notify ไหม -> A: รับ ทำตามกติกา DM-07 ถูกแล้ว DROP แล้ว ADD audit_log_action_check (ASM-12)
+- Q: audit/writer.go รับ transaction ได้ไหม -> A: ได้ รับ pool และ pgx.Tx (อะไรก็ได้ที่มี Exec) อยู่ใน T-19 ของ 001 ยังไม่ระบุวันเสร็จ รอไม่ไหวใช้แผนสำรอง (ASM-12)
+- 001 ขอให้ยืนยันในกลุ่มว่า 0003 เป็นของ 002 และ 0004 เป็นของใคร -> กลุ่มจอง 0004, 0005 ให้ 003 แล้ว (2569-11-11) ต้องแจ้ง 001
+- 001 รับทราบการแก้ App.jsx และจะไม่ย้ายหรือเปลี่ยนชื่อ formatDueAt โดยไม่แจ้ง
 
 ## Traceability
 | SRS / Source | spec.md | AC |
