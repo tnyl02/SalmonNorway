@@ -493,3 +493,17 @@
 - ตอบ 422 `CONDITION_REQUIRED` เมื่อสภาพไม่รู้จัก และ 409 `NO_OPEN_LOAN` แบบขั้นต่ำ เพราะต้องมีทางออกของ error เหล่านี้
   (test และข้อความแจ้งอยู่ใน T-09 และ T-21)
 - ยังไม่ทำ: ตรวจรูป (T-11, T-12) ชนิดผิดตอนนี้ DB ปฏิเสธแล้วตอบ 503, ตรวจภาควิชา (T-23), บทบาท (T-25), audit (T-26)
+
+---
+
+## 2569-11-11 แก้คำสั่งเรื่อง frontend และทำส่วนหน้าจอของ T-02 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return
+- เครื่องมือ: Claude Code
+- คำสั่ง: "แก้ไข มีหน้า frontend ด้วย" (เปลี่ยนจากคำตอบใน T-02 ที่ว่า "ไม่ต้องทำอะไรกับ frontend")
+  -> ตอบคำถามค้างหลัง T-02 ถึง T-04 ว่า task หน้าจอ (T-06, T-10, T-13, T-15, T-18, T-20, T-22, T-24) ต้องทำ
+- สิ่งที่ AI ทำ: สร้าง `frontend/src/config.js` (ค่าเดียวกับ config.go: RETURN_PHOTO_MIN/MAX/MAX_BYTES/TYPES, RETURN_CONDITIONS)
+  และ `frontend/src/__tests__/config.test.js` ใหม่ (เป็นไฟล์เดิมที่ลบไปใน T-02), รัน `npm ci` ใน frontend/ (ติดตั้งตาม package-lock.json)
+- ผล test (`cd frontend && npm test`): config.test.js 2 tests PASS, setup.test.jsx 1 test PASS
+- หมายเหตุ: `npm ci` เตือนว่า esbuild มี install script ที่ยังไม่ได้อนุญาต (allowScripts) แต่ vitest รันได้ปกติ
