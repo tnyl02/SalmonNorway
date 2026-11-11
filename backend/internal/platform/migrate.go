@@ -21,7 +21,9 @@ func Migrate(databaseURL, migrationsDir string) error {
 	if err != nil {
 		return err
 	}
-	m, err := migrate.New("file://"+abs, toPgx5URL(databaseURL))
+	// ToSlash: บน Windows abs เป็น D:\... ซึ่ง URL อ่านไม่ได้ (invalid port) เปลี่ยนเป็น D:/... บน Linux ไม่เปลี่ยนอะไร
+	// แก้โดย 003 (2569-11-11) ไฟล์ของกลางของ 001 ต้องแจ้งเจ้าของ 001
+	m, err := migrate.New("file://"+filepath.ToSlash(abs), toPgx5URL(databaseURL))
 	if err != nil {
 		return fmt.Errorf("migrate init: %w", err)
 	}

@@ -63,7 +63,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: `TestConfig_CancellableStatuses` ผ่าน (มี 3 ค่า requested, approved_by_officer, pending_advisor_approval) และ `CancelDBTimeout` น้อยกว่า 15 วินาที (ตัวเลขทีมเลือกเอง จดใน prompt-log)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 0
 - test ที่ต้องผ่านทั้งหมด: `TestMigration_BorrowRequestStatusCheck`, `TestMigration_CancelReasonMaxLen`, `TestConfig_CancellableStatuses` และ test ของ 001 ต้องยังผ่าน
@@ -94,7 +94,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
 - ต้องทำหลัง: T-03 (เดิม T-04 ทีมแก้ 2569-11-11: สัญญา API อยู่ใน plan ข้อ 4 แล้ว และ test หน้าจอใช้ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจเฟส 1 หลัง T-04 เสร็จ)
 - เสร็จเมื่อ: vitest `AC_CXL_08 shows own pending requests newest first` ผ่าน (แต่ละแถวมีชื่อรุ่น รหัสครุภัณฑ์ เวลาที่ส่งแบบ Asia/Bangkok และปุ่มยกเลิก)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 1
 - test ที่ต้องผ่านทั้งหมด: `TestMigration_BorrowRequestStatusCheck`, `TestMigration_CancelReasonMaxLen`, `TestConfig_CancellableStatuses`, `TestAC_CXL_08_ListOwnPendingSorted`, vitest `AC_CXL_08 ...` และ test ของ 001 ต้องยังผ่าน
@@ -125,7 +125,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
 - ต้องทำหลัง: T-05 (เดิม T-05, T-06 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
 - เสร็จเมื่อ: vitest `AC_CXL_01 cancels with reason and shows success` ผ่าน (พิมพ์เหตุผล กดยืนยัน เห็น "ยกเลิกคำขอยืม {ชื่อรุ่น} ({รหัสครุภัณฑ์}) เรียบร้อยแล้ว" และแถวหายจากรายการ)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 2
 - test ที่ต้องผ่านทั้งหมด: `TestAC_CXL_01_CancelPendingNormal`, vitest `AC_CXL_01 ...` และ test ของเฟส 0-1
@@ -147,7 +147,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
 - ต้องทำหลัง: T-07
 - เสร็จเมื่อ: vitest `AC_CXL_09 confirm dialog cancel then confirm` ผ่าน (ไม่ยืนยันแล้ว client จำลองไม่ถูกเรียก แถวยังอยู่ เปิดกล่องใหม่ช่องเหตุผลว่าง ยืนยันรอบสองแล้วแถวหาย)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 3
 - test ที่ต้องผ่านทั้งหมด: vitest `AC_CXL_09 ...` และ test ของเฟส 0-2
@@ -178,7 +178,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
 - ต้องทำหลัง: T-08 (เดิม T-08, T-09 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
 - เสร็จเมื่อ: vitest `AC_CXL_14 confirm disabled when reason empty or too long` ผ่าน (ตัวนับ "x/200" นับตาม code point เท่ากับหลังบ้าน)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 4
 - test ที่ต้องผ่านทั้งหมด: `TestAC_CXL_14_ReasonValidation`, vitest `AC_CXL_14 ...` และ test ของเฟส 0-3

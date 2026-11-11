@@ -1061,3 +1061,32 @@
 - ที่ AI เลือกเองในขอบเขต task: ตัวนับนับข้อความตามที่พิมพ์รวมช่องว่าง ("   " = 3/200) ส่วนการเช็กว่างใช้ trim ตัวนับเป็นสีแดงเมื่อเกิน
 - สถานะใน tasks.md: T-10 เสร็จ รอทีมตรวจ
 
+---
+
+## 2569-11-11 แก้บั๊ก migrate.go บน Windows (ไฟล์ของกลางของ 001 แก้เพราะ 003)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- ปัญหา: ตอนตรวจ task ที่รอทีมตรวจบน Windows `go test ./internal/equipment/ ./internal/platform/` ไม่ผ่าน 21 test และ `go run ./cmd/server` เปิดไม่ขึ้น
+  error: migrate init: failed to open source "file://D:\...\db\migrations": invalid port (URL อ่าน path แบบ Windows ไม่ได้)
+- แก้: backend/internal/platform/migrate.go บรรทัดเดียว `"file://"+abs` -> `"file://"+filepath.ToSlash(abs)` บน Linux/Codespaces ผลเหมือนเดิม
+- ผล test หลังแก้: go build ./... ผ่าน, go test auth / equipment / platform / config ผ่านทั้งหมด
+- ต้องแจ้งเจ้าของ 001 (พรรณธร) ไม่อยู่ใน task ของ 003
+- หมายเหตุเครื่องพัฒนา: พอร์ต 5432 ถูกใช้โดยโปรเจกต์อื่นและ PostgreSQL ของ Windows จึงรันฐานข้อมูลด้วย docker run ที่พอร์ต 5433 และตั้ง DATABASE_URL ใน terminal ไม่ได้แก้ไฟล์ใน repo
+
+---
+
+## 2569-11-11 ทีมตรวจ T-03, T-05, T-07, T-08, T-10 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจและเช็กสถานะเครื่อง)
+- วิธีตรวจ:
+  - A รัน test: `npm test` ผ่าน 29 ไม่ผ่าน 3 ตามคาด (TC-CXL-12-2, 12-5, 09-4 เป็นของ T-12), `go test ./internal/config/` ผ่าน
+    test ของ 001 (auth, equipment, platform) ผ่านหลังแก้บั๊ก migrate.go บน Windows
+  - B รันระบบจริง: ฐานข้อมูล (docker ที่พอร์ต 5433 เพราะ 5432 ถูกใช้ในเครื่อง), หลังบ้าน `go run ./cmd/server`, หน้าเว็บ `npm run dev`
+    /healthz 200, /v1/equipment/models มี token ได้ JSON ไม่มี token 401, /v1/my/pending-requests 404 ตามคาด (T-04 ยังไม่ทำ)
+    หน้าเว็บมีปุ่มสลับ 2 หน้า หน้า 003 แสดง "กำลังโหลด..." และส่ง GET /api/v1/my/pending-requests จาก client.js
+  - C อ่านโค้ดตามเช็กลิสต์
+- ข้อจำกัด: กล่องยืนยัน (T-07, T-08, T-10) ตรวจผ่าน test เท่านั้น ยังลองบนจอจริงไม่ได้จนกว่า T-04, T-06 เสร็จ (จุดตรวจเฟส 1, 2)
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-03, T-05, T-07, T-08, T-10 เป็น "เสร็จ"
+
