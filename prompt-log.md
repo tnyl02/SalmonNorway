@@ -946,3 +946,32 @@
 - การจับคู่ outcome: 2xx = ok, 403 = forbidden, อื่น ๆ (409, 422, 404, 503) = error เพราะ DM-07 มีแค่ 3 ค่า
 - เขียน audit ไม่สำเร็จตอบ 503 ไม่ส่งข้อมูล (fail closed ตามแนว plan 6.4 ของ 001)
 - ไม่เก็บสถานะก่อน/หลังใน audit (รอ Q-09 T-26)
+
+---
+
+## 2569-11-11 ใช้โครงกลางจาก 001 และย้ายโค้ดเข้า package ของ 006 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ใช้โครงกลางจาก 001 (Go, PostgreSQL, auth จำลอง) ห้ามสร้างโครงแอปใหม่เอง และเขียนโค้ดเฉพาะใน package ของตัวเอง"
+
+### สิ่งที่ AI ตรวจ
+- ไม่ได้สร้างโครงแอปใหม่: ใช้ `platform.NewRouter`, `platform.OpenDB/Migrate/Seed`, `auth.Middleware`, `auth.NewMockProvider`, PostgreSQL + testcontainers ของ 001 ตลอด
+- ไฟล์นอก package ของ 006 ที่เคยแก้: `platform/http.go`, `platform/migrate_test.go`, `config/config_test.go`, `frontend/src/__tests__/config.test.js`
+
+### สิ่งที่แก้
+- คืน `backend/internal/platform/http.go` และ `migrate_test.go` เป็นของ 001 (เหมือน commit 5edd87d ทุกตัวอักษร)
+- `backend/cmd/server/main.go`: ใช้ `platform.NewRouter(db)` เดิมแล้วผูก route ของ 006 ด้วย `returnsHandler.Routes(provider)(router)`
+- ย้าย test ของ migration 0006 และ config ของ 006 ไป `backend/internal/returns/migration_test.go` ลบ `config/config_test.go` (ไฟล์ที่ 006 สร้างเอง)
+- `handler_test.go`: ตัวช่วย `newRouterWith` ใช้ router กลางของ 001 แบบเดียวกับ main.go
+- ย้าย `frontend/src/__tests__/config.test.js` ไป `frontend/src/pages/Return/__tests__/config.test.js`
+
+### ที่ยังอยู่นอก package ของ 006 (ตั้งใจ)
+- `config/config.go`, `frontend/src/config.js`: AGENTS.md กฎข้อ 9 ให้ค่าจาก spec อยู่ที่นี่ที่เดียว
+- `cmd/server/main.go`, `frontend/src/api/client.js`, `frontend/src/App.jsx`, migration/seed: จุดที่โครงของ 001 ให้ฟีเจอร์เพิ่มเอง
+- `frontend/vite.config.js`: ทีมสั่งให้เอา rewrite ออกตอน T-06
+
+### ผล test
+- `cd backend && go test ./...`: PASS ทั้งหมด (platform ของ 001 เท่าเดิม, returns 20 tests)
+- `cd frontend && npm test`: 20 tests PASS

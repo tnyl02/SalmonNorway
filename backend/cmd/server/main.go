@@ -27,9 +27,9 @@ func main() {
 	// 006-return บันทึกการรับคืน (specs/006-return/plan.md ข้อ 4)
 	returnsHandler := returns.NewHandler(returns.NewRepository(db))
 
-	router := platform.NewRouter(db,
-		platform.Routes(returnsHandler.Routes(provider)),
-	)
+	// ใช้ router กลางของ 001 ตามเดิม แล้วให้ 006 ผูก route ของตัวเองเข้าไป (ไม่แก้ platform)
+	router := platform.NewRouter(db)
+	returnsHandler.Routes(provider)(router)
 
 	log.Printf("listening on %s", cfg.HTTPAddr)
 	if err := http.ListenAndServe(cfg.HTTPAddr, router); err != nil {

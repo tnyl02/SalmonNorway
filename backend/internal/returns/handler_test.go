@@ -84,10 +84,16 @@ func testPool(t *testing.T) *pgxpool.Pool {
 	return pool
 }
 
-// newTestRouter สร้าง router เหมือน main.go: /healthz + endpoint ของ 006 ผ่าน auth จำลอง
+// newTestRouter สร้าง router เหมือน main.go: /healthz + endpoint ของ 006 ผ่าน auth จำลองของ 001
 func newTestRouter(pool *pgxpool.Pool) http.Handler {
-	h := NewHandler(NewRepository(pool))
-	return platform.NewRouter(pool, platform.Routes(h.Routes(auth.NewMockProvider())))
+	return newRouterWith(pool, auth.NewMockProvider())
+}
+
+// newRouterWith ใช้ router กลางของ 001 (platform.NewRouter) แล้วผูก route ของ 006 เข้าไป แบบเดียวกับ main.go
+func newRouterWith(pool *pgxpool.Pool, provider auth.Provider) *http.ServeMux {
+	mux := platform.NewRouter(pool)
+	NewHandler(NewRepository(pool)).Routes(provider)(mux)
+	return mux
 }
 
 func call(router http.Handler, method, path, token string) *httptest.ResponseRecorder {
@@ -680,8 +686,7 @@ func TestAC_RET_10_OpenLoansOwnDepartment(t *testing.T) {
 	insertLoanOfModel(t, pool, otherModel, "T14-OTHER", 1*time.Hour, false)
 
 	provider := fixedProvider{"staff-t14": {UserID: "staff-t14", Role: auth.RoleStaff, DepartmentID: ownDept}}
-	h := NewHandler(NewRepository(pool))
-	router := platform.NewRouter(pool, platform.Routes(h.Routes(provider)))
+	router := newRouterWith(pool, provider)
 
 	// When
 	rec := call(router, http.MethodGet, "/api/v1/returns/open-loans", "staff-t14")
@@ -728,7 +733,7 @@ func TestAC_RET_13_OverdueShownToStaff(t *testing.T) {
 	pool := testPool(t)
 	dept, model := insertDepartment(t, pool, "T16 ภาควิชา")
 	provider := fixedProvider{"staff-t16": {UserID: "staff-t16", Role: auth.RoleStaff, DepartmentID: dept}}
-	router := platform.NewRouter(pool, platform.Routes(NewHandler(NewRepository(pool)).Routes(provider)))
+	router := newRouterWith(pool, provider)
 
 	// Given รายการแรก: เลยกำหนดแล้วบันทึกคืน -> คืนเกินกำหนด / รายการที่สอง: เลยกำหนดแล้วยังไม่คืน
 	insertLoanOfModel(t, pool, model, "T16-RETURNED-LATE", -2*time.Hour, false)
@@ -1012,7 +1017,7 @@ func TestAC_RET_07_ReturnAudited(t *testing.T) {
 		"staff-t23":   {UserID: "staff-t23", Role: auth.RoleStaff, DepartmentID: 1},
 		"student-t23": {UserID: "student-t23", Role: auth.RoleStudent, DepartmentID: 1},
 	}
-	router := platform.NewRouter(pool, platform.Routes(NewHandler(NewRepository(pool)).Routes(provider)))
+	router := newRouterWith(pool, provider)
 
 	// Given
 	insertBorrowedItem(t, pool, "T23-AUDIT", 2*time.Hour)
