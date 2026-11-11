@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -207,5 +208,141 @@ func TestCreate_RequiresPrincipal(t *testing.T) {
 
 	if _, err := svc.Create(context.Background(), newTestRequest("CS-NB-0001")); !errors.Is(err, ErrNoPrincipal) {
 		t.Errorf("ไม่มีผู้ใช้ใน context ต้องได้ ErrNoPrincipal แต่ได้ %v", err)
+	}
+}
+
+// สถานะที่ฟีเจอร์อื่น (003 ถึง 006) เป็นคนตั้ง แต่ test ของ AC-BRQ-11 ต้องจำลองขึ้นมาเอง
+// ฟีเจอร์ 002 ตั้งได้เฉพาะ config.StatusRequested (FR-BRQ-04) ค่าที่เหลือมาจาก data-model.md v9
+const (
+	statusApproved  = "approved"
+	statusCancelled = "cancelled"
+	statusRejected  = "rejected"
+)
+
+// setStatus จำลองว่าฟีเจอร์อื่นเปลี่ยนสถานะคำขอใบนั้นแล้ว
+// ยืนยันก่อนว่าค่าที่ใช้อยู่ในรายการสถานะที่ลงทะเบียนไว้ ไม่ใช่ค่าที่ test คิดขึ้นเอง (config.RequestStatuses)
+func setStatus(t *testing.T, pool *pgxpool.Pool, id int, status string) {
+	t.Helper()
+	if !slices.Contains(config.RequestStatuses, status) {
+		t.Fatalf("สถานะ %q ไม่อยู่ในรายการของ data-model.md (config.RequestStatuses)", status)
+	}
+	if _, err := pool.Exec(context.Background(),
+		`UPDATE borrow_request SET status = $1 WHERE id = $2`, status, id); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// countRequests นับคำขอของผู้ขอคนนั้น ใช้ยืนยันว่า "ไม่สร้างคำขอใหม่" เป็นจริง
+func countRequests(t *testing.T, pool *pgxpool.Pool, requesterID string) int {
+	t.Helper()
+	var n int
+	if err := pool.QueryRow(context.Background(),
+		`SELECT count(*) FROM borrow_request WHERE requester_id = $1`, requesterID).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+// AC-BRQ-11 (FR-BRQ-05 ข)
+// Given นักศึกษาคนหนึ่งมีคำขอของอุปกรณ์ชิ้นหนึ่งอยู่แล้ว ไม่ว่าสถานะจะเป็น `requested` หรือ `approved`
+// When  ส่งคำขอของอุปกรณ์ชิ้นเดิมซ้ำอีกครั้ง
+// Then  ระบบต้องปฏิเสธ ไม่สร้างคำขอใหม่ และแจ้งว่ามีคำขอของอุปกรณ์ชิ้นนี้ค้างอยู่แล้ว
+// และ
+// Given คำขอเดิมถูกยกเลิกหรือถูกปฏิเสธไปแล้ว
+// When  ส่งคำขอของอุปกรณ์ชิ้นเดิมใหม่
+// Then  ระบบต้องรับคำขอได้ตามปกติ
+func TestAC_BRQ_11(t *testing.T) {
+	pool := testPool(t)
+	// ใช้ผู้ขอของ test นี้เท่านั้น เพื่อไม่ให้คำขอของ test อื่นมาชนกฎกันซ้ำ
+	const requester = "student-011"
+	const assetCode = "CS-NB-0003" // อุปกรณ์ว่างของภาควิชา 1 ในข้อมูลตั้งต้น (T-03)
+	ctx := studentCtx(requester)
+	svc := NewService(NewRepository(pool))
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM borrow_request WHERE requester_id = $1`, requester)
+	})
+
+	// Given: มีคำขอใบแรกอยู่แล้ว สถานะ requested
+	first, err := svc.Create(ctx, newTestRequest(assetCode))
+	if err != nil {
+		t.Fatalf("คำขอใบแรกต้องสำเร็จ แต่ได้ error: %v", err)
+	}
+
+	// When/Then: ส่งซ้ำขณะคำขอเดิมยังเป็น requested
+	if _, err := svc.Create(ctx, newTestRequest(assetCode)); !errors.Is(err, ErrDuplicateRequest) {
+		t.Errorf("ส่งซ้ำขณะสถานะ %s ต้องได้ ErrDuplicateRequest แต่ได้ %v", config.StatusRequested, err)
+	}
+	if n := countRequests(t, pool, requester); n != 1 {
+		t.Errorf("ต้องไม่มีคำขอใหม่เกิดขึ้น ควรมี 1 ใบ แต่พบ %d ใบ", n)
+	}
+
+	// When/Then: ส่งซ้ำขณะคำขอเดิมถูกอนุมัติแล้ว (approved) ก็ยังต้องถูกปฏิเสธ
+	setStatus(t, pool, first.ID, statusApproved)
+	if _, err := svc.Create(ctx, newTestRequest(assetCode)); !errors.Is(err, ErrDuplicateRequest) {
+		t.Errorf("ส่งซ้ำขณะสถานะ %s ต้องได้ ErrDuplicateRequest แต่ได้ %v", statusApproved, err)
+	}
+	if n := countRequests(t, pool, requester); n != 1 {
+		t.Errorf("ต้องไม่มีคำขอใหม่เกิดขึ้น ควรมี 1 ใบ แต่พบ %d ใบ", n)
+	}
+
+	// Given: คำขอเดิมถูกยกเลิก -> When ส่งใหม่ -> Then รับได้ตามปกติ
+	setStatus(t, pool, first.ID, statusCancelled)
+	second, err := svc.Create(ctx, newTestRequest(assetCode))
+	if err != nil {
+		t.Fatalf("คำขอเดิมถูกยกเลิกแล้ว ต้องส่งใหม่ได้ แต่ได้ error: %v", err)
+	}
+	if n := countRequests(t, pool, requester); n != 2 {
+		t.Errorf("ต้องมีคำขอ 2 ใบ (ใบที่ยกเลิกและใบใหม่) แต่พบ %d ใบ", n)
+	}
+
+	// Given: คำขอเดิมถูกปฏิเสธ -> When ส่งใหม่ -> Then รับได้ตามปกติ
+	setStatus(t, pool, second.ID, statusRejected)
+	if _, err := svc.Create(ctx, newTestRequest(assetCode)); err != nil {
+		t.Fatalf("คำขอเดิมถูกปฏิเสธแล้ว ต้องส่งใหม่ได้ แต่ได้ error: %v", err)
+	}
+	if n := countRequests(t, pool, requester); n != 3 {
+		t.Errorf("ต้องมีคำขอ 3 ใบ แต่พบ %d ใบ", n)
+	}
+}
+
+// T-11 เสร็จเมื่อ (ส่วนเสริม): ยิงพร้อมกัน 2 ครั้งต้องเหลือคำขอแถวเดียว (FR-BRQ-05 ข)
+// กันซ้ำที่ฐานข้อมูลด้วย unique index จาก T-01 ไม่ใช่การอ่านมาตรวจก่อนเขียน ซึ่งจะมีช่องให้ผ่านทั้งคู่
+func TestDuplicateRequest_ConcurrentSubmitsKeepOneRow(t *testing.T) {
+	pool := testPool(t)
+	const requester = "student-012"
+	const assetCode = "CS-NB-0002" // อุปกรณ์ว่างของภาควิชา 1 ในข้อมูลตั้งต้น (T-03)
+	ctx := studentCtx(requester)
+	svc := NewService(NewRepository(pool))
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM borrow_request WHERE requester_id = $1`, requester)
+	})
+
+	errs := make([]error, 2)
+	var wg sync.WaitGroup
+	wg.Add(len(errs))
+	for i := range errs {
+		go func(i int) {
+			defer wg.Done()
+			_, errs[i] = svc.Create(ctx, newTestRequest(assetCode))
+		}(i)
+	}
+	wg.Wait()
+
+	var created, duplicate int
+	for _, err := range errs {
+		switch {
+		case err == nil:
+			created++
+		case errors.Is(err, ErrDuplicateRequest):
+			duplicate++
+		default:
+			t.Fatalf("ได้ error ที่ไม่คาดไว้: %v", err)
+		}
+	}
+	if created != 1 || duplicate != 1 {
+		t.Errorf("ยิงพร้อมกัน 2 ครั้ง ต้องสำเร็จ 1 และซ้ำ 1 แต่ได้สำเร็จ %d ซ้ำ %d", created, duplicate)
+	}
+	if n := countRequests(t, pool, requester); n != 1 {
+		t.Errorf("ต้องมีคำขอแถวเดียว แต่พบ %d แถว", n)
 	}
 }

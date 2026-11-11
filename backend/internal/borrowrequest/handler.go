@@ -62,6 +62,10 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 			"ส่งคำขอยืมได้เฉพาะอุปกรณ์ของภาควิชาตนเอง")
 	case errors.Is(err, ErrItemNotAvailable):
 		writeItemNotAvailable(w, err)
+	case errors.Is(err, ErrDuplicateRequest):
+		// ผู้ขอคนเดิมมีคำขอของอุปกรณ์ชิ้นนี้ที่ยังไม่จบอยู่แล้ว (FR-BRQ-05 ข, CON-TECH-03, AC-BRQ-11)
+		writeError(w, http.StatusConflict, "DUPLICATE_REQUEST",
+			"คุณมีคำขอของอุปกรณ์ชิ้นนี้ค้างอยู่แล้ว")
 	case errors.Is(err, ErrNoPrincipal):
 		// ปกติ auth.Middleware กันไว้ก่อนถึงตรงนี้แล้ว เหลือเป็นกันพลาดเมื่อผูก router ผิด (IF-IDP-01)
 		writeError(w, http.StatusUnauthorized, "UNAUTHENTICATED", "ต้องเข้าสู่ระบบก่อนส่งคำขอ")

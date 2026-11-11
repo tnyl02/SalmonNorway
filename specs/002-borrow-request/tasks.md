@@ -200,11 +200,13 @@ Updated: 2569-11-11
 ### T-11 ปฏิเสธคำขอซ้ำของผู้ขอคนเดิมที่คำขอเก่ายังไม่จบ
 - รองรับ: FR-BRQ-05, DOM-REQ-01, CON-TECH-03
 - ตรวจด้วย: AC-BRQ-11
-- ไฟล์ที่แตะ: `backend/internal/borrowrequest/service.go`, `backend/internal/borrowrequest/repository.go`
+- ไฟล์ที่แตะ: `backend/internal/borrowrequest/service.go`, `backend/internal/borrowrequest/repository.go`,
+  `backend/internal/borrowrequest/handler.go` (เพิ่มเมื่อ 2569-11-12 ทีมตัดสิน เพราะการแปลง error เป็นรหัส
+  `DUPLICATE_REQUEST` และสถานะ 409 ตาม CON-TECH-03 ทำที่ handler เท่านั้น ถ้าไม่แตะจะตกเป็น 503 ซึ่งผิดรหัส)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-09
 - เสร็จเมื่อ: `TestAC_BRQ_11` ผ่าน — ส่งซ้ำขณะสถานะ `requested` หรือ `approved` ได้ 409 `DUPLICATE_REQUEST` / หลังคำขอเดิมเป็น `cancelled` หรือ `rejected` ส่งใหม่ได้ / และเมื่อยิงพร้อมกัน 2 ครั้ง ต้องมีแถวเดียวเพราะ unique index จาก T-01 กันไว้
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 #### จุดตรวจเฟส 7
 - test ที่ต้องผ่านทั้งหมด: `TestAC_BRQ_11` และ test ของเฟส 0-6

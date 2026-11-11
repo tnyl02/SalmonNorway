@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"salmonnorway/backend/internal/auth"
 )
@@ -13,6 +14,12 @@ import (
 // ตอบโดยไม่ส่งข้อมูลอุปกรณ์กลับไปเลย
 // (ประกาศไว้ที่นี่เพราะ model.go ไม่อยู่ในช่องไฟล์ที่แตะของ T-10 ย้ายไปรวมกับ error ตัวอื่นได้ภายหลัง)
 var ErrForbiddenDepartment = errors.New("อุปกรณ์ชิ้นนี้ไม่ใช่ของภาควิชาผู้ขอ")
+
+// ErrDuplicateRequest เกิดเมื่อผู้ขอคนเดิมส่งคำขออุปกรณ์ชิ้นเดิมซ้ำ ขณะที่คำขอเก่ายังไม่จบ
+// คือสถานะยังเป็น requested, approved_by_officer, pending_advisor_approval หรือ approved
+// (FR-BRQ-05 ข, CR-004) คำขอที่ถูกยกเลิกหรือถูกปฏิเสธไปแล้วไม่นับ จึงส่งใหม่ได้
+// (ประกาศไว้ที่นี่เพราะ model.go ไม่อยู่ในช่องไฟล์ที่แตะของ T-11 ย้ายไปรวมกับ error ตัวอื่นได้ภายหลัง)
+var ErrDuplicateRequest = errors.New("มีคำขอของอุปกรณ์ชิ้นนี้ที่ยังไม่จบอยู่แล้ว")
 
 // Querier คือส่วนของ pgxpool.Pool ที่ repository นี้ใช้
 type Querier interface {
@@ -77,10 +84,32 @@ func (r *Repository) Create(ctx context.Context, requesterID string, in NewReque
 		}
 		return Request{}, &ItemNotAvailableError{AssetCode: in.AssetCode, Status: status}
 	}
+	if isDuplicateRequest(err) {
+		// index กันคำขอซ้ำไว้ที่ฐานข้อมูล จึงกันได้แม้สองคำขอมาถึงพร้อมกัน (FR-BRQ-05 ข, AC-BRQ-11)
+		return Request{}, ErrDuplicateRequest
+	}
 	if err != nil {
 		return Request{}, err
 	}
 	return out, nil
+}
+
+// uniqueOpenRequestIndex คือ partial unique index ที่ migration 0003 สร้างไว้ (T-01)
+// ครอบเฉพาะคำขอที่ยังไม่จบของคู่ (requester_id, item_id) ตามรายการสถานะใน FR-BRQ-05 ข
+const uniqueOpenRequestIndex = "uq_request_open_per_item"
+
+// uniqueViolationCode คือรหัส SQLSTATE ของ PostgreSQL สำหรับ unique violation
+// เป็นค่าคงที่ของฐานข้อมูล ไม่ใช่ตัวเลขที่มาจาก spec จึงไม่ต้องอยู่ใน config (AGENTS.md กฎข้อ 9)
+const uniqueViolationCode = "23505"
+
+// isDuplicateRequest บอกว่า error จากการ INSERT เป็นการชน index กันคำขอซ้ำหรือไม่ (FR-BRQ-05 ข)
+// ตรวจชื่อ constraint ด้วย เพื่อไม่เหมาเอาว่า unique violation ตัวอื่นในตารางนี้คือคำขอซ้ำ
+func isDuplicateRequest(err error) bool {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return false
+	}
+	return pgErr.Code == uniqueViolationCode && pgErr.ConstraintName == uniqueOpenRequestIndex
 }
 
 // nullIfEmpty เก็บ NULL แทนสตริงว่าง เพื่อให้คอลัมน์ purpose_other ว่างจริงเมื่อไม่ได้เลือก "อื่น ๆ" (FR-BRQ-02)

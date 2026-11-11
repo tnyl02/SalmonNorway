@@ -1440,3 +1440,70 @@ AI เคยบอกว่า T-10 จะได้เปลี่ยนชื�
 - `go test ./internal/borrowrequest/ -run "TestAC_BRQ_07|TestDepartmentScope" -v`: PASS ทั้ง 2 ตัว
   (TestAC_BRQ_07 ไล่หาคำว่า available / borrowed / unavailable / Notebook / CS-NB-0001 ใน body ต้องไม่เจอสักคำ)
 - `go test ./...`: ทุกแพ็กเกจ ok
+
+---
+
+## 2569-11-12 /implement T-11 (002-borrow-request) — ปิดเฟส 7
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 7 AC-BRQ-11 ส่งคำขอซ้ำของตัวเองไม่ได้)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-11`
+
+### คำถามที่ AI ถามก่อนเริ่ม และคำตอบของทีม
+ช่อง "เสร็จเมื่อ" ของ T-11 บังคับให้ตอบ 409 `DUPLICATE_REQUEST` แต่การแปลง error เป็นรหัสและสถานะ HTTP
+อยู่ใน `switch` ของ handler.go ซึ่ง **ไม่มีในช่องไฟล์ที่แตะ** (มีแค่ service.go, repository.go)
+ถ้าแตะแค่ 2 ไฟล์นั้น error ตัวใหม่จะตกลง default กลายเป็น 503 ซึ่งผิดรหัสตาม CON-TECH-03
+→ **ทีมตอบ: ทางเลือก ก** เพิ่ม handler.go ในช่องไฟล์ที่แตะของ T-11 พร้อมเหตุผลลงวันที่ แบบเดียวกับ T-09
+(แก้ tasks.md แล้ว ไม่ได้แก้ task อื่น)
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/repository.go` (ตรงกับช่องไฟล์ที่แตะ)
+  เพิ่ม `ErrDuplicateRequest`, `isDuplicateRequest`, `uniqueOpenRequestIndex`, `uniqueViolationCode`
+- `backend/internal/borrowrequest/handler.go` (เพิ่มในช่องไฟล์ที่แตะวันนี้ ตามคำตอบของทีม)
+  เพิ่ม case แปลงเป็น 409 `DUPLICATE_REQUEST`
+- `backend/internal/borrowrequest/service.go` (ตรงกับช่องไฟล์ที่แตะ)
+  **แก้คอมเมนต์เท่านั้น** เขียนกำกับว่า Create คืน ErrDuplicateRequest เมื่อไหร่ ไม่มีโค้ดเพิ่ม
+- `backend/internal/borrowrequest/service_test.go`, `handler_test.go`
+  **ไม่อยู่ในช่องไฟล์ที่แตะ** (ทุก task ที่ผ่านมาก็ไม่เคยใส่ไฟล์ test ในช่องนี้) ต่อ test ท้ายไฟล์เดิม
+
+### การตัดสินใจ
+- **ไม่** เพิ่ม SELECT ไปอ่านคำขอเก่ามาตรวจก่อนเขียน ใช้การดักจับ unique violation (SQLSTATE 23505)
+  จาก partial unique index `uq_request_open_per_item` ที่ T-01 สร้างไว้แทน
+  เพราะการอ่านมาตรวจก่อนเขียนมีช่องว่างระหว่างอ่านกับเขียน ถ้าสองคำขอมาถึงพร้อมกันจะผ่านไปได้ทั้งคู่
+  ส่วนรายการสถานะที่ถือว่า "ยังไม่จบ" ตาม FR-BRQ-05 ข อยู่ในเงื่อนไข WHERE ของ index นั้นที่เดียว
+- `isDuplicateRequest` ตรวจ **ชื่อ constraint** ด้วย ไม่ได้ดูแต่รหัส 23505
+  เพื่อไม่เหมาเอาว่า unique violation ตัวอื่นในตารางนี้ในอนาคตคือคำขอซ้ำ
+- `ErrDuplicateRequest` ประกาศไว้ใน repository.go เพราะ model.go ไม่อยู่ในช่องไฟล์ที่แตะ
+  (เหมือน ErrForbiddenDepartment ของ T-10 ย้ายไปรวมกันได้ภายหลัง)
+- รหัส `23505` เป็นค่าคงที่ของ PostgreSQL ไม่ใช่ตัวเลขที่มาจาก spec จึงไม่ได้ย้ายไป config.go
+  (AGENTS.md กฎข้อ 9 คุมตัวเลขที่มาจาก spec) แต่ประกาศเป็น const พร้อมคอมเมนต์ ไม่ฝังกลางโค้ด
+- test ใช้ผู้ขอคนละรหัสกับ test อื่น (`student-011`, `student-012`) เพราะกฎกันซ้ำผูกกับคู่ (ผู้ขอ, อุปกรณ์)
+  ถ้าใช้ student-001 ร่วมกับ test อื่นจะชนกันเอง
+- สถานะ approved / cancelled / rejected ที่ test ต้องจำลอง เป็นของฟีเจอร์ 003 ถึง 006
+  test จึงตรวจก่อนว่าค่านั้นอยู่ใน `config.RequestStatuses` จริง ไม่ใช่ค่าที่ test คิดขึ้นเอง
+
+### สิ่งที่เกือบต้องเดาแต่ถามแทน
+- ขอบเขตไฟล์ของ handler.go (ดูหัวข้อคำถามด้านบน) ไม่ได้แตะเองก่อนถาม
+- **ไม่ได้เดา** ข้อความที่หน้าจอจะแสดง นอกเหนือจากข้อความใน response ของหลังบ้าน
+  การแสดงผลเป็นงานของ T-19/T-20 ที่ยังรอ Q-BRQ-14
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run "TestAC_BRQ_11|TestDuplicateRequest_ConcurrentSubmitsKeepOneRow" -v`
+  PASS ทั้ง 3 ตัว (`TestAC_BRQ_11`, `TestAC_BRQ_11_HTTP`, `TestDuplicateRequest_ConcurrentSubmitsKeepOneRow`)
+- `go test ./...`: ทุกแพ็กเกจ ok
+- `go vet ./internal/borrowrequest/`: ไม่มีข้อความเตือน
+- `gofmt -l` ขึ้นชื่อ `backend/internal/borrowrequest/model.go` ซึ่ง **ไม่ใช่ไฟล์ที่ T-11 แตะ**
+  เป็นของเดิมมาก่อน T-11 ยังไม่แก้ เพราะไม่อยู่ในขอบเขต task นี้ (ทีมควรเปิด task เล็กจัดรูปแบบ)
+
+### จุดตรวจเฟส 7 (ทีมลองเองด้วยมือ 2569-11-12)
+
+- ผู้ลอง: ธัญลักษณ์ ด. (@tnyl02) ด้วย `go run ./cmd/server` + curl + psql ใน container
+- ใบแรก `CS-NB-0002` ด้วย `mock-student-001`: **201** requestId 3 สถานะ `requested`
+- ยิงซ้ำขณะสถานะ `requested`: **409** `{"code":"DUPLICATE_REQUEST"}` และ psql ยืนยันว่ายังมีแถวเดียว
+- ยิงซ้ำขณะสถานะ `approved`: **409** `DUPLICATE_REQUEST` (ครึ่งหลังของ AC-BRQ-11)
+- แก้ใบเดิมเป็น `cancelled` แล้วยิงใหม่: **201** requestId 8
+- ข้อสังเกตระหว่างลอง: ครั้งแรกได้ 503 `UPSTREAM_UNAVAILABLE` เพราะหน้าต่างที่รัน `go run` เปิดไว้ตั้งแต่ก่อนแก้โค้ด
+  `go run` คอมไพล์ครั้งเดียวตอนเปิด ต้อง Ctrl+C แล้วเปิดใหม่ทุกครั้งหลังแก้โค้ดก่อนลองด้วยมือ
+  (ตอนนั้นฐานข้อมูลกันแถวซ้ำได้ถูกต้องแล้ว เห็นจาก psql ที่มีแถวเดียว ผิดแค่การแปลงเป็นรหัส HTTP ของ build เก่า)
+- ล้างข้อมูลที่ลองไว้ด้วย `DELETE FROM borrow_request WHERE requester_id = 'student-001';`

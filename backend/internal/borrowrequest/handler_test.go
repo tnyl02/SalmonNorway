@@ -598,3 +598,33 @@ func TestDepartmentScope_OwnDepartmentStillWorks(t *testing.T) {
 		t.Errorf("คนภาควิชา 1 ขอยืมของภาควิชา 2 ต้องได้ 403 แต่ได้ %d", w.Code)
 	}
 }
+
+// AC-BRQ-11 (FR-BRQ-05 ข) ยิงผ่าน HTTP จริง
+// Given นักศึกษาคนหนึ่งมีคำขอของอุปกรณ์ชิ้นนั้นอยู่แล้ว (ใบแรกได้ 201 สถานะ requested)
+// When  POST คำขอของอุปกรณ์ชิ้นเดิมซ้ำด้วยผู้ใช้คนเดิม
+// Then  ต้องได้ 409 รหัส DUPLICATE_REQUEST ตามรายการของ CON-TECH-03 พร้อมข้อความแจ้งผู้ขอ
+func TestAC_BRQ_11_HTTP(t *testing.T) {
+	srv := newTestServer(t)
+	const assetCode = "CS-NB-0003" // อุปกรณ์ว่างของภาควิชา 1 ในข้อมูลตั้งต้น (T-03)
+
+	// Given: decodeCreated ลบคำขอใบนี้ให้ตอน test จบ
+	decodeCreated(t, postRequest(t, srv, tokenStudentDept1, bodyFor(assetCode)))
+
+	// When
+	w := postRequest(t, srv, tokenStudentDept1, bodyFor(assetCode))
+
+	// Then
+	if w.Code != http.StatusConflict {
+		t.Fatalf("ส่งซ้ำต้องได้ 409 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	var got ErrorDTO
+	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+		t.Fatalf("อ่าน JSON ไม่ได้: %v", err)
+	}
+	if got.Code != "DUPLICATE_REQUEST" {
+		t.Errorf("รหัสต้องเป็น DUPLICATE_REQUEST ตาม CON-TECH-03 แต่ได้ %q", got.Code)
+	}
+	if got.Message == "" {
+		t.Error("ต้องมีข้อความแจ้งว่ามีคำขอของอุปกรณ์ชิ้นนี้ค้างอยู่แล้ว")
+	}
+}
