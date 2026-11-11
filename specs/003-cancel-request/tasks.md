@@ -24,6 +24,8 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ~~ชื่อคอลัมน์และค่าสถานะของ `borrow_request` ต้องตกลงกับเจ้าของ 002 ก่อนทำ T-01~~ ตกลงแล้ว 2569-11-11: 002 สร้างเองใน 0003 พร้อม cancel_reason, cancelled_at และ FK ของ audit_log (ASM-09, ASM-11)
   **T-01 ยังต้องรอ 002 push `0003_borrow_request` เข้า main และ 003 merge main เข้า branch**
   002 ใส่ index `idx_request_owner_status` ใน 0003 ให้แล้ว (ตกลงรอบที่ 2)
+- งานหน้าจอ (T-05, 07, 08, 10, 12, 16, 18, 20, 22, 24, 26) ไม่รองานหลังบ้าน (ทีมตัดสิน 2569-11-11) ทำต่อกันตามลำดับหน้าจอได้เลย
+  แต่จุดตรวจของแต่ละเฟสยังต้องรอทั้งหน้าจอและหลังบ้านของเฟสนั้นเสร็จ
 - ห้าม push 0004 และ 0005 ของ 003 เข้า main ก่อน 0003 ของ 002 (ตกลงกับ 002 2569-11-11)
   ถ้าเผลอ merge ไม่ตรงลำดับ ทุกคนต้องรัน `docker compose -f deploy/docker-compose.yml down -v` (001 แจ้ง)
 - 001 รับ action notify แล้ว (2569-11-11) และ writer.go (T-19 ของ 001) จะรับ pgx.Tx ได้ ยังไม่ได้วันเสร็จ (T-31)
@@ -121,7 +123,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ตรวจด้วย: AC-CXL-01
 - ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/CancelDialog.jsx`, `frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/CancelDialog.test.jsx`, `frontend/src/api/client.js` (ของกลาง เพิ่ม `cancelRequest`)
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
-- ต้องทำหลัง: T-05, T-06
+- ต้องทำหลัง: T-05 (เดิม T-05, T-06 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
 - เสร็จเมื่อ: vitest `AC_CXL_01 cancels with reason and shows success` ผ่าน (พิมพ์เหตุผล กดยืนยัน เห็น "ยกเลิกคำขอยืม {ชื่อรุ่น} ({รหัสครุภัณฑ์}) เรียบร้อยแล้ว" และแถวหายจากรายการ)
 - สถานะ: พร้อมทำ
 
@@ -174,7 +176,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ตรวจด้วย: AC-CXL-14
 - ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/CancelDialog.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/CancelDialog.test.jsx`
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
-- ต้องทำหลัง: T-08, T-09
+- ต้องทำหลัง: T-08 (เดิม T-08, T-09 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
 - เสร็จเมื่อ: vitest `AC_CXL_14 confirm disabled when reason empty or too long` ผ่าน (ตัวนับ "x/200" นับตาม code point เท่ากับหลังบ้าน)
 - สถานะ: พร้อมทำ
 
@@ -205,7 +207,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ตรวจด้วย: AC-CXL-12
 - ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/MyPendingRequests.test.jsx`
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
-- ต้องทำหลัง: T-05, T-11
+- ต้องทำหลัง: T-05 (เดิม T-05, T-11 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
 - เสร็จเมื่อ: vitest `AC_CXL_12 shows empty message` ผ่าน (แสดง `MSG_NO_PENDING` "ไม่มีคำขอที่รออนุมัติ" และไม่มีแถว ส่วนโหลดไม่สำเร็จแสดง `MSG_LOAD_FAILED` พร้อมปุ่ม "ลองใหม่" แทน)
 - สถานะ: พร้อมทำ
 
@@ -280,7 +282,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ตรวจด้วย: AC-CXL-02
 - ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/MyPendingRequests.test.jsx`
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
-- ต้องทำหลัง: T-07, T-15
+- ต้องทำหลัง: T-07 (เดิม T-07, T-15 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
 - เสร็จเมื่อ: vitest `AC_CXL_02 shows already approved message and reloads` ผ่าน (client จำลองตอบ 409 `ALREADY_APPROVED` -> แสดง `MSG_ALREADY_APPROVED` แล้วโหลดรายการใหม่)
 - สถานะ: พร้อมทำ
 
@@ -311,7 +313,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ตรวจด้วย: AC-CXL-11
 - ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/MyPendingRequests.test.jsx`
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
-- ต้องทำหลัง: T-16, T-17
+- ต้องทำหลัง: T-16 (เดิม T-16, T-17 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
 - เสร็จเมื่อ: vitest `AC_CXL_11 shows not cancellable message` ผ่าน (409 `NOT_CANCELLABLE` -> แสดง `MSG_NOT_CANCELLABLE` แล้วโหลดรายการใหม่)
 - สถานะ: พร้อมทำ
 
@@ -342,7 +344,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ตรวจด้วย: AC-CXL-03
 - ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/MyPendingRequests.test.jsx`
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
-- ต้องทำหลัง: T-18, T-19
+- ต้องทำหลัง: T-18 (เดิม T-18, T-19 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
 - เสร็จเมื่อ: vitest `AC_CXL_03 shows request not found message` ผ่าน (404 -> แสดง `MSG_REQUEST_NOT_FOUND` แล้วโหลดรายการใหม่)
 - สถานะ: พร้อมทำ
 
@@ -373,7 +375,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ตรวจด้วย: AC-CXL-04
 - ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/__tests__/CancelDialog.test.jsx`
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
-- ต้องทำหลัง: T-16, T-21
+- ต้องทำหลัง: T-16 (เดิม T-16, T-21 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
 - เสร็จเมื่อ: vitest `AC_CXL_04 approved while dialog open` ผ่าน (เปิดกล่องแล้ว client จำลองเปลี่ยนเป็นตอบ 409 -> กดยืนยัน -> แสดง `MSG_ALREADY_APPROVED` แถวนั้นหายหลังโหลดใหม่)
 - สถานะ: พร้อมทำ
 
@@ -404,7 +406,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ตรวจด้วย: AC-CXL-13
 - ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/CancelDialog.jsx`, `frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/CancelDialog.test.jsx`
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
-- ต้องทำหลัง: T-07, T-23
+- ต้องทำหลัง: T-07 (เดิม T-07, T-23 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
 - เสร็จเมื่อ: vitest `AC_CXL_13 shows error with retry` ผ่าน (503 -> ข้อความผิดพลาด ปุ่มลองใหม่ แถวยังอยู่ กดลองใหม่แล้วเรียก API ซ้ำ)
 - สถานะ: พร้อมทำ
 
@@ -435,7 +437,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ตรวจด้วย: AC-CXL-07
 - ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/MyPendingRequests.test.jsx` (ถ้า 001 ทำกลไก redirect พร้อม `returnTo` ไว้แล้วใน AC-EQS-09 ให้ใช้ของเดิม ไม่เขียนใหม่)
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
-- ต้องทำหลัง: T-07, T-25
+- ต้องทำหลัง: T-07 (เดิม T-07, T-25 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
 - เสร็จเมื่อ: vitest `AC_CXL_07 redirects to login with returnTo` ผ่าน (401 -> ไปหน้าเข้าสู่ระบบพร้อม `returnTo` ของหน้านี้ ไม่เรียกยกเลิกซ้ำอัตโนมัติ `returnTo` ภายนอกระบบถูกปฏิเสธ)
 - สถานะ: พร้อมทำ
 
