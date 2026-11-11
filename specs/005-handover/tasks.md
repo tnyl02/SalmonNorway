@@ -54,7 +54,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
 - เสร็จเมื่อ: `TestHandover_NonStaffForbidden` ผ่าน (ทั้ง 3 route ตอบ 403 `{code, message}` `FORBIDDEN_ROLE` เมื่อใช้ `mock-student-001` และตอบ 401 เมื่อไม่มี token ผ่าน middleware เดิม)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 #### จุดตรวจเฟส 0
 - test ที่ต้องผ่านทั้งหมด: TestMigration_HandoverPhotoContentType, TestMigration_HandoverIdentityMethod, TestHandover_NonStaffForbidden และ test เดิมของ 001 ทั้งหมด
