@@ -7,9 +7,11 @@ import (
 	"net/http"
 
 	"salmonnorway/backend/internal/auth"
+	"salmonnorway/backend/internal/borrowrequest"
 	"salmonnorway/backend/internal/cancelrequest"
 	"salmonnorway/backend/internal/config"
 	"salmonnorway/backend/internal/equipment"
+	"salmonnorway/backend/internal/handover"
 	"salmonnorway/backend/internal/platform"
 )
 
@@ -53,7 +55,13 @@ func main() {
 
 	mux := platform.NewRouter(db) // /healthz ไม่ต้องยืนยันตัวตน ใช้ตรวจ container
 	eq := equipment.NewHandler(equipment.NewService(equipment.NewRepository(db)))
+	ho := handover.NewHandler(db, provider) // 005 บันทึกการส่งมอบ เฉพาะเจ้าหน้าที่ (CON-HND-01)
 	mux.Handle(equipment.PathPrefix, auth.Middleware(provider, eq.Routes()))
+	mux.Handle(handover.PathPrefix, auth.Middleware(provider, ho.Routes()))
+
+	// ฟีเจอร์ 002 ส่งคำขอยืม (T-05) ต้องผ่านการยืนยันตัวตนเช่นกัน (IF-IDP-01, NFR-SEC-01)
+	br := borrowrequest.NewHandler(borrowrequest.NewService(borrowrequest.NewRepository(db)))
+	mux.Handle(borrowrequest.PathPrefix, auth.Middleware(provider, br.Routes()))
 
 	// 003 ยกเลิกคำขอยืม (T-04) หลัง auth.Middleware เหมือน 001 (IF-IDP-01) แก้ไฟล์กลางเพราะ 003
 	cx := cancelrequest.NewHandler(cancelrequest.NewService(cancelrequest.NewRepository(db)))
