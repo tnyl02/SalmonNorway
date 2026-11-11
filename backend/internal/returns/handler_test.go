@@ -361,3 +361,89 @@ func TestAC_RET_09_ReturnTimeFromServer(t *testing.T) {
 		t.Errorf("returned_at = %v ต้องอยู่ระหว่างเวลาระบบก่อนและหลังบันทึก [%v, %v]", returnedAt, before, after)
 	}
 }
+
+// AC-RET-02 (FR-RET-04)
+//
+//	Given อุปกรณ์ชิ้นหนึ่งสถานะ "ถูกยืม" มีการยืมที่ยังไม่คืน
+//	When  เจ้าหน้าที่บันทึกการรับคืน สภาพ "ชำรุด" พร้อมรูป 1 รูป
+//	Then  การยืมนั้นมีเวลาคืน และสถานะอุปกรณ์เป็น "ไม่พร้อมใช้งาน" ไม่เคยเป็น "ว่าง" ระหว่างทาง
+//
+// "ไม่เคยเป็นว่างระหว่างทาง" ตรวจด้วย trigger ที่สร้างเฉพาะใน test เก็บทุกค่าสถานะที่ถูกเขียน (plan.md ข้อ 6)
+func TestAC_RET_02_DamagedReturnBecomesUnavailable(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+	ctx := context.Background()
+
+	// เตรียมตัวเก็บประวัติสถานะ (เฉพาะ test) แล้วลบทิ้งเมื่อจบ
+	if _, err := pool.Exec(ctx, `
+		CREATE TABLE test_status_history (asset_code TEXT, status TEXT);
+		CREATE FUNCTION test_record_status() RETURNS trigger AS $$
+		BEGIN
+			INSERT INTO test_status_history VALUES (NEW.asset_code, NEW.status);
+			RETURN NEW;
+		END;
+		$$ LANGUAGE plpgsql;
+		CREATE TRIGGER test_status_history AFTER UPDATE OF status ON equipment_item
+			FOR EACH ROW EXECUTE FUNCTION test_record_status();`); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `
+			DROP TRIGGER test_status_history ON equipment_item;
+			DROP FUNCTION test_record_status();
+			DROP TABLE test_status_history;`)
+	})
+
+	// Given
+	insertBorrowedItem(t, pool, "T08-AC02", 2*time.Hour)
+
+	// When
+	rec := postReturn(t, router, "mock-staff-001",
+		map[string]string{"assetCode": "T08-AC02", "condition": "damaged"}, tinyJPEG)
+
+	// Then
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		ItemStatus string `json:"itemStatus"`
+		Condition  string `json:"condition"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.ItemStatus != "unavailable" || resp.Condition != "damaged" {
+		t.Errorf("response = %+v, want condition=damaged itemStatus=unavailable", resp)
+	}
+
+	var returnedAt *time.Time
+	var status string
+	if err := pool.QueryRow(ctx, `
+		SELECT l.returned_at, i.status FROM loan l JOIN equipment_item i ON i.id = l.item_id
+		WHERE i.asset_code = 'T08-AC02'`).Scan(&returnedAt, &status); err != nil {
+		t.Fatal(err)
+	}
+	if returnedAt == nil {
+		t.Error("การยืมต้องมีเวลาคืน")
+	}
+	if status != "unavailable" {
+		t.Errorf("สถานะ = %q, want unavailable (FR-RET-04)", status)
+	}
+
+	rows, err := pool.Query(ctx, `SELECT status FROM test_status_history WHERE asset_code = 'T08-AC02'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var history []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			t.Fatal(err)
+		}
+		history = append(history, s)
+	}
+	if len(history) != 1 || history[0] != "unavailable" {
+		t.Errorf("ประวัติสถานะ = %v, want [unavailable] (เปลี่ยนครั้งเดียว ไม่ผ่าน available)", history)
+	}
+}

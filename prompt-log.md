@@ -591,3 +591,24 @@
 
 ### สิ่งที่เกือบต้องเดา
 - AC ใช้เวลา 14:30 ตายตัว แต่เวลาคืนมาจาก now() ของฐานข้อมูล จึงตรวจแบบช่วงเวลา (ก่อน/หลังบันทึก) แทน ตามที่ plan.md ข้อ 6 เสนอ
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-08 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 3)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำตามลำดับ" -> `/implement T-08 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/returns/handler_test.go`: `TestAC_RET_02_DamagedReturnBecomesUnavailable`
+  (สร้าง trigger + ตาราง `test_status_history` เฉพาะใน test แล้วลบทิ้งใน Cleanup)
+- `backend/internal/returns/service.go`: ไม่ต้องแก้ (T-04 ใช้ `config.ReturnConditionStatus` ซึ่งมี damaged -> unavailable แล้ว)
+
+### ผล test (`cd backend && go test ./internal/returns -v`)
+- TestAC_RET_02_DamagedReturnBecomesUnavailable PASS (200, itemStatus unavailable, returned_at มีค่า, ประวัติสถานะ = [unavailable] ครั้งเดียว)
+- test เดิมของ returns ยัง PASS
+
+### สิ่งที่เกือบต้องเดา
+- ไม่มี: วิธีตรวจ "ไม่เคยเป็นว่างระหว่างทาง" ด้วย trigger มาจาก plan.md ข้อ 6
