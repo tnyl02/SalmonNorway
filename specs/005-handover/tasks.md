@@ -117,7 +117,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
 - เสร็จเมื่อ: `TestPhotoStore_SaveAndRemove` ผ่าน (เขียนไฟล์ลง `PhotoDir/<loanId>/` ใน temp dir และลบทิ้งได้เมื่อ rollback)
-- สถานะ: เสร็จ รอทีมตรวจ (ยังไม่แก้ docker-compose.yml ดู prompt-log)
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ผ่าน ทีมรับว่าไม่แก้ docker-compose.yml จนกว่าจะมี service หลังบ้าน)
 
 ### T-08 สร้าง BorrowerVerifier และตัวจำลอง
 - รองรับ: FR-HND-02, IF-IDP-01
