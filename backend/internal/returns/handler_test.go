@@ -764,3 +764,109 @@ func TestAC_RET_13_OverdueShownToStaff(t *testing.T) {
 		t.Errorf("รายการที่ยังไม่คืน = %+v, want [T16-STILL-OUT isOverdue=true]", open)
 	}
 }
+
+// insertItemWithoutLoan สร้างอุปกรณ์ของภาควิชา 1 (รุ่น 1) ที่ไม่มีการยืมค้าง สถานะตามที่กำหนด
+func insertItemWithoutLoan(t *testing.T, pool *pgxpool.Pool, assetCode, status string) {
+	t.Helper()
+	if _, err := pool.Exec(context.Background(),
+		`INSERT INTO equipment_item (asset_code, model_id, status) VALUES ($1, 1, $2)`, assetCode, status); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func itemStatus(t *testing.T, pool *pgxpool.Pool, assetCode string) string {
+	t.Helper()
+	var s string
+	if err := pool.QueryRow(context.Background(),
+		`SELECT status FROM equipment_item WHERE asset_code = $1`, assetCode).Scan(&s); err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
+// AC-RET-03 (FR-RET-01)
+//
+//	Given อุปกรณ์ชิ้นหนึ่งสถานะ "ว่าง" หรือ "ไม่พร้อมใช้งาน" (ไม่มีการยืมที่ยังไม่คืน)
+//	When  เจ้าหน้าที่กรอกรหัสครุภัณฑ์ของชิ้นนั้นเพื่อบันทึกการรับคืน
+//	Then  ระบบไม่บันทึก แจ้งว่าอุปกรณ์นี้ไม่มีการยืมที่ยังไม่คืน และสถานะอุปกรณ์ไม่เปลี่ยน
+func TestAC_RET_03_NoOpenLoanRejected(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+
+	for _, tc := range []struct{ assetCode, status string }{
+		{"T18-AVAILABLE", "available"},
+		{"T18-UNAVAILABLE", "unavailable"},
+	} {
+		// Given
+		insertItemWithoutLoan(t, pool, tc.assetCode, tc.status)
+
+		// When: ทั้งขั้นค้นหา (lookup) และขั้นบันทึก (POST)
+		lookup := call(router, http.MethodGet, "/api/v1/returns/lookup?assetCode="+tc.assetCode, "mock-staff-001")
+		post := postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": tc.assetCode, "condition": "normal"})
+
+		// Then
+		for name, rec := range map[string]*httptest.ResponseRecorder{"lookup": lookup, "POST": post} {
+			if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), `"NO_OPEN_LOAN"`) {
+				t.Errorf("%s %s: status = %d body=%s, want 409 NO_OPEN_LOAN", tc.status, name, rec.Code, rec.Body.String())
+			}
+		}
+		if got := itemStatus(t, pool, tc.assetCode); got != tc.status {
+			t.Errorf("%s: สถานะเปลี่ยนเป็น %q ต้องไม่เปลี่ยน", tc.assetCode, got)
+		}
+	}
+
+	// รหัสครุภัณฑ์ที่ไม่มีในระบบ ก็ไม่มีการยืมค้างเช่นกัน
+	if rec := postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "T18-NOT-EXIST", "condition": "normal"}); rec.Code != http.StatusConflict {
+		t.Errorf("รหัสที่ไม่มี: status = %d, want 409", rec.Code)
+	}
+}
+
+// T-18 เสร็จเมื่อ: บันทึกคืนชิ้นเดียวกันพร้อมกัน 2 request ได้ 200 หนึ่งครั้ง และ 409 หนึ่งครั้ง (plan.md ข้อ 4 FOR UPDATE)
+// ทำซ้ำหลายชิ้นเพื่อให้มีโอกาสชนกันจริง
+func TestReturns_ConcurrentReturn_OneWins(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+	ctx := context.Background()
+
+	for i := 0; i < 5; i++ {
+		code := fmt.Sprintf("T18-RACE-%d", i)
+		insertBorrowedItem(t, pool, code, 2*time.Hour)
+
+		var wg sync.WaitGroup
+		codes := make([]int, 2)
+		start := make(chan struct{})
+		for j := range codes {
+			wg.Add(1)
+			go func(j int) {
+				defer wg.Done()
+				<-start
+				codes[j] = postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": code, "condition": "normal"}).Code
+			}(j)
+		}
+		close(start)
+		wg.Wait()
+
+		ok, conflict := 0, 0
+		for _, c := range codes {
+			switch c {
+			case http.StatusOK:
+				ok++
+			case http.StatusConflict:
+				conflict++
+			}
+		}
+		if ok != 1 || conflict != 1 {
+			t.Errorf("%s: status = %v, want 200 หนึ่งครั้ง และ 409 หนึ่งครั้ง", code, codes)
+		}
+
+		var returns int
+		if err := pool.QueryRow(ctx, `
+			SELECT count(*) FROM loan l JOIN equipment_item i ON i.id = l.item_id
+			WHERE i.asset_code = $1 AND l.returned_at IS NOT NULL`, code).Scan(&returns); err != nil {
+			t.Fatal(err)
+		}
+		if returns != 1 {
+			t.Errorf("%s: การยืมที่ปิดแล้ว = %d, want 1", code, returns)
+		}
+	}
+}

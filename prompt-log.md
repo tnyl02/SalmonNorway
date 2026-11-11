@@ -811,3 +811,24 @@
 
 ### สิ่งที่เกือบต้องเดา
 - คำบนป้าย: ใช้ "คืนเกินกำหนด" ตาม FR-RET-06 และ "เลยกำหนดคืน" ตามป้ายใน glossary.md (คำเดียวกับที่ 001 ใช้) ไม่มี mockup
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-18 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 9)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำเลย" -> `/implement T-18 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/returns/handler_test.go`: `TestAC_RET_03_NoOpenLoanRejected`, `TestReturns_ConcurrentReturn_OneWins`, ตัวช่วย `insertItemWithoutLoan`, `itemStatus`
+- `service.go`, `repository.go`: ไม่ต้องแก้ (409 `NO_OPEN_LOAN` มีตั้งแต่ T-04 / T-05 และ `SELECT ... FOR UPDATE OF l, i` กันบันทึกซ้อนอยู่แล้ว)
+
+### ผล test (`cd backend && go test ./internal/returns -v`)
+- TestAC_RET_03_NoOpenLoanRejected PASS (ว่าง / ไม่พร้อมใช้งาน: lookup และ POST ได้ 409 NO_OPEN_LOAN สถานะไม่เปลี่ยน, รหัสที่ไม่มีได้ 409)
+- TestReturns_ConcurrentReturn_OneWins PASS (5 ชิ้น ยิงพร้อมกันชิ้นละ 2 request ได้ 200 หนึ่ง 409 หนึ่ง ปิดการยืมครั้งเดียว)
+- รันแยก 5 รอบด้วย `-race` ผ่านทุกรอบ ไม่พบ data race / test เดิมของ returns ยัง PASS (13 tests)
+
+### สิ่งที่เกือบต้องเดา
+- ไม่มี / หมายเหตุ: test ใน package นี้ใช้รหัสครุภัณฑ์ตายตัว รันด้วย `-count` มากกว่า 1 จะชนรหัสเดิม ให้รันทีละครั้ง
