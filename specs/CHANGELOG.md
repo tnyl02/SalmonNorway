@@ -2,6 +2,13 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [plan 004 v1] - 2569-11-11
+ไม่ทำ CR เพราะไม่ได้เปลี่ยน spec หรือ constraint
+
+### Added
+- `specs/004-approve-request/plan.md` Draft v1 จาก /plan: 8 หัวข้อ, ตารางตรวจ Constraints 8 ข้อ, ค่าที่ตั้งได้ใน config.go, แผนทดสอบ AC-APV-01 ถึง 16, ตาราง `approval_decision` และ `approval_email` เฉพาะ 004
+- รอคุยกับฟีเจอร์อื่น: รหัส error ใหม่ 5 ตัวใน CON-TECH-03, ค่า action ใน DM-07 (001), เลข migration, ชื่อและ Email จากระบบยืนยันตัวตน (Q-APV-04)
+
 ## [SPEC-APV-004 Draft v2 + CON-TECH-03 FORBIDDEN_ROLE] - 2569-11-11
 อัปเดตจาก /clarify 3 รอบของ Draft v1 ไม่ทำ CR เพราะเป็นการเปลี่ยนก่อนผ่าน Draft v2 และการเพิ่มรหัสใน CON-TECH-03 ทำตามกติกาของ CON-TECH-03 เอง ("เพิ่มแถวในตารางนี้ก่อนใช้")
 

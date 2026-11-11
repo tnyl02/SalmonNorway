@@ -1205,3 +1205,18 @@
 - สิ่งที่แก้: spec.md FR-APV-01 (ค) อนุมัติไม่ได้เมื่อเลย 16:00 น. ของวันที่เริ่มยืม, เอาป้าย [เสนอ] ออกจาก AC-APV-06 ถึง 15, ปิด Q-APV-11 และ 12, เสนอ AC-APV-16 (กรณีเลย 16:00) และเปิด Q-APV-13
 - สิ่งที่ AI ตีความ (ทีมตรวจ): "16:00 ของวันที่เริ่มยืม" (ทีมไม่ได้บอกว่าวันไหน) / ข้อความ "เลยเวลาเริ่มยืมแล้ว อนุมัติไม่ได้" ที่ทีมรับใน S3 ไม่ตรงกับเงื่อนไขใหม่ AI ไม่แก้เอง ถามใน Q-APV-13
 - ตอบเพิ่ม: "1-2 ยืนยัน" -> (1) 16:00 น. ของวันที่เริ่มยืม ถูกต้อง (2) ใช้ข้อความ "เลย 16:00 น. ของวันที่ยืมแล้ว อนุมัติไม่ได้" แก้ใน FR-APV-01 (ซ) และ Q-APV-13 / ID ของ AC-APV-16 ยังไม่ได้อนุมัติ
+
+---
+
+## 2569-11-11 คำสั่ง: /plan ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/plan.md เพราะ /plan ไม่ได้ติดตั้งใน session) ผ่าน plan mode
+- คำสั่ง: "พร้อม" (ให้ทำ /plan ต่อจาก spec Draft v2)
+- ผลลัพธ์: specs/004-approve-request/plan.md (Draft v1) 8 หัวข้อ, ตารางตรวจ Constraints ครบ 8 ข้อ (CON-TECH-01/02/03, CON-DATA-01, DOM-REQ-01, DOM-LOAN-01, IF-IDP-01, IF-NOT-01), ค่าที่ตั้งได้ 13 รายการ, แผนทดสอบ TestAC_APV_01 ถึง 16, ลำดับงาน 8 ขั้น; บันทึก CHANGELOG
+- Constraint ที่ยังไม่ได้ใช้: ไม่มี (IF-IDP-01 ใช้ auth จำลอง, IF-NOT-01 ใช้ตัวส่งจำลองและตัวหา Email จำลอง)
+- AC ที่ทดสอบยาก: AC-APV-10 (กดพร้อมกัน ต้องใช้ goroutine กับ PostgreSQL จริง), AC-APV-04, 13, 14, 16 (60 วินาที, 00:00, ส่งซ้ำห่าง 1 นาที, 16:00 ต้องใช้นาฬิกาจำลอง ทดสอบกับระบบ Email จริงไม่ได้)
+- สิ่งที่ AI อยากเดาแต่ไม่เดา: ที่มาของ Email ผู้ขอ (Q-APV-04), รับค้างคืน (Q-APV-01), ชื่อเจ้าหน้าที่ (Principal ไม่มีชื่อ เจอตอน plan), เลข migration, แถว action ใน DM-07
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): ตาราง approval_decision และ approval_email, path `/v1/approvals/...`, รหัส error ใหม่ 5 ตัว (REQUEST_CANCELLED, REQUEST_ALREADY_DECIDED, REQUEST_DECIDED_CONCURRENTLY, NOT_FIRST_IN_QUEUE, APPROVAL_CUTOFF_PASSED) ต้องลงทะเบียนใน CON-TECH-03 ตอน implement, ใช้ VALIDATION_FAILED กับเหตุผลว่าง, แยกพิจารณาแล้ว/กดพร้อมกันด้วย loaded_at, ส่ง Email ผ่านตาราง outbox และ goroutine
+- เรื่องที่พบตอน plan: auth.Middleware ของกลางตอบ error ไม่มี message (CON-TECH-03) ต้องแจ้ง 001
