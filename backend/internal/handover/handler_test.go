@@ -474,3 +474,31 @@ func TestAC_HND_01_RequestNotApproved(t *testing.T) {
 		})
 	}
 }
+
+// AC-HND-04 (FR-HND-04)
+// Given คำขอยืมแบบปกติที่ได้รับอนุมัติแล้ว แต่อุปกรณ์รายชิ้นในคำขอมีสถานะ "ไม่พร้อมใช้งาน" หรือ "ถูกยืม"
+// When  เจ้าหน้าที่บันทึกการส่งมอบ
+// Then  ระบบไม่สร้างการยืม และสถานะอุปกรณ์ไม่เปลี่ยน
+func TestAC_HND_04_ItemNotAvailable(t *testing.T) {
+	pool := testPool(t)
+	h := routesOnly(pool)
+	for i, status := range []string{"unavailable", "borrowed"} {
+		t.Run(status, func(t *testing.T) {
+			itemID := createItem(t, pool, "T04-NA-000"+strconv.Itoa(i+1), status)
+			requestID := createRequest(t, pool, "student-001", itemID, "approved")
+
+			rec := postHandover(t, h, tokenStaff, requestID, validForm(tokenStudentA), twoJPEGs())
+			var e ErrorDTO
+			_ = json.Unmarshal(rec.Body.Bytes(), &e)
+			if rec.Code != http.StatusConflict || e.Code != "ITEM_NOT_AVAILABLE" {
+				t.Fatalf("HTTP %d %+v ต้องเป็น 409 ITEM_NOT_AVAILABLE", rec.Code, e)
+			}
+			if n := countLoans(t, pool, itemID); n != 0 {
+				t.Errorf("มี Loan %d รายการ ต้องไม่มี", n)
+			}
+			if s := statusOf(t, pool, "equipment_item", itemID); s != status {
+				t.Errorf("สถานะอุปกรณ์ = %q ต้องเป็น %q", s, status)
+			}
+		})
+	}
+}
