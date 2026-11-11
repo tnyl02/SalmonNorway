@@ -10,7 +10,8 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
-    proxy: { '/api': { target: 'http://localhost:8000', rewrite: (p) => p.replace(/^\/api/, '') } },
+    // ไม่ตัด /api ออก เพราะหลังบ้านใช้ path /api/v1/... (ทีมตัดสิน 2569-11-11 ใน 006 T-06)
+    proxy: { '/api': { target: 'http://localhost:8000' } },
   },
   test: { environment: 'jsdom', globals: true },
 })

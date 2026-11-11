@@ -542,3 +542,32 @@
 ### สิ่งที่เกือบต้องเดา
 - ไม่ส่ง `assetCode` มาเลย: ตอบเหมือนหาไม่พบ (409 `NO_OPEN_LOAN`) ไม่สร้าง error code ใหม่ เพราะ plan ข้อ 4 ไม่มี code สำหรับกรณีนี้
 - ยังไม่กรองภาควิชา (T-23) และไม่ลง audit `return_lookup` (T-26)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-06 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 1)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำเลย" -> `/implement T-06 specs/006-return/tasks.md`
+
+### คำถามที่ AI ถาม และคำตอบของทีม
+1. หน้าจอได้ token จากไหน (หน้าล็อกอินจำลองเป็นงานของ 001 T-21 ที่ยังไม่ทำ) -> อ่านจาก localStorage key `token`
+2. `vite.config.js` ตัด `/api` ออกก่อนส่งหลังบ้าน แต่หลังบ้านใช้ `/api/v1/...` -> เอา rewrite ออก
+
+### ไฟล์ที่สร้างหรือแก้
+- ตามช่องไฟล์ที่แตะ: `frontend/src/pages/Return/ReturnPage.jsx`, `frontend/src/pages/Return/__tests__/ReturnPage.test.jsx`,
+  `frontend/src/api/client.js` (`api.returns.lookup`, `api.returns.record`, `authHeaders` จาก localStorage, `request` คืน `{ok,status,data}`),
+  `frontend/src/App.jsx` (แสดง ReturnPage ใต้หัวเรื่องเดิม)
+- นอกช่องไฟล์ที่แตะ (ทีมอนุญาต/ตามกติกา): `frontend/vite.config.js` (เอา rewrite ออก ตามคำตอบข้อ 2 เป็นไฟล์กลาง กระทบ 001),
+  `frontend/src/config.js` (เพิ่ม `TIMEZONE`, `STATUS_LABELS` ตามกฎข้อ 9)
+- `specs/006-return/tasks.md`: สถานะ T-06 และวิธีตั้ง token ในจุดตรวจเฟส 1
+
+### ผล test (`cd frontend && npm test`)
+- ReturnPage.test.jsx 2 tests PASS (AC-RET-01 บนหน้าจอ / ตัวเลือกสภาพมีแค่ปกติ-ชำรุด และไม่มีช่องเวลา)
+- config.test.js, setup.test.jsx ยัง PASS / `vite build` สำเร็จ
+
+### สิ่งที่เกือบต้องเดา
+- ข้อความ error ตอนนี้เป็นแบบรวม "ค้นหาไม่สำเร็จ (code)" / "บันทึกไม่สำเร็จ (code)" ข้อความแยกตามกรณีอยู่ใน T-10, T-13, T-22, T-24
+- ยังไม่มี router หน้าเดียวแสดงใน App.jsx (plan ไม่ได้กำหนด router)
