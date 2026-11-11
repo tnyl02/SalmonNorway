@@ -2,6 +2,13 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [SPEC-APV-004 Draft v1 + shared references 004] - 2569-11-11
+เริ่ม 004 ใหม่จากศูนย์บน branch ใหม่ตามที่เจ้าของ 004 สั่ง (งานเดิมอยู่ที่ branch `004-approve-request-old`) ไม่ทำ CR เพราะเป็น Draft v1 และเพิ่มเฉพาะรายการอ้างอิงในตาราง "ใครอ้างใช้บ้าง" โดยไม่เปลี่ยนเนื้อหา constraint
+
+### Added
+- `specs/004-approve-request/spec.md` Draft v1: FR-APV-01, FR-APV-02, AC-APV-01 ถึง 05 (ID รอทีมอนุมัติ), Q-APV-01 ถึง 10
+- `specs/000-shared/constraints.md`: เพิ่ม 004-approve-request ในแถว CON-TECH-01, 02, 03, CON-DATA-01, DOM-REQ-01, DOM-LOAN-01, IF-IDP-01, IF-NOT-01
+
 ## [CON-TECH-03 + SPEC-BRQ-002 Draft v3.1 + constraints v5 + SRS v0.8] - 2569-11-11
 ทีมตัดสิน 2 เรื่องระหว่างตรวจ plan ของ 002 **อ้างอิง [CR-004](changes/CR-004.md)**
 

@@ -1098,3 +1098,22 @@
   ok salmonnorway/backend/internal/platform 4.625s
 - **ต้องแจ้งเจ้าของ 001**: ตั้งแต่ migration 0003 เป็นต้นไป `audit_log.request_id` มี FK แล้ว
   การเขียน test หรือโค้ดที่ใส่ request_id ต้องอ้างคำขอที่มีอยู่จริง
+
+---
+
+## 2569-11-11 คำสั่ง: เริ่ม 004-approve-request ใหม่จากศูนย์ (spec Draft v1)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "อยากลบทำใหม่อะ มันงง" แล้วเลือก "เริ่ม 004 จากศูนย์"
+- สิ่งที่ทำ:
+  - เปลี่ยนชื่อ branch เดิมเป็น `004-approve-request-old` (เก็บไว้เป็นสำรอง มี spec v2.1 / plan v1.1 / tasks v1.1 และบันทึก prompt-log ของ 004 ก่อนหน้า ไม่ได้ลบ branch บน GitHub)
+  - สร้าง branch `004-approve-request` ใหม่จาก origin/main (743e36c)
+  - เขียน specs/004-approve-request/spec.md Draft v1 จาก SRS 3.1.4 (ยังเป็น `[เติม]`), RQ-14, RQ-21, RQ-25, BL-08 และไฟล์ร่วมล่าสุด (constraints.md v5, data-model.md v9, migration 0003 ของ 002)
+  - เพิ่ม 004 ในตาราง "ใครอ้างใช้บ้าง" ของ constraints.md
+- ผลลัพธ์: FR-APV-01, FR-APV-02, NFR-SEC-01, AC-APV-01 ถึง 05 (ID รอทีมอนุมัติ), ASM-01 ถึง 03, Q-APV-01 ถึง 10
+- สิ่งที่ AI ไม่เดา: เนื้อหา Email, เวลา "ทันที", ที่มาของ Email ผู้ขอ, ลำดับการอนุมัติ, ข้อมูลบนแดชบอร์ด, ประวัติ, กรณีพิเศษ -> เขียนเป็น Open Questions ให้ /clarify ถาม
+- สิ่งที่ AI ใช้จากไฟล์ร่วม (ไม่ใช่การเดา): ค่าสถานะ requested / approved / rejected (data-model.md v9), คำขออื่นถูกปฏิเสธอัตโนมัติ (Q-SH-06 ในconstraints.md), CON-TECH-03, คอลัมน์ของ borrow_request (0003)
+- ยังไม่ได้แก้: SRS 3.1.4 (รอเจ้าของสั่งหลัง /clarify)
+- ขั้นต่อไป: /clarify
