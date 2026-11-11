@@ -12,6 +12,9 @@ function formatDateTime(iso) {
 }
 
 // conditionRequiredMessage แจ้งให้เลือกสภาพ ใช้ชื่อสภาพจาก config.js (AC-RET-04, FR-RET-02)
+// noOpenLoanMessage แจ้งว่าอุปกรณ์ไม่มีการยืมที่ยังไม่คืน ตามคำใน AC-RET-03 (FR-RET-01)
+export const noOpenLoanMessage = 'อุปกรณ์นี้ไม่มีการยืมที่ยังไม่คืน'
+
 export const conditionRequiredMessage = `กรุณาเลือกสภาพ ${RETURN_CONDITIONS.map((c) => c.label).join(' หรือ ')}`
 
 // ReturnPage: กรอกรหัสครุภัณฑ์ (FR-RET-01(ก)) เลือกสภาพ (FR-RET-02) แล้วบันทึก (FR-RET-03, FR-RET-04)
@@ -49,7 +52,8 @@ export default function ReturnPage({ client = api, initialAssetCode = '' }) {
       setLoan(res.data)
       setCondition('')
     } else {
-      setError(`ค้นหาไม่สำเร็จ (${res.data?.code ?? res.status})`)
+      // ไม่มีการยืมค้าง (AC-RET-03): แจ้งข้อความ และไม่แสดงฟอร์มสภาพ (loan ยังเป็น null)
+      setError(res.data?.code === 'NO_OPEN_LOAN' ? noOpenLoanMessage : `ค้นหาไม่สำเร็จ (${res.data?.code ?? res.status})`)
     }
   }
 
@@ -67,6 +71,10 @@ export default function ReturnPage({ client = api, initialAssetCode = '' }) {
     setBusy(false)
     if (res.ok) {
       setResult(res.data)
+      setLoan(null)
+    } else if (res.data?.code === 'NO_OPEN_LOAN') {
+      // มีคนบันทึกคืนชิ้นนี้ไปก่อนแล้ว (บันทึกซ้อน T-18): แจ้งข้อความเดียวกันและปิดฟอร์ม
+      setError(noOpenLoanMessage)
       setLoan(null)
     } else if (res.data?.code === 'CONDITION_REQUIRED') {
       // หลังบ้านปฏิเสธสภาพ (FR-RET-02) แจ้งข้อความเดียวกับที่ตรวจก่อนส่ง

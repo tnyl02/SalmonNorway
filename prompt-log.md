@@ -832,3 +832,25 @@
 
 ### สิ่งที่เกือบต้องเดา
 - ไม่มี / หมายเหตุ: test ใน package นี้ใช้รหัสครุภัณฑ์ตายตัว รันด้วย `-count` มากกว่า 1 จะชนรหัสเดิม ให้รันทีละครั้ง
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-19 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 9)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำต่อได้เลยครับ" -> `/implement T-19 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- `frontend/src/pages/Return/ReturnPage.jsx`: `noOpenLoanMessage` "อุปกรณ์นี้ไม่มีการยืมที่ยังไม่คืน" เมื่อ lookup หรือ record ได้ `NO_OPEN_LOAN`
+  (lookup: ไม่แสดงฟอร์มสภาพ / record ที่ชนกับคนอื่น: ปิดฟอร์ม)
+- `frontend/src/pages/Return/__tests__/ReturnPage.test.jsx`: test AC-RET-03 บนหน้าจอ และกรณีบันทึกซ้อน
+
+### ผล test (`cd frontend && npm test`)
+- AC-RET-03: ค้นหาแล้วได้ NO_OPEN_LOAN แจ้งข้อความ และไม่แสดงฟอร์มสภาพ PASS
+- T-19: บันทึกแล้วได้ NO_OPEN_LOAN แจ้งข้อความ และปิดฟอร์ม PASS
+- รวม 18 tests PASS / `vite build` สำเร็จ
+
+### สิ่งที่เกือบต้องเดา
+- ข้อความใช้ตาม Then ของ AC-RET-03 ไม่มี mockup / กรณีบันทึกซ้อนใช้ข้อความเดียวกัน (ไม่ได้สร้างข้อความใหม่)

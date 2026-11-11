@@ -125,3 +125,33 @@ test('T-15: ได้ initialAssetCode แล้วกรอกรหัสไ�
   expect(client.returns.lookup).toHaveBeenCalledWith('CS-NB-0004')
   expect(screen.getByLabelText('รหัสครุภัณฑ์').value).toBe('CS-NB-0004')
 })
+
+// AC-RET-03 (FR-RET-01) บนหน้าจอ
+//   Given อุปกรณ์สถานะ "ว่าง" หรือ "ไม่พร้อมใช้งาน" (ไม่มีการยืมที่ยังไม่คืน)
+//   When  เจ้าหน้าที่กรอกรหัสครุภัณฑ์ของชิ้นนั้น
+//   Then  แจ้งว่าอุปกรณ์นี้ไม่มีการยืมที่ยังไม่คืน และไม่แสดงฟอร์มสภาพ
+test('AC-RET-03: ค้นหาแล้วได้ NO_OPEN_LOAN แจ้งข้อความ และไม่แสดงฟอร์มสภาพ', async () => {
+  const client = fakeClient()
+  client.returns.lookup.mockResolvedValue({ ok: false, status: 409, data: { code: 'NO_OPEN_LOAN' } })
+  render(<ReturnPage client={client} />)
+
+  fireEvent.change(screen.getByLabelText('รหัสครุภัณฑ์'), { target: { value: 'CS-NB-0001' } })
+  fireEvent.click(screen.getByRole('button', { name: 'ค้นหา' }))
+
+  expect((await screen.findByRole('alert')).textContent).toBe('อุปกรณ์นี้ไม่มีการยืมที่ยังไม่คืน')
+  expect(screen.queryByRole('radio')).toBeNull()
+  expect(screen.queryByRole('button', { name: 'บันทึกการรับคืน' })).toBeNull()
+})
+
+// T-19: กดบันทึกแต่มีคนบันทึกคืนชิ้นนี้ไปก่อน (หลังบ้านตอบ NO_OPEN_LOAN) แจ้งข้อความเดียวกันและปิดฟอร์ม
+test('T-19: บันทึกแล้วได้ NO_OPEN_LOAN แจ้งข้อความ และปิดฟอร์ม', async () => {
+  const client = fakeClient()
+  client.returns.record.mockResolvedValue({ ok: false, status: 409, data: { code: 'NO_OPEN_LOAN' } })
+  await openLoanForm(client)
+  fireEvent.click(screen.getByLabelText('ปกติ'))
+  fireEvent.click(screen.getByRole('button', { name: 'บันทึกการรับคืน' }))
+
+  await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('อุปกรณ์นี้ไม่มีการยืมที่ยังไม่คืน'))
+  expect(screen.queryByRole('radio')).toBeNull()
+  expect(screen.queryByRole('status')).toBeNull()
+})
