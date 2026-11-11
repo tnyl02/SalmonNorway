@@ -85,7 +85,7 @@ Status: v5 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบบ
 |---|---|
 | CON-TECH-01 | 001-equipment-status, 002-borrow-request, 005-handover |
 | CON-TECH-02 | 001-equipment-status, 002-borrow-request, 005-handover |
-| CON-TECH-03 | 001-equipment-status (รหัสเดิม 4 ตัว), 002-borrow-request |
+| CON-TECH-03 | 001-equipment-status (รหัสเดิม 4 ตัว), 002-borrow-request, 005-handover (ต้องลงทะเบียนรหัสใหม่ 3 ตัว ดู Q-P4 ใน plan ของ 005) |
 | CON-DATA-01 | 001-equipment-status, 002-borrow-request (ส่งคำขอได้เฉพาะชิ้นที่ "ว่าง"), 005-handover |
 | CON-DATA-03 | 001-equipment-status, 002-borrow-request, 005-handover |
 | DOM-PRIV-01 | 001-equipment-status, 002-borrow-request (ไม่เปิดเผยชื่อผู้ขอรายอื่น FR-BRQ-05) |

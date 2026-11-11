@@ -38,6 +38,8 @@ Status: v9 | Updated: 2569-11-11 (ค่าสถานะ snake_case, คอล
 | `0002_audit_log.up.sql` | 001 | ตาราง audit_log ใช้ร่วม |
 | `0003_borrow_request.up.sql` | 002 | ตารางคำขอยืม |
 | `0004_...` ขึ้นไป | 003 เป็นต้นไป | จองเลขในกลุ่มก่อนสร้างไฟล์ |
+| `0006_handover.up.sql` | 005 | ตาราง `handover`, `handover_photo` (ทีม 005 กำหนด 2569-11-11 รอกลุ่มยืนยัน) |
+| `0007_audit_log_handover_action.up.sql` | 005 | เพิ่มค่า action ของ 005 ใน CHECK ของ `audit_log` (รอ Q-HND-06) |
 
 - DM-08 Principal ผู้ใช้ที่ยืนยันตัวตนแล้ว (ไม่มีตาราง ได้จาก IF-IDP-01): รหัสผู้ใช้ บทบาท (นักศึกษา / เจ้าหน้าที่) ภาควิชา
 

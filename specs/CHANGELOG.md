@@ -2,6 +2,46 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [SPEC-HND-005 Draft v2.5 + plan v1.3 + tasks v1.3] - 2569-11-11
+รับผลของ [CR-004](changes/CR-004.md) (CON-TECH-03 รหัส error กลาง) migration 0003 ของ 002 และ spec v1 ของ 004 (Banlu C)
+ไม่เปลี่ยน ID ไม่เพิ่ม FR ไม่เปลี่ยนพฤติกรรม
+
+### Changed
+- Constraints: เพิ่ม CON-TECH-03 ในบรรทัด "ใช้ร่วม" (CR-004 แถว "ฟีเจอร์ 003, 004, 005, 006")
+- AC-HND-13, AC-HND-14: อ้าง FR-APV-01 (ค) ของ 004 แทน AC-APV-08 ซึ่งไม่มีแล้วใน 004 spec v1 (ข้อมูลตั้งต้นและผลที่คาดหวังเท่าเดิม)
+- Assumptions (พึ่งพา): migration 0003 ของ 002 merge แล้ว
+
+### Open Questions
+- Q-HND-05 ปิดแล้ว (`requester_id`, `item_id`, `end_at` มีใน migration 0003)
+- Q-HND-07: 004 spec v1 ตัด UC-14 ออก (Q-APV-01) คำขอค้างคืนยังไปไม่ถึง `approved`
+- Q-HND-13: เพิ่มทางเลือก `requester_name`, `student_code` ที่ผู้ขอพิมพ์ในคำขอของ 002
+
+### Related
+- plan.md v1.3: error contract ตาม CON-TECH-03 (`CARD_NOT_CHECKED`, `PHOTO_INVALID` -> `VALIDATION_FAILED`) Q-P4 ใหม่ (ลงทะเบียนรหัส 3 ตัว)
+  ค่า 16:00 ใช้ `LoanNormalReturnHour` ของ 002 แทน `NormalLoanReturnTime` ของ 004 เดิม, Q-P3 หมดไป
+- tasks.md v1.3: T-03, T-16, T-20 รอ Q-P4, T-02 ไม่รอ 002 แล้ว, T-30 รอแค่ Q-HND-07
+- constraints.md: เพิ่ม 005-handover ในแถว CON-TECH-03 ของตาราง "ใครอ้างใช้บ้าง"
+
+## [SPEC-HND-005 Draft v2.4 + plan v1.2 + tasks v1.2] - 2569-11-11
+รับผลของ CR-003 (002) และ data-model v9 ที่ merge เข้า main อ้างอิง [CR-003](changes/CR-003.md) แถว "ฟีเจอร์ 005"
+ไม่เปลี่ยน ID ไม่เพิ่ม FR และไม่เปลี่ยนพฤติกรรมที่ทีม 005 ตกลงไว้ (Banlu C)
+
+### Changed
+- FR-HND-05: ยืมค้างคืน กำหนดคืน = 16:00 น. ของวันที่สิ้นสุดการยืมที่ผู้ขอระบุ 005 แปลงตอนส่งมอบ (เดิม: รอ Q-SH-04)
+- Scope: ค้างคืน 002 รับคำขอแล้ว เหลือขึ้นกับ UC-14 ของ 004 (Q-HND-07)
+- AC-HND-13: เพิ่มหมายเหตุว่า Given ไม่เกิดในระบบจริงหลัง Q-SH-06 ปิดบางส่วน ยังไม่แก้ตัว AC รอทีมตัดสิน (ต้องทำ CR ถ้าแก้หรือยกเลิก)
+- ASM-HND-08: อ้าง Q-SH-06 ที่ปิดบางส่วนแล้ว ความหมายเดิม
+
+### Open Questions
+- Q-HND-05 ปิดบางส่วน (สถานะ `approved` -> `handed_over`, `requester_id`, `item_id` ยืนยันแล้ว เหลือชื่อคอลัมน์วันสิ้นสุดการยืม)
+- Q-HND-03, Q-HND-07 แก้ข้อความตามข้อมูลใหม่ (FR-BRQ-06 ของ 002 อยู่ใน prototype, 002 รับคำขอค้างคืน)
+- Q-SH-04 ปิดแล้ว, Q-SH-06 ปิดบางส่วน (ตามไฟล์ร่วม)
+
+### Related
+- plan.md v1.2: `HandoverReadyStatuses` = `approved`, กำหนดคืนค้างคืน, CHECK ของ action ต้องมี `request` ของ 002 ด้วย
+- plan.md v1.1 (ก่อนหน้า): ไม่ ALTER `loan` ใช้ตาราง `handover` ของ 005 แทน เพื่อไม่กระทบ 001
+- tasks.md v1.2: task ที่รอ Q ลดจาก 15 เป็น 10
+
 ## [SPEC-HND-005 Draft v2.3 + plan v1] - 2569-11-11
 ปรับ AC ให้ตรงกับ AC-APV-08 ของ 004 (อุปกรณ์ 1 ชิ้นมีคำขออนุมัติแล้วได้ทีละ 1 รายการ) ไม่ทำ CR เพราะแก้แค่ข้อมูลตั้งต้นของ AC ไม่เปลี่ยนพฤติกรรม
 
