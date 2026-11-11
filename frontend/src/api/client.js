@@ -42,6 +42,9 @@ export const api = {
     lookup: (assetCode) =>
       request(`/v1/returns/lookup?assetCode=${encodeURIComponent(assetCode)}`),
 
+    // loanDetail รายละเอียดการยืม: เวลาคืน สภาพ คืนเกินกำหนด (FR-RET-06)
+    loanDetail: (loanId) => request(`/v1/returns/loans/${encodeURIComponent(loanId)}`),
+
     // record บันทึกการรับคืน: รหัสครุภัณฑ์ และสภาพ (FR-RET-02) ไม่ส่งเวลา (เวลาคืนมาจากระบบ ASM-04)
     record: ({ assetCode, condition }) => {
       const form = new FormData()

@@ -3,6 +3,7 @@
 // หลังบ้านเป็นผู้ตรวจทุกกฎ หน้านี้แค่ส่งข้อมูลและแสดงผล ข้อความ error แยกตามกรณีอยู่ใน T-10, T-19, T-21
 import { useState } from 'react'
 import { api } from '../../api/client.js'
+import LoanDetailPage from './LoanDetailPage.jsx'
 import { RETURN_CONDITIONS, STATUS_LABELS, TIMEZONE } from '../../config.js'
 
 // formatDateTime แสดงวันที่และเวลาตามเขตเวลา Asia/Bangkok (glossary)
@@ -21,6 +22,7 @@ export default function ReturnPage({ client = api }) {
   const [result, setResult] = useState(null) // ผลการบันทึกที่สำเร็จ
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [showDetail, setShowDetail] = useState(false) // เปิดรายละเอียดการยืมที่เพิ่งบันทึก (T-12)
 
   // หาการยืมที่ยังไม่คืนจากรหัสครุภัณฑ์ (FR-RET-01(ก))
   async function handleLookup(e) {
@@ -29,6 +31,7 @@ export default function ReturnPage({ client = api }) {
     setError('')
     setLoan(null)
     setResult(null)
+    setShowDetail(false)
     const res = await client.returns.lookup(assetCode.trim())
     setBusy(false)
     if (res.ok) {
@@ -121,6 +124,14 @@ export default function ReturnPage({ client = api }) {
           บันทึกการรับคืนแล้ว สถานะ: {STATUS_LABELS[result.itemStatus] ?? result.itemStatus}
         </p>
       )}
+
+      {/* ลิงก์ไปรายละเอียดการยืมที่เพิ่งบันทึก (FR-RET-06) แอปยังไม่มี router จึงเปิดในหน้าเดียวกัน */}
+      {result && !showDetail && (
+        <button type="button" onClick={() => setShowDetail(true)} className="text-teal-800 underline">
+          ดูรายละเอียดการยืม
+        </button>
+      )}
+      {result && showDetail && <LoanDetailPage loanId={result.loanId} client={client} />}
 
       {error && (
         <p role="alert" className="rounded bg-red-50 p-3 text-red-800">

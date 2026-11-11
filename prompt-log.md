@@ -675,3 +675,26 @@
 
 ### สิ่งที่เกือบต้องเดา
 - error code `LOAN_NOT_FOUND` (404) ไม่มีในตาราง error ของ plan ข้อ 4 AI ตั้งเอง ทีมต้องยืนยันและเพิ่มใน plan
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-12 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 5)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำเลยย" -> `/implement T-12 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- ตามช่องไฟล์ที่แตะ: สร้าง `frontend/src/pages/Return/LoanDetailPage.jsx` (เวลาคืน สภาพ "ยังไม่คืน" ข้อความ error ตาม code),
+  `frontend/src/pages/Return/__tests__/LoanDetailPage.test.jsx`, แก้ `frontend/src/api/client.js` (`api.returns.loanDetail`)
+- นอกช่องไฟล์ที่แตะ (จำเป็นตามช่อง "เสร็จเมื่อ" ที่ให้ ReturnPage มีลิงก์): `ReturnPage.jsx` ปุ่ม "ดูรายละเอียดการยืม" หลังบันทึกสำเร็จ,
+  `ReturnPage.test.jsx` test ของปุ่มนี้
+
+### ผล test (`cd frontend && npm test`)
+- LoanDetailPage.test.jsx 3 tests PASS (คืนแล้ว / ยังไม่คืน / โหลดไม่สำเร็จ)
+- ReturnPage.test.jsx เพิ่ม 1 test PASS (บันทึกแล้วกดดูรายละเอียด) / รวม 10 tests PASS / `vite build` สำเร็จ
+
+### สิ่งที่เกือบต้องเดา
+- แอปยังไม่มี router (plan ไม่ได้กำหนด) "ลิงก์" จึงเป็นปุ่มที่เปิด LoanDetailPage ในหน้าเดียวกัน ไม่เพิ่ม library ใหม่
+- ป้าย "คืนเกินกำหนด" ยังไม่แสดง เป็นงานของ T-17

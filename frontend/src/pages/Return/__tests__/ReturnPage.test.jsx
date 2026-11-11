@@ -96,3 +96,22 @@ test('AC-RET-04: หลังบ้านตอบ CONDITION_REQUIRED แสด�
 
   await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('กรุณาเลือกสภาพ ปกติ หรือ ชำรุด'))
 })
+
+// T-12: หลังบันทึกสำเร็จ มีลิงก์ไปรายละเอียดการยืม (FR-RET-06)
+test('T-12: บันทึกสำเร็จแล้วกด "ดูรายละเอียดการยืม" เห็นรายละเอียดของการยืมนั้น', async () => {
+  const client = fakeClient()
+  client.returns.loanDetail = vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    data: { loanId: 1, assetCode: 'CS-NB-0004', borrowerId: 'student-001', dueAt: '2026-11-11T09:00:00Z', returnedAt: '2026-11-11T08:00:00Z', condition: 'normal', returnedLate: false },
+  })
+  await openLoanForm(client)
+  fireEvent.click(screen.getByLabelText('ปกติ'))
+  fireEvent.click(screen.getByRole('button', { name: 'บันทึกการรับคืน' }))
+  await screen.findByRole('status')
+
+  fireEvent.click(screen.getByRole('button', { name: 'ดูรายละเอียดการยืม' }))
+
+  await screen.findByRole('region', { name: 'รายละเอียดการยืม' })
+  expect(client.returns.loanDetail).toHaveBeenCalledWith(1)
+})
