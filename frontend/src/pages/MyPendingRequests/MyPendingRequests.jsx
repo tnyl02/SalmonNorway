@@ -87,7 +87,15 @@ export default function MyPendingRequests({ client = api }) {
           ))}
         </ul>
       )}
-      {target && <CancelDialog key={target.requestId} request={target} onConfirm={confirmCancel} busy={busy} />}
+      {target && (
+        <CancelDialog
+          key={target.requestId}
+          request={target}
+          onConfirm={confirmCancel}
+          onCancel={() => setTarget(null)} // ไม่ยืนยัน: ปิดกล่อง แถวยังอยู่ (FR-CXL-07, T-08)
+          busy={busy}
+        />
+      )}
     </section>
   )
 }

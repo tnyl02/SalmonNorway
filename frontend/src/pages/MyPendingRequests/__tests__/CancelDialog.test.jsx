@@ -50,3 +50,38 @@ test('AC_CXL_01 keeps row when cancel fails', async () => {
   expect(screen.getAllByRole('listitem')).toHaveLength(1)
   expect(screen.queryByRole('status')).toBeNull()
 })
+
+// AC-CXL-09 (FR-CXL-07) กดไม่ยืนยันแล้วไม่ยกเลิก เปิดใหม่ช่องเหตุผลว่าง กดยืนยันรอบสองแล้วยกเลิก (T-08)
+//   Given นักศึกษามีคำขอที่ยังยกเลิกได้ 1 รายการ
+//   When  กดยกเลิก พิมพ์เหตุผล แล้วกดไม่ยืนยัน
+//   Then  กล่องปิด client ไม่ถูกเรียก แถวยังอยู่
+//   When  กดยกเลิกอีกครั้ง
+//   Then  ช่องเหตุผลว่าง พิมพ์ใหม่แล้วกดยืนยัน แถวหายไป
+test('AC_CXL_09 confirm dialog cancel then confirm', async () => {
+  // Given
+  const client = fakeClient([REQ_A1])
+  render(<MyPendingRequests client={client} />)
+  const row = await screen.findByRole('listitem')
+
+  // When ไม่ยืนยัน
+  fireEvent.click(within(row).getByRole('button', { name: 'ยกเลิก' }))
+  let dialog = await screen.findByRole('dialog')
+  fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'พิมพ์ไว้แล้วเปลี่ยนใจ' } })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'ไม่ยืนยัน' }))
+
+  // Then
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(client.cancelRequest).not.toHaveBeenCalled()
+  expect(screen.getAllByRole('listitem')).toHaveLength(1)
+
+  // When เปิดใหม่
+  fireEvent.click(within(screen.getByRole('listitem')).getByRole('button', { name: 'ยกเลิก' }))
+  dialog = await screen.findByRole('dialog')
+
+  // Then ช่องว่าง แล้วยืนยันรอบสอง
+  expect(within(dialog).getByRole('textbox').value).toBe('')
+  fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'ไม่ต้องใช้อุปกรณ์แล้ว' } })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'ยืนยัน' }))
+  await waitFor(() => expect(client.cancelRequest).toHaveBeenCalledTimes(1))
+  await waitFor(() => expect(screen.queryAllByRole('listitem')).toHaveLength(0))
+})

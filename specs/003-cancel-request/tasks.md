@@ -143,11 +143,11 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 ### T-08 ทำปุ่มไม่ยืนยันให้ปิดกล่องโดยไม่ยกเลิก
 - รองรับ: FR-CXL-07
 - ตรวจด้วย: AC-CXL-09
-- ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/CancelDialog.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/CancelDialog.test.jsx`
+- ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/CancelDialog.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/CancelDialog.test.jsx`, `frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx` (เพิ่ม 2569-11-11 ทีมอนุญาต: หน้าเป็นผู้ปิดกล่อง)
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
 - ต้องทำหลัง: T-07
 - เสร็จเมื่อ: vitest `AC_CXL_09 confirm dialog cancel then confirm` ผ่าน (ไม่ยืนยันแล้ว client จำลองไม่ถูกเรียก แถวยังอยู่ เปิดกล่องใหม่ช่องเหตุผลว่าง ยืนยันรอบสองแล้วแถวหาย)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 #### จุดตรวจเฟส 3
 - test ที่ต้องผ่านทั้งหมด: vitest `AC_CXL_09 ...` และ test ของเฟส 0-2

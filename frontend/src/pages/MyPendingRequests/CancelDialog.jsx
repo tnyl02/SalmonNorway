@@ -1,9 +1,10 @@
 import { useState } from 'react'
 
 // กล่องยืนยันการยกเลิกคำขอ พร้อมช่องเหตุผล (FR-CXL-07, FR-CXL-08)
-// request คือแถวที่จะยกเลิก onConfirm(reason) เรียกเมื่อกดยืนยัน busy = กำลังส่งไปหลังบ้าน
-// T-07 ทำเฉพาะการยืนยัน ปุ่มไม่ยืนยันอยู่ใน T-08 การตรวจเหตุผลว่างหรือเกินและตัวนับ x/200 อยู่ใน T-10
-export default function CancelDialog({ request, onConfirm, busy = false }) {
+// request คือแถวที่จะยกเลิก onConfirm(reason) เรียกเมื่อกดยืนยัน onCancel เรียกเมื่อกดไม่ยืนยัน busy = กำลังส่งไปหลังบ้าน
+// ช่องเหตุผลเก็บใน state ของกล่อง ปิดแล้วเปิดใหม่จึงว่างเสมอ (FR-CXL-07, ASM-13)
+// การตรวจเหตุผลว่างหรือเกินและตัวนับ x/200 อยู่ใน T-10
+export default function CancelDialog({ request, onConfirm, onCancel, busy = false }) {
   const [reason, setReason] = useState('')
   const titleId = `cancel-dialog-title-${request.requestId}`
 
@@ -28,6 +29,15 @@ export default function CancelDialog({ request, onConfirm, busy = false }) {
           />
         </label>
         <div className="flex justify-end gap-2">
+          {/* ไม่ยืนยัน: ปิดกล่องโดยไม่ยกเลิกและไม่เรียก API (FR-CXL-07) */}
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onCancel}
+            className="rounded border border-slate-300 px-3 py-1 text-sm text-slate-700 disabled:opacity-50"
+          >
+            ไม่ยืนยัน
+          </button>
           <button
             type="button"
             disabled={busy}
