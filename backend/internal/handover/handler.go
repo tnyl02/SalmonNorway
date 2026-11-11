@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"salmonnorway/backend/internal/auth"
+	"salmonnorway/backend/internal/config"
 )
 
 // PathPrefix คือส่วนต้นของ path ทุก endpoint ของ 005 ที่หลังบ้านรับ
@@ -54,9 +55,18 @@ func requireStaff(next http.Handler) http.Handler {
 	})
 }
 
-// listRequests: GET /v1/handover/requests (FR-HND-01) ทำใน T-04
-func (h *Handler) listRequests(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+// listRequests: GET /v1/handover/requests รายการคำขอที่อนุมัติแล้วและยังไม่ส่งมอบทั้งหมด (FR-HND-01, AC-HND-14)
+// ตอบเป็น JSON array ตาม plan.md ข้อ 4 ไม่มีคำขอ = []
+func (h *Handler) listRequests(w http.ResponseWriter, r *http.Request) {
+	items, err := ListReadyRequests(r.Context(), h.db, config.HandoverReadyStatuses())
+	if err != nil {
+		writeUpstreamError(w, err)
+		return
+	}
+	if items == nil {
+		items = []ReadyRequestDTO{}
+	}
+	writeJSON(w, http.StatusOK, items)
 }
 
 // verifyBorrower: POST /v1/handover/requests/{requestId}/verify-borrower (FR-HND-02) ทำใน T-09

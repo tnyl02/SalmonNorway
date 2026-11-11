@@ -143,3 +143,37 @@ func (r *Repository) CreateHandover(ctx context.Context, rec HandoverRecord, rea
 	}
 	return res, nil
 }
+
+// Querier คือส่วนของ pgxpool.Pool ที่ใช้อ่านข้อมูล
+type Querier interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+}
+
+// ReadyRequestDTO คือคำขอ 1 รายการในรายการรอส่งมอบ (FR-HND-01, plan.md ข้อ 4)
+type ReadyRequestDTO struct {
+	RequestID          int       `json:"requestId"`
+	AssetCode          string    `json:"assetCode"` // CON-DATA-03
+	ModelName          string    `json:"modelName"`
+	RequesterStudentID string    `json:"requesterStudentId"` // รหัสผู้ใช้ของผู้ส่งคำขอ (borrow_request.requester_id)
+	SubmittedAt        time.Time `json:"submittedAt"`
+}
+
+// ListReadyRequests คืนคำขอยืมทั้งหมดที่อยู่ในสถานะที่ส่งมอบได้ (อนุมัติแล้วและยังไม่ส่งมอบ) (FR-HND-01, ASM-HND-05)
+// เรียงตามเวลาที่ส่งคำขอ เก่าก่อน (ลำดับการแสดงทีมเลือกเอง ไม่ได้มาจาก spec)
+func ListReadyRequests(ctx context.Context, q Querier, readyStatuses []string) ([]ReadyRequestDTO, error) {
+	rows, err := q.Query(ctx, `
+SELECT r.id, i.asset_code, m.name, r.requester_id, r.submitted_at
+FROM borrow_request r
+JOIN equipment_item i ON i.id = r.item_id
+JOIN equipment_model m ON m.id = i.model_id
+WHERE r.status = ANY($1)
+ORDER BY r.submitted_at, r.id`, readyStatuses)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (ReadyRequestDTO, error) {
+		var d ReadyRequestDTO
+		err := row.Scan(&d.RequestID, &d.AssetCode, &d.ModelName, &d.RequesterStudentID, &d.SubmittedAt)
+		return d, err
+	})
+}

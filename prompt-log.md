@@ -1488,3 +1488,16 @@
   ข้อความภาษาไทยของ error ทีมเลือกเอง ไม่ได้มาจาก spec, route ของ T-04, T-09, T-10 ตอบ 501 ชั่วคราวจนกว่า task นั้นเสร็จ
   `NewHandler(db, provider)` รับ provider ไว้ใช้ยืนยันผู้ยืม (T-09) เพื่อไม่ต้องแก้ main.go อีกใน task ถัดไป
 - ข้อสังเกตถึง 001: `auth.Middleware` ของ 001 ตอบ error เป็น `{code}` ไม่มี message ยังไม่ตรง CON-TECH-03 ทั้งหมด (CR-004 บอกว่า 001 ควรแก้รอบถัดไป)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-04
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/repository.go` (`ListReadyRequests`, `ReadyRequestDTO`), `handler.go` (`listRequests`), `handler_test.go`
+  (`HandoverReadyStatuses()` ใน config.go เพิ่มไปแล้วตอน T-06)
+- ผล test: `TestAC_HND_14_ListApprovedOnly` ผ่าน (อนุมัติแล้ว 2 รายการ คนละชิ้น ยังไม่อนุมัติ 1 ส่งมอบแล้ว 1 ได้กลับมา 2 รายการพร้อม assetCode) `go test ./...` ผ่าน
+- สิ่งที่ AI ตัดสินในขอบเขตที่ plan ให้: ตอบเป็น JSON array ตาม plan ข้อ 4 (001 ใช้ `{items, total}` แต่ plan ของ 005 เขียนเป็น array),
+  เรียงตามเวลาที่ส่งคำขอเก่าก่อน (spec ไม่บอก ทีมเลือกเอง), test ผ่าน HTTP ใช้ pool และ commit จริงแล้วลบข้อมูลทดสอบตอนจบ
