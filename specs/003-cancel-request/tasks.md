@@ -22,7 +22,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - เลข migration ต้องจองในกลุ่มก่อน: data-model.md จอง `0003_borrow_request` ให้ 002 และ `0004` ขึ้นไปให้ 003 (T-01, T-30)
   จองในกลุ่มแล้ว 2569-11-11: 003 ได้ `0004` และ `0005`
 - ~~ชื่อคอลัมน์และค่าสถานะของ `borrow_request` ต้องตกลงกับเจ้าของ 002 ก่อนทำ T-01~~ ตกลงแล้ว 2569-11-11: 002 สร้างเองใน 0003 พร้อม cancel_reason, cancelled_at และ FK ของ audit_log (ASM-09, ASM-11)
-  **T-01 ยังต้องรอ 002 push `0003_borrow_request` เข้า main และ 003 merge main เข้า branch**
+  ~~T-01 ยังต้องรอ 002 push `0003_borrow_request` เข้า main~~ merge main เข้า branch 003 แล้ว 2569-11-11 T-01 เริ่มได้
   002 ใส่ index `idx_request_owner_status` ใน 0003 ให้แล้ว (ตกลงรอบที่ 2)
 - งานหน้าจอ (T-05, 07, 08, 10, 12, 16, 18, 20, 22, 24, 26) ไม่รองานหลังบ้าน (ทีมตัดสิน 2569-11-11) ทำต่อกันตามลำดับหน้าจอได้เลย
   แต่จุดตรวจของแต่ละเฟสยังต้องรอทั้งหน้าจอและหลังบ้านของเฟสนั้นเสร็จ
@@ -41,7 +41,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 ### T-01 สร้าง migration staff_contact และตรวจตาราง borrow_request ของ 002
 - รองรับ: CON-TECH-01, CON-TECH-02, CON-CXL-02, CON-CXL-01, CON-DATA-01, FR-CXL-08 (ช่อง cancel_reason), ASM-09, ASM-10, ASM-11
 - ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นงานพื้นฐานของ T-04 ขึ้นไป
-- ไฟล์ที่แตะ: `backend/db/migrations/0004_staff_contact.up.sql`, `backend/internal/cancelrequest/migration_test.go` (ไม่สร้าง borrow_request เพราะ 002 สร้างใน 0003 แก้ 2569-11-11)
+- ไฟล์ที่แตะ: `backend/db/migrations/0004_staff_contact.up.sql`, `backend/internal/cancelrequest/migration_test.go` (ไม่สร้าง borrow_request เพราะ 002 สร้างใน 0003 แก้ 2569-11-11), `backend/internal/cancelrequest/tc_helpers_test.go` (ตัวช่วย ไม่ใช่ TC: tcInsert ต้องใส่ requester_name, student_code, start_at, end_at และ purpose เป็น study / activity / other ตาม 0003 จริงของ 002 เพิ่ม 2569-11-11 หลัง merge main)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี task ของ 003 แต่ต้องมี `0003_borrow_request` ของ 002 ใน branch ก่อน (ดูส่วนหัว)
 - เสร็จเมื่อ: `TestMigration_BorrowRequestStatusCheck` (สถานะนอก 8 ค่าถูกปฏิเสธ) และ `TestMigration_CancelReasonMaxLen` (201 ตัวอักษรถูกปฏิเสธ) ผ่านกับตารางของ 002, ตาราง staff_contact มีอยู่ และไม่มี trigger หรือ FK ที่แก้ `equipment_item.status`
