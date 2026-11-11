@@ -1116,3 +1116,218 @@
 - ยังไม่ได้ลองบนเครื่อง Windows จริง ให้เพื่อนที่ใช้ Windows ลองหลัง merge
 - สาเหตุอื่นบน Windows ที่แจ้งทีม (ไม่ได้แก้โค้ด): ตั้งค่า `VITE_MOCK_TOKEN=...` แบบ Linux ใช้ใน PowerShell ไม่ได้,
   PostgreSQL ในเครื่องชน port 5432, ต้องเปิด Docker Desktop, ต้อง `npm install`
+
+---
+
+## 2569-11-11 /implement T-02 (002-borrow-request)
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 0 ฐานราก ค่าที่ตั้งได้จาก spec)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-02`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/config/config.go` (ตรงกับช่องไฟล์ที่แตะ) เพิ่ม 9 ค่า + ฟิลด์ AttachmentDir
+- `frontend/src/config.js` (ตรงกับช่องไฟล์ที่แตะ) เพิ่ม 5 ค่า
+- `backend/internal/config/config_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** เป็น test ของ "เสร็จเมื่อ"
+  (เหตุผลเดียวกับ T-01 และทำแบบเดียวกับที่ 001 เคยทำ)
+
+### ค่าที่เพิ่ม ทุกตัวมีคอมเมนต์อ้าง ID
+- config.go: LoanNormalReturnHour (DOM-LOAN-01), OverdueBlockUntilNextDayStart (FR-BRQ-06 ข),
+  AttachmentMaxBytes และ AttachmentAllowedTypes (FR-BRQ-10 ก), PurposeValues และ PurposeOther (FR-BRQ-02),
+  RequestStatuses และ StatusRequested (data-model v9, FR-BRQ-04), AuditActionRequest (Q-BRQ-07),
+  AttachmentDir อ่านจาก env (ASM-BRQ-07)
+- config.js: LOAN_NORMAL_RETURN_HOUR, ATTACHMENT_MAX_BYTES, ATTACHMENT_ALLOWED_TYPES,
+  PURPOSE_OPTIONS (พร้อมข้อความไทยจากคำตอบ Q-BRQ-16), PURPOSE_OTHER
+- **ไม่ได้เพิ่ม TimeZone ซ้ำ** เพราะ 001 ประกาศไว้แล้วใน config.go ใช้ตัวเดิม
+
+### ผล test
+- `go test ./internal/config/ -v`: TestConfig_BorrowRequestValues PASS, TestConfig_AttachmentDirFromEnv PASS
+- `go test ./...`: auth, config, equipment, platform ok ทั้งหมด
+- `npm test` (รันใน Ubuntu หลัง `npm install` ครั้งแรกของเครื่องนี้): **10 ไฟล์ 17 test ผ่านหมด**
+- ตรวจด้วย grep แล้วไม่มีค่าเหล่านี้ฝังอยู่นอกไฟล์ config (ที่เจอเป็นคอมเมนต์และข้อมูลทดสอบของ 001)
+
+### สิ่งที่ AI เกือบต้องเดา
+- ค่าเริ่มต้นของ AttachmentDir (`./var/attachments`) เป็นค่าของเครื่องพัฒนาแบบเดียวกับรหัสผ่าน DB ของ T-01
+  ไม่ใช่ requirement เปลี่ยนด้วย ATTACHMENT_DIR ได้
+- OverdueBlockUntilNextDayStart เป็น bool ที่เป็น true เสมอ ทำตามชื่อที่ plan ข้อ 5 กำหนดไว้
+  เพื่อให้กฎจาก spec อยู่ใน config ไม่ฝังในเงื่อนไข ถ้าทีมเห็นว่าไม่จำเป็นให้บอก จะถอดออกและแก้ plan
+
+### หมายเหตุสภาพแวดล้อม
+- เครื่องนี้ไม่เคยติดตั้ง node_modules ของ frontend มาก่อน (อยู่ใน .gitignore)
+  ติดตั้ง Node ใน Ubuntu แล้ว `npm install` ครั้งแรก
+  **ต้องติดตั้งและรันฝั่งเดียวกันเสมอ** ถ้าลงจาก Windows แล้วมารันใน WSL จะพังเพราะ shim คนละแบบ
+
+---
+
+## 2569-11-11 /implement T-03 (002-borrow-request) — ปิดเฟส 0
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 0 ฐานราก ข้อมูลตัวอย่าง)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-03`
+
+### ข้อค้นพบ: ไม่ต้องเพิ่มข้อมูลใหม่เลย
+ตรวจ seed.sql แล้วพบว่า 3 กรณีที่ "เสร็จเมื่อ" ของ T-03 ต้องการ มีอยู่แล้วครบจาก T-02 ของ 001
+- CS-NB-0001 ถึง 0003 ว่างและเป็นของภาควิชา 1
+- XX-NB-0001 ว่างแต่เป็นของภาควิชา 2 (รุ่น 3 -> department_id 2)
+- ชิ้นที่ 5 ถูกยืมโดย student-002 กำหนดคืน 16:00 เมื่อวาน ยังไม่คืน
+
+AI จึง**ไม่เพิ่มแถวใหม่** เพราะจะเป็นข้อมูลที่ไม่มีใครใช้ และเสี่ยงทำให้ test ของ 001
+ที่นับจำนวน (รุ่น 1 มี 5 ชิ้น ว่าง 3 ชิ้น) พัง
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/db/seed/seed.sql` (ตรงกับช่องไฟล์ที่แตะ) **แก้เฉพาะคอมเมนต์หัวไฟล์**
+  ระบุว่าแถวไหนรองรับจุดตรวจข้อไหนของ 002 และระบุว่าตาราง borrow_request ต้องไม่มีข้อมูลตั้งต้น
+- `backend/internal/platform/migrate_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** เพิ่ม TestSeed_BorrowRequestScenarios
+  (เหตุผลเดียวกับ T-01 และ T-02)
+
+### ผล test
+- `go test ./internal/platform/ -run TestSeed -v`
+  - TestSeed_Model1HasFiveItemsThreeAvailable PASS (5.22s) ของ 001 ยังผ่าน
+  - TestSeed_BorrowRequestScenarios PASS (0.01s)
+  - ok salmonnorway/backend/internal/platform 5.804s
+
+### สิ่งที่ AI เพิ่มเองโดยไม่ได้สั่ง (ทีมตรวจได้)
+- test ข้อสุดท้ายบังคับว่า **ตาราง borrow_request ต้องว่างเปล่าในข้อมูลตั้งต้น**
+  เพื่อกันไม่ให้ใครใส่คำขอไว้ล่วงหน้าแล้วทำให้จุดตรวจของเฟสถัดไปผ่านแบบไม่จริง
+  ไม่ได้อยู่ใน "เสร็จเมื่อ" แต่เป็นเกราะที่สอดคล้องกับ FR-BRQ-04 ที่ว่าคำขอเกิดจากการส่งเท่านั้น
+
+### หมายเหตุ
+- เฟส 0 ครบทั้ง 3 task แล้ว เหลือรันจุดตรวจเฟส 0 ให้ครบ (go test ./... และลองมือด้วย psql)
+
+---
+
+## 2569-11-11 /implement T-04 (002-borrow-request) — เริ่มเฟส 1
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 1 ส่งคำขอยืมสำเร็จ AC-BRQ-04)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-04`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/model.go` (ตรงกับช่องไฟล์ที่แตะ) โครงข้อมูลและ error ของฟีเจอร์
+- `backend/internal/borrowrequest/repository.go` (ตรงกับช่องไฟล์ที่แตะ) INSERT ... SELECT และ ItemStatus
+- `backend/internal/borrowrequest/service.go` (ตรงกับช่องไฟล์ที่แตะ) กฎของฟีเจอร์ อ่านผู้ขอจาก auth
+- `backend/internal/borrowrequest/service_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** เป็น test ของ "เสร็จเมื่อ"
+  (เหตุผลเดียวกับ T-01 ถึง T-03) ใช้ชุดเปิด container แบบเดียวกับ handler_test.go ของ 001
+
+### การตัดสินใจด้านโครงสร้าง
+- ใช้ `INSERT ... SELECT ... WHERE asset_code = $10 AND status = 'available' RETURNING` คำสั่งเดียว
+  การอ่านสถานะกับการเขียนคำขอจึงอยู่ในคำสั่งเดียวกัน ไม่มีช่องให้สถานะเปลี่ยนระหว่างกลาง
+  (plan.md ข้อ 3 สั่งให้อยู่ในทรานแซกชันเดียวกัน คำสั่งเดียวคือทรานแซกชันเดียวโดยปริยาย)
+- ไม่มีคำสั่งใดใน repository แตะตาราง equipment_item เลย (DOM-REQ-01) และ test ตรวจซ้ำหลังส่งคำขอ
+- `requester_id` มาจาก auth.FromContext เท่านั้น ไม่ใช่ student_code ที่ผู้ขอพิมพ์ (ASM-BRQ-06)
+
+### ผล test
+- `go test ./internal/borrowrequest/ -v`: ok 4.680s (TestAC_BRQ_04,
+  TestCreate_RejectsItemNotAvailable, TestCreate_RequiresPrincipal)
+- `go test ./...`: auth, borrowrequest, config, equipment, platform ok ทั้งหมด
+
+### สิ่งที่ AI ทำล่วงหน้าหรือคาบเกี่ยว task อื่น (ทีมตรวจได้)
+- ใส่ `WHERE status = 'available'` ไว้แล้วใน T-04 เพราะ CON-DATA-01 อยู่ในช่อง "รองรับ" ของ T-04
+  เหลือให้ T-09 ทำเรื่องการแจ้งสถานะล่าสุดและแปลงเป็น HTTP 409
+- เพิ่มเมท็อด `ItemStatus()` ใน repository ซึ่งยังไม่มีใครเรียกในรอบนี้ เตรียมไว้ให้ T-09
+- `Service` มีฟิลด์ `now` ที่ยังไม่ได้ใช้ เตรียมไว้ให้ T-12 และ T-13 ที่ต้องฉีดนาฬิกา
+
+---
+
+## 2569-11-11 /implement T-05 (002-borrow-request) — ปิดเฟส 1
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 1 ส่งคำขอยืมสำเร็จ AC-BRQ-04)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-05`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/handler.go` (ตรงกับช่องไฟล์ที่แตะ) POST /v1/loan-requests
+- `backend/internal/borrowrequest/dto.go` (ตรงกับช่องไฟล์ที่แตะ) CreateRequestDTO, CreatedDTO, ErrorDTO
+- `backend/cmd/server/main.go` (ตรงกับช่องไฟล์ที่แตะ) ผูก handler เข้า router หลัง auth.Middleware
+- `backend/internal/borrowrequest/handler_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** เป็น test ของ "เสร็จเมื่อ"
+
+### การตัดสินใจ
+- `ErrorDTO` ของฟีเจอร์นี้เป็น `{code, message}` ตาม CON-TECH-03 (CR-004)
+  ต่างจาก ErrorDTO ของ 001 ที่มีแค่ `{code}` เพราะเขียนก่อนมี constraint นี้
+  CR-004 ระบุไว้แล้วว่า 001 ไม่ต้องแก้โค้ด
+- path เป็น `/v1/loan-requests` ไม่ใช่ `/api/v1/...` เพราะ proxy ใน vite.config.js ตัด /api ออก
+  (แบบเดียวกับ equipment.PathPrefix ของ 001)
+- ตั้งชื่อ test ว่า `TestAC_BRQ_04_HTTP` เพราะชื่อ `TestAC_BRQ_04` ถูกใช้ใน T-04 แล้ว
+  ชื่อซ้ำกันใน package เดียวไม่ได้ แต่ยังมี AC ID อยู่ในชื่อตามกติกา
+
+### ผล test
+- `go test ./internal/borrowrequest/ -v`: ok 4.947s
+  (TestAC_BRQ_04, TestAC_BRQ_04_HTTP, TestCreate_WithoutToken_401, TestCreate_BadJSON_422,
+   TestRoutes_OnlyPost, TestCreate_RejectsItemNotAvailable, TestCreate_RequiresPrincipal)
+- `go build ./...` ผ่าน ยืนยันว่า main.go ที่แก้คอมไพล์ได้
+- `go test ./...`: ทุกแพ็กเกจ ok
+
+### สิ่งที่ AI ทำคาบเกี่ยว task อื่น (ทีมตรวจได้)
+- แปลง ErrItemNotAvailable เป็น 409 ITEM_NOT_AVAILABLE แล้วใน handler
+  แต่ **ยังไม่แนบสถานะล่าสุดกลับไปใน body** ซึ่งเป็นส่วนที่ T-09 ต้องเติม (เขียนคอมเมนต์กำกับไว้)
+- body ที่อ่านไม่ออกตอบ 422 VALIDATION_FAILED ถือเป็นเรื่องของ handler
+  ไม่ใช่การตรวจความครบถ้วนรายช่องซึ่งเป็นงานของ T-06
+
+---
+
+## 2569-11-11 /implement T-06 (002-borrow-request) — เฟส 2 ตรวจความครบถ้วนของฟอร์ม
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 2 AC-BRQ-03)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-06`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/validate.go` (ตรงกับช่องไฟล์ที่แตะ) ฟังก์ชัน missingFields ตรวจ 5 ช่อง
+- `backend/internal/borrowrequest/handler.go` (ตรงกับช่องไฟล์ที่แตะ) เรียก missingFields ก่อนเรียก service
+  และเพิ่ม writeValidationError
+- `backend/internal/borrowrequest/handler_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** ต่อ test ท้ายไฟล์เดิม
+
+### การตัดสินใจ
+- CR-004 ระบุว่า VALIDATION_FAILED ต้อง "แนบรายชื่อช่องที่ผิด" แต่ ErrorDTO ใน dto.go มีแค่ {code, message}
+  และ dto.go ไม่อยู่ในช่องไฟล์ที่แตะของ T-06 จึงประกาศ validationErrorDTO ไว้ใน handler.go แทน
+  ยังมี code กับ message ครบตาม CON-TECH-03 เพิ่มแค่ fields
+  **ถ้าทีมอยากให้รวมไว้ที่ dto.go ให้ทำตอน task หลังที่แตะ dto.go อยู่แล้ว**
+- ใช้ strings.TrimSpace ไม่ให้ช่องว่างล้วนผ่าน และ time.IsZero สำหรับวันเวลาที่ไม่ได้ส่งมา
+- เขียนคอมเมนต์กันขอบเขตไว้ใน validate.go ว่าค่าวัตถุประสงค์ 3 ค่าเป็นของ T-07
+  และกฎเวลาคืน 16:00 เป็นของ T-08
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run "TestAC_BRQ_03|TestValidation" -v`: PASS
+- `go test ./...`: ทุกแพ็กเกจ ok (borrowrequest 4.922s)
+
+### สิ่งที่ AI ไม่ได้ทำ (ตามขอบเขต)
+- ไม่ตรวจว่า assetCode ว่างหรือไม่ เพราะไม่ได้อยู่ใน 5 ช่องที่ทีมตัดสิน
+  รหัสครุภัณฑ์มาจาก FR-EQS-06 ไม่ใช่ช่องที่ผู้ขอพิมพ์ ถ้าไม่มีจะถูกปฏิเสธที่ชั้นฐานข้อมูลเป็น ITEM_NOT_AVAILABLE
+- ไม่ตรวจว่า purpose เป็น 1 ใน 3 ค่า (T-07) และไม่ตรวจกฎ 16:00 (T-08)
+
+---
+
+## 2569-11-12 /implement T-07 (002-borrow-request) — ปิดเฟส 3
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 3 AC-BRQ-02 และ AC-BRQ-14)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-07`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/validate.go` (ตรงกับช่องไฟล์ที่แตะ) เพิ่ม purposeProblems
+- `backend/internal/borrowrequest/service.go` (ตรงกับช่องไฟล์ที่แตะ) เพิ่ม normalizePurpose
+- `backend/internal/borrowrequest/handler_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** ต่อ test ท้ายไฟล์เดิม
+
+### ข้อจำกัดที่ต้องออกแบบรอบ
+`handler.go` **ไม่อยู่ในช่องไฟล์ที่แตะของ T-07** จึงเพิ่ม branch ใหม่ใน handler ไม่ได้
+ทางออกคือให้กฎใหม่ไหลผ่าน missingFields() ที่ handler เรียกอยู่แล้ว (เรียก purposeProblems ต่อท้าย)
+ผลคือไม่ต้องแตะ handler เลย แต่ชื่อ missingFields ตอนนี้ครอบคลุมทั้ง "ไม่ได้กรอก" และ "กรอกค่าที่ไม่รู้จัก"
+แก้คอมเมนต์หัวฟังก์ชันให้ตรงความหมายใหม่แล้ว **ถ้าทีมอยากเปลี่ยนชื่อเป็น invalidFields
+ต้องทำตอน task ที่มี handler.go อยู่ในรายการ**
+
+### การตัดสินใจอื่น
+- ค่าที่ไม่รู้จัก (เช่น "exam" หรือส่งข้อความไทย "เพื่อการเรียน" มาแทน value) ถือเป็นปัญหาของช่อง purpose
+  เหมือนกับกรณีไม่ได้เลือก ชี้ช่องเดียวกัน ไม่แยกรหัส error ใหม่
+- normalizePurpose ล้างข้อความพิมพ์ระบุทิ้งเมื่อไม่ได้เลือก "อื่น ๆ" (FR-BRQ-02 ข้อ ข)
+  กันข้อความค้างจากการที่ผู้ขอพิมพ์ไว้แล้วเปลี่ยนใจ
+- ใช้ config.PurposeValues และ config.PurposeOther จาก T-02 ไม่มีการเขียน "study" หรือ "other" ฝังในตรรกะ
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run "TestAC_BRQ_02|TestAC_BRQ_14" -v`: PASS
+- `go test ./...`: ทุกแพ็กเกจ ok (borrowrequest 4.936s)
