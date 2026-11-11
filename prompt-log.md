@@ -1634,3 +1634,40 @@
 - conflict 2 ไฟล์: migrate.go ใช้ของ 001 ทั้งไฟล์ (โค้ดเหมือนกัน ต่างแค่คอมเมนต์ 001 เป็นเจ้าของไฟล์) การแก้ของ 003 จึงไม่เหลือในไฟล์ของกลางแล้ว
   prompt-log.md เก็บทั้งสองฝั่ง
 
+---
+
+## 2569-11-11 /implement T-01 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request (เพิ่มไฟล์ใน backend/db/migrations ซึ่งเป็นของกลาง เพราะ 003)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-01 สร้าง migration staff_contact และตรวจตาราง borrow_request ของ 002
+- ไฟล์ที่แก้หรือสร้าง:
+  - backend/db/migrations/0004_staff_contact.up.sql (ใหม่): staff_contact(department_id FK department, email) ตาม plan ข้อ 3 (ASM-10)
+  - backend/internal/cancelrequest/migrationtest/migration_test.go (ใหม่ package แยก): TestMigration_BorrowRequestStatusCheck,
+    TestMigration_CancelReasonMaxLen, TestMigration_StaffContactExists, TestMigration_NoEquipmentSideEffects
+  - backend/internal/cancelrequest/tc_helpers_test.go (ตัวช่วย ไม่ใช่ TC): tcInsert ใส่คอลัมน์ตาม 0003 จริง
+    (requester_name 'ผู้ทดสอบ', student_code 'TEST-000', purpose 'study', start_at = submitted_at + 1 วัน, end_at = start_at + 6 ชม. ค่าทดสอบ ไม่ได้มาจาก spec)
+- ผล test: `go test ./internal/cancelrequest/migrationtest/ -v` ผ่าน 4/4, platform / equipment / config / auth ยังผ่าน
+  package cancelrequest ยัง compile ไม่ผ่าน (undefined NewHandler) ตามคาด รอ T-04, T-06
+- สิ่งที่เกือบต้องเดาแต่ถามแทน: ที่วาง migration_test.go (package cancelrequest compile ไม่ผ่าน) -> ทีม: package แยก migrationtest
+  แก้ช่อง "ไฟล์ที่แตะ" ของ T-01 และ T-30 ให้ตรง
+- ไม่ได้ทำ: 0004 ไม่มีไฟล์ .down.sql (ไม่อยู่ในช่องไฟล์ที่แตะ 0001, 0002 ของ 001 ก็ไม่มี)
+  ห้าม push 0004 เข้า main ก่อน 0003 ตามที่ตกลง (0003 อยู่ใน main แล้ว จึงไม่ติด)
+- สถานะใน tasks.md: T-01 เสร็จ
+
+---
+
+## 2569-11-11 ทีมตรวจ T-01, T-12 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ T-01:
+  - `go test -count=1 -v ./internal/cancelrequest/migrationtest/` ผ่าน 4/4 และ test ของ 001/002 (auth, equipment, platform, config) ผ่าน
+    (รอบแรก platform ขึ้น "rootless Docker is not supported on Windows" เป็นอาการติดต่อ Docker ไม่ได้ชั่วขณะ รันซ้ำแล้วผ่าน)
+  - ฐานข้อมูลในเครื่อง (salmon-db พอร์ต 5433): schema_migrations version 4 dirty f, มีตาราง borrow_request และ staff_contact
+    borrow_request มี cancel_reason varchar(200), cancelled_at, idx_request_owner_status, ใส่สถานะ 'ยกเลิก' ถูกปฏิเสธด้วย check constraint
+- วิธีตรวจ T-12: หน้าเว็บ http://localhost:5173 หน้า "คำขอที่รออนุมัติของฉัน" แสดง "โหลดรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" และปุ่ม "ลองใหม่"
+  (หลังบ้านยังตอบ 404 เพราะ T-04 ยังไม่ทำ) ข้อความ "ไม่มีคำขอที่รออนุมัติ" ตรวจผ่าน test (TC-CXL-12-2) ยังลองบนจอจริงไม่ได้จนกว่า T-04 เสร็จ
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-01, T-12 เป็น "เสร็จ"
+

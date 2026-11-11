@@ -41,11 +41,11 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 ### T-01 สร้าง migration staff_contact และตรวจตาราง borrow_request ของ 002
 - รองรับ: CON-TECH-01, CON-TECH-02, CON-CXL-02, CON-CXL-01, CON-DATA-01, FR-CXL-08 (ช่อง cancel_reason), ASM-09, ASM-10, ASM-11
 - ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นงานพื้นฐานของ T-04 ขึ้นไป
-- ไฟล์ที่แตะ: `backend/db/migrations/0004_staff_contact.up.sql`, `backend/internal/cancelrequest/migration_test.go` (ไม่สร้าง borrow_request เพราะ 002 สร้างใน 0003 แก้ 2569-11-11), `backend/internal/cancelrequest/tc_helpers_test.go` (ตัวช่วย ไม่ใช่ TC: tcInsert ต้องใส่ requester_name, student_code, start_at, end_at และ purpose เป็น study / activity / other ตาม 0003 จริงของ 002 เพิ่ม 2569-11-11 หลัง merge main)
+- ไฟล์ที่แตะ: `backend/db/migrations/0004_staff_contact.up.sql`, `backend/internal/cancelrequest/migrationtest/migration_test.go` (package แยก เพราะ package cancelrequest compile ไม่ผ่านจนกว่า T-04 ทีมตัดสิน 2569-11-11) (ไม่สร้าง borrow_request เพราะ 002 สร้างใน 0003 แก้ 2569-11-11), `backend/internal/cancelrequest/tc_helpers_test.go` (ตัวช่วย ไม่ใช่ TC: tcInsert ต้องใส่ requester_name, student_code, start_at, end_at และ purpose เป็น study / activity / other ตาม 0003 จริงของ 002 เพิ่ม 2569-11-11 หลัง merge main)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี task ของ 003 แต่ต้องมี `0003_borrow_request` ของ 002 ใน branch ก่อน (ดูส่วนหัว)
 - เสร็จเมื่อ: `TestMigration_BorrowRequestStatusCheck` (สถานะนอก 8 ค่าถูกปฏิเสธ) และ `TestMigration_CancelReasonMaxLen` (201 ตัวอักษรถูกปฏิเสธ) ผ่านกับตารางของ 002, ตาราง staff_contact มีอยู่ และไม่มี trigger หรือ FK ที่แก้ `equipment_item.status`
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 ### T-02 เพิ่มข้อมูลตั้งต้นคำขอทุกสถานะและ Email เจ้าหน้าที่จำลอง
 - รองรับ: ASM-01, ASM-04 (คำขอค้างคืนจาก seed), ASM-10, CON-CXL-02
@@ -209,7 +209,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
 - ต้องทำหลัง: T-05 (เดิม T-05, T-11 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
 - เสร็จเมื่อ: vitest `AC_CXL_12 shows empty message` ผ่าน (แสดง `MSG_NO_PENDING` "ไม่มีคำขอที่รออนุมัติ" และไม่มีแถว ส่วนโหลดไม่สำเร็จแสดง `MSG_LOAD_FAILED` พร้อมปุ่ม "ลองใหม่" แทน)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 5
 - test ที่ต้องผ่านทั้งหมด: `TestAC_CXL_12_EmptyList`, vitest `AC_CXL_12 ...` และ test ของเฟส 0-4
@@ -523,7 +523,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 ### T-30 เพิ่ม action notify ใน audit_log
 - รองรับ: FR-CXL-05, FR-CXL-09, ASM-12, CON-TECH-01
 - ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นงานพื้นฐานของ T-31, T-32
-- ไฟล์ที่แตะ: `backend/db/migrations/0005_audit_log_notify_action.up.sql` (ของกลาง ไฟล์ใหม่ เลขจองในกลุ่ม ห้ามแก้ 0002: DROP แล้ว ADD `audit_log_action_check` ชื่อเดิม ค่า list, search, detail, cancel, request, notify), `backend/internal/cancelrequest/migration_test.go`
+- ไฟล์ที่แตะ: `backend/db/migrations/0005_audit_log_notify_action.up.sql` (ของกลาง ไฟล์ใหม่ เลขจองในกลุ่ม ห้ามแก้ 0002: DROP แล้ว ADD `audit_log_action_check` ชื่อเดิม ค่า list, search, detail, cancel, request, notify), `backend/internal/cancelrequest/migrationtest/migration_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
 - เสร็จเมื่อ: `TestMigration_AuditLogAcceptsNotify` ผ่าน (insert action `notify` ได้ ค่า action อื่นนอกตาราง DM-07 ยังถูกปฏิเสธ และ action เดิมของ 001 กับ `request` ของ 002 ยังใช้ได้)

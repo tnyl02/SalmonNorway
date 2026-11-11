@@ -118,14 +118,18 @@ func tcServer(t *testing.T) http.Handler {
 	return platform.NoStore(mux)
 }
 
-// tcInsert ใส่คำขอยืม 1 คำขอ คืนรหัสคำขอ (คอลัมน์ตาม plan.md ข้อ 3)
+// tcInsert ใส่คำขอยืม 1 คำขอ คืนรหัสคำขอ (คอลัมน์ตาม 0003_borrow_request ของ 002)
+// คอลัมน์ที่ 003 ไม่ใช้ (ชื่อ รหัสนักศึกษา วัตถุประสงค์ เวลายืม) ใส่ค่าทดสอบตายตัว ไม่ได้มาจาก spec ของ 003
 func tcInsert(t *testing.T, requester string, itemID int, loanType, status string, submittedAt time.Time) int {
 	t.Helper()
 	var id int
+	startAt := submittedAt.Add(24 * time.Hour)
+	endAt := startAt.Add(6 * time.Hour)
 	err := tcPool(t).QueryRow(context.Background(),
-		`INSERT INTO borrow_request (requester_id, item_id, loan_type, purpose, status, submitted_at)
-		 VALUES ($1, $2, $3, 'เพื่อการเรียน', $4, $5) RETURNING id`,
-		requester, itemID, loanType, status, submittedAt).Scan(&id)
+		`INSERT INTO borrow_request (requester_id, requester_name, student_code, item_id, loan_type, purpose,
+		                             start_at, end_at, status, submitted_at)
+		 VALUES ($1, 'ผู้ทดสอบ', 'TEST-000', $2, $3, 'study', $4, $5, $6, $7) RETURNING id`,
+		requester, itemID, loanType, startAt, endAt, status, submittedAt).Scan(&id)
 	if err != nil {
 		t.Fatalf("ใส่คำขอไม่สำเร็จ: %v", err)
 	}
