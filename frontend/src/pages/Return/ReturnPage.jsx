@@ -10,6 +10,9 @@ function formatDateTime(iso) {
   return new Date(iso).toLocaleString('th-TH', { timeZone: TIMEZONE, dateStyle: 'medium', timeStyle: 'short' })
 }
 
+// conditionRequiredMessage แจ้งให้เลือกสภาพ ใช้ชื่อสภาพจาก config.js (AC-RET-04, FR-RET-02)
+export const conditionRequiredMessage = `กรุณาเลือกสภาพ ${RETURN_CONDITIONS.map((c) => c.label).join(' หรือ ')}`
+
 // ReturnPage: กรอกรหัสครุภัณฑ์ (FR-RET-01(ก)) เลือกสภาพ (FR-RET-02) แนบรูป (FR-RET-05) แล้วบันทึก (FR-RET-03)
 export default function ReturnPage({ client = api }) {
   const [assetCode, setAssetCode] = useState('')
@@ -41,6 +44,11 @@ export default function ReturnPage({ client = api }) {
   // บันทึกการรับคืน ไม่ส่งเวลา เวลาคืนมาจากระบบ (FR-RET-02, ASM-04)
   async function handleSave(e) {
     e.preventDefault()
+    // ยังไม่เลือกสภาพ: แจ้งก่อนส่ง ไม่เรียกหลังบ้าน (AC-RET-04)
+    if (!condition) {
+      setError(conditionRequiredMessage)
+      return
+    }
     setBusy(true)
     setError('')
     const res = await client.returns.record({ assetCode: loan.assetCode, condition, photos })
@@ -48,6 +56,9 @@ export default function ReturnPage({ client = api }) {
     if (res.ok) {
       setResult(res.data)
       setLoan(null)
+    } else if (res.data?.code === 'CONDITION_REQUIRED') {
+      // หลังบ้านปฏิเสธสภาพ (FR-RET-02) แจ้งข้อความเดียวกับที่ตรวจก่อนส่ง
+      setError(conditionRequiredMessage)
     } else {
       setError(`บันทึกไม่สำเร็จ (${res.data?.code ?? res.status})`)
     }

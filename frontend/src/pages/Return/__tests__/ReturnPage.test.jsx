@@ -59,3 +59,43 @@ test('ตัวเลือกสภาพมีแค่ ปกติ และ
   expect(screen.getAllByRole('radio').map((r) => r.value)).toEqual(['normal', 'damaged'])
   expect(document.querySelector('input[type="datetime-local"], input[type="time"], input[type="date"]')).toBeNull()
 })
+
+// เปิดหน้าแล้วหาการยืมให้เจอ (ขั้นก่อนกรอกสภาพ)
+async function openLoanForm(client) {
+  render(<ReturnPage client={client} />)
+  fireEvent.change(screen.getByLabelText('รหัสครุภัณฑ์'), { target: { value: 'CS-NB-0004' } })
+  fireEvent.click(screen.getByRole('button', { name: 'ค้นหา' }))
+  await screen.findByText('Notebook ตัวอย่างรุ่น A')
+}
+
+// AC-RET-04 (FR-RET-02) บนหน้าจอ
+//   Given เจ้าหน้าที่กำลังบันทึกการรับคืน
+//   When  ไม่ได้ระบุสภาพ แล้วกดบันทึก
+//   Then  ระบบไม่บันทึก แจ้งให้เลือกสภาพ ปกติ หรือ ชำรุด และไม่มีตัวเลือก "สูญหาย"
+test('AC-RET-04: กดบันทึกโดยไม่เลือกสภาพ แจ้งให้เลือก ปกติ หรือ ชำรุด และไม่ส่งไปหลังบ้าน', async () => {
+  const client = fakeClient()
+  await openLoanForm(client)
+
+  expect(screen.getAllByRole('radio').map((r) => r.value)).toEqual(['normal', 'damaged'])
+  expect(screen.queryByLabelText('สูญหาย')).toBeNull()
+
+  const photo = new File(['jpeg'], 'photo.jpg', { type: 'image/jpeg' })
+  fireEvent.change(screen.getByLabelText('รูปสภาพอุปกรณ์'), { target: { files: [photo] } })
+  fireEvent.click(screen.getByRole('button', { name: 'บันทึกการรับคืน' }))
+
+  expect(screen.getByRole('alert').textContent).toBe('กรุณาเลือกสภาพ ปกติ หรือ ชำรุด')
+  expect(client.returns.record).not.toHaveBeenCalled()
+  expect(screen.queryByRole('status')).toBeNull()
+})
+
+// หลังบ้านตอบ CONDITION_REQUIRED (เช่นส่งค่าที่ไม่รู้จัก) แสดงข้อความเดียวกัน (FR-RET-02)
+test('AC-RET-04: หลังบ้านตอบ CONDITION_REQUIRED แสดงข้อความให้เลือกสภาพ', async () => {
+  const client = fakeClient()
+  client.returns.record.mockResolvedValue({ ok: false, status: 422, data: { code: 'CONDITION_REQUIRED' } })
+  await openLoanForm(client)
+
+  fireEvent.click(screen.getByLabelText('ชำรุด'))
+  fireEvent.click(screen.getByRole('button', { name: 'บันทึกการรับคืน' }))
+
+  await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('กรุณาเลือกสภาพ ปกติ หรือ ชำรุด'))
+})

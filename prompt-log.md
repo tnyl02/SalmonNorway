@@ -632,3 +632,25 @@
 
 ### สิ่งที่เกือบต้องเดา
 - ไม่มี
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-10 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 4)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำเลยย" -> `/implement T-10 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- `frontend/src/pages/Return/ReturnPage.jsx`: `conditionRequiredMessage` (สร้างจากชื่อสภาพใน config.js), ตรวจก่อนส่งถ้ายังไม่เลือกสภาพ,
+  แสดงข้อความเดียวกันเมื่อหลังบ้านตอบ `CONDITION_REQUIRED`
+- `frontend/src/pages/Return/__tests__/ReturnPage.test.jsx`: ตัวช่วย `openLoanForm` และ test AC-RET-04 2 ตัว
+
+### ผล test (`cd frontend && npm test`)
+- AC-RET-04: กดบันทึกโดยไม่เลือกสภาพ -> "กรุณาเลือกสภาพ ปกติ หรือ ชำรุด", ไม่เรียก record, ไม่มี "สูญหาย" PASS
+- AC-RET-04: หลังบ้านตอบ CONDITION_REQUIRED -> ข้อความเดียวกัน PASS
+- test เดิมทั้งหมด PASS (7 tests)
+
+### สิ่งที่เกือบต้องเดา
+- ข้อความ "กรุณาเลือกสภาพ ปกติ หรือ ชำรุด" ไม่มี mockup ทีมออกแบบเอง ใช้ถ้อยคำตาม Then ของ AC-RET-04
