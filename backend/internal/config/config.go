@@ -85,6 +85,9 @@ const (
 	StatusRejected = "rejected"
 )
 
+// StatusCancelled คือสถานะคำขอที่ผู้ขอยกเลิกแล้ว (data-model.md v9 แถว 8 ตั้งโดย 003) 004 ใช้แยกข้อความ REQUEST_CANCELLED (FR-APV-01 ซ, T-23)
+const StatusCancelled = "cancelled"
+
 // ItemStatusAvailable คือสถานะอุปกรณ์ "ว่าง" (CON-DATA-01, data-model.md) อนุมัติได้เฉพาะอุปกรณ์สถานะนี้ (FR-APV-01 ค, T-19)
 // ค่าเดียวกับ equipment.StatusAvailable ของ 001 004 ไม่ import package ของ 001
 const ItemStatusAvailable = "available"

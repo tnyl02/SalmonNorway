@@ -356,11 +356,11 @@ Updated: 2569-11-12
 ### T-23 ตรวจสถานะคำขอก่อนพิจารณา และแยกพิจารณาแล้วด้วย loaded_at
 - รองรับ: FR-APV-01 (ซ), CON-TECH-03
 - ตรวจด้วย: AC-APV-09
-- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/service_test.go`
+- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/service_test.go`, `backend/internal/approve/handler.go` (ส่ง loadedAt และแปลง 3 รหัส), `backend/internal/approve/repository.go` (decisionTime), `backend/internal/config/config.go` (StatusCancelled), `sender_test.go` (เพิ่มอาร์กิวเมนต์ loadedAt)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `TestAC_APV_09` ผ่าน: `cancelled` ได้ 409 `REQUEST_CANCELLED` / พิจารณาก่อน `loaded_at` ได้ 409 `REQUEST_ALREADY_DECIDED` / พิจารณาหลัง `loaded_at` ได้ `REQUEST_DECIDED_CONCURRENTLY` ทั้งอนุมัติและปฏิเสธ ผลเดิมคงไว้
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน `TestAC_APV_09` ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 ### T-24 แสดงข้อความคำขอถูกยกเลิก / พิจารณาแล้วบนหน้าจอ
 - รองรับ: FR-APV-01 (ซ)

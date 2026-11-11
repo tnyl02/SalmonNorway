@@ -48,10 +48,10 @@ func TestAC_APV_04(t *testing.T) {
 	ctx := staffCtx("staff-001", 1)
 	approveID := requestIDOf(t, tx, "AP-TEST-0002", "student-001")
 	rejectID := requestIDOf(t, tx, "AP-TEST-0003", "student-002")
-	if _, err := svc.Approve(ctx, approveID); err != nil {
+	if _, err := svc.Approve(ctx, approveID, time.Time{}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.Reject(ctx, rejectID, "อุปกรณ์ต้องใช้สอบ"); err != nil {
+	if _, err := svc.Reject(ctx, rejectID, "อุปกรณ์ต้องใช้สอบ", time.Time{}); err != nil {
 		t.Fatal(err)
 	}
 

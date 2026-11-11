@@ -3822,3 +3822,25 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ฟีเจอร์: 004-approve-request
 - คำสั่ง: "ตรวจสอบแล่วผ่าน"
 - สิ่งที่แก้: tasks.md T-22 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-23 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "ตรวจสอบแล่วผ่าน" (T-22 -> เสร็จ), "/implement T-22" ซ้ำ (AI ไม่ทำซ้ำ ถามกลับ), "ตรวจสอบแล่วผ่าน" (ไม่มี task รอตรวจ)
+- คำสั่ง: "/implement T-23"
+- ไฟล์ที่แก้: `backend/internal/approve/service.go` (ลบ ErrNotRequested แทนด้วย `ErrRequestCancelled`, `ErrAlreadyDecided`, `ErrDecidedConcurrently` และ `notRequestedError`; Approve / Reject รับ loadedAt), `repository.go` (`decisionTime`), `handler.go` (ส่ง loadedAt จาก body และแปลงเป็น 409 REQUEST_CANCELLED / REQUEST_ALREADY_DECIDED / REQUEST_DECIDED_CONCURRENTLY), `config.go` (`StatusCancelled`), `service_test.go` + `sender_test.go` (เพิ่มอาร์กิวเมนต์ loadedAt ทุกที่ที่เรียก, test อนุมัติซ้ำคาด ErrAlreadyDecided, เพิ่ม `TestAC_APV_09` 3 กรณีทั้งอนุมัติและปฏิเสธ), `specs/004-approve-request/tasks.md`
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): เทียบ approval_decision.decided_at (เวลาของฐานข้อมูล) กับ loadedAt (เวลาของหลังบ้านตอนโหลดรายการ) ตาม plan ข้อ 4; ไม่มี loadedAt หรือ body อ่านไม่ออก ถือเป็น "พิจารณาแล้ว"; คำขอที่สถานะถูกเปลี่ยนโดยฟีเจอร์อื่นโดยไม่มี approval_decision (เช่น handed_over) ได้ REQUEST_ALREADY_DECIDED
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-23 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจสอบแล่วผ่าน"
+- สิ่งที่แก้: tasks.md T-23 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)

@@ -69,10 +69,10 @@ func (h *Handler) approve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in DecideInputDTO
-	// ยังไม่ใช้ loadedAt จนถึง T-23 จึงไม่ปฏิเสธ body ที่อ่านไม่ออกหรือว่าง (การตรวจเป็นงานของ T-23)
+	// body ที่อ่านไม่ออกหรือไม่มี loadedAt ไม่ปฏิเสธ แค่ถือว่าไม่รู้เวลาโหลด คำขอที่พิจารณาไปแล้วจึงได้ REQUEST_ALREADY_DECIDED (T-23)
 	_ = json.NewDecoder(r.Body).Decode(&in)
 
-	res, err := h.svc.Approve(r.Context(), id)
+	res, err := h.svc.Approve(r.Context(), id, in.LoadedAt)
 	if err != nil {
 		writeServiceError(w, err)
 		return
@@ -91,7 +91,7 @@ func (h *Handler) reject(w http.ResponseWriter, r *http.Request) {
 	var in DecideInputDTO
 	_ = json.NewDecoder(r.Body).Decode(&in) // body ที่อ่านไม่ออกได้เหตุผลว่าง จึงได้ VALIDATION_FAILED ช่อง reason
 
-	res, err := h.svc.Reject(r.Context(), id, in.Reason)
+	res, err := h.svc.Reject(r.Context(), id, in.Reason, in.LoadedAt)
 	if err != nil {
 		writeServiceError(w, err)
 		return
@@ -115,9 +115,12 @@ func writeServiceError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusConflict, "NOT_FIRST_IN_QUEUE") // FR-APV-01 (ข)(ซ), AC-APV-07
 	case errors.Is(err, ErrRequestNotFound):
 		writeError(w, http.StatusNotFound, "REQUEST_NOT_FOUND") // Q-APV-25
-	case errors.Is(err, ErrNotRequested):
-		// ชั่วคราวจนถึง T-23 ที่แยกเป็น REQUEST_CANCELLED / REQUEST_ALREADY_DECIDED / REQUEST_DECIDED_CONCURRENTLY
-		writeError(w, http.StatusConflict, "REQUEST_ALREADY_DECIDED")
+	case errors.Is(err, ErrRequestCancelled):
+		writeError(w, http.StatusConflict, "REQUEST_CANCELLED") // FR-APV-01 (ซ), AC-APV-09
+	case errors.Is(err, ErrAlreadyDecided):
+		writeError(w, http.StatusConflict, "REQUEST_ALREADY_DECIDED") // FR-APV-01 (ซ), AC-APV-09
+	case errors.Is(err, ErrDecidedConcurrently):
+		writeError(w, http.StatusConflict, "REQUEST_DECIDED_CONCURRENTLY") // FR-APV-01 (ช)(ซ), AC-APV-10
 	case errors.Is(err, ErrNoPrincipal):
 		// กันพลาดเมื่อผูก router ผิด ข้อความใช้แบบ auth.Middleware ไม่มี message ใน spec ของ 004 (ดู plan.md ข้อ 8)
 		writeError(w, http.StatusUnauthorized, "UNAUTHENTICATED")

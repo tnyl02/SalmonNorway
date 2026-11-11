@@ -2,7 +2,7 @@ package approve
 
 import (
 	"context"
-
+	"errors"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -159,4 +159,18 @@ INSERT INTO approval_email (request_id, kind, status, next_attempt_at, created_a
 VALUES ($1, $2, $3, $4, $4)`,
 		requestID, kind, config.ApprovalEmailPending, now)
 	return err
+}
+
+// decisionTime คืนเวลาที่บันทึกผลการพิจารณาของคำขอ ok = false ถ้ายังไม่มีผล (เช่น สถานะถูกตั้งโดยฟีเจอร์อื่น)
+// ใช้แยก "พิจารณาแล้ว" กับ "กดพร้อมกัน" (FR-APV-01 ซ, T-23)
+func (r *Repository) decisionTime(ctx context.Context, requestID int) (time.Time, bool, error) {
+	var at time.Time
+	err := r.db.QueryRow(ctx, `SELECT decided_at FROM approval_decision WHERE request_id = $1`, requestID).Scan(&at)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return time.Time{}, false, nil
+	}
+	if err != nil {
+		return time.Time{}, false, err
+	}
+	return at, true, nil
 }

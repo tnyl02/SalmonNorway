@@ -57,9 +57,32 @@ func (s *Service) ListPending(ctx context.Context) (items []PendingRequest, load
 // ErrRequestNotFound เกิดเมื่อไม่มีคำขอรหัสนี้ หรือไม่ใช่คำขอยืมแบบปกติที่ 004 พิจารณา (FR-APV-01, Q-APV-01)
 var ErrRequestNotFound = errors.New("ไม่พบคำขอยืมแบบปกติรหัสนี้")
 
-// ErrNotRequested เกิดเมื่อคำขอไม่ได้อยู่ในสถานะ requested แล้ว อนุมัติหรือปฏิเสธได้เฉพาะ requested (FR-APV-01 ค ง)
-// T-23 แยกกรณีนี้เป็นถูกยกเลิก / พิจารณาแล้ว / กดพร้อมกัน ตาม FR-APV-01 (ซ)
-var ErrNotRequested = errors.New("คำขอนี้ไม่ได้อยู่ในสถานะรออนุมัติ")
+// คำขอไม่ได้อยู่ในสถานะ requested แล้ว อนุมัติหรือปฏิเสธไม่ได้ แยก 3 กรณีตาม FR-APV-01 (ซ) (T-23, AC-APV-09, AC-APV-10)
+var (
+	// ErrRequestCancelled คำขอถูกผู้ขอยกเลิกแล้ว (REQUEST_CANCELLED)
+	ErrRequestCancelled = errors.New("คำขอนี้ถูกผู้ขอยกเลิกแล้ว")
+	// ErrAlreadyDecided คำขอถูกพิจารณาไปแล้วก่อนหน้าจอของผู้เรียกโหลด (REQUEST_ALREADY_DECIDED)
+	ErrAlreadyDecided = errors.New("คำขอนี้ได้รับการพิจารณาแล้ว")
+	// ErrDecidedConcurrently คำขอเพิ่งถูกพิจารณาโดยผู้อื่นหลังหน้าจอของผู้เรียกโหลด กดพร้อมกัน (REQUEST_DECIDED_CONCURRENTLY, FR-APV-01 ช)
+	ErrDecidedConcurrently = errors.New("คำขอนี้เพิ่งถูกพิจารณาโดยเจ้าหน้าที่คนอื่น")
+)
+
+// notRequestedError บอกว่าคำขอที่ไม่ใช่ requested แล้วเป็นกรณีไหน (FR-APV-01 ซ, plan.md ข้อ 4)
+// แยก "พิจารณาแล้ว" กับ "กดพร้อมกัน" ด้วยการเทียบ approval_decision.decided_at กับ loadedAt ที่หน้าจอส่งมา
+// (ทีมเลือกเอง ไม่ได้มาจาก spec) loadedAt ว่าง (ไม่ได้ส่งมา) ถือเป็นพิจารณาแล้ว
+func notRequestedError(ctx context.Context, tx *Repository, target requestRow, loadedAt time.Time) error {
+	if target.Status == config.StatusCancelled {
+		return ErrRequestCancelled
+	}
+	decidedAt, ok, err := tx.decisionTime(ctx, target.ID)
+	if err != nil {
+		return err
+	}
+	if ok && !loadedAt.IsZero() && decidedAt.After(loadedAt) {
+		return ErrDecidedConcurrently
+	}
+	return ErrAlreadyDecided
+}
 
 // Approve อนุมัติคำขอยืมแบบปกติ 1 ใบ ใน transaction เดียว (FR-APV-01 ค ฌ, AC-APV-01)
 //   - ล็อกคำขอทุกใบของอุปกรณ์รายชิ้นนั้นก่อน (FR-APV-01 ช, plan.md ข้อ 7.3)
@@ -75,7 +98,7 @@ var ErrNotRequested = errors.New("คำขอนี้ไม่ได้อย�
 //   - อนุมัติไม่ได้เมื่อเลย 16:00 น. ของวันที่เริ่มยืม (FR-APV-01 ค, T-21)
 //
 // การตรวจภาควิชา (T-25) เพิ่มใน task ของเรื่องนั้น
-func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
+func (s *Service) Approve(ctx context.Context, requestID int, loadedAt time.Time) (Result, error) {
 	p, err := staff(ctx)
 	if err != nil {
 		return Result{}, err
@@ -90,7 +113,7 @@ func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
 			return ErrRequestNotFound
 		}
 		if target.Status != config.StatusRequested {
-			return ErrNotRequested
+			return notRequestedError(ctx, tx, target, loadedAt) // FR-APV-01 (ซ), T-23
 		}
 		// FR-APV-01 (ข), ASM-04: อนุมัติได้เฉพาะคำขอแรก (ส่งก่อนสุด) ที่ยังเป็น requested ของชิ้นนั้น ข้ามลำดับไม่ได้
 		// นับเฉพาะยืมปกติ คำขอค้างคืนไม่ขวางคิว (Q-APV-23) all เรียงตาม submitted_at, id แล้ว (lockItemRequests)
@@ -205,7 +228,7 @@ var ErrReasonRequired = errors.New("ต้องระบุเหตุผล�
 //   - ไม่เปลี่ยนสถานะอุปกรณ์ (CON-DATA-01)
 //
 // การตรวจภาควิชา (T-25) และข้อความกรณีพิจารณาแล้ว (T-23) เพิ่มใน task ของแต่ละเรื่อง
-func (s *Service) Reject(ctx context.Context, requestID int, reason string) (Result, error) {
+func (s *Service) Reject(ctx context.Context, requestID int, reason string, loadedAt time.Time) (Result, error) {
 	p, err := staff(ctx)
 	if err != nil {
 		return Result{}, err
@@ -224,7 +247,7 @@ func (s *Service) Reject(ctx context.Context, requestID int, reason string) (Res
 			return ErrRequestNotFound
 		}
 		if target.Status != config.StatusRequested {
-			return ErrNotRequested
+			return notRequestedError(ctx, tx, target, loadedAt) // FR-APV-01 (ซ), T-23
 		}
 		if err := tx.setStatus(ctx, target.ID, config.StatusRejected); err != nil {
 			return err

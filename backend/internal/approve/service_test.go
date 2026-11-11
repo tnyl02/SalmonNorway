@@ -48,7 +48,7 @@ func TestAC_APV_01(t *testing.T) {
 	id := requestIDOf(t, tx, "AP-TEST-0002", "student-001")
 
 	// When
-	res, err := NewService(NewRepository(tx)).Approve(ctx, id)
+	res, err := NewService(NewRepository(tx)).Approve(ctx, id, time.Time{})
 	if err != nil {
 		t.Fatalf("อนุมัติต้องสำเร็จ แต่ได้ error: %v", err)
 	}
@@ -97,23 +97,23 @@ func TestApprove_OnlyRequestedNormal(t *testing.T) {
 	svc := NewService(NewRepository(tx))
 
 	id := requestIDOf(t, tx, "AP-TEST-0002", "student-001")
-	if _, err := svc.Approve(ctx, id); err != nil {
+	if _, err := svc.Approve(ctx, id, time.Time{}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.Approve(ctx, id); err != ErrNotRequested {
-		t.Errorf("อนุมัติซ้ำต้องได้ ErrNotRequested แต่ได้ %v", err)
+	if _, err := svc.Approve(ctx, id, time.Time{}); err != ErrAlreadyDecided {
+		t.Errorf("อนุมัติซ้ำต้องได้ ErrAlreadyDecided แต่ได้ %v", err)
 	}
 
 	overnight := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
-	if _, err := svc.Approve(ctx, overnight); err != ErrRequestNotFound {
+	if _, err := svc.Approve(ctx, overnight, time.Time{}); err != ErrRequestNotFound {
 		t.Errorf("คำขอค้างคืนต้องได้ ErrRequestNotFound (Q-APV-01) แต่ได้ %v", err)
 	}
-	if _, err := svc.Approve(ctx, 999999); err != ErrRequestNotFound {
+	if _, err := svc.Approve(ctx, 999999, time.Time{}); err != ErrRequestNotFound {
 		t.Errorf("คำขอที่ไม่มีอยู่ต้องได้ ErrRequestNotFound แต่ได้ %v", err)
 	}
 
 	student := auth.WithPrincipal(context.Background(), auth.Principal{UserID: "student-001", Role: auth.RoleStudent, DepartmentID: 1})
-	if _, err := svc.Approve(student, requestIDOf(t, tx, "AP-TEST-0003", "student-002")); err != ErrForbiddenRole {
+	if _, err := svc.Approve(student, requestIDOf(t, tx, "AP-TEST-0003", "student-002"), time.Time{}); err != ErrForbiddenRole {
 		t.Errorf("นักศึกษาต้องได้ ErrForbiddenRole แต่ได้ %v", err)
 	}
 }
@@ -137,7 +137,7 @@ func TestAC_APV_02(t *testing.T) {
 	}
 
 	// When
-	res, err := NewService(NewRepository(tx)).Reject(ctx, id, reason)
+	res, err := NewService(NewRepository(tx)).Reject(ctx, id, reason, time.Time{})
 	if err != nil {
 		t.Fatalf("ปฏิเสธต้องสำเร็จ แต่ได้ error: %v", err)
 	}
@@ -188,7 +188,7 @@ func TestAC_APV_03(t *testing.T) {
 	b := requestIDOf(t, tx, "AP-TEST-0001", "student-002")
 	c := requestIDOf(t, tx, "AP-TEST-0001", "student-003") // คำขอค้างคืนของชิ้นเดียวกัน (Q-APV-14)
 
-	res, err := NewService(NewRepository(tx)).Approve(ctx, a)
+	res, err := NewService(NewRepository(tx)).Approve(ctx, a, time.Time{})
 	if err != nil {
 		t.Fatalf("อนุมัติ A ต้องสำเร็จ: %v", err)
 	}
@@ -265,7 +265,7 @@ func TestAC_APV_07(t *testing.T) {
 	}
 
 	// ปฏิเสธ B ได้ตามปกติ (ลำดับบังคับเฉพาะการอนุมัติ FR-APV-01 ข)
-	if _, err := NewService(NewRepository(tx)).Reject(staffCtx("staff-001", 1), b, "ขอยืมซ้ำ"); err != nil {
+	if _, err := NewService(NewRepository(tx)).Reject(staffCtx("staff-001", 1), b, "ขอยืมซ้ำ", time.Time{}); err != nil {
 		t.Errorf("ปฏิเสธ B ต้องทำได้ แต่ได้ %v", err)
 	}
 }
@@ -357,11 +357,11 @@ func TestAC_APV_16(t *testing.T) {
 	}
 
 	// A ยังเป็นคำขอแรก: อนุมัติ B ได้ NOT_FIRST_IN_QUEUE (Q-APV-16)
-	if _, err := svc.Approve(staffCtx("staff-001", 1), b); err != ErrNotFirst {
+	if _, err := svc.Approve(staffCtx("staff-001", 1), b, time.Time{}); err != ErrNotFirst {
 		t.Errorf("B ต้องได้ ErrNotFirst เพราะ A ยังเป็นคำขอแรก แต่ได้ %v", err)
 	}
 	// เจ้าหน้าที่ปฏิเสธ A เองได้ (Q-APV-16)
-	if _, err := svc.Reject(staffCtx("staff-001", 1), a, "เลยเวลาที่อนุมัติได้"); err != nil {
+	if _, err := svc.Reject(staffCtx("staff-001", 1), a, "เลยเวลาที่อนุมัติได้", time.Time{}); err != nil {
 		t.Errorf("ปฏิเสธ A ต้องทำได้ แต่ได้ %v", err)
 	}
 
@@ -382,7 +382,84 @@ func TestApprove_BeforeCutoffAllowed(t *testing.T) {
 	clock := &fakeClock{t: approvalCutoff(startAt).Add(-time.Minute)}
 	svc := NewService(NewRepository(tx))
 	svc.now = clock.Now
-	if _, err := svc.Approve(staffCtx("staff-001", 1), id); err != nil {
+	if _, err := svc.Approve(staffCtx("staff-001", 1), id, time.Time{}); err != nil {
 		t.Errorf("ก่อน 16:00 น. ต้องอนุมัติได้ แต่ได้ %v", err)
+	}
+}
+
+// AC-APV-09 (FR-APV-01 ซ)
+// Given คำขอสถานะ cancelled หรือ approved / rejected
+// When  เจ้าหน้าที่พยายามอนุมัติหรือปฏิเสธ
+// Then  ระบบไม่ดำเนินการ แสดง "คำขอนี้ถูกผู้ขอยกเลิกแล้ว" หรือ "คำขอนี้ได้รับการพิจารณาแล้ว" ตามกรณี และสถานะคงเดิม
+//
+//	(T-23 เสร็จเมื่อ: พิจารณาหลัง loadedAt ได้ REQUEST_DECIDED_CONCURRENTLY ทั้งอนุมัติและปฏิเสธ ผลเดิมคงไว้)
+func TestAC_APV_09(t *testing.T) {
+	tx := devTx(t)
+	srv := newTestServer(tx)
+	ctx := context.Background()
+
+	call := func(action string, id int, loadedAt time.Time) ErrorDTO {
+		t.Helper()
+		body := fmt.Sprintf(`{"loadedAt":%q,"reason":"ทดสอบ"}`, loadedAt.UTC().Format(time.RFC3339Nano))
+		w := postJSON(srv, tokenStaffDept1, fmt.Sprintf("%srequests/%d/%s", PathPrefix, id, action), body)
+		if w.Code != http.StatusConflict {
+			t.Errorf("%s คำขอ %d ต้องได้ 409 แต่ได้ %d body=%s", action, id, w.Code, w.Body.String())
+		}
+		var e ErrorDTO
+		_ = json.Unmarshal(w.Body.Bytes(), &e)
+		return e
+	}
+	statusOf := func(id int) string {
+		t.Helper()
+		var s string
+		if err := tx.QueryRow(ctx, `SELECT status FROM borrow_request WHERE id = $1`, id).Scan(&s); err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+
+	// (1) คำขอที่ผู้ขอยกเลิกแล้ว (AP-TEST-0005 ใน approve_dev.sql)
+	cancelled := requestIDOf(t, tx, "AP-TEST-0005", "student-002")
+	for _, action := range []string{"approve", "reject"} {
+		if e := call(action, cancelled, time.Now()); e.Code != "REQUEST_CANCELLED" || e.Message != "คำขอนี้ถูกผู้ขอยกเลิกแล้ว" {
+			t.Errorf("%s คำขอที่ยกเลิกแล้วได้ %+v", action, e)
+		}
+	}
+	if s := statusOf(cancelled); s != "cancelled" {
+		t.Errorf("สถานะต้องคงเป็น cancelled แต่ได้ %q", s)
+	}
+
+	// เตรียมคำขอที่พิจารณาไปแล้ว: อนุมัติ AP-TEST-0002
+	decided := requestIDOf(t, tx, "AP-TEST-0002", "student-001")
+	if _, err := NewService(NewRepository(tx)).Approve(staffCtx("staff-001", 1), decided, time.Time{}); err != nil {
+		t.Fatal(err)
+	}
+	var decidedAt time.Time
+	if err := tx.QueryRow(ctx, `SELECT decided_at FROM approval_decision WHERE request_id = $1`, decided).Scan(&decidedAt); err != nil {
+		t.Fatal(err)
+	}
+
+	// (2) พิจารณาไปแล้วก่อนหน้าจอโหลด (loadedAt หลังเวลาที่บันทึกผล)
+	for _, action := range []string{"approve", "reject"} {
+		if e := call(action, decided, decidedAt.Add(time.Minute)); e.Code != "REQUEST_ALREADY_DECIDED" || e.Message != "คำขอนี้ได้รับการพิจารณาแล้ว" {
+			t.Errorf("%s คำขอที่พิจารณาแล้วได้ %+v", action, e)
+		}
+	}
+
+	// (3) ถูกพิจารณาหลังหน้าจอโหลด (กดพร้อมกัน loadedAt ก่อนเวลาที่บันทึกผล)
+	for _, action := range []string{"approve", "reject"} {
+		if e := call(action, decided, decidedAt.Add(-time.Minute)); e.Code != "REQUEST_DECIDED_CONCURRENTLY" ||
+			e.Message != "คำขอนี้เพิ่งถูกพิจารณาโดยเจ้าหน้าที่คนอื่น กรุณารีเฟรชหน้า" {
+			t.Errorf("%s คำขอที่เพิ่งถูกพิจารณาได้ %+v", action, e)
+		}
+	}
+
+	// ผลเดิมคงไว้: ยัง approved และมี approval_decision แถวเดียว
+	var decisions int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM approval_decision WHERE request_id = $1`, decided).Scan(&decisions); err != nil {
+		t.Fatal(err)
+	}
+	if s := statusOf(decided); s != "approved" || decisions != 1 {
+		t.Errorf("ผลเดิมต้องคงไว้ (approved, 1 แถว) แต่ได้ %q, %d แถว", s, decisions)
 	}
 }
