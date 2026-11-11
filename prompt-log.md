@@ -1443,3 +1443,18 @@
 - รอบแรกไม่ผ่าน: ปิด pool ก่อน cleanup ลบข้อมูล ทำให้ข้อมูลค้างและรอบถัดไปชน asset_code ซ้ำ แก้ให้ปิด pool ใน t.Cleanup (ทำงานหลังการลบ)
 - test นี้ใช้ pool และ commit จริง (transaction ที่ยกเลิกทิ้งทดสอบการแย่งกันข้าม connection ไม่ได้) แล้วลบข้อมูลที่สร้างตอนจบ
 - ข้อมูลตั้งต้นใช้คำขออนุมัติแล้ว 2 รายการของชิ้นเดียวกัน ซึ่งในระบบจริงไม่เกิด (004 FR-APV-01 ค) ตั้งเองเพื่อบังคับให้แย่งล็อกกัน
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-07
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ทำไปยาว ๆ เลย"
+- ไฟล์ที่สร้าง: `backend/internal/handover/photostore.go` (`PhotoStore.Save`, `RemoveLoan`, `DefaultPhotoRoot`), `backend/internal/handover/photostore_test.go`
+- ผล test: `TestPhotoStore_SaveAndRemove` ผ่าน (เขียน jpg/png ลง `<root>/<loanId>/`, ชนิดอื่นไม่เขียน, ลำดับซ้ำไม่เขียนทับ, ลบทั้งโฟลเดอร์ได้และลบซ้ำไม่ error) `go test ./...` ผ่าน
+- **ไม่ได้แก้ `deploy/docker-compose.yml`** แม้อยู่ในช่อง "ไฟล์ที่แตะ" เพราะไฟล์นี้ตอนนี้มีแค่ service `db` ไม่มี service ของหลังบ้าน
+  volume `photos` จึงไม่มีที่ mount (หลังบ้านรันด้วย `go run` เก็บรูปที่ `PHOTO_DIR` ค่าเริ่มต้น `/data/photos`)
+  การเพิ่ม volume ที่ไม่มีใครใช้คือการแตะไฟล์ร่วมโดยไม่จำเป็น ต้องเพิ่มเมื่อทีมเพิ่ม service หลังบ้านใน compose (ตามหมายเหตุ HTTPS ของ 001)
+- ตั้งชื่อไฟล์เองเป็น `<ลำดับ>.jpg|.png` ไม่ใช้ชื่อไฟล์ที่ผู้ใช้ส่งมา (กัน path traversal) การตรวจชนิดจากเนื้อไฟล์เป็นงานของ T-15
