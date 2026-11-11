@@ -3911,3 +3911,26 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ฟีเจอร์: 004-approve-request
 - คำสั่ง: "ตรวจสอบแล่วผ่าน"
 - สิ่งที่แก้: tasks.md T-26 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-27 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "ตรวจสอบแล่วผ่าน" (T-26 -> เสร็จ)
+- คำสั่ง: "/implement T-27"
+- ไฟล์ที่แก้: `backend/internal/approve/handler_test.go` (`TestAC_APV_05` ไม่มี token -> 401 UNAUTHENTICATED / นักศึกษา -> 403 FORBIDDEN_ROLE พร้อมข้อความ ทั้ง approve และ reject แล้วตรวจว่าสถานะ ผลการพิจารณา และ audit ไม่เปลี่ยน), `specs/004-approve-request/tasks.md`
+- ไม่แก้โค้ดหลัก เพราะ requireStaff (T-05) และ auth.Middleware ครอบ endpoint ทั้งสองอยู่แล้ว
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
+- ข้อสังเกต: 401 ตรวจแค่ code ไม่ตรวจ message เพราะ auth.Middleware ของกลางยังไม่ส่ง message (plan ข้อ 8 แจ้ง 001)
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-27 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจสอบแล่วผ่าน"
+- สิ่งที่แก้: tasks.md T-27 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)

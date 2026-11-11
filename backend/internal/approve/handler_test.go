@@ -273,3 +273,50 @@ func TestAC_APV_12(t *testing.T) {
 		t.Errorf("สถานะต้องคงเป็น requested และไม่มี approval_decision แต่ได้ %q / %d", status, decisions)
 	}
 }
+
+// AC-APV-05 (NFR-SEC-01, IF-IDP-01, CON-TECH-03)
+// Given ผู้ใช้ที่ยังไม่ยืนยันตัวตน หรือมีบทบาทนักศึกษา
+// When  เรียกการอนุมัติหรือปฏิเสธ
+// Then  ระบบไม่ดำเนินการ ตอบ UNAUTHENTICATED หรือ FORBIDDEN_ROLE ตามกรณี และสถานะของคำขอคงเดิม
+//
+//	(401 มาจาก auth.Middleware ของกลางซึ่งยังตอบแค่ {code} ไม่มี message ดู plan.md ข้อ 8)
+func TestAC_APV_05(t *testing.T) {
+	tx := devTx(t)
+	srv := newTestServer(tx)
+	id := requestIDOf(t, tx, "AP-TEST-0002", "student-001")
+	body := `{"loadedAt":"2026-11-12T03:00:00Z","reason":"ทดสอบ"}`
+
+	for _, action := range []string{"approve", "reject"} {
+		path := fmt.Sprintf("%srequests/%d/%s", PathPrefix, id, action)
+
+		// ไม่มี token -> 401 UNAUTHENTICATED
+		w := postJSON(srv, "", path, body)
+		var e ErrorDTO
+		_ = json.Unmarshal(w.Body.Bytes(), &e)
+		if w.Code != http.StatusUnauthorized || e.Code != "UNAUTHENTICATED" {
+			t.Errorf("%s ไม่มี token ต้องได้ 401 UNAUTHENTICATED แต่ได้ %d %+v", action, w.Code, e)
+		}
+
+		// นักศึกษา -> 403 FORBIDDEN_ROLE พร้อมข้อความ
+		w = postJSON(srv, tokenStudentDept1, path, body)
+		e = ErrorDTO{}
+		_ = json.Unmarshal(w.Body.Bytes(), &e)
+		if w.Code != http.StatusForbidden || e.Code != "FORBIDDEN_ROLE" || e.Message != "บทบาทของคุณไม่มีสิทธิ์ทำรายการนี้" {
+			t.Errorf("%s นักศึกษาต้องได้ 403 FORBIDDEN_ROLE แต่ได้ %d %+v", action, w.Code, e)
+		}
+	}
+
+	// สถานะของคำขอคงเดิม ไม่มีผลการพิจารณาหรือ audit ของการพิจารณา
+	var status string
+	var decisions, audits int
+	if err := tx.QueryRow(context.Background(), `
+		SELECT r.status,
+		       (SELECT count(*) FROM approval_decision d WHERE d.request_id = r.id),
+		       (SELECT count(*) FROM audit_log a WHERE a.request_id = r.id AND a.action IN ('approve', 'reject'))
+		FROM borrow_request r WHERE r.id = $1`, id).Scan(&status, &decisions, &audits); err != nil {
+		t.Fatal(err)
+	}
+	if status != "requested" || decisions != 0 || audits != 0 {
+		t.Errorf("สถานะต้องคงเดิม แต่ได้ %q, approval_decision %d, audit_log %d", status, decisions, audits)
+	}
+}
