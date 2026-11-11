@@ -47,9 +47,10 @@ func toPendingDTO(p PendingRequest) PendingRequestDTO {
 	}
 }
 
-// DecideInputDTO คือ body ของการอนุมัติ (และการปฏิเสธใน T-10) (plan.md ข้อ 4)
+// DecideInputDTO คือ body ของการอนุมัติและการปฏิเสธ (plan.md ข้อ 4)
 type DecideInputDTO struct {
-	LoadedAt time.Time `json:"loadedAt"` // เวลาที่หน้าจอโหลดรายการ ใช้ใน T-23
+	LoadedAt time.Time `json:"loadedAt"`         // เวลาที่หน้าจอโหลดรายการ ใช้ใน T-23
+	Reason   string    `json:"reason,omitempty"` // เหตุผลการปฏิเสธ (FR-APV-01 ง) การอนุมัติไม่ใช้ช่องนี้
 }
 
 // ResultDTO คือคำตอบเมื่ออนุมัติหรือปฏิเสธสำเร็จ (plan.md ข้อ 4)

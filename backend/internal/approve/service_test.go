@@ -113,3 +113,60 @@ func TestApprove_OnlyRequestedNormal(t *testing.T) {
 		t.Errorf("นักศึกษาต้องได้ ErrForbiddenRole แต่ได้ %v", err)
 	}
 }
+
+// AC-APV-02 (FR-APV-01)
+// Given เจ้าหน้าที่ผ่านการยืนยันตัวตนแล้ว และมีคำขอยืมแบบปกติสถานะ requested (AP-TEST-0003 ใน approve_dev.sql)
+// When  เจ้าหน้าที่ปฏิเสธคำขอนั้นพร้อมระบุเหตุผล
+// Then  สถานะของคำขอเป็น rejected และสถานะของอุปกรณ์รายชิ้นไม่เปลี่ยน
+//
+//	(T-10 เสร็จเมื่อ: เหตุผลถูกบันทึกใน approval_decision และมี audit_log action reject)
+func TestAC_APV_02(t *testing.T) {
+	tx := devTx(t)
+	ctx := staffCtx("staff-001", 1)
+	id := requestIDOf(t, tx, "AP-TEST-0003", "student-002")
+	const reason = "อุปกรณ์ต้องใช้สอบ"
+
+	var itemBefore string
+	if err := tx.QueryRow(context.Background(), `
+		SELECT i.status FROM borrow_request r JOIN equipment_item i ON i.id = r.item_id WHERE r.id = $1`, id).Scan(&itemBefore); err != nil {
+		t.Fatal(err)
+	}
+
+	// When
+	res, err := NewService(NewRepository(tx)).Reject(ctx, id, reason)
+	if err != nil {
+		t.Fatalf("ปฏิเสธต้องสำเร็จ แต่ได้ error: %v", err)
+	}
+	if res.Status != config.StatusRejected {
+		t.Errorf("ผลต้องเป็น rejected แต่ได้ %+v", res)
+	}
+
+	// Then
+	var reqStatus, itemAfter string
+	if err := tx.QueryRow(context.Background(), `
+		SELECT r.status, i.status FROM borrow_request r JOIN equipment_item i ON i.id = r.item_id WHERE r.id = $1`, id).Scan(&reqStatus, &itemAfter); err != nil {
+		t.Fatal(err)
+	}
+	if reqStatus != "rejected" {
+		t.Errorf("สถานะของคำขอต้องเป็น rejected แต่ได้ %q", reqStatus)
+	}
+	if itemAfter != itemBefore {
+		t.Errorf("สถานะอุปกรณ์ต้องไม่เปลี่ยน (%q) แต่ได้ %q (CON-DATA-01)", itemBefore, itemAfter)
+	}
+	var result, gotReason string
+	if err := tx.QueryRow(context.Background(),
+		`SELECT result, reason FROM approval_decision WHERE request_id = $1`, id).Scan(&result, &gotReason); err != nil {
+		t.Fatalf("ต้องมีแถว approval_decision: %v", err)
+	}
+	if result != "rejected" || gotReason != reason {
+		t.Errorf("approval_decision ต้องเป็น rejected เหตุผล %q แต่ได้ %q / %q", reason, result, gotReason)
+	}
+	var audits int
+	if err := tx.QueryRow(context.Background(),
+		`SELECT count(*) FROM audit_log WHERE request_id = $1 AND action = 'reject'`, id).Scan(&audits); err != nil {
+		t.Fatal(err)
+	}
+	if audits != 1 {
+		t.Errorf("ต้องมี audit_log action reject 1 แถว แต่ได้ %d", audits)
+	}
+}

@@ -2409,3 +2409,25 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ฟีเจอร์: 004-approve-request
 - คำสั่ง: "ตรวจแล้วผ่าน"
 - สิ่งที่แก้: tasks.md T-09 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-10 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "ตรวจแล้วผ่าน" (T-09 -> เสร็จ)
+- คำสั่ง: "/implement T-10 ต่อได้เลย"
+- ไฟล์ที่แก้: `backend/internal/approve/service.go` (`Reject` ใน transaction เดียว: ล็อก, ตรวจ requested + ยืมปกติ, ตั้ง rejected, approval_decision พร้อมเหตุผล, audit_log reject), `handler.go` (`POST /v1/approvals/requests/{id}/reject`), `dto.go` (`DecideInputDTO` เพิ่มช่อง reason), `service_test.go` (`TestAC_APV_02`), `handler_test.go` (`TestAC_APV_02_HTTP`), `specs/004-approve-request/tasks.md`
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): ใช้ body เดียวกับการอนุมัติ (`DecideInputDTO` เพิ่ม reason); ยังไม่ตรวจเหตุผลว่างที่ service (T-12) ระหว่างนี้ถ้าเหตุผลว่าง CHECK `approval_decision_reason_required` ใน 0008 จะกันไว้และตอบ 503
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-10 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ทีมตรวจแล้วผ่าน"
+- สิ่งที่แก้: tasks.md T-10 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)

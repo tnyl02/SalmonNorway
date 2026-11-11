@@ -160,3 +160,30 @@ func TestApproveHTTP_NotFound(t *testing.T) {
 		}
 	}
 }
+
+// AC-APV-02 ยิงผ่าน HTTP จริง: POST /v1/approvals/requests/{id}/reject พร้อมเหตุผล ได้ 200 สถานะ rejected
+func TestAC_APV_02_HTTP(t *testing.T) {
+	tx := devTx(t)
+	srv := newTestServer(tx)
+	id := requestIDOf(t, tx, "AP-TEST-0003", "student-002")
+
+	w := postJSON(srv, tokenStaffDept1, fmt.Sprintf("%srequests/%d/reject", PathPrefix, id),
+		`{"loadedAt":"2026-11-12T03:00:00Z","reason":"อุปกรณ์ต้องใช้สอบ"}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("ปฏิเสธสำเร็จต้องได้ 200 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	var got ResultDTO
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.RequestID != id || got.Status != "rejected" || got.DecidedAt.IsZero() {
+		t.Errorf("คำตอบไม่ถูกต้อง: %+v", got)
+	}
+	var reason string
+	if err := tx.QueryRow(context.Background(), `SELECT reason FROM approval_decision WHERE request_id = $1`, id).Scan(&reason); err != nil {
+		t.Fatal(err)
+	}
+	if reason != "อุปกรณ์ต้องใช้สอบ" {
+		t.Errorf("เหตุผลที่บันทึกต้องตรงกับที่ส่ง แต่ได้ %q", reason)
+	}
+}

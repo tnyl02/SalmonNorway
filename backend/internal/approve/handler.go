@@ -31,6 +31,7 @@ func (h *Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET "+PathPrefix+"requests", h.list)
 	mux.HandleFunc("POST "+PathPrefix+"requests/{id}/approve", h.approve)
+	mux.HandleFunc("POST "+PathPrefix+"requests/{id}/reject", h.reject)
 	return requireStaff(mux)
 }
 
@@ -72,6 +73,25 @@ func (h *Handler) approve(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewDecoder(r.Body).Decode(&in)
 
 	res, err := h.svc.Approve(r.Context(), id)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toResultDTO(res))
+}
+
+// reject: POST /v1/approvals/requests/{id}/reject ปฏิเสธคำขอยืมปกติพร้อมเหตุผล (FR-APV-01 ง, AC-APV-02)
+// body { loadedAt, reason } การตรวจเหตุผลว่างเป็นงานของ T-12
+func (h *Handler) reject(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "REQUEST_NOT_FOUND") // Q-APV-25
+		return
+	}
+	var in DecideInputDTO
+	_ = json.NewDecoder(r.Body).Decode(&in) // body ที่อ่านไม่ออกได้เหตุผลว่าง ซึ่ง T-12 ปฏิเสธด้วย VALIDATION_FAILED
+
+	res, err := h.svc.Reject(r.Context(), id, in.Reason)
 	if err != nil {
 		writeServiceError(w, err)
 		return

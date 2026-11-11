@@ -104,3 +104,47 @@ func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
 	})
 	return out, err
 }
+
+// Reject ปฏิเสธคำขอยืมแบบปกติ 1 ใบพร้อมเหตุผลที่เจ้าหน้าที่ระบุ ใน transaction เดียว (FR-APV-01 ง ฌ, AC-APV-02)
+//   - คำขอเป็น rejected บันทึกเหตุผลใน approval_decision และ audit_log action reject (RQ-25)
+//   - ไม่เปลี่ยนสถานะอุปกรณ์ (CON-DATA-01)
+//
+// การตรวจเหตุผลว่าง (T-12), ภาควิชา (T-25), Email (T-15) และข้อความกรณีพิจารณาแล้ว (T-23) เพิ่มใน task ของแต่ละเรื่อง
+func (s *Service) Reject(ctx context.Context, requestID int, reason string) (Result, error) {
+	p, err := staff(ctx)
+	if err != nil {
+		return Result{}, err
+	}
+	var out Result
+	err = s.repo.inTx(ctx, func(tx *Repository) error {
+		target, _, ok, err := tx.lockItemRequests(ctx, requestID)
+		if err != nil {
+			return err
+		}
+		if !ok || target.LoanType != config.LoanTypeNormal {
+			return ErrRequestNotFound
+		}
+		if target.Status != config.StatusRequested {
+			return ErrNotRequested
+		}
+		if err := tx.setStatus(ctx, target.ID, config.StatusRejected); err != nil {
+			return err
+		}
+		at, err := tx.insertDecision(ctx, decision{
+			RequestID:         target.ID,
+			Result:            config.ApprovalKindRejected,
+			Reason:            reason,
+			ActorID:           p.UserID,
+			ActorDepartmentID: p.DepartmentID,
+		})
+		if err != nil {
+			return err
+		}
+		if err := tx.insertAudit(ctx, p.UserID, string(p.Role), config.AuditActionReject, target.AssetCode, target.ID); err != nil {
+			return err
+		}
+		out = Result{RequestID: target.ID, Status: config.StatusRejected, DecidedAt: at, RejectedBy: []int{}}
+		return nil
+	})
+	return out, err
+}
