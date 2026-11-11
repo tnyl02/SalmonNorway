@@ -315,7 +315,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
 - ต้องทำหลัง: T-16 (เดิม T-16, T-17 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
 - เสร็จเมื่อ: vitest `AC_CXL_11 shows not cancellable message` ผ่าน (409 `NOT_CANCELLABLE` -> แสดง `MSG_NOT_CANCELLABLE` แล้วโหลดรายการใหม่)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 9
 - test ที่ต้องผ่านทั้งหมด: `TestAC_CXL_11_RejectedAndCancelledNotCancellable`, vitest `AC_CXL_11 ...` และ test ของเฟส 0-8
@@ -346,7 +346,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
 - ต้องทำหลัง: T-18 (เดิม T-18, T-19 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
 - เสร็จเมื่อ: vitest `AC_CXL_03 shows request not found message` ผ่าน (404 -> แสดง `MSG_REQUEST_NOT_FOUND` แล้วโหลดรายการใหม่)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 10
 - test ที่ต้องผ่านทั้งหมด: `TestAC_CXL_03_OthersRequestNotFound`, vitest `AC_CXL_03 ...` และ test ของเฟส 0-9

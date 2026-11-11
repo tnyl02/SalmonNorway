@@ -1902,3 +1902,31 @@
 - สิ่งที่เกือบต้องเดา: ไม่มี (plan.md ข้อ 4)
 - สถานะใน tasks.md: T-18 เสร็จ รอทีมตรวจ
 
+---
+
+## 2569-11-12 /implement T-20 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-20 แสดงข้อความ "ไม่พบคำขอ"
+- ไฟล์ที่แก้ (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - MyPendingRequests.jsx: เพิ่ม REQUEST_NOT_FOUND -> MSG_REQUEST_NOT_FOUND ในตาราง CANCEL_REJECTED (ปิดกล่อง แถบแดง โหลดรายการใหม่)
+  - __tests__/MyPendingRequests.test.jsx: AC_CXL_03 shows request not found message
+- ผล test: `npx vitest run` ผ่าน 38/38 `npm run build` ผ่าน
+- สิ่งที่เกือบต้องเดา: ไม่มี (plan.md ข้อ 4)
+- หมายเหตุ: ต้องทำหลัง T-18 ซึ่งยังเป็น "เสร็จ รอทีมตรวจ" (commit แล้ว)
+- สถานะใน tasks.md: T-20 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-12 ทีมตรวจ T-18, T-20 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ: `npm test` ผ่าน 38/38 และลองบนจอจริงโดยเปลี่ยนข้อมูลคำขอ 3002 ระหว่างที่หน้าเปิดค้าง
+  - T-18: status = rejected -> กดยกเลิก -> แถบแดง "คำขอนี้ยกเลิกไม่ได้" แถวหายหลังโหลดใหม่
+  - T-20: requester_id = student-002 -> กดยกเลิก -> แถบแดง "ไม่พบคำขอ" แถวหายหลังโหลดใหม่
+  คืนข้อมูล 3002 เป็น requested ของ student-001 หลังทดสอบ
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-18, T-20 เป็น "เสร็จ"
+

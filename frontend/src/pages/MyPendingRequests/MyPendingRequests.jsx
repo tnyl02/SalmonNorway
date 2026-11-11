@@ -7,6 +7,7 @@ import {
   MSG_LOAD_FAILED,
   MSG_NO_PENDING,
   MSG_NOT_CANCELLABLE,
+  MSG_REQUEST_NOT_FOUND,
 } from '../../config.js'
 import { formatDueAt } from '../EquipmentDetail/EquipmentDetail.jsx'
 import CancelDialog from './CancelDialog.jsx'
@@ -20,13 +21,14 @@ const formatSubmittedAt = formatDueAt
 // กดยกเลิกแล้วต้องยืนยันพร้อมเหตุผลก่อน ยกเลิกสำเร็จแล้วแถวหายจากหน้า (FR-CXL-07, FR-CXL-01)
 // ไม่มีคำขอแสดง MSG_NO_PENDING โหลดไม่สำเร็จแสดง MSG_LOAD_FAILED พร้อมปุ่มลองใหม่ ไม่แสดงรายการเก่า (FR-CXL-06, ASM-13)
 // ยกเลิกไม่ได้ตามตาราง error ใน plan.md ข้อ 4: แสดงข้อความแล้วโหลดรายการใหม่ (FR-CXL-02) ดู CANCEL_REJECTED
-// ข้อความของกรณีอื่นอยู่ใน T-20, T-24
+// ข้อความของกรณีระบบล่มอยู่ใน T-24
 
 // CANCEL_REJECTED คือรหัส error จากหลังบ้านที่แปลว่ายกเลิกไม่ได้ จับคู่กับข้อความใน config.js (plan.md ข้อ 4)
 // ได้รหัสเหล่านี้แล้ว ปิดกล่อง แสดงข้อความ และโหลดรายการใหม่ให้ตรงกับฐานข้อมูล
 const CANCEL_REJECTED = {
   ALREADY_APPROVED: MSG_ALREADY_APPROVED, // 409 FR-CXL-02, FR-CXL-04 (T-16)
   NOT_CANCELLABLE: MSG_NOT_CANCELLABLE, // 409 FR-CXL-02 rejected, handed_over, returned, cancelled (T-18)
+  REQUEST_NOT_FOUND: MSG_REQUEST_NOT_FOUND, // 404 FR-CXL-03 ไม่มีคำขอนี้ หรือเป็นของผู้อื่น (T-20)
 }
 
 export default function MyPendingRequests({ client = api }) {
@@ -78,7 +80,7 @@ export default function MyPendingRequests({ client = api }) {
         setCancelError(message)
         setReloadKey((k) => k + 1)
       }
-      // กรณีอื่น: คงแถวและกล่องไว้ ข้อความอยู่ใน T-20, T-24
+      // กรณีอื่น (เช่น 503): คงแถวและกล่องไว้ ข้อความอยู่ใน T-24
     } finally {
       setBusy(false)
     }

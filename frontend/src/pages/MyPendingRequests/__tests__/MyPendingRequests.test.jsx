@@ -142,3 +142,31 @@ test('cancel error clears when opening next dialog', async () => {
   expect(screen.queryByRole('alert')).toBeNull()
 })
 
+// AC-CXL-03 (FR-CXL-03) ฝั่งหน้าจอ T-20
+//   Given นักศึกษาเปิดหน้ารายการ แล้วหลังบ้านตอบว่าไม่พบคำขอ (404 REQUEST_NOT_FOUND)
+//   When  กดยกเลิก พิมพ์เหตุผล แล้วกดยืนยัน
+//   Then  กล่องปิด แสดง "ไม่พบคำขอ" และโหลดรายการใหม่
+test('AC_CXL_03 shows request not found message', async () => {
+  // Given
+  const client = fakeClient([REQ_A1, REQ_A2])
+  client.listMyPendingRequests
+    .mockResolvedValueOnce({ items: [REQ_A1, REQ_A2] })
+    .mockResolvedValueOnce({ items: [REQ_A2] })
+  client.cancelRequest.mockRejectedValueOnce(new ApiError(404, 'REQUEST_NOT_FOUND'))
+  render(<MyPendingRequests client={client} />)
+  const rows = await screen.findAllByRole('listitem')
+
+  // When
+  fireEvent.click(within(rows[0]).getByRole('button', { name: 'ยกเลิก' }))
+  const dialog = await screen.findByRole('dialog')
+  fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'ไม่ต้องใช้อุปกรณ์แล้ว' } })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'ยืนยัน' }))
+
+  // Then
+  expect((await screen.findByRole('alert')).textContent).toBe('ไม่พบคำขอ')
+  expect(screen.queryByRole('dialog')).toBeNull()
+  await waitFor(() => expect(client.listMyPendingRequests).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1))
+  expect(screen.queryByRole('status')).toBeNull()
+})
+
