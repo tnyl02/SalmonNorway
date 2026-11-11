@@ -854,3 +854,27 @@
 
 ### สิ่งที่เกือบต้องเดา
 - ข้อความใช้ตาม Then ของ AC-RET-03 ไม่มี mockup / กรณีบันทึกซ้อนใช้ข้อความเดียวกัน (ไม่ได้สร้างข้อความใหม่)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-20 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 10)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำต่อได้เลย" -> `/implement T-20 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- ตามช่องไฟล์ที่แตะ: `repository.go` (`ErrForbiddenDepartment`, `checkItemDepartment` ตรวจภาควิชาก่อนเรื่องการยืมค้าง,
+  `RecordReturn` / `FindOpenLoan` / `GetLoan` รับ departmentID), `service.go` (`RecordReturn` รับ departmentID),
+  `handler_test.go` (`TestAC_RET_11_OtherDepartmentForbidden`)
+- นอกช่องไฟล์ที่แตะ: `handler.go` (จำเป็นเพื่อส่งภาควิชาจาก `auth.FromContext` และแปลง error เป็น 403 `FORBIDDEN_DEPARTMENT`, เพิ่ม `principal`, `writeForbiddenDepartment`)
+
+### ผล test (`cd backend && go test ./... -v`)
+- TestAC_RET_11_OtherDepartmentForbidden PASS (lookup / POST / loan detail ของอุปกรณ์ภาควิชาอื่น ทั้งที่ถูกยืมและที่ว่าง ได้ 403 body มีแค่ code,
+  การยืมไม่ถูกปิด สถานะยัง borrowed)
+- test เดิมทั้งหมด PASS (returns 14 tests, platform, config, auth)
+
+### สิ่งที่เกือบต้องเดา
+- ลำดับ 403 กับ 409: ตรวจภาควิชาก่อนเสมอตาม plan.md ข้อ 4 อุปกรณ์ภาควิชาอื่นที่ไม่มีการยืมค้างก็ได้ 403 (ไม่บอกใบ้ว่ามีการยืมหรือไม่)
+- รหัสครุภัณฑ์ที่ไม่มีในระบบยังได้ 409 `NO_OPEN_LOAN` ตามเดิม (AC-RET-03)

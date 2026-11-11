@@ -870,3 +870,55 @@ func TestReturns_ConcurrentReturn_OneWins(t *testing.T) {
 		}
 	}
 }
+
+// AC-RET-11 (FR-RET-01 ภาควิชา)
+//
+//	Given อุปกรณ์ "ถูกยืม" เป็นของภาควิชาอื่น
+//	When  เจ้าหน้าที่กรอกรหัสครุภัณฑ์ของชิ้นนั้นเพื่อบันทึกการรับคืน
+//	Then  ระบบปฏิเสธว่าไม่มีสิทธิ์ และการยืมกับสถานะอุปกรณ์ไม่เปลี่ยน
+//
+// ตรวจทุกทางที่เข้าถึงการยืมของภาควิชาอื่นได้: lookup, POST และรายละเอียดการยืม
+func TestAC_RET_11_OtherDepartmentForbidden(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool) // mock-staff-001 อยู่ภาควิชา 1
+	ctx := context.Background()
+
+	// Given อุปกรณ์ "ถูกยืม" ของภาควิชาอื่นพร้อมการยืมค้าง และอีกชิ้นของภาควิชาอื่นที่ "ว่าง"
+	_, otherModel := insertDepartment(t, pool, "T20 ภาควิชาอื่น")
+	insertLoanOfModel(t, pool, otherModel, "T20-OTHER", 2*time.Hour, false)
+	if _, err := pool.Exec(ctx,
+		`INSERT INTO equipment_item (asset_code, model_id, status) VALUES ('T20-OTHER-FREE', $1, 'available')`, otherModel); err != nil {
+		t.Fatal(err)
+	}
+	var loanID int
+	if err := pool.QueryRow(ctx,
+		`SELECT l.id FROM loan l JOIN equipment_item i ON i.id = l.item_id WHERE i.asset_code = 'T20-OTHER'`).Scan(&loanID); err != nil {
+		t.Fatal(err)
+	}
+
+	// When
+	recs := map[string]*httptest.ResponseRecorder{
+		"lookup":      call(router, http.MethodGet, "/api/v1/returns/lookup?assetCode=T20-OTHER", "mock-staff-001"),
+		"POST":        postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "T20-OTHER", "condition": "normal"}),
+		"loan detail": call(router, http.MethodGet, fmt.Sprintf("/api/v1/returns/loans/%d", loanID), "mock-staff-001"),
+		"lookup ว่าง": call(router, http.MethodGet, "/api/v1/returns/lookup?assetCode=T20-OTHER-FREE", "mock-staff-001"),
+		"POST ว่าง":   postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "T20-OTHER-FREE", "condition": "normal"}),
+	}
+
+	// Then: 403 ทุกทาง (ไม่บอกใบ้ว่ามีการยืมค้างหรือไม่) และไม่มีข้อมูลการยืมใน body
+	for name, rec := range recs {
+		if rec.Code != http.StatusForbidden || strings.TrimSpace(rec.Body.String()) != `{"code":"FORBIDDEN_DEPARTMENT"}` {
+			t.Errorf("%s: status = %d body=%s, want 403 และ body มีแค่ code FORBIDDEN_DEPARTMENT", name, rec.Code, rec.Body.String())
+		}
+	}
+	var returnedAt *time.Time
+	if err := pool.QueryRow(ctx, `SELECT returned_at FROM loan WHERE id = $1`, loanID).Scan(&returnedAt); err != nil {
+		t.Fatal(err)
+	}
+	if returnedAt != nil {
+		t.Error("การยืมของภาควิชาอื่นต้องไม่ถูกปิด")
+	}
+	if got := itemStatus(t, pool, "T20-OTHER"); got != "borrowed" {
+		t.Errorf("สถานะ = %q, want borrowed (ไม่เปลี่ยน)", got)
+	}
+}

@@ -49,8 +49,14 @@ type returnResponse struct {
 // recordReturn รับ assetCode, condition (form แบบ urlencoded หรือ multipart) แล้วบันทึกการรับคืน (FR-RET-02, FR-RET-03, FR-RET-04)
 // ไม่อ่านฟิลด์เวลาใด ๆ จาก client เวลาคืนมาจากฐานข้อมูลเท่านั้น (FR-RET-02, ASM-04)
 func (h *Handler) recordReturn(w http.ResponseWriter, r *http.Request) {
-	rec, err := h.svc.RecordReturn(r.Context(), r.FormValue("assetCode"), r.FormValue("condition"))
+	p, ok := principal(w, r)
+	if !ok {
+		return
+	}
+	rec, err := h.svc.RecordReturn(r.Context(), r.FormValue("assetCode"), r.FormValue("condition"), p.DepartmentID)
 	switch {
+	case errors.Is(err, ErrForbiddenDepartment):
+		writeForbiddenDepartment(w)
 	case errors.Is(err, ErrUnknownCondition):
 		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"code": "CONDITION_REQUIRED"})
 	case errors.Is(err, ErrNoOpenLoan):
@@ -66,8 +72,14 @@ func (h *Handler) recordReturn(w http.ResponseWriter, r *http.Request) {
 // lookup หาการยืมที่ยังไม่คืนจากรหัสครุภัณฑ์ ก่อนบันทึกการรับคืน (FR-RET-01(ก))
 // ไม่พบ -> 409 NO_OPEN_LOAN (ข้อความบนหน้าจอและ test ของ AC-RET-03 อยู่ใน T-18, T-19)
 func (h *Handler) lookup(w http.ResponseWriter, r *http.Request) {
-	ol, err := h.svc.repo.FindOpenLoan(r.Context(), r.URL.Query().Get("assetCode"))
+	p, ok := principal(w, r)
+	if !ok {
+		return
+	}
+	ol, err := h.svc.repo.FindOpenLoan(r.Context(), r.URL.Query().Get("assetCode"), p.DepartmentID)
 	switch {
+	case errors.Is(err, ErrForbiddenDepartment):
+		writeForbiddenDepartment(w)
 	case errors.Is(err, ErrNoOpenLoan):
 		writeJSON(w, http.StatusConflict, map[string]string{"code": "NO_OPEN_LOAN"})
 	case err != nil:
@@ -86,8 +98,14 @@ func (h *Handler) loanDetail(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"code": "LOAN_NOT_FOUND"})
 		return
 	}
-	d, err := h.svc.repo.GetLoan(r.Context(), loanID)
+	p, ok := principal(w, r)
+	if !ok {
+		return
+	}
+	d, err := h.svc.repo.GetLoan(r.Context(), loanID, p.DepartmentID)
 	switch {
+	case errors.Is(err, ErrForbiddenDepartment):
+		writeForbiddenDepartment(w)
 	case errors.Is(err, ErrLoanNotFound):
 		writeJSON(w, http.StatusNotFound, map[string]string{"code": "LOAN_NOT_FOUND"})
 	case err != nil:
@@ -101,9 +119,8 @@ func (h *Handler) loanDetail(w http.ResponseWriter, r *http.Request) {
 // openLoans แสดงรายการการยืมที่ยังไม่คืนของภาควิชาเดียวกับเจ้าหน้าที่ (FR-RET-01(ข), ASM-03)
 // ภาควิชามาจากผู้ใช้ที่ยืนยันตัวตนแล้ว (IF-IDP-01) ไม่รับจาก query string
 func (h *Handler) openLoans(w http.ResponseWriter, r *http.Request) {
-	p, ok := auth.FromContext(r.Context())
+	p, ok := principal(w, r)
 	if !ok {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"code": "UNAUTHENTICATED"})
 		return
 	}
 	loans, err := h.svc.repo.ListOpenLoans(r.Context(), p.DepartmentID)
@@ -113,6 +130,20 @@ func (h *Handler) openLoans(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, loans)
+}
+
+// principal อ่านผู้ใช้ที่ middleware ยืนยันตัวตนแล้ว (IF-IDP-01) ไม่มี -> ตอบ 401 แล้วคืน false
+func principal(w http.ResponseWriter, r *http.Request) (auth.Principal, bool) {
+	p, ok := auth.FromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"code": "UNAUTHENTICATED"})
+	}
+	return p, ok
+}
+
+// writeForbiddenDepartment ตอบ 403 เมื่ออุปกรณ์เป็นของภาควิชาอื่น ไม่ส่งข้อมูลการยืมกลับ (AC-RET-11, ASM-03)
+func writeForbiddenDepartment(w http.ResponseWriter) {
+	writeJSON(w, http.StatusForbidden, map[string]string{"code": "FORBIDDEN_DEPARTMENT"})
 }
 
 // writeJSON ตอบ JSON และตั้ง Cache-Control: no-store ทุก response ของ 006 (plan.md ข้อ 4, NFR-DATA-01)

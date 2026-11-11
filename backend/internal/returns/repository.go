@@ -11,6 +11,34 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// ErrForbiddenDepartment หมายถึงอุปกรณ์หรือการยืมเป็นของภาควิชาอื่น เจ้าหน้าที่ทำรายการไม่ได้ (FR-RET-01, ASM-03)
+var ErrForbiddenDepartment = errors.New("equipment belongs to another department")
+
+// querier คือสิ่งที่รัน QueryRow ได้ ใช้ได้ทั้ง pool และ transaction
+type querier interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+// checkItemDepartment ตรวจว่าอุปกรณ์ assetCode เป็นของภาควิชา departmentID (ASM-03)
+// ตรวจก่อนเรื่องการยืมค้างเสมอ: อุปกรณ์ภาควิชาอื่นได้ ErrForbiddenDepartment ไม่ว่าจะถูกยืมอยู่หรือไม่
+// ไม่มีอุปกรณ์รหัสนี้ -> ErrNoOpenLoan (ไม่มีการยืมค้างให้คืน)
+func checkItemDepartment(ctx context.Context, q querier, assetCode string, departmentID int) error {
+	var dept int
+	err := q.QueryRow(ctx, `
+		SELECT m.department_id FROM equipment_item i JOIN equipment_model m ON m.id = i.model_id
+		WHERE i.asset_code = $1`, assetCode).Scan(&dept)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNoOpenLoan
+	}
+	if err != nil {
+		return err
+	}
+	if dept != departmentID {
+		return ErrForbiddenDepartment
+	}
+	return nil
+}
+
 // ErrNoOpenLoan หมายถึงอุปกรณ์นี้ไม่มีการยืมที่ยังไม่คืน หรือสถานะไม่ใช่ "ถูกยืม" (FR-RET-01)
 var ErrNoOpenLoan = errors.New("no open loan for this asset")
 
@@ -40,12 +68,17 @@ type ReturnRecord struct {
 //   - returned_late = now() > due_at ต้องใส่พร้อมกันเพราะ CHECK loan_return_fields_complete (FR-RET-06, test ใน T-13)
 //
 // ล็อกแถวด้วย FOR UPDATE: ถ้าบันทึกพร้อมกัน คนที่สองจะไม่พบการยืมที่ยังไม่คืน ได้ ErrNoOpenLoan
-func (r *Repository) RecordReturn(ctx context.Context, assetCode, condition, newStatus string) (ReturnRecord, error) {
+// อุปกรณ์ต้องเป็นของภาควิชา departmentID ของเจ้าหน้าที่ ไม่งั้นได้ ErrForbiddenDepartment และไม่แตะข้อมูล (ASM-03)
+func (r *Repository) RecordReturn(ctx context.Context, assetCode, condition, newStatus string, departmentID int) (ReturnRecord, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return ReturnRecord{}, err
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck // rollback หลัง commit แล้วไม่มีผล
+
+	if err := checkItemDepartment(ctx, tx, assetCode, departmentID); err != nil {
+		return ReturnRecord{}, err
+	}
 
 	rec := ReturnRecord{AssetCode: assetCode, Condition: condition, ItemStatus: newStatus}
 	var itemID int
@@ -92,8 +125,11 @@ type OpenLoan struct {
 
 // FindOpenLoan หาการยืมที่ยังไม่คืนของอุปกรณ์ assetCode (FR-RET-01(ก), CON-DATA-03 รหัสครุภัณฑ์ไม่ซ้ำ จึงได้ไม่เกิน 1 รายการ)
 // isOverdue = now() > due_at คำนวณที่ฐานข้อมูล ใช้ due_at ที่ 005 บันทึก ไม่คำนวณ 16:00 เอง (ASM-01)
-// ไม่พบ หรือสถานะไม่ใช่ "ถูกยืม" -> ErrNoOpenLoan / การกรองภาควิชาทำใน T-20
-func (r *Repository) FindOpenLoan(ctx context.Context, assetCode string) (OpenLoan, error) {
+// ไม่พบ หรือสถานะไม่ใช่ "ถูกยืม" -> ErrNoOpenLoan / อุปกรณ์ภาควิชาอื่น -> ErrForbiddenDepartment (ASM-03)
+func (r *Repository) FindOpenLoan(ctx context.Context, assetCode string, departmentID int) (OpenLoan, error) {
+	if err := checkItemDepartment(ctx, r.pool, assetCode, departmentID); err != nil {
+		return OpenLoan{}, err
+	}
 	var ol OpenLoan
 	err := r.pool.QueryRow(ctx, `
 		SELECT l.id, i.asset_code, m.name, l.borrower_id, l.loan_type, l.due_at, now() > l.due_at
@@ -124,19 +160,27 @@ type LoanDetail struct {
 }
 
 // GetLoan อ่านรายละเอียดการยืมจากรหัสการยืม (FR-RET-06) ใช้ returned_late ที่บันทึกตอนรับคืน ไม่คำนวณใหม่
-// ไม่พบ -> ErrLoanNotFound / การกรองภาควิชาทำใน T-20
-func (r *Repository) GetLoan(ctx context.Context, loanID int) (LoanDetail, error) {
+// ไม่พบ -> ErrLoanNotFound / การยืมของอุปกรณ์ภาควิชาอื่น -> ErrForbiddenDepartment (ASM-03)
+func (r *Repository) GetLoan(ctx context.Context, loanID, departmentID int) (LoanDetail, error) {
 	var d LoanDetail
+	var dept int
 	err := r.pool.QueryRow(ctx, `
-		SELECT l.id, i.asset_code, l.borrower_id, l.due_at, l.returned_at, l.return_condition, l.returned_late
+		SELECT l.id, i.asset_code, l.borrower_id, l.due_at, l.returned_at, l.return_condition, l.returned_late, m.department_id
 		FROM loan l
 		JOIN equipment_item i ON i.id = l.item_id
+		JOIN equipment_model m ON m.id = i.model_id
 		WHERE l.id = $1`, loanID).
-		Scan(&d.LoanID, &d.AssetCode, &d.BorrowerID, &d.DueAt, &d.ReturnedAt, &d.Condition, &d.ReturnedLate)
+		Scan(&d.LoanID, &d.AssetCode, &d.BorrowerID, &d.DueAt, &d.ReturnedAt, &d.Condition, &d.ReturnedLate, &dept)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return LoanDetail{}, ErrLoanNotFound
 	}
-	return d, err
+	if err != nil {
+		return LoanDetail{}, err
+	}
+	if dept != departmentID {
+		return LoanDetail{}, ErrForbiddenDepartment
+	}
+	return d, nil
 }
 
 // ListOpenLoans คืนการยืมที่ยังไม่คืนทั้งหมดของภาควิชา departmentID เรียงตามกำหนดคืน (FR-RET-01(ข), ASM-03)
