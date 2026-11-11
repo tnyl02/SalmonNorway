@@ -955,3 +955,18 @@
   3. ทางเข้าหน้าใน App.jsx -> ทีม: ปุ่มสลับ 2 ปุ่ม ไม่ใช้ router
 - สถานะใน tasks.md: T-05 เสร็จ รอทีมตรวจ
 
+---
+
+## 2569-11-11 บันทึกคำตอบของเจ้าของ 002 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (อ่านคำตอบจากหน้าเว็บที่ธัญลักษณ์ทำ https://claude.ai/artifact/SrBS61rXxEcNSCGiZkK5uW)
+- สิ่งที่สั่ง: บันทึกคำตอบลง spec, plan, tasks ยังไม่ทำ T-01
+- คำตอบของ 002: (1) 002 สร้าง borrow_request เองที่ 0003 (2) ชื่อคอลัมน์และสถานะ 8 ค่าใช้ตามที่ 003 เสนอ
+  (3) cancel_reason VARCHAR(200) NULL, cancelled_at TIMESTAMPTZ NULL สร้างให้ใน 0003 (4) FK จาก audit_log.request_id เพิ่มใน 0003
+  แจ้งเพิ่ม: Q-SH-06 ปิด (ปฏิเสธอัตโนมัติเป็น rejected), 002 เพิ่ม action request, ยืมรายชิ้น
+- ไฟล์ที่แก้: spec.md (Draft v3.5: ASM-09, ASM-11, Q-SH-06, Clarifications), plan.md (v1.3 หัวข้อ 2, 3, 7, 8), tasks.md (หัวไฟล์, T-01, T-30, T-31), CHANGELOG, README
+- สิ่งที่ AI พบและไม่ได้ตัดสินเอง: index (requester_id, status, submitted_at DESC) ไม่อยู่ในโครงของ 002 ยังไม่รู้ว่าใครเพิ่ม (บันทึกใน plan หัวข้อ 8)
+- 002 ขอคำตอบกลับ 2 ข้อ: ชนิดข้อมูลตรงไหม (ตรง) และต้องได้ตารางเมื่อไร (เร็วที่สุด)
+

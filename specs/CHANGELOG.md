@@ -2,6 +2,14 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [SPEC-CXL-003 Draft v3.5 + plan v1.3] - 2569-11-11
+เจ้าของ 002 (ธัญลักษณ์) ตอบ 4 ข้อเรื่องตาราง borrow_request ไม่มี CR เพราะเป็นการตอบข้อตกลงที่เปิดไว้ ไม่เปลี่ยน FR หรือ AC
+
+### Changed
+- ASM-11: 002 สร้าง borrow_request เองใน 0003 (เดิม 003 ร่างให้ 002 รับช่วง), ASM-09: cancel_reason VARCHAR(200) NULL, cancelled_at TIMESTAMPTZ NULL, FK จาก audit_log.request_id
+- Q-SH-06 ปิดแล้ว (ปฏิเสธอัตโนมัติเป็น rejected ไม่กระทบกฎของ 003)
+- plan.md หัวข้อ 2, 3, 7, 8 และ tasks.md T-01 (เหลือ 0004_staff_contact รอ 0003 ของ 002), T-30 (0005), T-31 (แก้ตัวช่วย test เพราะ FK)
+
 ## [tasks.md ของ 003] - 2569-11-11
 ทีมแก้ลำดับ task ไม่เปลี่ยน spec
 

@@ -1,5 +1,5 @@
 # Implementation Plan: ยกเลิกคำขอยืม (Cancel Borrow Request)
-Spec: SPEC-CXL-003 (specs/003-cancel-request/spec.md, Draft v3.2) | Plan status: Draft v1.2 | Updated: 2569-11-11 (ปิด Q-13, ASM-13 จาก /testcases)
+Spec: SPEC-CXL-003 (specs/003-cancel-request/spec.md, Draft v3.5) | Plan status: Draft v1.3 | Updated: 2569-11-11 (002 สร้าง borrow_request เอง ASM-11)
 Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
 
 ## 1. สรุปแนวทาง
@@ -28,18 +28,19 @@ Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@na
 ### โครงไฟล์ของ 003 (ทีมเลือกชื่อเอง)
 ```
 backend/internal/cancelrequest/   repository.go, service.go, handler.go, dto.go, notifier.go, *_test.go
-backend/db/migrations/            000N_borrow_request.up.sql (ร่าง ASM-11), 000N_staff_contact.up.sql (จำลอง ASM-10)
+backend/db/migrations/            0004_staff_contact.up.sql (จำลอง ASM-10), 0005_audit_log_notify_action.up.sql (ASM-12)
+                                  (0003_borrow_request.up.sql เป็นของ 002 ไม่ใช่ของ 003 ASM-11)
 backend/db/seed/                  เพิ่มคำขอตัวอย่างทุกสถานะ และ Email เจ้าหน้าที่จำลอง
 frontend/src/pages/MyPendingRequests/   MyPendingRequests.jsx, CancelDialog.jsx, __tests__/
 frontend/src/api/client.js        เพิ่มฟังก์ชัน listMyPendingRequests, cancelRequest (ไฟล์กลาง)
 frontend/src/config.js            ข้อความและค่าที่หน้าจอใช้ (สร้างถ้ายังไม่มี)
 ```
-เลขไฟล์ migration (`000N`) เลือกตอน implement ให้ต่อจากของ 001 และไม่ชนกับ 002
+เลขไฟล์ migration จองในกลุ่มแล้ว 2569-11-11: 003 ได้ 0004 และ 0005
 
 ## 3. โมเดลข้อมูล
 
-### borrow_request (DM-06) ร่างเบื้องต้น ให้ 002 รับช่วง (ASM-11)
-ต้องตกลงชื่อคอลัมน์และค่าสถานะกับเจ้าของ 002 ก่อนสร้างจริง คอลัมน์ที่ 003 ใช้มีเครื่องหมาย *
+### borrow_request (DM-06) 002 สร้างใน 0003_borrow_request (ASM-11 ตกลงกับเจ้าของ 002 แล้ว 2569-11-11)
+ตารางจริงของ 002 มีคอลัมน์มากกว่านี้ (วันเวลาเริ่ม-สิ้นสุด เหตุผลและไฟล์แนบของการยืมค้างคืน) ข้างล่างเฉพาะส่วนที่ 003 ใช้ คอลัมน์ที่ 003 ใช้มีเครื่องหมาย *
 ```
 borrow_request(
   id            SERIAL PRIMARY KEY,                                   * รหัสคำขอ
@@ -51,10 +52,11 @@ borrow_request(
                   'requested','approved_by_officer','pending_advisor_approval',
                   'approved','rejected','handed_over','returned','cancelled')),  * CON-CXL-02
   submitted_at  TIMESTAMPTZ NOT NULL DEFAULT now(),                   * เวลาที่ส่ง (DM-06, DOM-REQ-01) ใช้เรียง FR-CXL-06
-  cancel_reason TEXT NULL CHECK (char_length(cancel_reason) <= 200),  * FR-CXL-08 (200 = Q-14)
-  cancelled_at  TIMESTAMPTZ NULL                                      * เวลาที่ยกเลิก (FR-CXL-05, FR-CXL-09)
+  cancel_reason VARCHAR(200) NULL,                                    * FR-CXL-08 (200 = Q-14, ASM-09) ของ 003 002 ไม่เขียนค่า
+  cancelled_at  TIMESTAMPTZ NULL                                      * เวลาที่ยกเลิก (FR-CXL-05, FR-CXL-09) ของ 003
 )
-INDEX (requester_id, status, submitted_at DESC)   -- FR-CXL-06 ดึงรายการของตนเรียงใหม่ไปเก่า
+ALTER TABLE audit_log ADD CONSTRAINT fk_audit_log_request FOREIGN KEY (request_id) REFERENCES borrow_request (id)   -- 002 เพิ่มใน 0003
+INDEX (requester_id, status, submitted_at DESC)   -- FR-CXL-06 ดึงรายการของตนเรียงใหม่ไปเก่า ยังไม่อยู่ในโครงที่ 002 ส่งมา ยังไม่ตัดสินว่าใครเพิ่ม (หัวข้อ 8)
 ```
 การแมปชื่อสถานะ (CON-CXL-02): Requested=`requested`, Approved by Officer=`approved_by_officer`,
 Pending Advisor Approval=`pending_advisor_approval`, Approved=`approved`, Rejected=`rejected`,
@@ -185,7 +187,7 @@ frontend: vitest ใน `frontend/src/pages/MyPendingRequests/__tests__/` ใช
 ทดสอบเพิ่ม (ไม่มี AC ตรง): API ไม่ส่งข้อมูลคำขอของผู้อื่นใน GET, `returnTo` ที่เป็น URL ภายนอกถูกปฏิเสธ, ไม่มีโค้ดของ 003 เขียน `equipment_item`
 
 ## 7. ลำดับงาน
-1. ร่าง migration `borrow_request` และ `staff_contact` + seed คำขอทุกสถานะ (ทั้งปกติและค้างคืน) ของ student-001/002 และ Email เจ้าหน้าที่จำลอง ตกลง schema กับ 002 ก่อน (ASM-01, ASM-10, ASM-11, CON-CXL-02)
+1. migration `0004_staff_contact` และ test ว่าตาราง `borrow_request` ของ 002 (0003) ตรงกับที่ 003 ใช้ + seed คำขอทุกสถานะ (ทั้งปกติและค้างคืน) ของ student-001/002 และ Email เจ้าหน้าที่จำลอง ต้องรอ 002 push 0003 (ASM-01, ASM-10, ASM-11, CON-CXL-02)
 2. เพิ่มค่าใน `config.go` และ `config.js` ตามตารางข้อ 5
 3. API รายการคำขอที่รออนุมัติของฉัน (FR-CXL-06, FR-CXL-03 / AC-CXL-08, 12)
 4. API ยกเลิก: UPDATE แบบมีเงื่อนไข แยกสาเหตุ 404/409 (FR-CXL-01..04 / AC-CXL-01..05, 10, 11)
@@ -207,12 +209,14 @@ frontend: vitest ใน `frontend/src/pages/MyPendingRequests/__tests__/` ใช
   ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ: FR-CXL-10 ทั้งหมด (ไม่ทำใน prototype)
 - **Q-SH-03** auth service ใช้โปรโตคอลอะไร และส่ง role + ภาควิชามาในรูปแบบใด -> ใช้ auth จำลองของกลางไปก่อน ไม่เขียน Provider ตัวจริง
 - **Q-SH-05** ลำดับและเวลาของคำขอที่มาก่อน แสดงให้ใครเห็น -> หน้า "คำขอที่รออนุมัติของฉัน" ไม่แสดงลำดับคิวจนกว่าจะได้คำตอบ
-- **Q-SH-06** เมื่อคำขอหนึ่งได้รับอนุมัติแล้ว คำขอที่เหลือของอุปกรณ์ชิ้นเดียวกันเป็นอย่างไร -> 003 ไม่เปลี่ยนคำขออื่นเอง ใช้สถานะในฐานข้อมูลตามที่ 004 ตั้ง
+- ~~Q-SH-06~~ ปิดแล้ว: คำขออื่นของชิ้นเดียวกันถูก 004 ปฏิเสธอัตโนมัติเป็น `rejected` 003 ไม่เปลี่ยนคำขออื่นเอง และตอบ `NOT_CANCELLABLE` ตาม AC-CXL-11
 - **Q-SH-08** ระบบยืนยันตัวตนเชื่อมต่อไม่ได้ ต้องทำอย่างไร -> ใช้พฤติกรรม 401 ของ middleware กลางไปก่อน
 
 ### Dependency ที่ต้องเคลียร์ก่อน /implement
 - โครงกลาง (`backend/`, `frontend/`) ยังอยู่ใน `origin/001-equipment-status` ยังไม่ merge เข้า main
 - ~~migration `audit_log` ยังไม่มี~~ มีแล้วใน main (0002) โครงกลางก็ merge เข้า main แล้ว (2569-11-10)
 - เลข migration: data-model.md จอง `0003_borrow_request` ให้ 002 และ `0004` ขึ้นไปให้ 003 เป็นต้นไป จองในกลุ่มแล้ว 2569-11-11: 003 ได้ `0004` และ `0005`
-- ชื่อคอลัมน์และค่าสถานะของ `borrow_request` ต้องตกลงกับเจ้าของ 002 (ASM-11) และช่อง `cancel_reason` (ASM-09)
+- ~~ชื่อคอลัมน์และค่าสถานะของ `borrow_request` ต้องตกลงกับเจ้าของ 002~~ ตกลงแล้ว 2569-11-11 (ASM-09, ASM-11) **ยังรอ 002 push `0003_borrow_request` เข้า main**
+- index `(requester_id, status, submitted_at DESC)` ไม่อยู่ในโครงที่ 002 ส่งมา ต้องตัดสินว่าขอ 002 เพิ่มใน 0003 หรือ 003 เพิ่มใน 0004
+- ตัวช่วย test `tcServer` ล้างข้อมูลด้วย `DELETE FROM borrow_request` เมื่อมี FK จาก audit_log ต้องลบแถว audit_log ที่อ้างคำขอก่อน (แก้ใน T-31)
 - 004 ต้องใช้เงื่อนไขสถานะตอนอนุมัติ เพื่อไม่ให้อนุมัติคำขอที่ถูกยกเลิกแล้ว (ASM-05) เจ้าของ 004 รับกฎแล้ว 2569-11-11 และหน้าอนุมัติซ่อนคำขอ cancelled
