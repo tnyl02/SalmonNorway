@@ -35,8 +35,11 @@ func ValidateReason(reason string) error {
 // ErrAlreadyApproved คือคำขอได้รับการอนุมัติแล้ว ตอบ 409 ALREADY_APPROVED (FR-CXL-02, FR-CXL-04, AC-CXL-02, AC-CXL-04)
 var ErrAlreadyApproved = errors.New("already approved")
 
-// ErrNotCancelled คือ UPDATE ไม่เจอแถวด้วยสาเหตุอื่นนอกจากอนุมัติแล้ว ตอนนี้ตอบ 409 NOT_CANCELLABLE
-// การแยก 404 REQUEST_NOT_FOUND (ไม่มีหรือของผู้อื่น) อยู่ใน T-19 สถานะอื่นที่ยกเลิกไม่ได้อยู่ใน T-17
+// ErrRequestNotFound คือไม่มีคำขอนี้ หรือเป็นคำขอของผู้อื่น ตอบ 404 REQUEST_NOT_FOUND (FR-CXL-03, AC-CXL-03)
+// ทั้ง 2 กรณีตอบเหมือนกัน ไม่บอกว่ามีคำขอนี้อยู่หรือไม่ เพื่อไม่เปิดเผยข้อมูลคำขอของผู้อื่น
+var ErrRequestNotFound = errors.New("request not found")
+
+// ErrNotCancelled คือคำขอของตนที่สถานะยกเลิกไม่ได้ (นอกจาก approved) ตอบ 409 NOT_CANCELLABLE (FR-CXL-02, T-17)
 var ErrNotCancelled = errors.New("not cancelled")
 
 // statusApproved คือค่าในฐานข้อมูลของสถานะ Approved (CON-CXL-02 ตารางแมปชื่อสถานะ)
@@ -100,10 +103,14 @@ func (s *Service) Cancel(ctx context.Context, p auth.Principal, requestID int, r
 		if err != nil {
 			return CancelResultDTO{}, err
 		}
-		if found && status == statusApproved {
+		switch {
+		case !found:
+			return CancelResultDTO{}, ErrRequestNotFound // ไม่มี หรือไม่ใช่ของผู้ขอคนนี้ (FR-CXL-03)
+		case status == statusApproved:
 			return CancelResultDTO{}, ErrAlreadyApproved
+		default:
+			return CancelResultDTO{}, ErrNotCancelled
 		}
-		return CancelResultDTO{}, ErrNotCancelled
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return CancelResultDTO{}, err

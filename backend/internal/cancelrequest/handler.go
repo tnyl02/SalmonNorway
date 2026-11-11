@@ -78,10 +78,12 @@ func (h *Handler) cancel(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorDTO{Code: "REASON_REQUIRED"}) // FR-CXL-08
 	case errors.Is(err, ErrReasonTooLong):
 		writeJSON(w, http.StatusBadRequest, ErrorDTO{Code: "REASON_TOO_LONG"}) // FR-CXL-08
+	case errors.Is(err, ErrRequestNotFound):
+		writeJSON(w, http.StatusNotFound, ErrorDTO{Code: "REQUEST_NOT_FOUND"}) // FR-CXL-03
 	case errors.Is(err, ErrAlreadyApproved):
 		writeJSON(w, http.StatusConflict, ErrorDTO{Code: "ALREADY_APPROVED"}) // FR-CXL-02, FR-CXL-04
 	case errors.Is(err, ErrNotCancelled):
-		writeJSON(w, http.StatusConflict, ErrorDTO{Code: "NOT_CANCELLABLE"}) // สาเหตุอื่น แยกต่อใน T-17, T-19
+		writeJSON(w, http.StatusConflict, ErrorDTO{Code: "NOT_CANCELLABLE"}) // FR-CXL-02 สถานะอื่นที่ยกเลิกไม่ได้
 	case err != nil:
 		writeUpstreamError(w, err)
 	default:

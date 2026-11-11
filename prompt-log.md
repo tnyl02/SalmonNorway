@@ -1831,3 +1831,29 @@
     การตรวจ T-09 ด้วย curl รอบก่อนจึงยังไม่ได้พิสูจน์อะไร AI ตรวจซ้ำด้วย body ที่ถูกต้องแล้ว: เหตุผล "   " ได้ 400 REASON_REQUIRED
 - ผล: เปลี่ยนสถานะใน tasks.md ของ T-15 เป็น "เสร็จ"
 
+---
+
+## 2569-11-11 /implement T-19 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-19 ตอบไม่พบคำขอเมื่อไม่ใช่คำขอของตนเอง
+- ไฟล์ที่แก้:
+  - service.go: UPDATE ไม่เจอแถว และ OwnStatus ไม่พบ (ไม่มี หรือของผู้อื่น) -> ErrRequestNotFound
+  - handler.go: 404 REQUEST_NOT_FOUND (ไฟล์นอกช่อง "ไฟล์ที่แตะ" AI หยุดถาม ทีมอนุญาตและเพิ่มในช่องของ T-19 แล้ว)
+  - handler_test.go: TestAC_CXL_03_OthersRequestNotFound (คำขอของผู้อื่นและ id ไม่มี ตอบเหมือนกัน body มีแค่ code)
+- ผล test: package cancelrequest ผ่านทั้งหมด 28 test รวม TC หลังบ้านทุกตัว (TC-CXL-01-7 ผ่านเพิ่ม), `go test -p 1 ./...` ผ่านทุก package
+- สิ่งที่เกือบต้องเดาแต่ถามแทน: แตะ handler.go ซึ่งไม่อยู่ในช่องไฟล์ที่แตะ -> ทีม: เพิ่มใน T-19
+- สถานะใน tasks.md: T-19 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-12 ทีมตรวจ T-19 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ: `go test -count=1 -p 1 ./...` ใน backend ผ่านทุก package (auth, cancelrequest, migrationtest, config, equipment, platform)
+  รวม TestAC_CXL_03_OthersRequestNotFound และ TC หลังบ้านของ 003 ทุกตัว
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-19 เป็น "เสร็จ"
+

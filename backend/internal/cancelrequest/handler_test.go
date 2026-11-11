@@ -201,3 +201,25 @@ func TestAC_CXL_02_ApprovedNotCancellable(t *testing.T) {
 	}
 }
 
+// AC-CXL-03 (FR-CXL-03, IF-IDP-01) T-19
+//
+//	Given B มีคำขอ requested
+//	When  A สั่งยกเลิกคำขอของ B และสั่งยกเลิกรหัสคำขอที่ไม่มีในระบบ
+//	Then  ได้ 404 REQUEST_NOT_FOUND เหมือนกันทั้ง 2 กรณี คำขอของ B ไม่เปลี่ยน และ body ไม่มีข้อมูลคำขอ
+func TestAC_CXL_03_OthersRequestNotFound(t *testing.T) {
+	srv := tcServer(t)
+	ofB := tcInsert(t, tcUserB, tcItemAvailable, "normal", "requested", time.Now())
+
+	for _, id := range []int{ofB, 999999} {
+		rec := tcCancel(t, srv, id, "ไม่ต้องใช้อุปกรณ์แล้ว", tcTokenA)
+		tcWantStatus(t, rec, http.StatusNotFound)
+		if got := rec.Body.String(); got != "{\"code\":\"REQUEST_NOT_FOUND\"}\n" {
+			t.Errorf("id %d: body = %q ต้องมีแค่ code REQUEST_NOT_FOUND", id, got)
+		}
+	}
+	r := tcRow(t, ofB)
+	if r.Status != "requested" || r.CancelReason != nil {
+		t.Errorf("คำขอของ B = %+v ต้องยังเป็น requested ไม่มีเหตุผล", r)
+	}
+}
+

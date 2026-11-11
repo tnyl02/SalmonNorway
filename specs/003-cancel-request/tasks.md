@@ -333,11 +333,11 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 ### T-19 ตอบไม่พบคำขอเมื่อไม่ใช่คำขอของตนเอง
 - รองรับ: FR-CXL-03, IF-IDP-01
 - ตรวจด้วย: AC-CXL-03
-- ไฟล์ที่แตะ: `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/handler_test.go`
+- ไฟล์ที่แตะ: `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/handler_test.go`, `backend/internal/cancelrequest/handler.go` (เพิ่ม 2569-11-11 ทีมอนุญาต: แปลง error เป็น 404)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-15
 - เสร็จเมื่อ: `TestAC_CXL_03_OthersRequestNotFound` ผ่าน (คำขอของผู้อื่นและ id ที่ไม่มี -> 404 `REQUEST_NOT_FOUND` สถานะไม่เปลี่ยน body ไม่มีข้อมูลคำขอ)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 ### T-20 แสดงข้อความ "ไม่พบคำขอ"
 - รองรับ: FR-CXL-03
