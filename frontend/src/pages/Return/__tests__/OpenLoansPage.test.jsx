@@ -37,3 +37,13 @@ test('T-15: โหลดไม่สำเร็จ แสดงข้อคว�
   render(<OpenLoansPage client={clientWith({ ok: false, status: 0, data: { code: 'UPSTREAM_UNAVAILABLE' } })} />)
   expect((await screen.findByRole('alert')).textContent).toBe('โหลดรายการที่ยังไม่คืนไม่สำเร็จ (UPSTREAM_UNAVAILABLE)')
 })
+
+// AC-RET-13 (FR-RET-06) หน้ารายการที่ยังไม่คืน: แถวที่เลยกำหนดแสดงป้าย "เลยกำหนดคืน" เฉพาะแถวนั้น
+test('AC-RET-13: แถวที่ isOverdue แสดง "เลยกำหนดคืน" แถวอื่นไม่แสดง', async () => {
+  render(<OpenLoansPage client={clientWith({ ok: true, status: 200, data: loans })} />)
+  const table = await screen.findByRole('table')
+  const rows = within(table).getAllByRole('row').slice(1)
+  expect(within(rows[0]).getByText('เลยกำหนดคืน')).toBeTruthy() // CS-NB-0005 isOverdue
+  expect(within(rows[1]).queryByText('เลยกำหนดคืน')).toBeNull()
+  expect(within(rows[2]).queryByText('เลยกำหนดคืน')).toBeNull()
+})

@@ -43,3 +43,15 @@ test('T-12: โหลดไม่สำเร็จ แสดงข้อคว�
   render(<LoanDetailPage loanId={9} client={clientWith({ ok: false, status: 404, data: { code: 'LOAN_NOT_FOUND' } })} />)
   expect((await screen.findByRole('alert')).textContent).toBe('โหลดรายละเอียดการยืมไม่สำเร็จ (LOAN_NOT_FOUND)')
 })
+
+// AC-RET-13 (FR-RET-06) หน้ารายละเอียด: การยืมที่คืนเกินกำหนดแสดงป้าย "คืนเกินกำหนด" / คืนทันไม่แสดง
+test('AC-RET-13: หน้ารายละเอียดแสดง "คืนเกินกำหนด" เมื่อ returnedLate', async () => {
+  const base = { assetCode: 'CS-NB-0005', borrowerId: 'student-002', dueAt: '2026-11-10T09:00:00Z', returnedAt: '2026-11-11T03:30:00Z', condition: 'normal' }
+  const { unmount } = render(<LoanDetailPage loanId={21} client={clientWith({ ok: true, status: 200, data: { ...base, loanId: 21, returnedLate: true } })} />)
+  expect(await screen.findByText('คืนเกินกำหนด')).toBeTruthy()
+  unmount()
+
+  render(<LoanDetailPage loanId={22} client={clientWith({ ok: true, status: 200, data: { ...base, loanId: 22, returnedLate: false } })} />)
+  await screen.findByText('CS-NB-0005')
+  expect(screen.queryByText('คืนเกินกำหนด')).toBeNull()
+})

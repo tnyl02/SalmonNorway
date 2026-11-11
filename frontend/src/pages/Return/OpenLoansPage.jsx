@@ -1,5 +1,5 @@
 // หน้ารายการการยืมที่ยังไม่คืนของภาควิชาเจ้าหน้าที่ (006-return) ไม่มี mockup ทีมออกแบบเอง ตาม plan.md ข้อ 4 หน้าจอ OpenLoansPage
-// ป้าย "เลยกำหนดคืน" อยู่ใน T-17
+// แสดงป้าย "เลยกำหนดคืน" เมื่อหลังบ้านบอกว่า isOverdue (FR-RET-06, AC-RET-13 คำเดียวกับป้ายใน glossary)
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client.js'
 import { TIMEZONE } from '../../config.js'
@@ -54,7 +54,12 @@ export default function OpenLoansPage({ client = api, onSelect }) {
                   <td>{l.assetCode}</td>
                   <td>{l.modelName}</td>
                   <td>{l.borrowerId}</td>
-                  <td>{formatDateTime(l.dueAt)}</td>
+                  <td>
+                    {formatDateTime(l.dueAt)}
+                    {l.isOverdue && (
+                      <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-amber-900">เลยกำหนดคืน</span>
+                    )}
+                  </td>
                   <td>
                     <button
                       type="button"

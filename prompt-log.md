@@ -789,3 +789,25 @@
 
 ### สิ่งที่เกือบต้องเดา
 - ไม่มี (ใช้ภาควิชาใหม่เฉพาะ test เหมือน T-14 เพื่อให้รายการที่ยังไม่คืนนับได้แน่นอน)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-17 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 8)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำเล้ยยย" -> `/implement T-17 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- `frontend/src/pages/Return/LoanDetailPage.jsx`: ป้าย "คืนเกินกำหนด" เมื่อ `returnedLate`
+- `frontend/src/pages/Return/OpenLoansPage.jsx`: ป้าย "เลยกำหนดคืน" ในช่องกำหนดคืนเมื่อ `isOverdue`
+- `LoanDetailPage.test.jsx`, `OpenLoansPage.test.jsx`: test AC-RET-13 ฝั่งหน้าจอ
+
+### ผล test (`cd frontend && npm test`)
+- AC-RET-13: หน้ารายละเอียดแสดง "คืนเกินกำหนด" เมื่อ returnedLate (ไม่แสดงเมื่อคืนทัน) PASS
+- AC-RET-13: แถวที่ isOverdue แสดง "เลยกำหนดคืน" แถวอื่นไม่แสดง PASS
+- รวม 16 tests PASS / `vite build` สำเร็จ
+
+### สิ่งที่เกือบต้องเดา
+- คำบนป้าย: ใช้ "คืนเกินกำหนด" ตาม FR-RET-06 และ "เลยกำหนดคืน" ตามป้ายใน glossary.md (คำเดียวกับที่ 001 ใช้) ไม่มี mockup

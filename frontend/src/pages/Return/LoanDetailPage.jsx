@@ -1,5 +1,5 @@
 // หน้ารายละเอียดการยืมของเจ้าหน้าที่ (006-return) ไม่มี mockup ทีมออกแบบเอง ตาม plan.md ข้อ 4 หน้าจอ LoanDetailPage
-// แสดงเวลาคืนและสภาพ (FR-RET-06) ป้าย "คืนเกินกำหนด" อยู่ใน T-17
+// แสดงเวลาคืน สภาพ และป้าย "คืนเกินกำหนด" (FR-RET-06, AC-RET-13)
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client.js'
 import { RETURN_CONDITIONS, TIMEZONE } from '../../config.js'
@@ -57,6 +57,10 @@ export default function LoanDetailPage({ loanId, client = api }) {
         <dt>สภาพ</dt>
         <dd>{detail.condition ? conditionLabel(detail.condition) : '-'}</dd>
       </dl>
+      {/* ป้ายจากค่าที่บันทึกตอนรับคืน (returned_late) ไม่คำนวณใหม่ที่หน้าจอ (FR-RET-06) */}
+      {detail.returnedLate && (
+        <p className="inline-block rounded bg-amber-100 px-2 py-1 text-amber-900">คืนเกินกำหนด</p>
+      )}
     </section>
   )
 }
