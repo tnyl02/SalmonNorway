@@ -56,6 +56,109 @@ var RequestStatuses = []string{
 	"cancelled",
 }
 
+// ---------- ค่าของฟีเจอร์ 004 อนุมัติคำขอยืมปกติ (specs/004-approve-request/plan.md ข้อ 5, T-02) ----------
+// เวลาตัด 16:00 น. ของวันที่เริ่มยืม (FR-APV-01 ค, Q-APV-11) ใช้ LoanNormalReturnHour ของ 002 ร่วม ไม่ประกาศซ้ำ
+// สถานะของคำขอใช้ RequestStatuses / StatusRequested ของ 002 ร่วม
+
+// StatusApproved และ StatusRejected คือสถานะของคำขอที่ 004 ตั้งได้ (FR-APV-01 ค ง, data-model.md v9 แถว 4, 5)
+const (
+	StatusApproved = "approved"
+	StatusRejected = "rejected"
+)
+
+// ApprovalEmailDeadline คือเวลาที่ต้องส่ง Email แจ้งผลให้ผู้ขอหลังบันทึกผล (FR-APV-02)
+const ApprovalEmailDeadline = 60 * time.Second
+
+// ApprovalEmailRetryCount คือจำนวนครั้งที่ส่งซ้ำอัตโนมัติ **หลังครั้งแรก** รวมครั้งแรกเป็น 4 ครั้ง (FR-APV-02 ง, Q-APV-17)
+const ApprovalEmailRetryCount = 3
+
+// ApprovalEmailRetryInterval คือระยะห่างระหว่างการส่งซ้ำแต่ละครั้ง (FR-APV-02 ง)
+const ApprovalEmailRetryInterval = 1 * time.Minute
+
+// ApprovalAutoRejectHour คือเวลาที่ปฏิเสธคำขอยืมปกติที่ยังค้างอัตโนมัติ = 00:00 น. ของวันถัดจากวันที่ส่ง
+// เทียบด้วย TimeZone (FR-APV-01 ฉ, ASM-05, Q-APV-15)
+const ApprovalAutoRejectHour = 0
+
+// ApprovalSupersededReason คือเหตุผลของคำขอที่ถูกปฏิเสธตามเมื่อคำขออื่นของชิ้นเดียวกันได้รับอนุมัติ (FR-APV-01 จ)
+const ApprovalSupersededReason = "อุปกรณ์ชิ้นนี้ได้รับการอนุมัติให้คำขออื่นแล้ว"
+
+// ApprovalAutoRejectReason คือเหตุผลของคำขอที่ถูกปฏิเสธอัตโนมัติตอนเที่ยงคืน (FR-APV-01 ฉ, FR-APV-02 ค)
+const ApprovalAutoRejectReason = "คำขอยังคงค้างอยู่และไม่ได้รับการพิจารณาภายในเวลาที่กำหนด"
+
+// ApprovalPickupLocation คือสถานที่รับอุปกรณ์ที่แสดงใน Email ผลอนุมัติ (FR-APV-02 ก)
+const ApprovalPickupLocation = "คณะวิทยาศาสตร์ ตึก 1 ชั้น 2 ห้องอุปกรณ์ภาควิชาคอมพิวเตอร์"
+
+// ApprovalSystemActorID คือผู้ดำเนินการของการปฏิเสธอัตโนมัติ (FR-APV-01 ฉ "ผู้ดำเนินการคือ System", plan.md ข้อ 3)
+const ApprovalSystemActorID = "system"
+
+// ค่า action ของ audit log ที่ 004 บันทึก (RQ-25, FR-APV-01 ฌ) ต้องตรงกับ CHECK ใน migration 0008
+const (
+	AuditActionApprove    = "approve"
+	AuditActionReject     = "reject"
+	AuditActionAutoReject = "auto_reject"
+)
+
+// ชนิดของผลการพิจารณาและของ Email (FR-APV-02 ก ข ค) ต้องตรงกับ CHECK ของ approval_decision / approval_email ใน migration 0008
+const (
+	ApprovalKindApproved     = "approved"
+	ApprovalKindRejected     = "rejected"
+	ApprovalKindAutoRejected = "auto_rejected"
+)
+
+// ApprovalEmailSubjects คือหัวข้อ Email แต่ละแบบ (FR-APV-02 ก ข ค)
+var ApprovalEmailSubjects = map[string]string{
+	ApprovalKindApproved:     "แจ้งผลการอนุมัติการยืมอุปกรณ์ภาคคอมพิวเตอร์",
+	ApprovalKindRejected:     "แจ้งผลการปฏิเสธการยืมอุปกรณ์ภาคคอมพิวเตอร์",
+	ApprovalKindAutoRejected: "แจ้งปฏิเสธคำขอยืมอุปกรณ์อัตโนมัติ",
+}
+
+// ApprovalEmailTemplates คือข้อมูลที่ Email แต่ละแบบต้องมี เรียงตามที่ spec เขียน (FR-APV-02 ก ข ค)
+// ใช้ชื่อหัวข้อข้อมูลตามคำใน spec / ข้อความตายตัวของ Email ปฏิเสธอัตโนมัติอยู่ใน ApprovalAutoRejectEmail
+// รูปแบบการจัดวางในเนื้อ Email เป็นงานของ T-14 (ทีมเลือกเอง ไม่ได้มาจาก spec)
+var ApprovalEmailTemplates = map[string][]string{
+	// FR-APV-02 (ก) ยืมปกติไม่แสดงจำนวนอุปกรณ์
+	ApprovalKindApproved: {
+		"ชื่อผู้ขอ", "รายการอุปกรณ์ที่ขอยืม", "วัตถุประสงค์", "วันเวลาที่ต้องการยืม",
+		"วันเวลากำหนดคืน", "ชื่อผู้อนุมัติ", "สถานที่รับ",
+	},
+	// FR-APV-02 (ข) รวมคำขอที่ถูกปฏิเสธตาม FR-APV-01 (จ)
+	ApprovalKindRejected: {
+		"ชื่อผู้ขอ", "รายการอุปกรณ์ที่ขอยืม", "วันที่ยื่นคำขอ", "เหตุผลในการปฏิเสธ", "ชื่อผู้พิจารณา",
+	},
+	// FR-APV-02 (ค)
+	ApprovalKindAutoRejected: {
+		"เลขที่คำขอ", "ชื่อผู้ขอ", "รายการอุปกรณ์ที่ขอยืม", "วันที่ยื่นคำขอ", "สถานะ",
+		"เหตุผล", "เวลาที่ดำเนินการ", "แนวทาง",
+	},
+}
+
+// ApprovalAutoRejectEmail คือค่าตายตัวใน Email ปฏิเสธอัตโนมัติ (FR-APV-02 ค)
+var ApprovalAutoRejectEmail = struct {
+	Status   string
+	DoneAt   string
+	Guidance string
+}{
+	Status:   "ปฏิเสธอัตโนมัติ",
+	DoneAt:   "00:00 น.",
+	Guidance: "หากยังต้องการยืมอุปกรณ์ สามารถยื่นคำขอใหม่ได้",
+}
+
+// ApprovalMessages คือข้อความ error ภาษาไทยของ 004 ตามรหัสใน CON-TECH-03 (FR-APV-01 ซ, ASM-07, Q-APV-18)
+// หน้าจอใช้ APPROVAL_MESSAGES ใน frontend/src/config.js ซึ่งต้องตรงกับค่านี้
+var ApprovalMessages = map[string]string{
+	"ITEM_NOT_AVAILABLE":           "อุปกรณ์ชิ้นนี้ไม่ได้อยู่ในสถานะว่างแล้ว อนุมัติไม่ได้",
+	"REQUEST_CANCELLED":            "คำขอนี้ถูกผู้ขอยกเลิกแล้ว",
+	"REQUEST_ALREADY_DECIDED":      "คำขอนี้ได้รับการพิจารณาแล้ว",
+	"REQUEST_DECIDED_CONCURRENTLY": "คำขอนี้เพิ่งถูกพิจารณาโดยเจ้าหน้าที่คนอื่น กรุณารีเฟรชหน้า",
+	"NOT_FIRST_IN_QUEUE":           "ต้องพิจารณาคำขอที่ส่งก่อนหน้าของอุปกรณ์ชิ้นนี้ก่อน",
+	"APPROVAL_CUTOFF_PASSED":       "เลย 16:00 น. ของวันที่ยืมแล้ว อนุมัติไม่ได้",
+	"VALIDATION_FAILED":            "กรุณาระบุเหตุผลในการปฏิเสธ", // ช่องเดียวที่ 004 ตรวจคือเหตุผลการปฏิเสธ (FR-APV-01 ง)
+	"FORBIDDEN_ROLE":               "บทบาทของคุณไม่มีสิทธิ์ทำรายการนี้",
+	"FORBIDDEN_DEPARTMENT":         "คำขอนี้เป็นของอุปกรณ์ภาควิชาอื่น คุณไม่มีสิทธิ์พิจารณา",
+}
+
+// ---------- จบค่าของฟีเจอร์ 004 ----------
+
 // Config คือค่าที่โปรแกรมหลังบ้านใช้ตอนเริ่มทำงาน
 type Config struct {
 	// HTTPAddr คือที่อยู่ที่หลังบ้านรอรับ request

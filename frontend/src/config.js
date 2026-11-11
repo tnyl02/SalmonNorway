@@ -14,6 +14,24 @@ export const HANDOVER_PHOTO_MAX_BYTES = 10 * 1024 * 1024
 export const HANDOVER_PHOTO_TYPES = ['image/jpeg', 'image/png']
 // ---- จบ 005-handover ----
 
+// ---- 004-approve-request (specs/004-approve-request/plan.md ข้อ 5, T-02) ----
+// วางไว้ต้นไฟล์ต่อจาก 005 เพื่อไม่ชนกับฟีเจอร์อื่นที่เพิ่มค่าต่อท้ายไฟล์ตอน merge
+
+// ข้อความ error ภาษาไทยของหน้าจออนุมัติ เลือกตามรหัสใน CON-TECH-03 ไม่ใช่ตามข้อความ (FR-APV-01 ซ, ASM-07, Q-APV-18)
+// ต้องตรงกับ ApprovalMessages ใน backend/internal/config/config.go
+export const APPROVAL_MESSAGES = {
+  ITEM_NOT_AVAILABLE: 'อุปกรณ์ชิ้นนี้ไม่ได้อยู่ในสถานะว่างแล้ว อนุมัติไม่ได้',
+  REQUEST_CANCELLED: 'คำขอนี้ถูกผู้ขอยกเลิกแล้ว',
+  REQUEST_ALREADY_DECIDED: 'คำขอนี้ได้รับการพิจารณาแล้ว',
+  REQUEST_DECIDED_CONCURRENTLY: 'คำขอนี้เพิ่งถูกพิจารณาโดยเจ้าหน้าที่คนอื่น กรุณารีเฟรชหน้า',
+  NOT_FIRST_IN_QUEUE: 'ต้องพิจารณาคำขอที่ส่งก่อนหน้าของอุปกรณ์ชิ้นนี้ก่อน',
+  APPROVAL_CUTOFF_PASSED: 'เลย 16:00 น. ของวันที่ยืมแล้ว อนุมัติไม่ได้',
+  VALIDATION_FAILED: 'กรุณาระบุเหตุผลในการปฏิเสธ',
+  FORBIDDEN_ROLE: 'บทบาทของคุณไม่มีสิทธิ์ทำรายการนี้',
+  FORBIDDEN_DEPARTMENT: 'คำขอนี้เป็นของอุปกรณ์ภาควิชาอื่น คุณไม่มีสิทธิ์พิจารณา',
+}
+// ---- จบ 004-approve-request ----
+
 // token ของผู้ใช้จำลองที่หน้าจอส่งไปกับทุก request (IF-IDP-01 ใช้ระบบยืนยันตัวตนจำลองไปก่อน รอ Q-SH-03)
 // ทีมเลือกเอง ไม่ได้มาจาก spec (ตัดสิน 2569-11-10 ตอนทำ T-06) ใช้จนกว่าจะมีหน้าล็อกอินจำลองใน T-21
 // เปลี่ยนผู้ใช้ได้ด้วย VITE_MOCK_TOKEN เช่น `VITE_MOCK_TOKEN=mock-staff-001 npm run dev`

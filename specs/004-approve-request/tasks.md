@@ -11,6 +11,9 @@ Updated: 2569-11-12
 - ~~จองเลข migration ของ 004~~ ได้เลข **0008** แล้ว (ทีมแจ้ง 2569-11-12)
 - ~~เพิ่มค่า action ในตาราง DM-07 ของ data-model.md~~ ทีมตัดสิน 2569-11-12 ยังไม่ต้องเขียนใน data-model.md ค่า `approve`, `reject`, `auto_reject` และเลข 0008 กำหนดใน migration 0008 ที่ฐานข้อมูลเท่านั้น
 
+ลำดับการทดสอบ (ทีมตัดสิน 2569-11-12): implement ทุก task ก่อน แล้วค่อยรัน test และลองตามจุดตรวจทีเดียวตอนท้าย
+ระหว่าง implement ไม่รัน test (เครื่องยังไม่มี Go และ Docker) task ที่เขียนเสร็จใช้สถานะ "เสร็จ รอทีมตรวจ" พร้อมหมายเหตุว่ายังไม่ได้รัน test
+
 วิธีเปิดระบบที่ใช้ทุกจุดตรวจ:
 - หลังบ้าน: `docker compose -f deploy/docker-compose.yml up -d db` แล้ว `cd backend && go run ./cmd/server` (port 8000)
 - ข้อมูลตัวอย่างของ 004 (โหลดเองหลังหลังบ้านรัน migration และ seed.sql แล้ว แบบเดียวกับ `handover_dev.sql` ของ 005):
@@ -34,11 +37,11 @@ Updated: 2569-11-12
 ### T-02 เพิ่มค่าที่ตั้งได้ของ 004 ใน config
 - รองรับ: FR-APV-01 (ค)(จ)(ฉ)(ซ), FR-APV-02, DOM-LOAN-01, CON-TECH-03
 - ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นงานพื้นฐานของ T-07 ถึง T-36
-- ไฟล์ที่แตะ: `backend/internal/config/config.go`, `frontend/src/config.js`
+- ไฟล์ที่แตะ: `backend/internal/config/config.go`, `frontend/src/config.js`, `backend/internal/config/config_approval_test.go` (ไฟล์ test ใหม่ของ 004 แยกจาก config_test.go ของ 002 ตามแนวที่ทีมตกลงใน T-01)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: ค่าครบทุกแถวในตาราง "ค่าที่ตั้งได้" ของ plan ข้อ 5 (รวมข้อความ error 9 ข้อความ และ `ApprovalEmailRetryCount` = 3 นับเฉพาะครั้งที่ส่งซ้ำ) อยู่ที่เดียวพร้อมคอมเมนต์อ้าง ID และค้นในโค้ดแล้วไม่เจอค่าเหล่านี้ที่อื่น / ค่าที่ 002 ประกาศไว้แล้วใช้ร่วม ไม่ประกาศซ้ำ: เวลาตัด 16:00 น. ใช้ `LoanNormalReturnHour` (DOM-LOAN-01) และค่าสถานะของคำขอใช้ `RequestStatuses` / `StatusRequested`
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ (ยังไม่ได้รัน `TestConfig_ApprovalValues`, `TestConfig_ApprovalMessagesMatchFrontend` เครื่องไม่มี Go)
 
 ### T-03 เพิ่มข้อมูลตัวอย่างสำหรับลองระบบของ 004
 - รองรับ: FR-APV-01 (ก)(ข)(จ)

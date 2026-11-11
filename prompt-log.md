@@ -2223,3 +2223,27 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
   - tasks.md T-03: ไฟล์ที่แตะเปลี่ยนจาก `seed.sql` เป็นไฟล์ใหม่ `backend/db/seed/approve_dev.sql` โหลดเองด้วย psql (แบบ `handover_dev.sql` ของ 005) เพราะ `TestSeed_BorrowRequestScenarios` ของ 002 บังคับว่า seed.sql ไม่มีคำขอยืม; อุปกรณ์ของ 004 ใช้รหัส `AP-TEST-`; เพิ่มคำสั่งโหลดในหัวไฟล์; จุดตรวจทุกเฟสอ้าง approve_dev.sql แทน seed
   - tasks.md T-02, T-21 และ plan.md ข้อ 5: เวลาตัด 16:00 น. ใช้ `LoanNormalReturnHour` ที่ 002 ประกาศไว้ ไม่สร้าง `ApprovalApproveCutoff` ใหม่ (AGENTS.md กฎข้อ 9) และใช้ `RequestStatuses` / `StatusRequested` ของ 002
 - สิ่งที่ AI เลือกเอง (ทีมตรวจ): ชื่อไฟล์ `approve_dev.sql` และคำนำหน้ารหัสครุภัณฑ์ `AP-TEST-`
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-02 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่ง: "/implement T-02"
+- ไฟล์ที่แก้: `backend/internal/config/config.go` (บล็อกค่าของ 004 คั่นระหว่างค่าของ 002 กับ type Config), `frontend/src/config.js` (`APPROVAL_MESSAGES` วางต่อจากบล็อกของ 005 ต้นไฟล์), `specs/004-approve-request/tasks.md`
+- ไฟล์ที่สร้าง: `backend/internal/config/config_approval_test.go` (`TestConfig_ApprovalValues`, `TestConfig_ApprovalMessagesMatchFrontend` ตรวจว่าข้อความใน config.js ตรงกับ config.go)
+- ผล test: Go test ยังไม่ได้รัน (เครื่องไม่มี Go ทีมให้ implement ก่อนแล้วค่อย test) / ตรวจ syntax ของ config.js ด้วย `node --check` ผ่าน
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): ใช้ `LoanNormalReturnHour`, `RequestStatuses` ของ 002 ร่วม; เพิ่ม `StatusApproved`, `StatusRejected`, `ApprovalSystemActorID = "system"`, `ApprovalKind*` (ค่าเดียวกับ CHECK ใน 0008) ซึ่งไม่อยู่ในตาราง plan ข้อ 5 แต่เป็นค่าที่ T-07 ถึง T-29 ต้องใช้; `ApprovalEmailTemplates` เก็บเป็นรายการชื่อข้อมูลตามคำใน spec ส่วนรูปแบบการจัดวางเนื้อ Email ยกไป T-14; ข้อความของ `VALIDATION_FAILED` ใช้ "กรุณาระบุเหตุผลในการปฏิเสธ" เพราะช่องเดียวที่ 004 ตรวจคือเหตุผล
+- สิ่งที่เกือบต้องเดา: รูปแบบเนื้อ Email (spec ให้แค่หัวข้อและรายการข้อมูล) -> ไม่เดาใน T-02 เก็บเฉพาะสิ่งที่ spec เขียน
+
+---
+
+## 2569-11-12 คำสั่ง: ลำดับการทดสอบของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ต้อง test หลัง implement task ทั้งหมด"
+- สิ่งที่แก้: tasks.md หัวไฟล์ เพิ่ม "ลำดับการทดสอบ" ว่า implement ทุก task ก่อน แล้วค่อยรัน test และลองตามจุดตรวจตอนท้าย (ต่างจากขั้นที่ 2 ของ .claude/commands/implement.md ที่ให้รัน test ทุก task ทีมตัดสินเอง)
+- ความเสี่ยงที่ AI แจ้ง: ข้อผิดพลาดจะไปเจอพร้อมกันตอนท้าย และจุดตรวจรายเฟสจะยังไม่ได้ลอง
