@@ -15,6 +15,9 @@ function formatDateTime(iso) {
 // noOpenLoanMessage แจ้งว่าอุปกรณ์ไม่มีการยืมที่ยังไม่คืน ตามคำใน AC-RET-03 (FR-RET-01)
 export const noOpenLoanMessage = 'อุปกรณ์นี้ไม่มีการยืมที่ยังไม่คืน'
 
+// forbiddenDepartmentMessage แจ้งว่าไม่มีสิทธิ์ เมื่ออุปกรณ์เป็นของภาควิชาอื่น (AC-RET-11, ASM-03)
+export const forbiddenDepartmentMessage = 'ไม่มีสิทธิ์: อุปกรณ์นี้เป็นของภาควิชาอื่น'
+
 export const conditionRequiredMessage = `กรุณาเลือกสภาพ ${RETURN_CONDITIONS.map((c) => c.label).join(' หรือ ')}`
 
 // ReturnPage: กรอกรหัสครุภัณฑ์ (FR-RET-01(ก)) เลือกสภาพ (FR-RET-02) แล้วบันทึก (FR-RET-03, FR-RET-04)
@@ -53,7 +56,10 @@ export default function ReturnPage({ client = api, initialAssetCode = '' }) {
       setCondition('')
     } else {
       // ไม่มีการยืมค้าง (AC-RET-03): แจ้งข้อความ และไม่แสดงฟอร์มสภาพ (loan ยังเป็น null)
-      setError(res.data?.code === 'NO_OPEN_LOAN' ? noOpenLoanMessage : `ค้นหาไม่สำเร็จ (${res.data?.code ?? res.status})`)
+      const code = res.data?.code
+      if (code === 'NO_OPEN_LOAN') setError(noOpenLoanMessage)
+      else if (code === 'FORBIDDEN_DEPARTMENT') setError(forbiddenDepartmentMessage) // AC-RET-11 ไม่แสดงฟอร์ม
+      else setError(`ค้นหาไม่สำเร็จ (${code ?? res.status})`)
     }
   }
 
@@ -75,6 +81,10 @@ export default function ReturnPage({ client = api, initialAssetCode = '' }) {
     } else if (res.data?.code === 'NO_OPEN_LOAN') {
       // มีคนบันทึกคืนชิ้นนี้ไปก่อนแล้ว (บันทึกซ้อน T-18): แจ้งข้อความเดียวกันและปิดฟอร์ม
       setError(noOpenLoanMessage)
+      setLoan(null)
+    } else if (res.data?.code === 'FORBIDDEN_DEPARTMENT') {
+      // หลังบ้านปฏิเสธเพราะเป็นอุปกรณ์ภาควิชาอื่น (AC-RET-11) ปิดฟอร์ม
+      setError(forbiddenDepartmentMessage)
       setLoan(null)
     } else if (res.data?.code === 'CONDITION_REQUIRED') {
       // หลังบ้านปฏิเสธสภาพ (FR-RET-02) แจ้งข้อความเดียวกับที่ตรวจก่อนส่ง

@@ -878,3 +878,25 @@
 ### สิ่งที่เกือบต้องเดา
 - ลำดับ 403 กับ 409: ตรวจภาควิชาก่อนเสมอตาม plan.md ข้อ 4 อุปกรณ์ภาควิชาอื่นที่ไม่มีการยืมค้างก็ได้ 403 (ไม่บอกใบ้ว่ามีการยืมหรือไม่)
 - รหัสครุภัณฑ์ที่ไม่มีในระบบยังได้ 409 `NO_OPEN_LOAN` ตามเดิม (AC-RET-03)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-21 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 10)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำต่อเลยคับ" -> `/implement T-21 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- `frontend/src/pages/Return/ReturnPage.jsx`: `forbiddenDepartmentMessage` "ไม่มีสิทธิ์: อุปกรณ์นี้เป็นของภาควิชาอื่น" เมื่อ lookup หรือ record ได้ `FORBIDDEN_DEPARTMENT`
+  (ไม่แสดงฟอร์ม / ปิดฟอร์ม)
+- `frontend/src/pages/Return/__tests__/ReturnPage.test.jsx`: test AC-RET-11 บนหน้าจอ และกรณีตอนบันทึก
+
+### ผล test (`cd frontend && npm test`)
+- AC-RET-11: ค้นหาแล้วได้ FORBIDDEN_DEPARTMENT แจ้งว่าไม่มีสิทธิ์ ไม่แสดงฟอร์ม ไม่เรียก record PASS
+- T-21: บันทึกแล้วได้ FORBIDDEN_DEPARTMENT แจ้งข้อความเดียวกัน ปิดฟอร์ม PASS
+- รวม 20 tests PASS / `vite build` สำเร็จ
+
+### สิ่งที่เกือบต้องเดา
+- ถ้อยคำ: AC-RET-11 บอกแค่ "ปฏิเสธว่าไม่มีสิทธิ์" AI ใช้ "ไม่มีสิทธิ์: อุปกรณ์นี้เป็นของภาควิชาอื่น" ไม่มี mockup ทีมตรวจถ้อยคำ

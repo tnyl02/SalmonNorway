@@ -155,3 +155,32 @@ test('T-19: บันทึกแล้วได้ NO_OPEN_LOAN แจ้งข
   expect(screen.queryByRole('radio')).toBeNull()
   expect(screen.queryByRole('status')).toBeNull()
 })
+
+// AC-RET-11 (FR-RET-01 ภาควิชา) บนหน้าจอ
+//   Given อุปกรณ์ "ถูกยืม" เป็นของภาควิชาอื่น
+//   When  เจ้าหน้าที่กรอกรหัสครุภัณฑ์ของชิ้นนั้น
+//   Then  แจ้งว่าไม่มีสิทธิ์ และไม่แสดงฟอร์มบันทึกคืน
+test('AC-RET-11: ค้นหาแล้วได้ FORBIDDEN_DEPARTMENT แจ้งว่าไม่มีสิทธิ์ และไม่แสดงฟอร์ม', async () => {
+  const client = fakeClient()
+  client.returns.lookup.mockResolvedValue({ ok: false, status: 403, data: { code: 'FORBIDDEN_DEPARTMENT' } })
+  render(<ReturnPage client={client} />)
+
+  fireEvent.change(screen.getByLabelText('รหัสครุภัณฑ์'), { target: { value: 'XX-NB-0002' } })
+  fireEvent.click(screen.getByRole('button', { name: 'ค้นหา' }))
+
+  expect((await screen.findByRole('alert')).textContent).toBe('ไม่มีสิทธิ์: อุปกรณ์นี้เป็นของภาควิชาอื่น')
+  expect(screen.queryByRole('radio')).toBeNull()
+  expect(client.returns.record).not.toHaveBeenCalled()
+})
+
+// T-21: ตอนบันทึกหลังบ้านตอบ FORBIDDEN_DEPARTMENT แสดงข้อความเดียวกัน และปิดฟอร์ม
+test('T-21: บันทึกแล้วได้ FORBIDDEN_DEPARTMENT แจ้งว่าไม่มีสิทธิ์ และปิดฟอร์ม', async () => {
+  const client = fakeClient()
+  client.returns.record.mockResolvedValue({ ok: false, status: 403, data: { code: 'FORBIDDEN_DEPARTMENT' } })
+  await openLoanForm(client)
+  fireEvent.click(screen.getByLabelText('ปกติ'))
+  fireEvent.click(screen.getByRole('button', { name: 'บันทึกการรับคืน' }))
+
+  await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('ไม่มีสิทธิ์: อุปกรณ์นี้เป็นของภาควิชาอื่น'))
+  expect(screen.queryByRole('radio')).toBeNull()
+})
