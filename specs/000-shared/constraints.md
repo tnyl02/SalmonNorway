@@ -86,17 +86,17 @@ Status: v5.1 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบ�
 ## ใครอ้างใช้บ้าง
 | ID | ฟีเจอร์ที่อ้าง |
 |---|---|
-| CON-TECH-01 | 001-equipment-status, 002-borrow-request, 005-handover |
-| CON-TECH-02 | 001-equipment-status, 002-borrow-request, 005-handover |
+| CON-TECH-01 | 001-equipment-status, 002-borrow-request, 005-handover, 003-cancel-request |
+| CON-TECH-02 | 001-equipment-status, 002-borrow-request, 005-handover, 003-cancel-request |
 | CON-TECH-03 | 001-equipment-status (รหัสเดิม 4 ตัว), 002-borrow-request, 005-handover (ใช้ FORBIDDEN_ROLE ร่วมกับ 004, ลงทะเบียน REQUEST_NOT_APPROVED, BORROWER_MISMATCH) |
-| CON-DATA-01 | 001-equipment-status, 002-borrow-request (ส่งคำขอได้เฉพาะชิ้นที่ "ว่าง"), 005-handover |
+| CON-DATA-01 | 001-equipment-status, 002-borrow-request (ส่งคำขอได้เฉพาะชิ้นที่ "ว่าง"), 005-handover, 003-cancel-request (ยกเลิกไม่เปลี่ยนสถานะอุปกรณ์) |
 | CON-DATA-03 | 001-equipment-status, 002-borrow-request, 005-handover |
 | DOM-PRIV-01 | 001-equipment-status, 002-borrow-request (ไม่เปิดเผยชื่อผู้ขอรายอื่น FR-BRQ-05) |
 | DOM-AUDIT-01 | 001-equipment-status, 002-borrow-request (อ่านสถานะอุปกรณ์ตอนเปิดฟอร์ม ส่วน log การส่งคำขอใช้ RQ-25 ดู CR-003), 005-handover |
 | DOM-ACCESS-01 | 001-equipment-status, 002-borrow-request (FR-BRQ-07) |
-| DOM-REQ-01 | 001-equipment-status (จำนวนว่างไม่เปลี่ยนตามคำขอ), 002-borrow-request (ส่งคำขอซ้อนและลำดับคำขอ FR-BRQ-05), 005-handover (เปลี่ยนเป็นถูกยืมตอนส่งมอบ) |
+| DOM-REQ-01 | 001-equipment-status (จำนวนว่างไม่เปลี่ยนตามคำขอ), 002-borrow-request (ส่งคำขอซ้อนและลำดับคำขอ FR-BRQ-05), 005-handover (เปลี่ยนเป็นถูกยืมตอนส่งมอบ), 003-cancel-request (ยกเลิกคำขอหนึ่งไม่กระทบคำขออื่นของชิ้นเดียวกัน) |
 | DOM-LOAN-01 | 001-equipment-status (อ่านกำหนดคืน), 002-borrow-request (แสดงเงื่อนไขยืมปกติ FR-BRQ-10), 005-handover (สร้างกำหนดคืน) |
-| IF-IDP-01 | 001-equipment-status, 002-borrow-request, 005-handover |
-| IF-NOT-01 | - |
+| IF-IDP-01 | 001-equipment-status, 002-borrow-request, 005-handover, 003-cancel-request |
+| IF-NOT-01 | 003-cancel-request (แจ้งเจ้าหน้าที่เมื่อมีการยกเลิก FR-CXL-09) |
 
 เมื่อเปิดฟีเจอร์ 002-006 เจ้าของฟีเจอร์เพิ่มชื่อโฟลเดอร์ของตัวเองในตารางนี้

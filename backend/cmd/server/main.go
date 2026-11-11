@@ -8,6 +8,7 @@ import (
 
 	"salmonnorway/backend/internal/auth"
 	"salmonnorway/backend/internal/borrowrequest"
+	"salmonnorway/backend/internal/cancelrequest"
 	"salmonnorway/backend/internal/config"
 	"salmonnorway/backend/internal/equipment"
 	"salmonnorway/backend/internal/handover"
@@ -61,6 +62,12 @@ func main() {
 	// ฟีเจอร์ 002 ส่งคำขอยืม (T-05) ต้องผ่านการยืนยันตัวตนเช่นกัน (IF-IDP-01, NFR-SEC-01)
 	br := borrowrequest.NewHandler(borrowrequest.NewService(borrowrequest.NewRepository(db)))
 	mux.Handle(borrowrequest.PathPrefix, auth.Middleware(provider, br.Routes()))
+
+	// 003 ยกเลิกคำขอยืม (T-04) หลัง auth.Middleware เหมือน 001 (IF-IDP-01) แก้ไฟล์กลางเพราะ 003
+	cx := cancelrequest.NewHandler(cancelrequest.NewService(cancelrequest.NewRepository(db)))
+	cxRoutes := auth.Middleware(provider, cx.Routes())
+	mux.Handle(cancelrequest.PathPrefixMine, cxRoutes)
+	mux.Handle(cancelrequest.PathPrefixRequests, cxRoutes)
 
 	log.Printf("listening on %s", cfg.HTTPAddr)
 	// ทุก response ห้าม cache เพื่อให้รีเฟรชแล้วเห็นสถานะล่าสุด (NFR-DATA-01, T-16)
