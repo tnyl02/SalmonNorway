@@ -90,7 +90,7 @@ task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-03
 - เสร็จเมื่อ: `TestReturns_Lookup_FoundOpenLoan` ผ่าน (คืน `{loanId, assetCode, modelName, borrowerId, loanType, dueAt, isOverdue}`)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ
 - ความสำคัญ: ต้องทำ
 
 ### T-06 สร้างหน้า `ReturnPage` กรอกรหัส เลือกสภาพ บันทึก
