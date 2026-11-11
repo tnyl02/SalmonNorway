@@ -377,7 +377,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
 - ต้องทำหลัง: T-16 (เดิม T-16, T-21 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
 - เสร็จเมื่อ: vitest `AC_CXL_04 approved while dialog open` ผ่าน (เปิดกล่องแล้ว client จำลองเปลี่ยนเป็นตอบ 409 -> กดยืนยัน -> แสดง `MSG_ALREADY_APPROVED` แถวนั้นหายหลังโหลดใหม่)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 11
 - test ที่ต้องผ่านทั้งหมด: `TestAC_CXL_04_ApprovedBeforeConfirm`, vitest `AC_CXL_04 ...` และ test ของเฟส 0-10

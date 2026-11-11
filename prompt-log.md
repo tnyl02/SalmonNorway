@@ -1959,3 +1959,17 @@
 - วิธีตรวจ: รัน test ใน backend ผ่านทั้ง 6 ตัว (TestAC_CXL_12_EmptyList, 05, 10, 11, 04, 07) ไม่ได้ลองบนจอจริงเพราะเป็น test อย่างเดียว
 - ผล: เปลี่ยนสถานะใน tasks.md ของ T-11, T-13, T-14, T-17, T-21, T-25 เป็น "เสร็จ"
 
+---
+
+## 2569-11-12 /implement T-22 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-22 ทดสอบหน้าจอเมื่อกดยืนยันแล้วได้ผลว่าอนุมัติแล้ว
+- ไฟล์ที่แก้ (ตรงกับช่อง "ไฟล์ที่แตะ"): frontend/src/pages/MyPendingRequests/__tests__/CancelDialog.test.jsx
+  เพิ่ม AC_CXL_04 approved while dialog open (เปิดกล่องก่อน แล้ว client จำลองเปลี่ยนเป็นตอบ 409 ALREADY_APPROVED) ไม่ต้องแก้โค้ด เพราะ T-16 ทำไว้แล้ว
+- ผล test: `npx vitest run` ผ่าน 39/39
+- สิ่งที่เกือบต้องเดา: ไม่มี
+- สถานะใน tasks.md: T-22 เสร็จ รอทีมตรวจ
+

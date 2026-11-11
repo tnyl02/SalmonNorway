@@ -4,6 +4,7 @@
 //   Then  client ถูกเรียกยกเลิกด้วย requestId และเหตุผล เห็น "ยกเลิกคำขอยืม {ชื่อรุ่น} ({รหัสครุภัณฑ์}) เรียบร้อยแล้ว"
 //         แถวที่ยกเลิกหายจากรายการ แถวอื่นยังอยู่ และกล่องยืนยันปิด
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { ApiError } from '../../../api/client.js'
 import MyPendingRequests from '../MyPendingRequests.jsx'
 import { REQ_A1, REQ_A2, fakeClient } from '../../../__tests__/helpers/cxlFakeClient.js'
 
@@ -120,3 +121,36 @@ test('AC_CXL_14 confirm disabled when reason empty or too long', async () => {
   fireEvent.click(confirm)
   await waitFor(() => expect(client.cancelRequest).toHaveBeenCalledWith(101, 'a'.repeat(200)))
 })
+
+// AC-CXL-04 (FR-CXL-04, FR-CXL-07) ฝั่งหน้าจอ T-22
+//   Given นักศึกษาเปิดหน้ารายการ กดยกเลิกคำขอหนึ่ง กล่องยืนยันเปิดอยู่
+//         แล้วเจ้าหน้าที่อนุมัติคำขอนั้นก่อนนักศึกษากดยืนยัน (client จำลองเปลี่ยนเป็นตอบ 409 ALREADY_APPROVED หลังเปิดกล่อง)
+//   When  นักศึกษาพิมพ์เหตุผลแล้วกดยืนยัน
+//   Then  ไม่มีข้อความยกเลิกสำเร็จ แสดง "ยกเลิกไม่ได้ เพราะคำขอได้รับการอนุมัติแล้ว"
+//         กล่องปิด และแถวนั้นหายหลังโหลดรายการใหม่ (หลังบ้านไม่ส่งคำขอที่อนุมัติแล้ว)
+test('AC_CXL_04 approved while dialog open', async () => {
+  // Given หน้ารายการแสดง 2 แถว แล้วเปิดกล่องยืนยันของแถวแรก
+  const client = fakeClient([REQ_A1, REQ_A2])
+  render(<MyPendingRequests client={client} />)
+  const rows = await screen.findAllByRole('listitem')
+  fireEvent.click(within(rows[0]).getByRole('button', { name: 'ยกเลิก' }))
+  const dialog = await screen.findByRole('dialog')
+
+  // Given (ต่อ) เจ้าหน้าที่อนุมัติระหว่างที่กล่องเปิดอยู่: หลังบ้านตอบ 409 และรายการใหม่ไม่มี REQ_A1 แล้ว
+  client.cancelRequest.mockRejectedValueOnce(new ApiError(409, 'ALREADY_APPROVED'))
+  client.listMyPendingRequests.mockResolvedValueOnce({ items: [REQ_A2] })
+
+  // When
+  fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'ไม่ต้องใช้อุปกรณ์แล้ว' } })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'ยืนยัน' }))
+
+  // Then
+  expect((await screen.findByRole('alert')).textContent).toBe('ยกเลิกไม่ได้ เพราะคำขอได้รับการอนุมัติแล้ว')
+  expect(client.cancelRequest).toHaveBeenCalledWith(101, 'ไม่ต้องใช้อุปกรณ์แล้ว')
+  expect(screen.queryByRole('status')).toBeNull()
+  expect(screen.queryByRole('dialog')).toBeNull()
+  await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1))
+  expect(screen.getByRole('listitem').textContent).toContain('CS-PJ-0001')
+  expect(screen.getByRole('listitem').textContent).not.toContain('CS-NB-0001')
+})
+
