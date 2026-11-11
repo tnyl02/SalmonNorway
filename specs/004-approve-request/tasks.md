@@ -46,11 +46,11 @@ Updated: 2569-11-12
 ### T-03 เพิ่มข้อมูลตัวอย่างสำหรับลองระบบของ 004
 - รองรับ: FR-APV-01 (ก)(ข)(จ)
 - ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นข้อมูลที่จุดตรวจของทุกเฟสใช้
-- ไฟล์ที่แตะ: `backend/db/seed/approve_dev.sql` (ไฟล์ใหม่ โหลดเองด้วย psql ไม่แตะ `seed.sql` เพราะ `TestSeed_BorrowRequestScenarios` ของ 002 บังคับว่า seed.sql ต้องไม่มีคำขอยืม ทำแบบเดียวกับ `handover_dev.sql` ของ 005)
+- ไฟล์ที่แตะ: `backend/db/seed/approve_dev.sql` (ไฟล์ใหม่ โหลดเองด้วย psql ไม่แตะ `seed.sql` เพราะ `TestSeed_BorrowRequestScenarios` ของ 002 บังคับว่า seed.sql ต้องไม่มีคำขอยืม ทำแบบเดียวกับ `handover_dev.sql` ของ 005), `backend/internal/platform/migrate_approval_test.go` (ไฟล์ test ของ 004 จาก T-01 เพิ่ม `TestSeed_ApproveDevScenarios`)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
 - เสร็จเมื่อ: โหลด `approve_dev.sql` หลัง seed.sql ได้โดยไม่ error (โหลดร่วมกับ `handover_dev.sql` ได้) เพิ่มรุ่นและอุปกรณ์ชุดของตัวเอง (รหัสครุภัณฑ์ขึ้นต้น `AP-TEST-` ไม่แตะอุปกรณ์ของ seed.sql) และมีคำขอ `requested` ยืมปกติของภาควิชา 1 อย่างน้อย 3 ใบ (2 ใบอยู่บนอุปกรณ์ชิ้นเดียวกัน), คำขอค้างคืน 1 ใบบนชิ้นเดียวกันนั้น, คำขอของอุปกรณ์ภาควิชา 2 อย่างน้อย 1 ใบ, คำขอ 1 ใบบนอุปกรณ์ที่ `borrowed` และคำขอ `cancelled` 1 ใบ / seed.sql ไม่เปลี่ยน และ `TestSeed_BorrowRequestScenarios` ยังผ่าน
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ (ยังไม่ได้รัน `TestSeed_ApproveDevScenarios` และยังไม่ได้โหลดจริงด้วย psql ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 #### จุดตรวจเฟส 0
 - test ที่ต้องผ่านทั้งหมด: `TestMigration_ApprovalTables`, `TestMigration_ApprovalAuditActions` และ test เดิมของ 001 / 002 / 005 ทั้งหมดต้องยังผ่าน (รวม `TestSeed_BorrowRequestScenarios`)

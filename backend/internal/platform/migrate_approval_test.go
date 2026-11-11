@@ -4,7 +4,9 @@ package platform
 // ใช้ testDB และ execInTx จาก migrate_test.go ทุกคำสั่งรันใน transaction ที่ยกเลิกทิ้ง ข้อมูลจึงไม่ค้างข้าม test
 
 import (
+	"context"
 	"fmt"
+	"os"
 	"testing"
 )
 
@@ -125,5 +127,69 @@ func TestMigration_ApprovalAuditActions(t *testing.T) {
 		if err := execInTx(t, conn, stmt); err == nil {
 			t.Errorf("action %q ไม่อยู่ในรายการ ต้องถูกปฏิเสธ", a)
 		}
+	}
+}
+
+// T-03 (004) เสร็จเมื่อ: approve_dev.sql โหลดหลัง seed.sql ได้ (ร่วมกับ handover_dev.sql ของ 005)
+// และมีกรณีครบตามที่จุดตรวจของ 004 ใช้ ทำใน transaction ที่ยกเลิกทิ้ง seed ของ test อื่นจึงไม่เปลี่ยน
+func TestSeed_ApproveDevScenarios(t *testing.T) {
+	conn := testDB(t)
+	ctx := context.Background()
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx)
+
+	for _, f := range []string{"../../db/seed/handover_dev.sql", "../../db/seed/approve_dev.sql"} {
+		sql, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tx.Exec(ctx, string(sql)); err != nil {
+			t.Fatalf("โหลด %s ไม่สำเร็จ: %v", f, err)
+		}
+	}
+
+	count := func(q string) int {
+		t.Helper()
+		var n int
+		if err := tx.QueryRow(ctx, q).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	const base = `SELECT count(*) FROM borrow_request r
+		JOIN equipment_item i ON i.id = r.item_id
+		JOIN equipment_model m ON m.id = i.model_id
+		WHERE i.asset_code LIKE 'AP-TEST-%' `
+
+	if n := count(base + `AND r.status = 'requested' AND r.loan_type = 'normal' AND m.department_id = 1`); n < 3 {
+		t.Errorf("ต้องมีคำขอยืมปกติ requested ของภาควิชา 1 อย่างน้อย 3 ใบ แต่ได้ %d", n)
+	}
+	if n := count(base + `AND i.asset_code = 'AP-TEST-0001' AND r.status = 'requested' AND r.loan_type = 'normal'`); n < 2 {
+		t.Errorf("AP-TEST-0001 ต้องมีคำขอยืมปกติอย่างน้อย 2 ใบ (AC-APV-03, 07) แต่ได้ %d", n)
+	}
+	if n := count(base + `AND i.asset_code = 'AP-TEST-0001' AND r.loan_type = 'overnight' AND r.status = 'requested'`); n != 1 {
+		t.Errorf("AP-TEST-0001 ต้องมีคำขอค้างคืน 1 ใบ (AC-APV-17) แต่ได้ %d", n)
+	}
+	if n := count(base + `AND m.department_id = 2 AND r.status = 'requested'`); n < 1 {
+		t.Errorf("ต้องมีคำขอของอุปกรณ์ภาควิชา 2 อย่างน้อย 1 ใบ (AC-APV-11, 12) แต่ได้ %d", n)
+	}
+	if n := count(base + `AND i.status = 'borrowed' AND r.status = 'requested'`); n < 1 {
+		t.Errorf("ต้องมีคำขอบนอุปกรณ์ที่ถูกยืม (AC-APV-08) แต่ได้ %d", n)
+	}
+	if n := count(base + `AND r.status = 'cancelled'`); n != 1 {
+		t.Errorf("ต้องมีคำขอที่ถูกยกเลิก 1 ใบ (AC-APV-09) แต่ได้ %d", n)
+	}
+	// คำขอแรกของ AP-TEST-0001 ต้องเป็นยืมปกติ (ลำดับตาม submitted_at, DOM-REQ-01)
+	var firstType string
+	if err := tx.QueryRow(ctx, `SELECT r.loan_type FROM borrow_request r JOIN equipment_item i ON i.id = r.item_id
+		WHERE i.asset_code = 'AP-TEST-0001' ORDER BY r.submitted_at LIMIT 1`).Scan(&firstType); err != nil {
+		t.Fatal(err)
+	}
+	if firstType != "normal" {
+		t.Errorf("คำขอแรกของ AP-TEST-0001 ต้องเป็นยืมปกติ แต่ได้ %q", firstType)
 	}
 }
