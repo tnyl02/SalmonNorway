@@ -3,6 +3,7 @@ package borrowrequest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -417,5 +418,116 @@ func TestLoanWindow_NormalBoundaryAndOvernight(t *testing.T) {
 		t.Errorf("ยืมค้างคืนข้ามวันต้องส่งได้ แต่ได้ %d body=%s", w.Code, w.Body.String())
 	} else {
 		decodeCreated(t, w)
+	}
+}
+
+// insertTempItem เพิ่มอุปกรณ์ชั่วคราวสถานะ "ว่าง" แล้วลบทิ้งหลัง test (ไม่แตะข้อมูลตั้งต้นของ 001)
+func insertTempItem(t *testing.T, assetCode string) {
+	t.Helper()
+	pool := testPool(t)
+	ctx := context.Background()
+	if _, err := pool.Exec(ctx,
+		`INSERT INTO equipment_item (asset_code, model_id, status) VALUES ($1, 1, 'available')`, assetCode); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(),
+			`DELETE FROM borrow_request WHERE item_id IN (SELECT id FROM equipment_item WHERE asset_code = $1)`, assetCode)
+		_, _ = pool.Exec(context.Background(), `DELETE FROM equipment_item WHERE asset_code = $1`, assetCode)
+	})
+}
+
+// AC-BRQ-01 (FR-BRQ-01)
+// Given นักศึกษาเปิดแบบฟอร์มคำขอของอุปกรณ์ชิ้นที่สถานะ "ว่าง"
+// When  อุปกรณ์ชิ้นนั้นถูกเปลี่ยนเป็น "ถูกยืม" ระหว่างกรอก แล้วนักศึกษากดส่งคำขอ
+// Then  ระบบต้องไม่สร้างคำขอ และแจ้งสถานะล่าสุดของอุปกรณ์
+func TestAC_BRQ_01(t *testing.T) {
+	pool := testPool(t)
+	srv := newTestServer(t)
+	ctx := context.Background()
+	const assetCode = "TMP-NB-0901"
+
+	// Given: อุปกรณ์ว่าง ผู้ขอเปิดฟอร์มตอนนี้
+	insertTempItem(t, assetCode)
+	var atFormOpen string
+	if err := pool.QueryRow(ctx,
+		`SELECT status FROM equipment_item WHERE asset_code = $1`, assetCode).Scan(&atFormOpen); err != nil {
+		t.Fatal(err)
+	}
+	if atFormOpen != "available" {
+		t.Fatalf("ตอนเปิดฟอร์มอุปกรณ์ต้องว่าง แต่เป็น %q", atFormOpen)
+	}
+
+	// When: ระหว่างกรอก อุปกรณ์ถูกยืมไป (จำลอง UC-08 ของ 005)
+	if _, err := pool.Exec(ctx,
+		`UPDATE equipment_item SET status = 'borrowed' WHERE asset_code = $1`, assetCode); err != nil {
+		t.Fatal(err)
+	}
+
+	w := postRequest(t, srv, tokenStudentDept1, bodyFor(assetCode))
+
+	// Then: ต้องได้ 409 ITEM_NOT_AVAILABLE ตามรหัสกลางของ CON-TECH-03
+	if w.Code != http.StatusConflict {
+		t.Fatalf("อุปกรณ์ไม่ว่างแล้วต้องได้ 409 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	var e struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+		Status  string `json:"status"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &e); err != nil {
+		t.Fatal(err)
+	}
+	if e.Code != "ITEM_NOT_AVAILABLE" {
+		t.Errorf("รหัสต้องเป็น ITEM_NOT_AVAILABLE แต่ได้ %q", e.Code)
+	}
+	// Then: ต้องแจ้งสถานะล่าสุดของอุปกรณ์กลับไปด้วย (FR-BRQ-01)
+	if e.Status != "borrowed" {
+		t.Errorf("ต้องแจ้งสถานะล่าสุดว่า borrowed แต่ได้ %q", e.Status)
+	}
+
+	// Then: ต้องไม่มีคำขอเกิดขึ้น
+	var count int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM borrow_request`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Errorf("อุปกรณ์ไม่ว่างต้องไม่สร้างคำขอ แต่พบ %d ใบ", count)
+	}
+
+	// Then: error ที่ service คืนต้องพกสถานะล่าสุดมาด้วย เพื่อให้แจ้งผู้ขอได้ (FR-BRQ-01)
+	svc := NewService(NewRepository(pool))
+	_, err := svc.Create(studentCtx("student-001"), newTestRequest(assetCode))
+	var notAvail *ItemNotAvailableError
+	if !errors.As(err, &notAvail) {
+		t.Fatalf("ต้องได้ ItemNotAvailableError ที่พกสถานะมาด้วย แต่ได้ %v", err)
+	}
+	if notAvail.Status != "borrowed" {
+		t.Errorf("สถานะล่าสุดต้องเป็น borrowed แต่ได้ %q", notAvail.Status)
+	}
+	if !errors.Is(err, ErrItemNotAvailable) {
+		t.Error("ต้องยังเทียบกับ ErrItemNotAvailable ได้ เพื่อให้โค้ดเดิมใช้ได้เหมือนเดิม")
+	}
+}
+
+// T-09 เสร็จเมื่อ: รหัสครุภัณฑ์ที่ไม่มีอยู่จริง ต้องตอบเหมือนกรณีไม่ว่าง ไม่เปิดเผยว่ามีรหัสนั้นไหม
+func TestCreate_UnknownAssetCodeLooksTheSame(t *testing.T) {
+	srv := newTestServer(t)
+
+	w := postRequest(t, srv, tokenStudentDept1, bodyFor("NO-SUCH-9999"))
+	if w.Code != http.StatusConflict {
+		t.Fatalf("รหัสที่ไม่มีอยู่ต้องได้ 409 เหมือนกรณีไม่ว่าง แต่ได้ %d", w.Code)
+	}
+	var e struct {
+		Code   string `json:"code"`
+		Status string `json:"status"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &e)
+	if e.Code != "ITEM_NOT_AVAILABLE" {
+		t.Errorf("รหัสต้องเป็น ITEM_NOT_AVAILABLE แต่ได้ %q", e.Code)
+	}
+	// ไม่มีรหัสนี้อยู่จริง จึงไม่มีสถานะให้แจ้ง ต้องไม่เปิดเผยว่ามีรหัสนั้นในระบบไหม
+	if e.Status != "" {
+		t.Errorf("รหัสที่ไม่มีอยู่ต้องไม่มีสถานะใน response แต่ได้ %q", e.Status)
 	}
 }

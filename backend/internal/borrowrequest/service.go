@@ -57,6 +57,23 @@ func normalizePurpose(in NewRequest) NewRequest {
 	return in
 }
 
+// ItemNotAvailableError คือ ErrItemNotAvailable ที่พกสถานะล่าสุดของอุปกรณ์มาด้วย (FR-BRQ-01, AC-BRQ-01)
+// handler ใช้ errors.As ดึงสถานะไปแจ้งผู้ขอว่าอุปกรณ์เป็นอะไรอยู่ (CON-DATA-01 มี 3 ค่า)
+//
+// รองรับ errors.Is(err, ErrItemNotAvailable) ด้วย โค้ดเดิมที่เทียบกับ ErrItemNotAvailable จึงใช้ได้เหมือนเดิม
+// (ประกาศไว้ที่นี่เพราะ model.go ไม่อยู่ในช่องไฟล์ที่แตะของ T-09 ย้ายไปรวมกับ error ตัวอื่นได้ภายหลัง)
+type ItemNotAvailableError struct {
+	AssetCode string
+	Status    string // ค่าสถานะล่าสุดตาม CON-DATA-01 (available / borrowed / unavailable)
+}
+
+func (e *ItemNotAvailableError) Error() string {
+	return "อุปกรณ์ " + e.AssetCode + " อยู่ในสถานะ " + e.Status + " จึงส่งคำขอไม่ได้"
+}
+
+// Is ทำให้ errors.Is(err, ErrItemNotAvailable) เป็นจริง
+func (e *ItemNotAvailableError) Is(target error) bool { return target == ErrItemNotAvailable }
+
 // ItemStatus คืนสถานะล่าสุดของอุปกรณ์ ใช้บอกผู้ขอเมื่อส่งคำขอไม่ได้ (FR-BRQ-01)
 func (s *Service) ItemStatus(ctx context.Context, assetCode string) (string, error) {
 	return s.repo.ItemStatus(ctx, assetCode)

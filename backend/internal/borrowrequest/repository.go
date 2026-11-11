@@ -53,7 +53,14 @@ func (r *Repository) Create(ctx context.Context, requesterID string, in NewReque
 	).Scan(&out.ID, &out.SubmittedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		// SELECT ไม่ได้แถว แปลว่าไม่มีอุปกรณ์รหัสนี้ หรือสถานะไม่ใช่ "ว่าง" แล้ว
-		return Request{}, ErrItemNotAvailable
+		// อ่านสถานะล่าสุดกลับไปด้วย เพื่อให้แจ้งผู้ขอได้ว่าทำไมส่งไม่ได้ (FR-BRQ-01, AC-BRQ-01)
+		status, statusErr := r.ItemStatus(ctx, in.AssetCode)
+		if statusErr != nil {
+			// ไม่มีรหัสครุภัณฑ์นี้อยู่จริง ตอบแบบเดียวกับกรณีไม่ว่าง
+			// เพื่อไม่เปิดเผยว่ารหัสนั้นมีอยู่ในระบบหรือไม่ (DOM-ACCESS-01 ในภาพรวม)
+			return Request{}, ErrItemNotAvailable
+		}
+		return Request{}, &ItemNotAvailableError{AssetCode: in.AssetCode, Status: status}
 	}
 	if err != nil {
 		return Request{}, err

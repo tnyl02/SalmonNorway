@@ -2,6 +2,7 @@ package borrowrequest
 
 import (
 	"context"
+	"errors"
 	"os"
 	"sync"
 	"testing"
@@ -181,11 +182,12 @@ func TestCreate_RejectsItemNotAvailable(t *testing.T) {
 	svc := NewService(NewRepository(pool))
 
 	// CS-NB-0004 ถูกยืมอยู่ในข้อมูลตั้งต้น
-	if _, err := svc.Create(ctx, newTestRequest("CS-NB-0004")); err != ErrItemNotAvailable {
+	// ใช้ errors.Is เพราะตั้งแต่ T-09 error พกสถานะล่าสุดมาด้วย (ItemNotAvailableError)
+	if _, err := svc.Create(ctx, newTestRequest("CS-NB-0004")); !errors.Is(err, ErrItemNotAvailable) {
 		t.Errorf("อุปกรณ์ที่ถูกยืมอยู่ต้องได้ ErrItemNotAvailable แต่ได้ %v", err)
 	}
 	// รหัสครุภัณฑ์ที่ไม่มีอยู่จริง
-	if _, err := svc.Create(ctx, newTestRequest("NO-SUCH-0001")); err != ErrItemNotAvailable {
+	if _, err := svc.Create(ctx, newTestRequest("NO-SUCH-0001")); !errors.Is(err, ErrItemNotAvailable) {
 		t.Errorf("รหัสครุภัณฑ์ที่ไม่มีอยู่ต้องได้ ErrItemNotAvailable แต่ได้ %v", err)
 	}
 
@@ -203,7 +205,7 @@ func TestCreate_RequiresPrincipal(t *testing.T) {
 	pool := testPool(t)
 	svc := NewService(NewRepository(pool))
 
-	if _, err := svc.Create(context.Background(), newTestRequest("CS-NB-0001")); err != ErrNoPrincipal {
+	if _, err := svc.Create(context.Background(), newTestRequest("CS-NB-0001")); !errors.Is(err, ErrNoPrincipal) {
 		t.Errorf("ไม่มีผู้ใช้ใน context ต้องได้ ErrNoPrincipal แต่ได้ %v", err)
 	}
 }

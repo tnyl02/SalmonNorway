@@ -57,8 +57,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 			SubmittedAt: req.SubmittedAt,
 		})
 	case errors.Is(err, ErrItemNotAvailable):
-		// สถานะล่าสุดของอุปกรณ์ที่ต้องแจ้งกลับไปด้วย เป็นงานของ T-09 (FR-BRQ-01)
-		writeError(w, http.StatusConflict, "ITEM_NOT_AVAILABLE", "อุปกรณ์ชิ้นนี้ไม่อยู่ในสถานะว่างแล้ว")
+		writeItemNotAvailable(w, err)
 	case errors.Is(err, ErrNoPrincipal):
 		// ปกติ auth.Middleware กันไว้ก่อนถึงตรงนี้แล้ว เหลือเป็นกันพลาดเมื่อผูก router ผิด (IF-IDP-01)
 		writeError(w, http.StatusUnauthorized, "UNAUTHENTICATED", "ต้องเข้าสู่ระบบก่อนส่งคำขอ")
@@ -86,6 +85,29 @@ type validationErrorDTO struct {
 	Code    string   `json:"code"`
 	Message string   `json:"message"`
 	Fields  []string `json:"fields"`
+}
+
+// itemNotAvailableDTO คือรูปแบบกลาง {code, message} ที่แนบสถานะล่าสุดของอุปกรณ์มาด้วย (CON-TECH-03)
+// ค่า status เป็นค่าของ CON-DATA-01 (available / borrowed / unavailable)
+// หน้าจอแปลงเป็นคำไทยเอง แบบเดียวกับ StatusBadge ของ 001
+type itemNotAvailableDTO struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Status  string `json:"status,omitempty"`
+}
+
+// writeItemNotAvailable แจ้งว่าส่งคำขอไม่ได้ พร้อมสถานะล่าสุดของอุปกรณ์ (FR-BRQ-01, AC-BRQ-01)
+// ถ้าไม่มีรหัสครุภัณฑ์นั้นอยู่จริง จะไม่มีสถานะให้แจ้ง ตอบเหมือนกรณีไม่ว่างเพื่อไม่เปิดเผยว่ามีรหัสนั้นไหม
+func writeItemNotAvailable(w http.ResponseWriter, err error) {
+	body := itemNotAvailableDTO{
+		Code:    "ITEM_NOT_AVAILABLE",
+		Message: "อุปกรณ์ชิ้นนี้ไม่อยู่ในสถานะว่างแล้ว",
+	}
+	var notAvail *ItemNotAvailableError
+	if errors.As(err, &notAvail) {
+		body.Status = notAvail.Status
+	}
+	writeJSON(w, http.StatusConflict, body)
 }
 
 // writeValidationError บอกผู้ขอว่าช่องไหนยังไม่ได้กรอก และไม่สร้างคำขอ (FR-BRQ-03, AC-BRQ-03)

@@ -154,11 +154,13 @@ Updated: 2569-11-11
 ### T-09 ตรวจสถานะอุปกรณ์ซ้ำในทรานแซกชันเดียวกับการสร้างคำขอ
 - รองรับ: FR-BRQ-01, CON-DATA-01, CON-DATA-03, CON-TECH-03
 - ตรวจด้วย: AC-BRQ-01
-- ไฟล์ที่แตะ: `backend/internal/borrowrequest/repository.go`, `backend/internal/borrowrequest/service.go`
+- ไฟล์ที่แตะ: `backend/internal/borrowrequest/repository.go`, `backend/internal/borrowrequest/service.go`,
+  `backend/internal/borrowrequest/handler.go` (เพิ่มเมื่อ 2569-11-12 ทีมตัดสิน เพราะการแนบสถานะล่าสุดลง response
+  ทำที่ handler เท่านั้น แยกไป task อื่นจะขาดตอน)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-05
 - เสร็จเมื่อ: `TestAC_BRQ_01` ผ่าน — เปลี่ยนสถานะเป็น `borrowed` ก่อนกดส่ง ต้องได้ 409 `ITEM_NOT_AVAILABLE` พร้อมสถานะล่าสุด และไม่มีแถวใหม่
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 #### จุดตรวจเฟส 5
 - test ที่ต้องผ่านทั้งหมด: `TestAC_BRQ_01` และ test ของเฟส 0-4
