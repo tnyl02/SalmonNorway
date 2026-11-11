@@ -1331,3 +1331,35 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 ### ผล test
 - `go test ./internal/borrowrequest/ -run "TestAC_BRQ_02|TestAC_BRQ_14" -v`: PASS
 - `go test ./...`: ทุกแพ็กเกจ ok (borrowrequest 4.936s)
+
+---
+
+## 2569-11-12 /implement T-08 (002-borrow-request) — ปิดเฟส 4
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 4 AC-BRQ-13 กฎเวลาคืนของการยืมปกติ)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-08`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/validate.go` (ตรงกับช่องไฟล์ที่แตะ) เพิ่ม loanWindowProblems และตัวแปร appLoc
+- `backend/internal/config/config.go` เพิ่ม LoanTypeNormal, LoanTypeOvernight
+  (คำสั่ง /implement อนุญาตให้เพิ่ม config ได้โดยไม่ต้องถาม เมื่อเป็นค่าที่มาจาก spec)
+- `backend/internal/borrowrequest/handler_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** ต่อ test ท้ายไฟล์เดิม
+
+### การตัดสินใจ
+- เทียบ "วันเดียวกัน" ด้วยเขตเวลา Asia/Bangkok (glossary) ไม่ใช่เวลาของเครื่องที่รัน
+  ถ้าใช้ UTC คำขอช่วงเย็นของไทยจะกลายเป็นคนละวันทันที
+- "ภายใน 16:00 น." ตีความว่าคืนพอดี 16:00 ผ่านได้ เกินไป 1 นาทีไม่ผ่าน มี test ครอบทั้งสองกรณี
+- กฎนี้ไม่ใช้กับการยืมค้างคืน ตามที่ DOM-LOAN-01 เขียนว่าใช้กับยืมปกติเท่านั้น มี test ยืนยัน
+- ไม่ได้ตรวจว่า endAt มาก่อน startAt หรือไม่ เพราะไม่มี FR ข้อไหนสั่งไว้ (ไม่เพิ่มเอง)
+
+### ขอบเขตที่ tasks.md แบ่งไว้แล้ว ไม่ได้ตัดเอง
+AC-BRQ-13 เขียนว่าต้อง "แจ้งว่าการยืมแบบปกติต้องคืนภายใน 16:00 น." แต่ข้อความอยู่ใน handler.go
+ซึ่งไม่อยู่ในช่องไฟล์ที่แตะของ T-08 — ตรวจแล้วพบว่า **ช่อง "ตรวจด้วย" ของ T-20 ระบุ AC-BRQ-13 ไว้
+พร้อมวงเล็บว่า "ส่วนข้อความที่ผู้ใช้เห็น"** จึงเป็นการแบ่งที่ตั้งใจไว้ตั้งแต่ตอนทำ /tasks
+ตอนนี้ API ตอบ fields: ["endAt"] ส่วนข้อความยังเป็นข้อความรวม รอ T-20 (ซึ่งรอ Q-BRQ-14)
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run "TestAC_BRQ_13|TestLoanWindow" -v`: PASS ทั้ง 2 ตัว
+- `go test ./...`: ทุกแพ็กเกจ ok (config รันใหม่ 0.007s ยืนยันว่าค่าที่เพิ่มไม่ทำ test เดิมพัง)

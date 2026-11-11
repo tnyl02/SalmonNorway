@@ -24,6 +24,12 @@ const OverdueBlockUntilNextDayStart = true
 // AttachmentMaxBytes คือขนาดสูงสุดของใบบันทึกข้อความที่แนบกับการยืมค้างคืน (FR-BRQ-10 ข้อ ก)
 const AttachmentMaxBytes = 10 << 20 // 10MB
 
+// ประเภทการยืม 2 ค่าตาม DM-05 (FR-BRQ-10) กฎ DOM-LOAN-01 ใช้กับการยืมปกติเท่านั้น
+const (
+	LoanTypeNormal    = "normal"
+	LoanTypeOvernight = "overnight"
+)
+
 // StatusRequested คือสถานะเดียวที่ฟีเจอร์ 002 ตั้งได้ (FR-BRQ-04, data-model.md v9)
 const StatusRequested = "requested"
 

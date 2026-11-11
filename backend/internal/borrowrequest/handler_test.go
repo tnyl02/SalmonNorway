@@ -340,3 +340,82 @@ func TestAC_BRQ_14(t *testing.T) {
 		t.Errorf("ข้อความที่พิมพ์ระบุต้องถูกเก็บไว้ แต่ได้ %v", purposeOther)
 	}
 }
+
+// bodyWithWindow สร้าง JSON ของฟอร์มที่ครบทุกช่อง โดยกำหนดประเภทการยืมและช่วงเวลาเอง
+func bodyWithWindow(assetCode, loanType string, start, end time.Time) string {
+	return `{"assetCode":"` + assetCode + `","requesterName":"ธัญลักษณ์ ทดสอบ","studentCode":"660710715",` +
+		`"loanType":"` + loanType + `","purpose":"study",` +
+		`"startAt":"` + start.Format(time.RFC3339) + `","endAt":"` + end.Format(time.RFC3339) + `"}`
+}
+
+// bangkokToday คืนเวลาของวันนี้ตามเขตเวลา Asia/Bangkok ที่ชั่วโมงและนาทีที่ระบุ (glossary)
+func bangkokToday(hour, min int) time.Time {
+	now := time.Now().In(appLoc)
+	return time.Date(now.Year(), now.Month(), now.Day(), hour, min, 0, 0, appLoc)
+}
+
+// AC-BRQ-13 (FR-BRQ-03 ข้อ ค)
+// Given นักศึกษาเลือกประเภทการยืมเป็น "ปกติ" และระบุเวลาเริ่มยืมวันนี้ 09:00 น.
+// When  ระบุเวลาคืนเป็น 18:00 น. ของวันเดียวกัน แล้วกดส่งคำขอ
+// Then  ระบบต้องปฏิเสธไม่ให้ส่ง ไม่สร้างคำขอ
+//
+//	(ข้อความที่บอกผู้ใช้ว่าต้องคืนภายใน 16:00 น. เป็นงานของ T-20 ตามที่ tasks.md แบ่งไว้)
+func TestAC_BRQ_13(t *testing.T) {
+	pool := testPool(t)
+	srv := newTestServer(t)
+
+	// When: ยืมปกติ 09:00 ถึง 18:00 ของวันเดียวกัน
+	w := postRequest(t, srv, tokenStudentDept1,
+		bodyWithWindow("CS-NB-0001", "normal", bangkokToday(9, 0), bangkokToday(18, 0)))
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("ยืมปกติที่คืนเกิน 16:00 ต้องได้ 422 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	var e struct {
+		Code   string   `json:"code"`
+		Fields []string `json:"fields"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &e); err != nil {
+		t.Fatal(err)
+	}
+	if e.Code != "VALIDATION_FAILED" || len(e.Fields) != 1 || e.Fields[0] != "endAt" {
+		t.Errorf("ต้องชี้ช่อง endAt ด้วย VALIDATION_FAILED แต่ได้ %+v", e)
+	}
+
+	// Then: ต้องไม่มีคำขอเกิดขึ้น
+	var count int
+	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM borrow_request`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Errorf("คำขอที่ผิดกฎเวลาต้องไม่ถูกสร้าง แต่พบ %d ใบ", count)
+	}
+}
+
+// T-08 เสร็จเมื่อ: กฎนี้ใช้กับการยืมปกติเท่านั้น และคืนพอดี 16:00 ต้องผ่าน (DOM-LOAN-01)
+func TestLoanWindow_NormalBoundaryAndOvernight(t *testing.T) {
+	srv := newTestServer(t)
+
+	// คืนพอดี 16:00 ของวันเดียวกัน ต้องส่งได้ (ข้อกำหนดคือ "ภายใน 16:00 น.")
+	w := postRequest(t, srv, tokenStudentDept1,
+		bodyWithWindow("CS-NB-0001", "normal", bangkokToday(9, 0), bangkokToday(16, 0)))
+	if w.Code != http.StatusCreated {
+		t.Errorf("คืนพอดี 16:00 ต้องส่งได้ แต่ได้ %d body=%s", w.Code, w.Body.String())
+	} else {
+		decodeCreated(t, w)
+	}
+
+	// เกินไปนาทีเดียวต้องไม่ผ่าน
+	if w := postRequest(t, srv, tokenStudentDept1,
+		bodyWithWindow("CS-NB-0002", "normal", bangkokToday(9, 0), bangkokToday(16, 1))); w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("คืน 16:01 ต้องได้ 422 แต่ได้ %d", w.Code)
+	}
+
+	// ยืมค้างคืนข้ามวันต้องไม่ติดกฎนี้ (DOM-LOAN-01 ใช้กับยืมปกติเท่านั้น)
+	w = postRequest(t, srv, tokenStudentDept1,
+		bodyWithWindow("CS-NB-0003", "overnight", bangkokToday(9, 0), bangkokToday(9, 0).AddDate(0, 0, 2)))
+	if w.Code != http.StatusCreated {
+		t.Errorf("ยืมค้างคืนข้ามวันต้องส่งได้ แต่ได้ %d body=%s", w.Code, w.Body.String())
+	} else {
+		decodeCreated(t, w)
+	}
+}
