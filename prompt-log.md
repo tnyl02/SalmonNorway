@@ -1007,3 +1007,24 @@
 - ไฟล์ที่แก้: tasks.md (ช่อง "ต้องทำหลัง" ของ T-07, 10, 12, 16, 18, 20, 22, 24, 26 และหมายเหตุหัวไฟล์), CHANGELOG
 - T-08 ไม่ต้องแก้ (ต้องทำหลัง T-07 อยู่แล้ว) ไม่ได้เริ่ม task ไหน
 
+---
+
+## 2569-11-11 /implement T-07 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request (แก้ของกลาง frontend/src/api/client.js เพราะ 003)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-07 กล่องยืนยันการยกเลิกและแสดงผลสำเร็จ
+- ไฟล์ที่แก้หรือสร้าง (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - frontend/src/pages/MyPendingRequests/CancelDialog.jsx (ใหม่): กล่อง role=dialog ช่องเหตุผล ปุ่มยืนยัน
+  - frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx: ปุ่มยกเลิกเปิดกล่อง ยกเลิกสำเร็จแล้วเอาแถวออกและแสดงข้อความ role=status
+  - frontend/src/pages/MyPendingRequests/__tests__/CancelDialog.test.jsx (ใหม่): AC_CXL_01 cancels with reason and shows success, AC_CXL_01 keeps row when cancel fails
+  - frontend/src/api/client.js: เพิ่ม postJSON (ใช้ร่วม), apiError (แยกจาก getJSON พฤติกรรมเดิม), cancelRequest
+- ผล test: `npx vitest run` ผ่าน 23 test (001 17 ตัว, AC_CXL_08, AC_CXL_01 x2, TC-CXL-08-2, 01-2, 09-3)
+  ไม่ผ่าน 7 ตามคาด: TC-CXL-09-1, 09-5 (T-08), 14-2, 14-5 (T-10), 12-2, 12-5, 09-4 (T-12) `npm run build` ผ่าน
+- สิ่งที่เกือบต้องเดาแต่ถามแทน:
+  1. วิธีส่ง POST ใน client.js -> ทีม: เพิ่ม postJSON ใช้ร่วม
+  2. ข้อความสำเร็จแสดงตรงไหน นานแค่ไหน -> ทีม: แถบเหนือรายการ ค้างจนเริ่มยกเลิกรายการถัดไป
+- ที่ AI เลือกเองในขอบเขต task: ยกเลิกไม่สำเร็จคงแถวและกล่องไว้โดยยังไม่แสดงข้อความ (ข้อความอยู่ใน T-16, 18, 20, 24) ส่งเหตุผลตามที่พิมพ์ไม่ตัดช่องว่าง (หลังบ้านตรวจใน T-09)
+- สถานะใน tasks.md: T-07 เสร็จ รอทีมตรวจ
+
