@@ -1045,3 +1045,19 @@
 - สิ่งที่เกือบต้องเดาแต่ถามแทน: แตะ MyPendingRequests.jsx ซึ่งไม่อยู่ในช่องไฟล์ที่แตะ -> ทีม: เพิ่มไฟล์ใน T-08
 - สถานะใน tasks.md: T-08 เสร็จ รอทีมตรวจ
 
+---
+
+## 2569-11-11 /implement T-10 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-10 ปิดปุ่มยืนยันเมื่อเหตุผลว่างหรือเกิน และแสดงตัวนับ x/200
+- ไฟล์ที่แก้ (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - CancelDialog.jsx: countReason (นับ code point), reasonProblem (empty / too_long), ตัวนับใต้ช่อง (aria-describedby), ปุ่มยืนยัน disabled เมื่อเหตุผลใช้ไม่ได้ ใช้ CANCEL_REASON_MAX_LEN จาก config.js
+  - __tests__/CancelDialog.test.jsx: AC_CXL_14 confirm disabled when reason empty or too long (รวมขอบ 200 พอดีกดได้)
+- ผล test: `npx vitest run` ผ่าน 29 (เพิ่ม AC_CXL_14, TC-CXL-09-5, 14-2, 14-5) ไม่ผ่าน 3 ตามคาด: TC-CXL-12-2, 12-5, 09-4 (T-12) `npm run build` ผ่าน
+- สิ่งที่เกือบต้องเดา: ไม่มี (FR-CXL-08, ASM-13 บอกครบ)
+- ที่ AI เลือกเองในขอบเขต task: ตัวนับนับข้อความตามที่พิมพ์รวมช่องว่าง ("   " = 3/200) ส่วนการเช็กว่างใช้ trim ตัวนับเป็นสีแดงเมื่อเกิน
+- สถานะใน tasks.md: T-10 เสร็จ รอทีมตรวจ
+

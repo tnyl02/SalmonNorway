@@ -178,7 +178,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
 - ต้องทำหลัง: T-08 (เดิม T-08, T-09 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
 - เสร็จเมื่อ: vitest `AC_CXL_14 confirm disabled when reason empty or too long` ผ่าน (ตัวนับ "x/200" นับตาม code point เท่ากับหลังบ้าน)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 #### จุดตรวจเฟส 4
 - test ที่ต้องผ่านทั้งหมด: `TestAC_CXL_14_ReasonValidation`, vitest `AC_CXL_14 ...` และ test ของเฟส 0-3

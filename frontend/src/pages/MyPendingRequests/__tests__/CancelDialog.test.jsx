@@ -85,3 +85,38 @@ test('AC_CXL_09 confirm dialog cancel then confirm', async () => {
   await waitFor(() => expect(client.cancelRequest).toHaveBeenCalledTimes(1))
   await waitFor(() => expect(screen.queryAllByRole('listitem')).toHaveLength(0))
 })
+
+// AC-CXL-14 (FR-CXL-08) ปุ่มยืนยันกดไม่ได้เมื่อเหตุผลว่าง มีแต่ช่องว่าง หรือเกิน 200 ตัวอักษร (T-10)
+//   Given เปิดกล่องยืนยันของคำขอหนึ่ง
+//   When  เหตุผลว่าง / ช่องว่างล้วน / 201 ตัวอักษร
+//   Then  ปุ่มยืนยันกดไม่ได้ client ไม่ถูกเรียก ตัวนับแสดง "x/200" นับตาม code point
+//   When  เหตุผล 200 ตัวอักษรพอดี
+//   Then  กดยืนยันได้
+test('AC_CXL_14 confirm disabled when reason empty or too long', async () => {
+  // Given
+  const client = fakeClient([REQ_A1])
+  render(<MyPendingRequests client={client} />)
+  fireEvent.click(within(await screen.findByRole('listitem')).getByRole('button', { name: 'ยกเลิก' }))
+  const dialog = await screen.findByRole('dialog')
+  const reason = within(dialog).getByRole('textbox')
+  const confirm = within(dialog).getByRole('button', { name: 'ยืนยัน' })
+
+  // Then ตอนเปิดกล่อง ช่องว่าง ตัวนับ 0/200 และกดไม่ได้
+  expect(within(dialog).getByText('0/200')).toBeTruthy()
+  expect(confirm.disabled).toBe(true)
+
+  // When / Then กรณีกดไม่ได้
+  for (const [value, counter] of [['   ', '3/200'], ['a'.repeat(201), '201/200'], ['ที่'.repeat(67), '201/200']]) {
+    fireEvent.change(reason, { target: { value } })
+    expect(within(dialog).getByText(counter)).toBeTruthy()
+    expect(confirm.disabled).toBe(true)
+  }
+  expect(client.cancelRequest).not.toHaveBeenCalled()
+
+  // When / Then 200 ตัวอักษรพอดี กดได้
+  fireEvent.change(reason, { target: { value: 'a'.repeat(200) } })
+  expect(within(dialog).getByText('200/200')).toBeTruthy()
+  expect(confirm.disabled).toBe(false)
+  fireEvent.click(confirm)
+  await waitFor(() => expect(client.cancelRequest).toHaveBeenCalledWith(101, 'a'.repeat(200)))
+})
