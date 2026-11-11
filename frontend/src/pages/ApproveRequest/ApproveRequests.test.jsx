@@ -211,3 +211,36 @@ test('AC-APV-16 หลังบ้านตอบ APPROVAL_CUTOFF_PASSED แส�
   expect(within(table).getAllByRole('row').slice(1)).toHaveLength(2)
   expect(within(first).getByRole('button', { name: 'ปฏิเสธ' })).toBeTruthy()
 })
+
+// AC-APV-09 (FR-APV-01 ซ) ฝั่งหน้าจอ (หลังบ้านตรวจใน TestAC_APV_09)
+//   Given คำขอในรายการถูกยกเลิกหรือถูกพิจารณาไปแล้วหลังหน้าจอโหลด
+//   When  เจ้าหน้าที่กดอนุมัติหรือปฏิเสธ แล้วหลังบ้านตอบ REQUEST_CANCELLED / REQUEST_ALREADY_DECIDED
+//   Then  แสดง "คำขอนี้ถูกผู้ขอยกเลิกแล้ว" หรือ "คำขอนี้ได้รับการพิจารณาแล้ว" ตามกรณี และรายการไม่เปลี่ยน
+const failWith = (code) => async () => Promise.reject(Object.assign(new Error('409'), { code }))
+
+for (const [code, message] of [
+  ['REQUEST_CANCELLED', 'คำขอนี้ถูกผู้ขอยกเลิกแล้ว'],
+  ['REQUEST_ALREADY_DECIDED', 'คำขอนี้ได้รับการพิจารณาแล้ว'],
+]) {
+  test(`AC-APV-09 อนุมัติแล้วหลังบ้านตอบ ${code} แสดงข้อความตามรหัส`, async () => {
+    render(<ApproveRequests client={{ ...fakeClient(), approveRequest: failWith(code) }} />)
+    const table = await screen.findByRole('table')
+    const first = within(table).getAllByRole('row')[1]
+    fireEvent.click(within(first).getByRole('button', { name: 'อนุมัติ' }))
+
+    expect((await screen.findByRole('alert')).textContent).toBe(message)
+    expect(within(table).getAllByRole('row').slice(1)).toHaveLength(2)
+  })
+
+  test(`AC-APV-09 ปฏิเสธแล้วหลังบ้านตอบ ${code} แสดงข้อความตามรหัส`, async () => {
+    render(<ApproveRequests client={{ ...fakeClient(), rejectRequest: failWith(code) }} />)
+    const table = await screen.findByRole('table')
+    const second = within(table).getAllByRole('row')[2]
+    fireEvent.click(within(second).getByRole('button', { name: 'ปฏิเสธ' }))
+    fireEvent.change(within(second).getByLabelText('เหตุผลในการปฏิเสธ'), { target: { value: 'มีเหตุผล' } })
+    fireEvent.click(within(second).getByRole('button', { name: 'ยืนยันการปฏิเสธ' }))
+
+    expect((await screen.findByRole('alert')).textContent).toBe(message)
+    expect(within(table).getAllByRole('row').slice(1)).toHaveLength(2)
+  })
+}

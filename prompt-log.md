@@ -3844,3 +3844,25 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ฟีเจอร์: 004-approve-request
 - คำสั่ง: "ตรวจสอบแล่วผ่าน"
 - สิ่งที่แก้: tasks.md T-23 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-24 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "ตรวจสอบแล่วผ่าน" (T-23 -> เสร็จ)
+- คำสั่ง: "/implement T-24"
+- ไฟล์ที่แก้: `frontend/src/pages/ApproveRequest/ApproveRequests.test.jsx` (4 test `AC-APV-09`: REQUEST_CANCELLED และ REQUEST_ALREADY_DECIDED ทั้งตอนอนุมัติและปฏิเสธ), `specs/004-approve-request/tasks.md`
+- ไม่แก้ `ApproveRequests.jsx` เพราะแสดงข้อความตามรหัสจาก APPROVAL_MESSAGES อยู่แล้วตั้งแต่ T-09
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-24 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจสอบแล่วผ่าน"
+- สิ่งที่แก้: tasks.md T-24 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
