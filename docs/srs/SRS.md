@@ -137,7 +137,7 @@ AC = Acceptance Criteria, UC = Use Case, US = User Story, BL = Backlog item, CR 
 |---|---|---|
 | FR-APV-01 | `[เติม]` | `[เติม]` |
 
-#### 3.1.5 UC-08 บันทึกการส่งมอบอุปกรณ์ (HND) - เจ้าของ: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn101219) - spec: `specs/005-handover/spec.md` (Draft v2)
+#### 3.1.5 UC-08 บันทึกการส่งมอบอุปกรณ์ (HND) - เจ้าของ: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn101219) - spec: `specs/005-handover/spec.md` (Draft v2.3)
 ที่มา: US-008, RQ-04, RQ-08, RQ-17, RQ-19, RQ-23 | Backlog: BL-09 | ลำดับ: Must
 สิ่งที่รู้แล้ว: สถานะเปลี่ยนเป็น "ถูกยืม" สร้างกำหนดคืน ยืมปกติ = 16:00 วันเดียวกัน (DOM-LOAN-01) ค้างคืนรอ Q-SH-04
 
