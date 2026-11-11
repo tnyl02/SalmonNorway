@@ -99,3 +99,39 @@ func TestAC_APV_13(t *testing.T) {
 		t.Errorf("รันซ้ำต้องไม่มีคำขอให้ปฏิเสธ แต่ได้ %d (%v)", n, err)
 	}
 }
+
+// AC-APV-18 (FR-APV-01 ฉ, Q-APV-21) [ID รอทีมอนุมัติ Q-APV-22]
+// Given คำขอยืมปกติที่ส่งวันที่ D ยังเป็น requested และระบบไม่ได้ทำงานตอน 00:00 น. หลังวันที่ D
+// When  ระบบเริ่มทำงานใหม่หลังเวลานั้น
+// Then  คำขอเป็น rejected ผู้ดำเนินการคือ System และผู้ขอได้รับ Email ปฏิเสธอัตโนมัติตาม FR-APV-02 (ค)
+func TestAC_APV_18(t *testing.T) {
+	tx := devTx(t)
+	// server ดับตั้งแต่ก่อนเที่ยงคืน แล้วเริ่มใหม่ตอน 09:30 น. ของวันถัดไป (ไม่มีรอบเที่ยงคืนเกิดขึ้น)
+	midnight := autoRejectCutoff(time.Now()).AddDate(0, 0, 1)
+	startedAt := midnight.Add(9*time.Hour + 30*time.Minute)
+	stale := requestIDOf(t, tx, "AP-TEST-0003", "student-002")
+	setSubmittedAt(t, tx, stale, midnight.Add(-3*time.Hour))
+
+	// When: ระบบเริ่มทำงาน (สิ่งที่ Run ทำเป็นอย่างแรก)
+	job := &AutoRejecter{db: tx, now: func() time.Time { return startedAt }}
+	job.CatchUp(context.Background())
+
+	// Then
+	var status, result, actorName string
+	if err := tx.QueryRow(context.Background(), `
+		SELECT r.status, d.result, d.actor_name FROM borrow_request r JOIN approval_decision d ON d.request_id = r.id
+		WHERE r.id = $1`, stale).Scan(&status, &result, &actorName); err != nil {
+		t.Fatalf("คำขอต้องถูกปฏิเสธอัตโนมัติตอนเริ่มทำงาน: %v", err)
+	}
+	if status != "rejected" || result != "auto_rejected" || actorName != "System" {
+		t.Errorf("ได้ %q / %q / %q", status, result, actorName)
+	}
+	var emails int
+	if err := tx.QueryRow(context.Background(),
+		`SELECT count(*) FROM approval_email WHERE request_id = $1 AND kind = 'auto_rejected'`, stale).Scan(&emails); err != nil {
+		t.Fatal(err)
+	}
+	if emails != 1 {
+		t.Errorf("ต้องมี Email ปฏิเสธอัตโนมัติ 1 ฉบับในคิว แต่ได้ %d", emails)
+	}
+}

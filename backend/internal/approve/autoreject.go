@@ -13,7 +13,7 @@ import (
 // AutoRejecter คืองานตั้งเวลาที่ปฏิเสธคำขอยืมแบบปกติที่ยังเป็น requested เมื่อถึงเที่ยงคืนของวันที่ส่ง
 // (FR-APV-01 ฉ, FR-APV-02 ค, ASM-05, Q-APV-14, Q-APV-15)
 // เป็น goroutine ใน process เดียวกับหลังบ้าน (plan.md ข้อ 2 ทีมเลือกเอง ไม่ได้มาจาก spec)
-// การไล่ปฏิเสธตอน server เริ่มทำงานและการเริ่ม goroutine ใน main.go เป็นงานของ T-30
+// main.go เริ่ม Run เป็น goroutine ตอน server เริ่มทำงาน ซึ่งไล่ปฏิเสธคำขอที่เลยเวลาก่อนเลย (T-30)
 type AutoRejecter struct {
 	db  Querier
 	now func() time.Time // นาฬิกาที่ inject ได้ ใช้ทดสอบ 00:00 น. (plan.md ข้อ 6)
@@ -31,8 +31,10 @@ func autoRejectCutoff(now time.Time) time.Time {
 	return time.Date(lt.Year(), lt.Month(), lt.Day(), config.ApprovalAutoRejectHour, 0, 0, 0, lt.Location())
 }
 
-// Run ตื่นทุก 00:00 น. เวลาไทยแล้วปฏิเสธคำขอที่ค้าง จนกว่า ctx ถูกยกเลิก
+// Run ไล่ปฏิเสธคำขอที่เลยเวลาแล้วทันทีหนึ่งรอบ (CatchUp) แล้วตื่นทุก 00:00 น. เวลาไทยเพื่อปฏิเสธคำขอที่ค้าง
+// จนกว่า ctx ถูกยกเลิก (FR-APV-01 ฉ, Q-APV-21)
 func (a *AutoRejecter) Run(ctx context.Context) {
+	a.CatchUp(ctx)
 	for {
 		next := autoRejectCutoff(a.now()).AddDate(0, 0, 1)
 		t := time.NewTimer(next.Sub(a.now()))
@@ -42,11 +44,22 @@ func (a *AutoRejecter) Run(ctx context.Context) {
 			return
 		case <-t.C:
 		}
-		if n, err := a.RejectStale(ctx); err != nil {
-			log.Printf("approve auto-reject: %v", err)
-		} else if n > 0 {
-			log.Printf("approve auto-reject: ปฏิเสธอัตโนมัติ %d คำขอ", n)
-		}
+		a.rejectAndLog(ctx)
+	}
+}
+
+// CatchUp ปฏิเสธคำขอที่เลยเที่ยงคืนของวันที่ส่งไปแล้วทันที ใช้ตอน server เริ่มทำงาน (FR-APV-01 ฉ, Q-APV-21, AC-APV-18, T-30)
+// ถ้า server ไม่ได้ทำงานตอนเที่ยงคืน คำขอที่ค้างจะไม่หลุดไปอีกวัน ใช้เหตุผล ผู้ดำเนินการ และ Email เดียวกับรอบเที่ยงคืน
+// เรียกซ้ำได้ ไม่มีคำขอเลยเวลาก็ไม่ทำอะไร
+func (a *AutoRejecter) CatchUp(ctx context.Context) {
+	a.rejectAndLog(ctx)
+}
+
+func (a *AutoRejecter) rejectAndLog(ctx context.Context) {
+	if n, err := a.RejectStale(ctx); err != nil {
+		log.Printf("approve auto-reject: %v", err)
+	} else if n > 0 {
+		log.Printf("approve auto-reject: ปฏิเสธอัตโนมัติ %d คำขอ", n)
 	}
 }
 

@@ -67,6 +67,11 @@ func main() {
 	// ฟีเจอร์ 004 อนุมัติคำขอยืมปกติ (T-05) ต้องยืนยันตัวตนและเป็นเจ้าหน้าที่ (IF-IDP-01, NFR-SEC-01, AC-APV-05)
 	ap := approve.NewHandler(approve.NewService(approve.NewRepository(db)))
 	mux.Handle(approve.PathPrefix, auth.Middleware(provider, ap.Routes()))
+	// 004 งานเบื้องหลัง (T-30) แก้ไฟล์กลางเพราะ 004:
+	//   - ตัวส่ง Email แจ้งผล ภายใน 60 วินาที (FR-APV-02) ใช้ตัวส่งและที่อยู่จำลองไปก่อน (IF-NOT-01, รอ Q-APV-04)
+	//   - ปฏิเสธคำขอยืมปกติที่ค้างตอนเที่ยงคืน และไล่ปฏิเสธคำขอที่เลยเวลาทันทีตอนเริ่มทำงาน (FR-APV-01 ฉ, Q-APV-21)
+	go approve.NewSender(db, approve.LogMailer{}, approve.MockRecipientResolver{}).Run(ctx)
+	go approve.NewAutoRejecter(db).Run(ctx)
 
 	// 003 ยกเลิกคำขอยืม (T-04) หลัง auth.Middleware เหมือน 001 (IF-IDP-01) แก้ไฟล์กลางเพราะ 003
 	cx := cancelrequest.NewHandler(cancelrequest.NewService(cancelrequest.NewRepository(db)))

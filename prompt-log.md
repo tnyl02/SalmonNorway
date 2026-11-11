@@ -3980,3 +3980,25 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ฟีเจอร์: 004-approve-request
 - คำสั่ง: "ตรวจสอบแล่วผ่าน"
 - สิ่งที่แก้: tasks.md T-29 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-30 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "ตรวจสอบแล่วผ่าน" (T-29 -> เสร็จ)
+- คำสั่ง: "/implement T-30"
+- ไฟล์ที่แก้: `backend/internal/approve/autoreject.go` (`CatchUp` ปฏิเสธคำขอที่เลยเวลาทันที, `Run` เรียก CatchUp ก่อนเข้าวงรอเที่ยงคืน), `autoreject_test.go` (`TestAC_APV_18` server เริ่มใหม่ 09:30 น. หลังเที่ยงคืนที่พลาดไป), `backend/cmd/server/main.go` (ของกลาง แก้เพราะ 004: เริ่ม goroutine `approve.NewSender(db, LogMailer, MockRecipientResolver).Run` และ `approve.NewAutoRejecter(db).Run`), `specs/004-approve-request/tasks.md`
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน / ID ของ AC-APV-18 ยังรอ Q-APV-22
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): ไล่ปฏิเสธตอนเริ่มทำงานใช้ RejectStale ตัวเดียวกับรอบเที่ยงคืน (เหตุผล ผู้ดำเนินการ Email เหมือนกัน); goroutine ใช้ ctx ของ main (context.Background) หยุดเมื่อโปรแกรมจบ; ใช้ LogMailer และ MockRecipientResolver ในระบบจริงไปก่อน (รอ Q-APV-04, T-37)
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-30 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจสอบแล่วผ่าน"
+- สิ่งที่แก้: tasks.md T-30 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
