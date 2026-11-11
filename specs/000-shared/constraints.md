@@ -60,16 +60,16 @@ Status: v3 | Updated: 2569-11-09 (ปิด Q-SH-01 เพิ่ม DOM-REQ-01) 
 ## ใครอ้างใช้บ้าง
 | ID | ฟีเจอร์ที่อ้าง |
 |---|---|
-| CON-TECH-01 | 001-equipment-status |
-| CON-TECH-02 | 001-equipment-status |
-| CON-DATA-01 | 001-equipment-status |
-| CON-DATA-03 | 001-equipment-status |
+| CON-TECH-01 | 001-equipment-status, 005-handover |
+| CON-TECH-02 | 001-equipment-status, 005-handover |
+| CON-DATA-01 | 001-equipment-status, 005-handover |
+| CON-DATA-03 | 001-equipment-status, 005-handover |
 | DOM-PRIV-01 | 001-equipment-status |
-| DOM-AUDIT-01 | 001-equipment-status |
+| DOM-AUDIT-01 | 001-equipment-status, 005-handover |
 | DOM-ACCESS-01 | 001-equipment-status |
-| DOM-REQ-01 | 001-equipment-status (จำนวนว่างไม่เปลี่ยนตามคำขอ) |
-| DOM-LOAN-01 | 001-equipment-status (อ่านกำหนดคืน) |
-| IF-IDP-01 | 001-equipment-status |
+| DOM-REQ-01 | 001-equipment-status (จำนวนว่างไม่เปลี่ยนตามคำขอ), 005-handover (เปลี่ยนเป็นถูกยืมตอนส่งมอบ) |
+| DOM-LOAN-01 | 001-equipment-status (อ่านกำหนดคืน), 005-handover (สร้างกำหนดคืน) |
+| IF-IDP-01 | 001-equipment-status, 005-handover |
 | IF-NOT-01 | - |
 
 เมื่อเปิดฟีเจอร์ 002-006 เจ้าของฟีเจอร์เพิ่มชื่อโฟลเดอร์ของตัวเองในตารางนี้
