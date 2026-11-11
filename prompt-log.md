@@ -3031,3 +3031,34 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ผล: เปลี่ยนสถานะใน tasks.md ของ T-28 เป็น "เสร็จ"
 - ยังค้าง: ทีมยังไม่ตัดสินเรื่องเวลารอการส่ง Email (NotifyTimeout) กรณีตัวส่งค้างไม่ตอบ
 
+---
+
+## 2569-11-12 /implement T-29 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-29 เขียน load test ด้วย k6 (ทีมเลือกรัน k6 ผ่าน Docker เพราะเครื่องไม่มี k6)
+- ไฟล์ที่สร้าง (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - backend/db/seed/seed_003_load.sql: อุปกรณ์ทดสอบ LD-0001 ถึง LD-1000 (รุ่น 5001 ภาควิชา 1) และคำขอ 50001-51000
+    (ครึ่งแรก student-001 ครึ่งหลัง student-002) โหลดซ้ำ = รีเซ็ตเป็น requested ด้วย UPDATE (ไม่ใช้ DELETE เผื่อมี audit_log ใน T-31)
+  - tests/load/cancel_request.js: 50 VU per-vu-iterations คนละ 20 รอบ แต่ละรอบ GET รายการ + POST ยกเลิกคำขอของตัวเอง (ไม่แย่งใบเดียวกัน)
+    threshold p95 < 15000 ms แยกของ list และ cancel (ค่าจาก config.CancelPerfP95) และ checks rate == 1.0
+- ที่ AI เลือกเอง (ไม่ได้มาจาก spec): จำนวนรอบ 20 ต่อผู้ใช้ (รวม 1,000), รันกับฐานข้อมูลแยก salmon_load ใน container เดิม
+  เพื่อไม่ปนกับข้อมูลที่ใช้ลองหน้าเว็บ, เรียกหลังบ้านตรงไม่ผ่าน proxy ของ vite
+- ผล: หลังบ้านชั่วคราวพอร์ต 8010 ต่อ salmon_load, k6 v2.3.0 ใน Docker
+  list p95 = 106.63 ms, cancel p95 = 38.9 ms, checks 2000/2000, http_req_failed 0%, คำขอ 1,000 ใบเป็น cancelled
+  Email จำลอง 1,000 บรรทัด ฐานข้อมูล salmon (ที่ใช้ลองหน้าเว็บ) ไม่มีข้อมูล load test
+- ข้อจำกัด: วัดบนเครื่องพัฒนาเครื่องเดียว (หลังบ้าน ฐานข้อมูล และ k6 อยู่เครื่องเดียวกัน) ไม่ใช่สภาพแวดล้อมจริง และยังไม่มี audit_log (T-31)
+- สถานะใน tasks.md: T-29 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-12 ทีมตรวจ T-29 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ: หลังบ้านต่อฐานข้อมูลแยก salmon_load, โหลด seed_003_load.sql (รีเซ็ตคำขอ 1,000 ใบ),
+  รัน k6 ผ่าน Docker (grafana/k6) กับ tests/load/cancel_request.js ผ่าน threshold ทั้ง 3 (list p95, cancel p95 < 15000 ms, checks 100%)
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-29 เป็น "เสร็จ"
+

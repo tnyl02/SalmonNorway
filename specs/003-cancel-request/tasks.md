@@ -504,8 +504,8 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ไฟล์ที่แตะ: `tests/load/cancel_request.js`, `backend/db/seed/seed_003_load.sql` (คำขอจำนวนพอสำหรับ 50 ผู้ใช้)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06, T-27
-- เสร็จเมื่อ: `k6 run tests/load/cancel_request.js` ผ่าน threshold `http_req_duration p(95) < 15000` (ค่ามาจาก `CancelPerfP95`) ทั้ง GET รายการและ POST ยกเลิก ที่ 50 VU
-- สถานะ: พร้อมทำ
+- เสร็จเมื่อ: `k6 run tests/load/cancel_request.js` ผ่าน threshold `http_req_duration p(95) < 15000` (ค่ามาจาก `CancelPerfP95`) ทั้ง GET รายการและ POST ยกเลิก ที่ 50 VU (ทีมใช้ k6 ผ่าน Docker image grafana/k6 แทนการติดตั้ง 2569-11-12 คำสั่งอยู่ในหัวไฟล์ script)
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 16
 - test ที่ต้องผ่านทั้งหมด: k6 `AC_CXL_17` และ test ของเฟส 0-15
