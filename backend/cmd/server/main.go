@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"salmonnorway/backend/internal/auth"
+	"salmonnorway/backend/internal/cancelrequest"
 	"salmonnorway/backend/internal/config"
 	"salmonnorway/backend/internal/equipment"
 	"salmonnorway/backend/internal/platform"
@@ -53,6 +54,12 @@ func main() {
 	mux := platform.NewRouter(db) // /healthz ไม่ต้องยืนยันตัวตน ใช้ตรวจ container
 	eq := equipment.NewHandler(equipment.NewService(equipment.NewRepository(db)))
 	mux.Handle(equipment.PathPrefix, auth.Middleware(provider, eq.Routes()))
+
+	// 003 ยกเลิกคำขอยืม (T-04) หลัง auth.Middleware เหมือน 001 (IF-IDP-01) แก้ไฟล์กลางเพราะ 003
+	cx := cancelrequest.NewHandler(cancelrequest.NewService(cancelrequest.NewRepository(db)))
+	cxRoutes := auth.Middleware(provider, cx.Routes())
+	mux.Handle(cancelrequest.PathPrefixMine, cxRoutes)
+	mux.Handle(cancelrequest.PathPrefixRequests, cxRoutes)
 
 	log.Printf("listening on %s", cfg.HTTPAddr)
 	// ทุก response ห้าม cache เพื่อให้รีเฟรชแล้วเห็นสถานะล่าสุด (NFR-DATA-01, T-16)

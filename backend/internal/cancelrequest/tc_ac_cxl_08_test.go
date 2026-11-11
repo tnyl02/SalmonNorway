@@ -18,7 +18,7 @@ func TestTC_CXL_08_1_ListOwnPendingSorted(t *testing.T) {
 	base := time.Date(2026, 11, 10, 2, 0, 0, 0, time.UTC)
 	older := tcInsert(t, tcUserA, tcItemAvailable, "normal", "requested", base)
 	newer := tcInsert(t, tcUserA, tcItemOther, "normal", "requested", base.Add(time.Hour))
-	approved := tcInsert(t, tcUserA, tcItemAvailable, "normal", "approved", base)
+	approved := tcInsert(t, tcUserA, tcItemAvailable2, "normal", "approved", base) // คนละชิ้นกับ requested (test-cases.md แก้ 2569-11-11)
 	rejected := tcInsert(t, tcUserA, tcItemAvailable, "normal", "rejected", base)
 	cancelled := tcInsert(t, tcUserA, tcItemAvailable, "normal", "cancelled", base)
 	ofB := tcInsert(t, tcUserB, tcItemAvailable, "normal", "requested", base.Add(2*time.Hour))
@@ -66,7 +66,7 @@ func TestTC_CXL_08_3_OvernightStatusesListed(t *testing.T) {
 	base := time.Date(2026, 11, 10, 2, 0, 0, 0, time.UTC)
 	r1 := tcInsert(t, tcUserA, tcItemAvailable, "normal", "requested", base)
 	r2 := tcInsert(t, tcUserA, tcItemOther, "overnight", "approved_by_officer", base.Add(time.Hour))
-	r3 := tcInsert(t, tcUserA, tcItemAvailable, "overnight", "pending_advisor_approval", base.Add(2*time.Hour))
+	r3 := tcInsert(t, tcUserA, tcItemAvailable2, "overnight", "pending_advisor_approval", base.Add(2*time.Hour)) // คนละชิ้น (test-cases.md แก้ 2569-11-11)
 
 	// When A เรียก GET /api/v1/my/pending-requests
 	rec := tcGet(t, srv, tcPathMine, tcTokenA)

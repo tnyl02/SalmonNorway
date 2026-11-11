@@ -2,6 +2,14 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [test-cases.md ของ 003 + tasks.md T-04, T-06] - 2569-11-11
+ทีมแก้ Given ของ test case 2 แถว ไม่เปลี่ยน spec หรือ AC
+
+### Changed
+- TC-CXL-08-1, TC-CXL-08-3: คำขอที่ยังไม่จบของ A อยู่คนละชิ้น (CS-NB-0002) เพราะตาราง 0003 ของ 002 มี uq_request_open_per_item (FR-BRQ-05, CR-004)
+  ความหมายของ test เหมือนเดิม แก้ไฟล์ test ตาม (เพิ่ม tcItemAvailable2 ในตัวช่วย)
+- tasks.md T-04 ลงทะเบียน route ใน backend/cmd/server/main.go แบบ 001 แทน platform/http.go, T-06 ไม่ต้องแตะไฟล์กลาง
+
 ## [tasks.md ของ 003 ลำดับงานหน้าจอ] - 2569-11-11
 ทีมแก้ลำดับ task ไม่เปลี่ยน spec
 

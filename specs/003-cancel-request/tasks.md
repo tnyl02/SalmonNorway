@@ -81,11 +81,11 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 ### T-04 สร้าง API รายการคำขอที่รออนุมัติของฉัน
 - รองรับ: FR-CXL-06, FR-CXL-03, CON-CXL-02, IF-IDP-01
 - ตรวจด้วย: AC-CXL-08
-- ไฟล์ที่แตะ: `backend/internal/cancelrequest/repository.go`, `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/handler.go`, `backend/internal/cancelrequest/dto.go`, `backend/internal/cancelrequest/handler_test.go`, `backend/internal/platform/http.go` (ของกลาง ลงทะเบียน route หลัง `auth.Middleware`)
+- ไฟล์ที่แตะ: `backend/internal/cancelrequest/repository.go`, `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/handler.go`, `backend/internal/cancelrequest/dto.go`, `backend/internal/cancelrequest/handler_test.go`, `backend/cmd/server/main.go` (ของกลาง ลงทะเบียน route หลัง `auth.Middleware` แบบเดียวกับ 001 เดิมเขียน platform/http.go ทีมแก้ 2569-11-11), `backend/internal/cancelrequest/tc_helpers_test.go` และ `tc_ac_cxl_08_test.go` (แก้ Given ของ TC-CXL-08-1, 08-3 ตาม test-cases.md ที่ทีมแก้ 2569-11-11)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01, T-03
 - เสร็จเมื่อ: `TestAC_CXL_08_ListOwnPendingSorted` ผ่าน (`GET /api/v1/my/pending-requests` คืนเฉพาะคำขอของผู้เรียกที่ยกเลิกได้ เรียงใหม่ไปเก่า เวลาเท่ากันเรียง requestId มากไปน้อย มี requestId, modelName, assetCode, submittedAt เจ้าหน้าที่ได้ 403 `STUDENT_ONLY`)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 ### T-05 สร้างหน้า "คำขอที่รออนุมัติของฉัน" แสดงรายการ
 - รองรับ: FR-CXL-06
@@ -112,7 +112,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 ### T-06 สร้าง API ยกเลิกคำขอ (กรณีสำเร็จ)
 - รองรับ: FR-CXL-01, FR-CXL-04, FR-CXL-08 (เก็บ cancel_reason), CON-CXL-01, CON-DATA-01, IF-IDP-01
 - ตรวจด้วย: AC-CXL-01
-- ไฟล์ที่แตะ: `backend/internal/cancelrequest/repository.go`, `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/handler.go`, `backend/internal/cancelrequest/dto.go`, `backend/internal/cancelrequest/handler_test.go`, `backend/internal/platform/http.go` (ของกลาง ลงทะเบียน route)
+- ไฟล์ที่แตะ: `backend/internal/cancelrequest/repository.go`, `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/handler.go`, `backend/internal/cancelrequest/dto.go`, `backend/internal/cancelrequest/handler_test.go` (route ลงทะเบียนใน main.go แล้วตั้งแต่ T-04 ไม่ต้องแตะไฟล์กลาง)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-04
 - เสร็จเมื่อ: `TestAC_CXL_01_CancelPendingNormal` ผ่าน (`POST /api/v1/borrow-requests/{id}/cancel` ด้วย UPDATE แบบมีเงื่อนไขคำสั่งเดียว ตอบ 200 สถานะเป็น `cancelled` เก็บ cancel_reason และ cancelled_at และ `equipment_item.status` ยังเป็น `available`)

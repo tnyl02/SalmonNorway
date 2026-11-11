@@ -42,9 +42,10 @@ const (
 	tcPathMine = "/v1/my/pending-requests"
 
 	// อุปกรณ์จาก seed.sql ของ 001
-	tcItemAvailable = 1 // CS-NB-0001 Notebook ตัวอย่างรุ่น A สถานะ available
-	tcItemBorrowed  = 4 // CS-NB-0004 Notebook ตัวอย่างรุ่น A สถานะ borrowed
-	tcItemOther     = 6 // CS-PJ-0001 Projector ตัวอย่างรุ่น B สถานะ available
+	tcItemAvailable  = 1 // CS-NB-0001 Notebook ตัวอย่างรุ่น A สถานะ available
+	tcItemBorrowed   = 4 // CS-NB-0004 Notebook ตัวอย่างรุ่น A สถานะ borrowed
+	tcItemOther      = 6 // CS-PJ-0001 Projector ตัวอย่างรุ่น B สถานะ available
+	tcItemAvailable2 = 2 // CS-NB-0002 Notebook ตัวอย่างรุ่น A สถานะ available (เพิ่ม 2569-11-11: คำขอที่ยังไม่จบของผู้ขอคนเดิมห้ามซ้ำชิ้น ตาราง 0003)
 )
 
 var (

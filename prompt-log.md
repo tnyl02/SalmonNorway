@@ -1708,3 +1708,41 @@
   ถ้าดูผลใน PowerShell ให้ตั้ง [Console]::OutputEncoding เป็น UTF8 ก่อน ไม่อย่างนั้นหน้าจอแสดงภาษาไทยเป็น ?
 - ผล: เปลี่ยนสถานะใน tasks.md ของ T-02 เป็น "เสร็จ"
 
+---
+
+## 2569-11-11 /implement T-04 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request (แก้ของกลาง backend/cmd/server/main.go เพราะ 003)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-04 API รายการคำขอที่รออนุมัติของฉัน
+- ไฟล์ที่แก้หรือสร้าง:
+  - backend/internal/cancelrequest/dto.go, repository.go, service.go, handler.go (ใหม่): GET /v1/my/pending-requests
+    เฉพาะคำขอของ Principal.UserID สถานะใน config.CancellableStatuses() เรียง submitted_at DESC, id DESC เจ้าหน้าที่ 403 STUDENT_ONLY
+  - backend/internal/cancelrequest/handler_test.go (ใหม่): TestAC_CXL_08_ListOwnPendingSorted, TestListPending_EmptyIsArray
+  - backend/cmd/server/main.go: ลงทะเบียน /v1/my/ และ /v1/borrow-requests/ หลัง auth.Middleware
+  - specs/003-cancel-request/test-cases.md แถว TC-CXL-08-1, 08-3 (ทีมตัดสิน) และ tc_ac_cxl_08_test.go, tc_helpers_test.go (tcItemAvailable2) ตาม
+- ผล test: package cancelrequest compile ผ่านแล้ว AC_CXL_08 ผ่าน, TC-CXL-08-1, 08-3, 08-4, 08-5, 08-6, 12-1, 12-3, 12-4 ผ่าน
+  TC ของการยกเลิก (01, 09-6, 14) ยังไม่ผ่านเพราะยังไม่มี route POST (T-06 ขึ้นไป) ตามคาด
+  auth / equipment / platform / config / migrationtest ผ่าน, npm test 34/34, ลองหลังบ้านจริงกับ salmon-db (พอร์ต 8010 ชั่วคราว):
+  student-001 ได้ 4 รายการ (3001, 3002, 3003, 3004) student-101 ได้ [] staff 403 ไม่มี token 401
+- สิ่งที่เกือบต้องเดาแต่ถามแทน:
+  1. TC-CXL-08-1, 08-3 ใส่ข้อมูลไม่ได้เพราะชน uq_request_open_per_item ของ 002 -> ทีม: แก้ Given ใน test-cases.md
+  2. ลงทะเบียน route ที่ไหน (tasks เขียน platform/http.go แต่ 001 ใช้ main.go) -> ทีม: main.go แบบ 001
+- ที่ AI เลือกเองในขอบเขต task: submittedAt ส่งเป็น ISO 8601 เวลา UTC (หน้าจอแปลงเป็น Asia/Bangkok)
+- สถานะใน tasks.md: T-04 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-11 ทีมตรวจ T-04 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ:
+  - A: `go test -run "AC_CXL_08|ListPending_|TC_CXL_08|TC_CXL_12" ./internal/cancelrequest/` (รันจากโฟลเดอร์ backend) และ test ของ 001/002/migrationtest
+  - B: หลังบ้านจริงกับ salmon-db: student-001 ได้ 4 รายการ, student-002 ได้ของตัวเอง, student-101 ได้ [], staff 403, ไม่มี token 401
+  - C: หน้าเว็บ "คำขอที่รออนุมัติของฉัน" แสดงคำขอจาก seed (จุดตรวจเฟส 1)
+  - D: อ่าน main.go (route ของ 003 อยู่หลัง auth.Middleware), service.go (ผู้ขอมาจาก p.UserID),
+    test-cases.md แถว TC-CXL-08-1, 08-3 (เปลี่ยนแค่ชิ้นอุปกรณ์ ช่อง Then เหมือนเดิม) ทีมยืนยันการแก้ Given
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-04 เป็น "เสร็จ"
+
