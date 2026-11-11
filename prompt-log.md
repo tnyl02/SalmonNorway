@@ -788,7 +788,7 @@
 - ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
 - ฟีเจอร์: 003-cancel-request
 - เครื่องมือ: Claude Code (คำสั่ง /tasks ไม่ได้โหลดใน session AI อ่าน .claude/commands/tasks.md แล้วทำตามเอง)
-- สิ่งที่สั่ง: ทำ /tasks
+- สิ่งที่สั่ง: `/tasks specs/003-cancel-request/spec.md`
 - ผลลัพธ์: specs/003-cancel-request/tasks.md 18 เฟส (ฐานราก + 16 เฟสตาม AC + รอคำตอบ) 32 task รอ Q-13 3 task (T-30 ถึง T-32)
   ตาราง AC 17/17, Constraint 8/8, FR 10 ตัว (FR-CXL-10 ไม่มี AC และไม่มี task เพราะไม่ทำใน prototype)
   แก้ specs/README.md สถานะเป็น tasks v1
@@ -798,3 +798,28 @@
   - เรื่องที่รอ 002 (schema) และรอ 001 merge ไม่ใช่ Q ใน spec จึงเขียนไว้ในส่วนหัว ไม่ได้ใส่เป็นสถานะของ task
   - จุดตรวจเฟส 8-11 ให้ลองด้วย curl และ psql เพราะหน้าจอไปถึงกรณีเหล่านี้ไม่ได้ และ 004 ยังไม่มี
   - AC-CXL-17 ต้องมีผู้ใช้จำลอง 50 คน แต่ auth จำลองของกลางมี 4 คน ทีมต้องตัดสินวิธีทดสอบ
+
+---
+
+## 2569-11-11 merge main เข้า branch 003 และปิด Q-13 (spec Draft v3.2)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request และของกลาง (specs/000-shared/data-model.md แก้เพราะ 003)
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: ดึงงานของเพื่อนใน main เข้า branch 003 โดยไม่ให้งาน 003 เข้า main
+- สิ่งที่ AI ทำ: `git merge origin/main` บน branch 003 (เจ้าของฟีเจอร์เริ่ม merge เอง AI แก้ conflict)
+  conflict 2 ไฟล์ prompt-log.md และ specs/CHANGELOG.md แก้โดยเก็บทั้งสองฝั่ง ไม่ลบบันทึกใด
+  (CHANGELOG: รายการ 003 อยู่บน, prompt-log: บันทึกของ 001 ก่อน แล้วต่อด้วยของ 003) merge commit 65b9588 ยังไม่ push
+
+### คำถามที่ AI ถาม และคำตอบของทีม
+1. main มี request_id และ action cancel แล้ว แต่ไม่มี cancel_notify_failed จะบันทึก Email ล้มเหลวอย่างไร
+   -> เอาตามที่ AI แนะนำ: เพิ่ม action `notify` ด้วย migration ใหม่ (ใช้ร่วมกับ 004 ได้)
+2. แต่ละกรณีใช้ outcome ค่าไหน -> เอาตามที่ AI แนะนำ: `ok` / `forbidden` + สาเหตุใน query, `error` เฉพาะระบบผิดพลาด
+   คำขอที่ไม่มีอยู่ให้ request_id ว่าง และบันทึกกรณีเหตุผลไม่ผ่านด้วย
+
+### สิ่งที่ AI แก้
+- spec Draft v3.2: FR-CXL-05 (ตารางการบันทึก), FR-CXL-09, ASM-12, ปิด Q-13, Clarifications, Traceability
+- data-model.md v4.1 (ของกลาง): เพิ่มแถว action `notify` ใน DM-07 ต้องแจ้งเจ้าของ 001
+- plan.md v1.1, tasks.md v1.1 (T-30 ถึง T-32 พร้อมทำ, เฟส 17 มีจุดตรวจ), CHANGELOG
+- สิ่งที่ AI พบ ทีมต้องรู้: data-model.md จองเลข migration `0003_borrow_request` ให้ 002 และ `0004` ขึ้นไปให้ 003
+  ขัดกับ ASM-11 ที่ให้ 003 ร่าง borrow_request ต้องตกลงกับ 002 ว่าใครสร้างไฟล์ 0003

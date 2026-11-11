@@ -1,9 +1,9 @@
 # Tasks: ยกเลิกคำขอยืม (Cancel Borrow Request)
-Spec: SPEC-CXL-003 (spec.md Draft v3.1) | Plan: plan.md Draft v1 | สร้าง: 2569-11-10 | Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้าง: 2569-11-10 | แก้: 2569-11-11 (ปิด Q-13) | Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
 
 สรุป
-- 18 เฟส (ฐานราก + 16 เฟสตาม AC + รอคำตอบ) รวม 32 task
-- รอ Q-xx 3 task (T-30, T-31, T-32 ทั้งหมดรอ Q-13 เรื่องรหัสคำขอใน audit_log)
+- 18 เฟส (ฐานราก + 17 เฟสตาม AC) รวม 32 task (เดิมเฟส 17 เป็นเฟสรอคำตอบ ปิด Q-13 แล้วจึงเป็นเฟสของ AC-CXL-06)
+- รอ Q-xx 0 task
 - เฟสแรกที่ลองใช้งานได้จริง: เฟส 1 (นักศึกษาเห็นรายการคำขอที่รออนุมัติของตนเองบนหน้าจอ)
 
 เทคโนโลยีตาม plan.md ข้อ 2: Go (net/http + pgx), PostgreSQL 16, React + Vite, go test + testcontainers, vitest, k6
@@ -18,7 +18,8 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.1) | Plan: plan.md Draft v1 | สร้า�
 - ผู้ใช้จำลอง (ของกลาง `backend/internal/auth/mock_provider.go`): `mock-student-001`, `mock-student-002` (ภาควิชา 1), `mock-student-101` (ภาควิชา 2)
 
 ต้องเคลียร์ก่อนเริ่ม /implement (ไม่ใช่ Q ใน spec จึงไม่ได้ใส่เป็นสถานะของ task)
-- โครงกลาง (`backend/`, `frontend/`) ยังอยู่ใน `origin/001-equipment-status` ต้องรอ merge เข้า main แล้ว `git merge origin/main`
+- ~~โครงกลางยังไม่อยู่ใน main~~ merge เข้า main และเข้า branch 003 แล้ว (2569-11-11)
+- เลข migration ต้องจองในกลุ่มก่อน: data-model.md จอง `0003_borrow_request` ให้ 002 และ `0004` ขึ้นไปให้ 003 (T-01, T-30)
 - ชื่อคอลัมน์และค่าสถานะของ `borrow_request` ต้องตกลงกับเจ้าของ 002 ก่อนทำ T-01 (ASM-09, ASM-11)
 - 004 ต้องใช้เงื่อนไขสถานะตอนอนุมัติ (ASM-05) ไม่กระทบ task ของ 003 แต่กระทบผลของ AC-CXL-04 ตอนลองทั้งระบบ
 - task ที่แตะไฟล์ของกลาง (`backend/internal/platform/http.go`, `backend/cmd/server/main.go`, `frontend/src/App.jsx`, `frontend/src/api/client.js`, `backend/internal/config/config.go`, `backend/db/migrations/`) ต้องจดใน prompt-log ว่าแก้เพราะ 003 (AGENTS.md)
@@ -123,7 +124,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.1) | Plan: plan.md Draft v1 | สร้า�
   Given เข้าระบบเป็น student-001 และเปิดหน้า "คำขอที่รออนุมัติของฉัน" (โหลด seed ใหม่ก่อนถ้าเคยลองแล้ว)
   When กดยกเลิกคำขอของ CS-NB-0001 พิมพ์เหตุผล "ไม่ต้องใช้อุปกรณ์แล้ว" แล้วกดยืนยัน
   Then เห็นข้อความยกเลิกสำเร็จ แถวนั้นหายจากหน้า และเมื่อเปิดหน้ารายการอุปกรณ์ของ 001 CS-NB-0001 ยังเป็น "ว่าง"
-- ยังขาด: ยังไม่มีบันทึก audit_log (รอ Q-13 เฟสรอคำตอบ) และยังไม่ส่ง Email (เฟส 14)
+- ยังขาด: ยังไม่มีบันทึก audit_log (เฟส 17) และยังไม่ส่ง Email (เฟส 14)
 
 ---
 
@@ -437,7 +438,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.1) | Plan: plan.md Draft v1 | สร้า�
   Given เข้าระบบเป็น student-001 เปิดหน้า "คำขอที่รออนุมัติของฉัน" แล้วลบ token ออก (จำลอง session หมดอายุ)
   When กดยกเลิกคำขอ พิมพ์เหตุผล แล้วกดยืนยัน
   Then ถูกพาไปหน้าเข้าสู่ระบบพร้อมข้อความแจ้ง เข้าสู่ระบบใหม่แล้วกลับมาหน้า "คำขอที่รออนุมัติของฉัน" และคำขอยังอยู่ (ต้องกดยกเลิกใหม่)
-- ยังขาด: ตรวจว่าไม่มีบันทึกใน audit_log (T-31 รอ Q-13)
+- ยังขาด: ตรวจว่าไม่มีบันทึกใน audit_log (T-31 เฟส 17)
 
 ---
 
@@ -471,7 +472,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.1) | Plan: plan.md Draft v1 | สร้า�
 - ไฟล์ที่แตะ: `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/notifier_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-27
-- เสร็จเมื่อ: `TestAC_CXL_16_NotifyFailureStillCancelled` ผ่านส่วนที่ไม่เกี่ยวกับ audit (Notifier ปลอมคืน error -> 200 สถานะ `cancelled`) ส่วนบันทึก `cancel_notify_failed` อยู่ที่ T-32
+- เสร็จเมื่อ: `TestAC_CXL_16_NotifyFailureStillCancelled` ผ่านส่วนที่ไม่เกี่ยวกับ audit (Notifier ปลอมคืน error -> 200 สถานะ `cancelled`) ส่วนบันทึกใน audit_log อยู่ที่ T-32
 - สถานะ: พร้อมทำ
 
 #### จุดตรวจเฟส 15
@@ -481,7 +482,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.1) | Plan: plan.md Draft v1 | สร้า�
   Given เข้าระบบเป็น student-001 และ Notifier จำลองถูกตั้งให้ล้มเหลว
   When ยกเลิกคำขอพร้อมเหตุผลแล้วยืนยัน
   Then เห็นข้อความยกเลิกสำเร็จ แถวหายจากหน้า และคำขอเป็น cancelled
-- ยังขาด: บันทึกว่าส่งแจ้งเตือนไม่สำเร็จใน audit_log (T-32 รอ Q-13)
+- ยังขาด: บันทึกว่าส่งแจ้งเตือนไม่สำเร็จใน audit_log (T-32 เฟส 17)
 
 ---
 
@@ -507,25 +508,25 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.1) | Plan: plan.md Draft v1 | สร้า�
 
 ---
 
-## เฟส 17: รอคำตอบ
+## เฟส 17: บันทึกประวัติการยกเลิก (AC-CXL-06)
 
-### T-30 เตรียม audit_log ให้รองรับการยกเลิก
-- รองรับ: FR-CXL-05, ASM-07
+### T-30 เพิ่ม action notify ใน audit_log
+- รองรับ: FR-CXL-05, FR-CXL-09, ASM-12, CON-TECH-01
 - ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นงานพื้นฐานของ T-31, T-32
-- ไฟล์ที่แตะ: `backend/db/migrations/000N_audit_log*.up.sql` (ของกลาง ร่วมกับ 001), `backend/internal/audit/` (ของกลาง), `specs/000-shared/data-model.md` (ถ้าเพิ่มฟิลด์ใน DM-07)
+- ไฟล์ที่แตะ: `backend/db/migrations/000N_audit_log_notify_action.up.sql` (ของกลาง ไฟล์ใหม่ เลขจองในกลุ่ม ห้ามแก้ 0002), `backend/internal/cancelrequest/migration_test.go`
 - แบบหน้าจอ: ไม่มี
-- ต้องทำหลัง: migration audit_log ของ 001
-- เสร็จเมื่อ: audit_log รับ action `cancel` และ `cancel_notify_failed` และเก็บรหัสคำขอได้ตามคำตอบ Q-13
-- สถานะ: รอ Q-13
+- ต้องทำหลัง: T-01
+- เสร็จเมื่อ: `TestMigration_AuditLogAcceptsNotify` ผ่าน (insert action `notify` ได้ ค่า action อื่นนอกตาราง DM-07 ยังถูกปฏิเสธ และ action เดิมของ 001 ยังใช้ได้)
+- สถานะ: พร้อมทำ
 
 ### T-31 บันทึก audit_log ทุกครั้งที่พยายามยกเลิก
 - รองรับ: FR-CXL-05, ASM-07
 - ตรวจด้วย: AC-CXL-06, AC-CXL-07 (ส่วน audit)
-- ไฟล์ที่แตะ: `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/repository.go`, `backend/internal/cancelrequest/handler_test.go`
+- ไฟล์ที่แตะ: `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/repository.go`, `backend/internal/cancelrequest/handler_test.go` (ถ้า `backend/internal/audit/writer.go` ของ 001 รับ transaction ได้ ให้เรียกใช้แทนเขียนเอง)
 - แบบหน้าจอ: ไม่มี
-- ต้องทำหลัง: T-30, T-19, T-25
-- เสร็จเมื่อ: `TestAC_CXL_06_AuditLogAttempts` ผ่าน (3 แถว สำเร็จ 1 ไม่สำเร็จ 2 เขียนใน transaction เดียวกับการยกเลิก) และ `TestAC_CXL_07_ExpiredSessionNoCancel` ตรวจเพิ่มว่าไม่มีแถวใหม่
-- สถานะ: รอ Q-13
+- ต้องทำหลัง: T-30, T-09, T-19, T-25
+- เสร็จเมื่อ: `TestAC_CXL_06_AuditLogAttempts` ผ่าน (3 แถว action `cancel`: `ok` 1, `forbidden` 2 มี request_id และ cause ใน query ตามตาราง FR-CXL-05 เขียนใน transaction เดียวกับการยกเลิก) และ `TestAC_CXL_07_ExpiredSessionNoCancel` ตรวจเพิ่มว่าไม่มีแถวใหม่
+- สถานะ: พร้อมทำ
 
 ### T-32 บันทึกเมื่อส่ง Email ไม่สำเร็จ
 - รองรับ: FR-CXL-09, FR-CXL-05
@@ -533,8 +534,17 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.1) | Plan: plan.md Draft v1 | สร้า�
 - ไฟล์ที่แตะ: `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/notifier_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-28, T-31
-- เสร็จเมื่อ: `TestAC_CXL_16_NotifyFailureStillCancelled` ตรวจเพิ่มว่ามีแถว `cancel_notify_failed` ใน audit_log
-- สถานะ: รอ Q-13
+- เสร็จเมื่อ: `TestAC_CXL_16_NotifyFailureStillCancelled` ตรวจเพิ่มว่ามีแถว action `notify` outcome `error` และ request_id ของคำขอนั้นใน audit_log
+- สถานะ: พร้อมทำ
+
+#### จุดตรวจเฟส 17
+- test ที่ต้องผ่านทั้งหมด: `TestMigration_AuditLogAcceptsNotify`, `TestAC_CXL_06_AuditLogAttempts`, `TestAC_CXL_07_ExpiredSessionNoCancel` (ส่วน audit), `TestAC_CXL_16_NotifyFailureStillCancelled` (ส่วน audit) และ test ของเฟส 0-16
+- เปิดระบบ: ตามคำสั่งในส่วนหัว
+- คนลองเองตาม AC-CXL-06:
+  Given เข้าระบบเป็น student-001 (โหลด seed ใหม่)
+  When ยกเลิกคำขอ requested ของตนเอง 1 ครั้ง, ส่งคำสั่งยกเลิกคำขอ approved ด้วย curl 1 ครั้ง และคำขอของ student-002 ด้วย curl 1 ครั้ง แล้วรัน `SELECT actor_id, action, outcome, request_id, query FROM audit_log WHERE action='cancel' ORDER BY id DESC LIMIT 3` ใน psql
+  Then เห็น 3 แถวของ student-001 เป็น `ok` 1 แถว `forbidden` 2 แถว (cause `already_approved` และ `not_owner`)
+- ยังขาด: ไม่มี
 
 ---
 
@@ -548,8 +558,8 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.1) | Plan: plan.md Draft v1 | สร้า�
 | AC-CXL-03 | T-19, T-20 |
 | AC-CXL-04 | T-21, T-22 |
 | AC-CXL-05 | T-13 |
-| AC-CXL-06 | T-31 (รอ Q-13) |
-| AC-CXL-07 | T-25, T-26, T-31 (ส่วน audit รอ Q-13) |
+| AC-CXL-06 | T-31 |
+| AC-CXL-07 | T-25, T-26, T-31 (ส่วน audit) |
 | AC-CXL-08 | T-04, T-05 |
 | AC-CXL-09 | T-08 |
 | AC-CXL-10 | T-14 |
@@ -558,13 +568,13 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.1) | Plan: plan.md Draft v1 | สร้า�
 | AC-CXL-13 | T-23, T-24 |
 | AC-CXL-14 | T-09, T-10 |
 | AC-CXL-15 | T-27 |
-| AC-CXL-16 | T-28, T-32 (ส่วน audit รอ Q-13) |
+| AC-CXL-16 | T-28, T-32 (ส่วน audit) |
 | AC-CXL-17 | T-29 |
 
 ### 2. Constraint -> task
 | Constraint ID | task ที่ทำให้เป็นจริง |
 |---|---|
-| CON-TECH-01 | T-01 (ตารางใน PostgreSQL), T-30 |
+| CON-TECH-01 | T-01 (ตารางใน PostgreSQL), T-30 (migration audit_log) |
 | CON-TECH-02 | T-01 (รันใน PostgreSQL บน Docker ของกลาง) reverse proxy / TLS เป็นงานค้างของ 001 |
 | CON-DATA-01 | T-01 (ไม่มี trigger แก้สถานะอุปกรณ์), T-06, T-13 |
 | DOM-REQ-01 | T-13 |
@@ -580,7 +590,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.1) | Plan: plan.md Draft v1 | สร้า�
 | FR-CXL-02 | AC-CXL-02, AC-CXL-04, AC-CXL-11 | 8, 11, 9 |
 | FR-CXL-03 | AC-CXL-03, AC-CXL-08 | 10, 1 |
 | FR-CXL-04 | AC-CXL-04 | 11 |
-| FR-CXL-05 | AC-CXL-06, AC-CXL-07 (ส่วน audit) | 17 (รอ Q-13) |
+| FR-CXL-05 | AC-CXL-06, AC-CXL-07 (ส่วน audit) | 17, 13 |
 | FR-CXL-06 | AC-CXL-08, AC-CXL-12 | 1, 5 |
 | FR-CXL-07 | AC-CXL-01, AC-CXL-04, AC-CXL-09, AC-CXL-14 | 2, 11, 3, 4 |
 | FR-CXL-08 | AC-CXL-14 | 4 |
@@ -592,7 +602,7 @@ NFR-PERF-CXL-01 ตรวจด้วย AC-CXL-17 (เฟส 16)
 ## สิ่งที่ยังไม่ทำ
 คัดลอกจาก Open Questions ใน spec
 
-- **Q-13** (จาก Q-07) DM-07 AuditLog มีฟิลด์ "รหัสครุภัณฑ์" แต่ไม่มีฟิลด์สำหรับรหัสคำขอ FR-CXL-05 ต้องบันทึกคำขอที่ยกเลิก
+- ~~Q-13~~ ปิดแล้ว 2569-11-11 (ASM-12) T-30 ถึง T-32 เปลี่ยนเป็นพร้อมทำ ข้อความเดิม: DM-07 AuditLog มีฟิลด์ "รหัสครุภัณฑ์" แต่ไม่มีฟิลด์สำหรับรหัสคำขอ FR-CXL-05 ต้องบันทึกคำขอที่ยกเลิก
   ต้องเพิ่มฟิลด์ใน data-model.md (ของกลาง ใช้ร่วมกับ 001) หรือเก็บรหัสคำขอในช่องอื่น? -> ทีม (แจ้งเจ้าของ 001)
   task ที่รอ: T-30, T-31, T-32
 - **Q-15** (ส่วนระบบจริง) รายชื่อ Email ของเจ้าหน้าที่แต่ละภาควิชามาจากไหน? IF-IDP-01 ส่งข้อมูลเฉพาะผู้ใช้ที่ล็อกอิน -> ถามนักเทคโนโลยีสารสนเทศ

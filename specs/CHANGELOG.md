@@ -2,6 +2,17 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [SPEC-CXL-003 Draft v3.2 + plan v1.1 + tasks v1.1 + data-model v4.1] - 2569-11-11
+ปิด Q-13 หลัง merge main (001 เพิ่ม request_id และ action cancel ใน DM-07 แล้ว) ไม่มี CR เพราะเป็นการตอบคำถามที่เปิดไว้
+
+### Changed
+- FR-CXL-05: ระบุ action / outcome / request_id / สาเหตุใน query ของแต่ละกรณี, FR-CXL-09: Email ล้มเหลวบันทึก action `notify` outcome `error`
+- data-model.md DM-07: เพิ่ม action `notify` แทน `cancel_notify_failed` ที่ 003 ขอไว้ (แก้ของกลาง เพราะ 003)
+- plan.md หัวข้อ 3, 4, 6, 7, 8 และ tasks.md T-30 ถึง T-32 เป็นพร้อมทำ เฟส 17 เป็นเฟสของ AC-CXL-06 พร้อมจุดตรวจ
+
+### Added
+- ASM-12 (การแมป outcome และ action notify)
+
 ## [SPEC-CXL-003 Draft v3.1 + plan v1] - 2569-11-10
 เจ้าของฟีเจอร์ตอบ 3 ข้อระหว่างทำ /plan ไม่มี CR เพราะเป็นการตอบคำถามที่เปิดไว้
 

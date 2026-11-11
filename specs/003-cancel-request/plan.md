@@ -1,5 +1,5 @@
 # Implementation Plan: ยกเลิกคำขอยืม (Cancel Borrow Request)
-Spec: SPEC-CXL-003 (specs/003-cancel-request/spec.md, Draft v3.1) | Plan status: Draft v1 | Updated: 2569-11-10
+Spec: SPEC-CXL-003 (specs/003-cancel-request/spec.md, Draft v3.2) | Plan status: Draft v1.1 | Updated: 2569-11-11 (ปิด Q-13)
 Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
 
 ## 1. สรุปแนวทาง
@@ -62,8 +62,10 @@ Handed Over=`handed_over`, Returned=`returned`, ยกเลิก=`cancelled`
 ไม่มี foreign key หรือ trigger ที่เปลี่ยน `equipment_item.status` (CON-CXL-01, CON-DATA-01, DOM-REQ-01)
 
 ### audit_log (DM-07) ใช้ร่วมกับ 001
-001 ออกแบบไว้ใน plan ข้อ 4 ของ 001 แต่ยังไม่มี migration และ `action` ของ 001 รับแค่ `list`, `search`, `detail`
-003 ต้องการเพิ่ม action `cancel` และ `cancel_notify_failed` และต้องเก็บรหัสคำขอ (FR-CXL-05) ซึ่ง DM-07 ยังไม่มีช่อง -> **รอ Q-13** (หัวข้อ 8)
+001 สร้างแล้วใน `backend/db/migrations/0002_audit_log.up.sql` มี `request_id INT NULL` และ action `cancel` (ปิด Q-13)
+003 เพิ่ม migration ใหม่ให้ CHECK ของ `action` รับ `notify` (ASM-12) ห้ามแก้ไฟล์ 0002 ตามกติกาในไฟล์นั้น
+การแมปกรณี -> action / outcome / request_id / query ตามตารางใน FR-CXL-05 ของ spec (ASM-12)
+ถ้า 001 ทำ `backend/internal/audit/writer.go` (T-19 ของ 001) ที่รับ transaction ได้แล้ว ให้ใช้ของเดิม ถ้ายังไม่มีให้เขียนใน repository ของ 003 ภายใน transaction เดียวกัน
 บันทึกเฉพาะผู้ใช้ที่ยืนยันตัวตนแล้ว (ASM-07) ไม่เก็บเหตุผลการยกเลิกใน audit_log (เก็บที่ borrow_request แล้ว)
 
 ### staff_contact (จำลอง ASM-10)
@@ -104,7 +106,7 @@ staff_contact(department_id INT REFERENCES department(id), email TEXT NOT NULL)
    - ได้ 0 แถว = `SELECT status, requester_id` เพื่อแยกสาเหตุ: ไม่มีหรือไม่ใช่ของตน -> 404, `approved` -> 409 ALREADY_APPROVED, อื่น ๆ -> 409 NOT_CANCELLABLE
 3. เขียน audit_log ใน transaction เดียวกัน ทั้งสำเร็จและไม่สำเร็จ (FR-CXL-05) แล้ว commit
 4. หลัง commit เรียก `Notifier.NotifyCancelled(ภาควิชาเจ้าของอุปกรณ์, ผู้ยกเลิก, ชื่อรุ่น, รหัสครุภัณฑ์, เวลา, เหตุผล)` (FR-CXL-09)
-   ล้มเหลว -> เขียน audit_log action `cancel_notify_failed` แล้วตอบ 200 ตามปกติ
+   ล้มเหลว -> เขียน audit_log action `notify` outcome `error` แล้วตอบ 200 ตามปกติ
 5. ฐานข้อมูลล่มที่ขั้น 2 หรือ 3 -> rollback ตอบ 503 สถานะคงเดิม (FR-CXL-01, ASM-06)
    query timeout ใช้ค่าใน config (`CancelDBTimeout`)
 
@@ -162,7 +164,7 @@ frontend: vitest ใน `frontend/src/pages/MyPendingRequests/__tests__/` ใช
 | AC-CXL-03 | `TestAC_CXL_03_OthersRequestNotFound` | student-001 ยกเลิกคำขอของ student-002 -> 404 `REQUEST_NOT_FOUND` สถานะไม่เปลี่ยน |
 | AC-CXL-04 | `TestAC_CXL_04_ApprovedBeforeConfirm` | ดึงรายการ (เห็นคำขอ) -> UPDATE ในฐานข้อมูลเป็น `approved` (จำลอง 004) -> POST cancel -> 409 `ALREADY_APPROVED` สถานะยัง `approved` |
 | AC-CXL-05 | `TestAC_CXL_05_OtherRequestsOnSameItemUnchanged` | 2 คำขอของ student-001 และ student-002 บนอุปกรณ์ชิ้นเดียวกัน -> ยกเลิกของ 001 -> ของ 002 ยัง `requested` อุปกรณ์ยัง `available` |
-| AC-CXL-06 | `TestAC_CXL_06_AuditLogAttempts` | ยกเลิกสำเร็จ 1, คำขอ approved 1, คำขอของผู้อื่น 1 -> audit_log 3 แถว actor student-001 ผลลัพธ์ สำเร็จ 1 ไม่สำเร็จ 2 (**รอ Q-13**) |
+| AC-CXL-06 | `TestAC_CXL_06_AuditLogAttempts` | ยกเลิกสำเร็จ 1, คำขอ approved 1, คำขอของผู้อื่น 1 -> audit_log 3 แถว actor student-001 outcome `ok` 1 แถว `forbidden` 2 แถว พร้อม request_id และ cause ใน query |
 | AC-CXL-07 | `TestAC_CXL_07_ExpiredSessionNoCancel` (Go) + `AC_CXL_07 redirects to login with returnTo` (vitest) | ไม่มี token -> 401 สถานะไม่เปลี่ยน audit_log ไม่มีแถวใหม่ / หน้าจอได้ 401 -> ไปหน้า login พร้อม `returnTo` |
 | AC-CXL-08 | `TestAC_CXL_08_ListOwnPendingSorted` | student-001 มี requested 2 (เวลาต่างกัน) approved 1 rejected 1 cancelled 1 และ student-002 มี requested 1 -> GET ได้ 2 รายการของ 001 เรียงใหม่ไปเก่า มี modelName assetCode submittedAt |
 | AC-CXL-09 | `AC_CXL_09 confirm dialog cancel then confirm` (vitest) | กดยกเลิก -> กดไม่ยืนยัน (ไม่เรียก API แถวยังอยู่) -> กดยกเลิก -> พิมพ์เหตุผล -> ยืนยัน -> แถวหายไป |
@@ -172,7 +174,7 @@ frontend: vitest ใน `frontend/src/pages/MyPendingRequests/__tests__/` ใช
 | AC-CXL-13 | `TestAC_CXL_13_DBDownReturns503` (Go) + `AC_CXL_13 shows retry` (vitest) | หยุด container ฐานข้อมูลก่อน POST -> 503 retryable / หน้าจอแสดงข้อผิดพลาดและปุ่มลองใหม่ แถวยังอยู่ เมื่อฐานข้อมูลกลับมา สถานะยังเป็น `requested` |
 | AC-CXL-14 | `TestAC_CXL_14_ReasonValidation` (Go) + `AC_CXL_14 confirm disabled` (vitest) | เหตุผลว่าง, ช่องว่างล้วน, 201 ตัวอักษร -> 400 สถานะไม่เปลี่ยน / "ไม่ต้องใช้อุปกรณ์แล้ว" -> 200 และ `cancel_reason` ตรงกัน / หน้าจอปุ่มยืนยันกดไม่ได้ 2 กรณีแรก |
 | AC-CXL-15 | `TestAC_CXL_15_NotifyDepartmentStaff` | ใช้ Notifier ปลอมใน test -> ยกเลิกสำเร็จ -> ได้ 1 ข้อความถึง Email เจ้าหน้าที่ภาควิชาของอุปกรณ์ (จาก staff_contact) มีผู้ยกเลิก ชื่อรุ่น รหัสครุภัณฑ์ เวลา และเหตุผล |
-| AC-CXL-16 | `TestAC_CXL_16_NotifyFailureStillCancelled` | Notifier ปลอมคืน error -> 200 สถานะ `cancelled` และ audit_log มีแถว `cancel_notify_failed` (**รอ Q-13**) |
+| AC-CXL-16 | `TestAC_CXL_16_NotifyFailureStillCancelled` | Notifier ปลอมคืน error -> 200 สถานะ `cancelled` และ audit_log มีแถว action `notify` outcome `error` |
 | AC-CXL-17 | `AC_CXL_17` (สคริปต์ k6 `tests/load/cancel_request.js`) | 50 VU เปิดรายการและยกเลิก (seed คำขอพอสำหรับทุก VU) threshold `http_req_duration p(95) < 15000` |
 
 ทดสอบเพิ่ม (ไม่มี AC ตรง): API ไม่ส่งข้อมูลคำขอของผู้อื่นใน GET, `returnTo` ที่เป็น URL ภายนอกถูกปฏิเสธ, ไม่มีโค้ดของ 003 เขียน `equipment_item`
@@ -183,7 +185,7 @@ frontend: vitest ใน `frontend/src/pages/MyPendingRequests/__tests__/` ใช
 3. API รายการคำขอที่รออนุมัติของฉัน (FR-CXL-06, FR-CXL-03 / AC-CXL-08, 12)
 4. API ยกเลิก: UPDATE แบบมีเงื่อนไข แยกสาเหตุ 404/409 (FR-CXL-01..04 / AC-CXL-01..05, 10, 11)
 5. ตรวจเหตุผลและเก็บ `cancel_reason` (FR-CXL-08 / AC-CXL-14) และกรณีฐานข้อมูลล่ม (ASM-06 / AC-CXL-13)
-6. เขียน audit_log ใน transaction เดียวกัน (FR-CXL-05 / AC-CXL-06, 07) **รอ Q-13 และ migration audit_log ของ 001**
+6. migration เพิ่ม action `notify` แล้วเขียน audit_log ใน transaction เดียวกัน (FR-CXL-05 / AC-CXL-06, 07)
 7. `Notifier` จำลองและส่งหลัง commit (FR-CXL-09 / AC-CXL-15, 16)
 8. หน้าจอ `MyPendingRequests` + `CancelDialog` (FR-CXL-06, 07, 08 / AC-CXL-07, 09, 12, 13, 14 ฝั่งหน้าจอ)
 9. load test k6 (NFR-PERF-CXL-01 / AC-CXL-17)
@@ -191,9 +193,9 @@ frontend: vitest ใน `frontend/src/pages/MyPendingRequests/__tests__/` ใช
 ## 8. สิ่งที่ยังไม่ทำ
 คัดลอกจาก Open Questions ใน spec ส่วนที่เกี่ยวข้องกับแต่ละข้อจะยังไม่สร้างจนกว่าจะได้คำตอบ
 
-- **Q-13** (จาก Q-07) DM-07 AuditLog มีฟิลด์ "รหัสครุภัณฑ์" แต่ไม่มีฟิลด์สำหรับรหัสคำขอ FR-CXL-05 ต้องบันทึกคำขอที่ยกเลิก
+- ~~Q-13~~ ปิดแล้ว 2569-11-11 (ASM-12) ข้อความเดิม: DM-07 AuditLog มีฟิลด์ "รหัสครุภัณฑ์" แต่ไม่มีฟิลด์สำหรับรหัสคำขอ FR-CXL-05 ต้องบันทึกคำขอที่ยกเลิก
   ต้องเพิ่มฟิลด์ใน data-model.md (ของกลาง ใช้ร่วมกับ 001) หรือเก็บรหัสคำขอในช่องอื่น? -> ทีม (แจ้งเจ้าของ 001)
-  ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ: ขั้นที่ 6, AC-CXL-06, AC-CXL-16 (ส่วน audit), action `cancel` / `cancel_notify_failed`
+  ได้คำตอบแล้ว: ขั้นที่ 6, AC-CXL-06, AC-CXL-16 (ส่วน audit) ทำได้ ใช้ action `cancel` และ `notify` ตาม ASM-12
 - **Q-15** (ส่วนระบบจริง) รายชื่อ Email ของเจ้าหน้าที่แต่ละภาควิชามาจากไหน? IF-IDP-01 ส่งข้อมูลเฉพาะผู้ใช้ที่ล็อกอิน -> ถามนักเทคโนโลยีสารสนเทศ
   ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ: Notifier ตัวจริง (prototype ใช้ตัวจำลองตาม ASM-10)
 - **Q-16** (จาก FR-CXL-10 ตอบเมื่อนำเข้า scope) เจ้าหน้าที่ยกเลิกจากหน้าไหน ต้องระบุเหตุผลไหม ต้องแจ้งนักศึกษาไหม และยกเลิกได้เฉพาะคำขอของภาควิชาตนเองใช่ไหม? -> ถามเจ้าหน้าที่
@@ -205,6 +207,7 @@ frontend: vitest ใน `frontend/src/pages/MyPendingRequests/__tests__/` ใช
 
 ### Dependency ที่ต้องเคลียร์ก่อน /implement
 - โครงกลาง (`backend/`, `frontend/`) ยังอยู่ใน `origin/001-equipment-status` ยังไม่ merge เข้า main
-- migration `audit_log` ยังไม่มี (อยู่ใน plan ของ 001) และติด Q-13
+- ~~migration `audit_log` ยังไม่มี~~ มีแล้วใน main (0002) โครงกลางก็ merge เข้า main แล้ว (2569-11-10)
+- เลข migration: data-model.md จอง `0003_borrow_request` ให้ 002 และ `0004` ขึ้นไปให้ 003 เป็นต้นไป ต้องจองเลขในกลุ่มก่อนสร้างไฟล์
 - ชื่อคอลัมน์และค่าสถานะของ `borrow_request` ต้องตกลงกับเจ้าของ 002 (ASM-11) และช่อง `cancel_reason` (ASM-09)
 - 004 ต้องใช้เงื่อนไขสถานะตอนอนุมัติ เพื่อไม่ให้อนุมัติคำขอที่ถูกยกเลิกแล้ว (ASM-05)

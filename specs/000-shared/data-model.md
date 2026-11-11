@@ -1,5 +1,5 @@
 # ข้อมูลที่หลายฟีเจอร์ใช้ร่วมกัน (shared data model)
-Status: v4 | Updated: 2569-11-10 (DM-07 เพิ่ม request_id และ action ตามคำขอของ 003) | Source: plan.md ข้อ 4 ของ 001, Infrastructure บน Miro
+Status: v4.1 | Updated: 2569-11-11 (DM-07 เพิ่ม action notify ตามคำขอของ 003) | Source: plan.md ข้อ 4 ของ 001, Infrastructure บน Miro
 
 เขียนเฉพาะสิ่งที่มากกว่า 1 ฟีเจอร์ใช้ ฟิลด์ที่ใช้เฉพาะฟีเจอร์เดียว ไปอยู่ใน plan.md ของฟีเจอร์นั้น
 ชื่อตารางในวงเล็บคือชื่อใน PostgreSQL (CON-TECH-01)
@@ -22,8 +22,9 @@ Status: v4 | Updated: 2569-11-10 (DM-07 เพิ่ม request_id และ act
   |---|---|---|
   | `list`, `search`, `detail` | 001 | ดูรายการ ค้นหา เปิดรายละเอียดอุปกรณ์ |
   | `cancel` | 003 | นักศึกษายกเลิกคำขอยืม |
+  | `notify` | 003 (ฟีเจอร์อื่นใช้ร่วมได้ เช่น 004 RQ-21) | ส่งการแจ้งเตือน (IF-NOT-01) บันทึกเมื่อส่งไม่สำเร็จ outcome `error` |
   ฟีเจอร์อื่นที่ต้องการค่าใหม่ ให้เพิ่มแถวในตารางนี้และเพิ่มค่าใน CHECK ด้วย migration ใหม่ (ห้ามแก้ migration เดิม)
-  `cancel_notify_failed` ที่ 003 ขอไว้ รอทีมตัดสินว่าการแจ้งเตือน (BL-21, Should) อยู่ใน prototype ไหม
+  `cancel_notify_failed` ที่ 003 ขอไว้เดิม เปลี่ยนเป็น `notify` (2569-11-11 ASM-12 ของ 003) เพิ่มใน CHECK ด้วย migration ของ 003
   `request_id` ยังไม่มี foreign key เพราะตาราง `borrow_request` (DM-06) ยังไม่มี ให้ 002 เพิ่ม FK ตอนสร้างตาราง
 
 ## เลข migration (เสนอ รอยืนยันในกลุ่ม)
