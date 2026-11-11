@@ -141,3 +141,34 @@ test('AC-APV-06 หลังบ้านตอบ VALIDATION_FAILED แสดง
   expect((await screen.findByRole('alert')).textContent).toBe(APPROVAL_MESSAGES.VALIDATION_FAILED)
   expect(within(table).getAllByRole('row').slice(1)).toHaveLength(2)
 })
+
+// AC-APV-07 (FR-APV-01 ข, DOM-REQ-01) ฝั่งหน้าจอ (หลังบ้านตรวจซ้ำใน TestAC_APV_07)
+//   Given อุปกรณ์รายชิ้นเดียวกันมีคำขอ A (ส่งก่อน) และ B สถานะ requested
+//   When  เจ้าหน้าที่ดูรายการ
+//   Then  แถว B ไม่มีปุ่มอนุมัติ (ปฏิเสธได้) ส่วนแถว A มีปุ่มอนุมัติ
+test('AC-APV-07 แสดงปุ่มอนุมัติเฉพาะคำขอแรก', async () => {
+  render(<ApproveRequests client={fakeClient()} />)
+
+  const table = await screen.findByRole('table')
+  const [a, b] = within(table).getAllByRole('row').slice(1)
+  expect(within(a).getByRole('button', { name: 'อนุมัติ' })).toBeTruthy()
+  expect(within(b).queryByRole('button', { name: 'อนุมัติ' })).toBeNull()
+  expect(within(b).getByRole('button', { name: 'ปฏิเสธ' })).toBeTruthy()
+})
+
+// AC-APV-07: หน้าจอเก่า (คำขอก่อนหน้าเพิ่งเข้ามา) กดอนุมัติแล้วหลังบ้านตอบ NOT_FIRST_IN_QUEUE
+//   Then แสดง "ต้องพิจารณาคำขอที่ส่งก่อนหน้าของอุปกรณ์ชิ้นนี้ก่อน" และคำขอยังอยู่ในรายการ
+test('AC-APV-07 หลังบ้านตอบ NOT_FIRST_IN_QUEUE แสดงข้อความตามรหัส', async () => {
+  const client = {
+    ...fakeClient(),
+    approveRequest: async () => Promise.reject(Object.assign(new Error('409'), { code: 'NOT_FIRST_IN_QUEUE' })),
+  }
+  render(<ApproveRequests client={client} />)
+
+  const table = await screen.findByRole('table')
+  const first = within(table).getAllByRole('row')[1]
+  fireEvent.click(within(first).getByRole('button', { name: 'อนุมัติ' }))
+
+  expect((await screen.findByRole('alert')).textContent).toBe('ต้องพิจารณาคำขอที่ส่งก่อนหน้าของอุปกรณ์ชิ้นนี้ก่อน')
+  expect(within(table).getAllByRole('row').slice(1)).toHaveLength(2)
+})

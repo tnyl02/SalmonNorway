@@ -111,15 +111,20 @@ export default function ApproveRequests({ client = api }) {
               </td>
               <td className="py-1">{fmt(r.submittedAt)}</td>
               <td className="py-1">
-                {/* ปุ่มอนุมัติ (T-09) การซ่อนปุ่มแถวที่ไม่ใช่คำขอแรกเป็นงานของ T-18 หลังบ้านตรวจซ้ำเสมอ (T-17) */}
-                <button
-                  type="button"
-                  onClick={() => approve(r.requestId)}
-                  disabled={busyId != null}
-                  className="rounded bg-teal-700 px-3 py-1 text-white disabled:opacity-50"
-                >
-                  อนุมัติ
-                </button>{' '}
+                {/* ปุ่มอนุมัติเฉพาะคำขอแรกของชิ้นนั้น (FR-APV-01 ข, AC-APV-07, T-18) หลังบ้านตรวจซ้ำเสมอ (T-17)
+                    แถวอื่นปฏิเสธได้อย่างเดียว */}
+                {r.isFirst && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => approve(r.requestId)}
+                      disabled={busyId != null}
+                      className="rounded bg-teal-700 px-3 py-1 text-white disabled:opacity-50"
+                    >
+                      อนุมัติ
+                    </button>{' '}
+                  </>
+                )}
                 {rejectingId === r.requestId ? (
                   // ช่องเหตุผลการปฏิเสธ (FR-APV-01 ง) ทีมออกแบบเอง ไม่มี mockup
                   <span className="mt-1 grid gap-1">
