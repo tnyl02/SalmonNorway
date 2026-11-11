@@ -379,7 +379,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-03, T-10
 - เสร็จเมื่อ: `TestAC_HND_09_StudentForbidden` ผ่าน (`mock-student-001` เรียก POST handover ของคำขออนุมัติแล้ว ได้ 403 ไม่มี Loan สถานะอุปกรณ์ไม่เปลี่ยน)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 #### จุดตรวจเฟส 11
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_09_StudentForbidden และ test ของเฟส 0-10
