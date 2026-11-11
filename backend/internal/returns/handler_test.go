@@ -312,3 +312,52 @@ func TestReturns_Lookup_FoundOpenLoan(t *testing.T) {
 		t.Errorf("อุปกรณ์ที่ไม่มีการยืมค้าง: status = %d, want 409", rec.Code)
 	}
 }
+
+// AC-RET-09 (FR-RET-02 เวลาคืน)
+//
+//	Given เวลาของระบบคือเวลาปัจจุบันของฐานข้อมูล (Asia/Bangkok ใช้ตอนแสดงผล เวลาเก็บเป็น timestamptz)
+//	When  เจ้าหน้าที่บันทึกการรับคืนสำเร็จ โดยส่งเวลาอื่นมาด้วย (2569-10-10 09:00 = 2026-10-10 09:00 +07:00)
+//	Then  เวลาคืนในการยืมเป็นเวลาของระบบ ไม่ใช่เวลาที่ส่งมา
+func TestAC_RET_09_ReturnTimeFromServer(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+	ctx := context.Background()
+
+	// Given
+	insertBorrowedItem(t, pool, "T07-AC09", 2*time.Hour)
+	var before time.Time
+	if err := pool.QueryRow(ctx, `SELECT now()`).Scan(&before); err != nil {
+		t.Fatal(err)
+	}
+
+	// When: ส่งเวลาคืนปลอมมาหลายชื่อฟิลด์ ระบบต้องไม่อ่านเลย
+	const fake = "2026-10-10T09:00:00+07:00"
+	rec := postReturn(t, router, "mock-staff-001", map[string]string{
+		"assetCode":   "T07-AC09",
+		"condition":   "normal",
+		"returnedAt":  fake,
+		"returned_at": fake,
+	}, tinyJPEG)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+	var after time.Time
+	if err := pool.QueryRow(ctx, `SELECT now()`).Scan(&after); err != nil {
+		t.Fatal(err)
+	}
+
+	// Then
+	var returnedAt time.Time
+	if err := pool.QueryRow(ctx, `
+		SELECT l.returned_at FROM loan l JOIN equipment_item i ON i.id = l.item_id
+		WHERE i.asset_code = 'T07-AC09'`).Scan(&returnedAt); err != nil {
+		t.Fatal(err)
+	}
+	fakeTime, _ := time.Parse(time.RFC3339, fake)
+	if returnedAt.Equal(fakeTime) {
+		t.Fatal("เวลาคืนเป็นเวลาที่ client ส่งมา ต้องเป็นเวลาของระบบ (FR-RET-02, ASM-04)")
+	}
+	if returnedAt.Before(before) || returnedAt.After(after) {
+		t.Errorf("returned_at = %v ต้องอยู่ระหว่างเวลาระบบก่อนและหลังบันทึก [%v, %v]", returnedAt, before, after)
+	}
+}

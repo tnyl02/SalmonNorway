@@ -571,3 +571,23 @@
 ### สิ่งที่เกือบต้องเดา
 - ข้อความ error ตอนนี้เป็นแบบรวม "ค้นหาไม่สำเร็จ (code)" / "บันทึกไม่สำเร็จ (code)" ข้อความแยกตามกรณีอยู่ใน T-10, T-13, T-22, T-24
 - ยังไม่มี router หน้าเดียวแสดงใน App.jsx (plan ไม่ได้กำหนด router)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-07 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 2)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำเลยย" (ไม่ระบุ task) -> AI เลือก T-07 ตามลำดับเฟส เพราะ T-25 ที่แนะนำยังติดช่อง "ต้องทำหลัง" (T-17, T-14) ที่ทีมยังไม่สั่งแก้
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/returns/handler_test.go`: `TestAC_RET_09_ReturnTimeFromServer`
+- `backend/internal/returns/handler.go`: ไม่ต้องแก้ (T-04 ไม่อ่านฟิลด์เวลาจาก client อยู่แล้ว)
+
+### ผล test (`cd backend && go test ./internal/returns -v`)
+- TestAC_RET_09_ReturnTimeFromServer PASS (ส่ง `returnedAt` / `returned_at` ปลอม -> returned_at อยู่ระหว่าง now() ก่อนและหลังบันทึก)
+- test เดิมของ returns ยัง PASS
+
+### สิ่งที่เกือบต้องเดา
+- AC ใช้เวลา 14:30 ตายตัว แต่เวลาคืนมาจาก now() ของฐานข้อมูล จึงตรวจแบบช่วงเวลา (ก่อน/หลังบันทึก) แทน ตามที่ plan.md ข้อ 6 เสนอ
