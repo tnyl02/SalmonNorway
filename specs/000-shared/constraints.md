@@ -1,5 +1,5 @@
 # Constraint ที่ใช้ร่วมทุกฟีเจอร์ (shared constraints)
-Status: v5.1 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบบและรายการรหัส error กลาง ตาม CR-004, v5.1 เพิ่มรหัส error 3 ตัวของ 005 ตามกติกาของ CON-TECH-03) | Source: Miro (Requirement table, Use Case Diagram, Architecture), spec 001
+Status: v5.1 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบบและรายการรหัส error กลาง ตาม CR-004, v5.1 005 เพิ่มรหัส REQUEST_NOT_APPROVED, BORROWER_MISMATCH และ FORBIDDEN_ROLE (แถวเดียวกับที่ 004 ลงทะเบียน) ตามกติกาของ CON-TECH-03) | Source: Miro (Requirement table, Use Case Diagram, Architecture), spec 001
 
 กติกา: Constraint ที่ใช้มากกว่า 1 ฟีเจอร์ เขียนที่นี่ **ที่เดียว** spec ของแต่ละฟีเจอร์อ้าง ID ในหมวด Constraints ไม่ copy ข้อความ
 ถ้าแก้ไฟล์นี้ ต้องทำ CR และดู Impact Analysis กับทุก spec ที่อ้าง ID นั้น (ดู rtm.md ของแต่ละฟีเจอร์)

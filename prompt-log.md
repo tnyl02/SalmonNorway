@@ -1943,3 +1943,17 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
   และ `prompt-log.md` (เก็บทั้งสองฝั่ง ของ main ก่อน)
 - ลบ `HandoverDueHour` ของ 005 ใช้ `config.LoanNormalReturnHour` ของ 002 แทน (กฎข้อ 9 ค่าเดียวที่เดียว) แก้ plan ข้อ 5 และ tasks (หัวไฟล์, T-01, T-14)
 - ผล test: `go test ./...` ผ่านทุก package รวม borrowrequest และ config_test ของ 002 `npx vitest run` ผ่าน
+
+---
+
+## 2569-11-12 ตรวจก่อน push และเปิด PR ไป main
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "recheck ให้ชัวว่า push + pr แล้ว merge ไปแล้วงานของคนอื่นไม่พัง หรืองานเราไม่ได้ไปทับของคนอื่น จัดการมาได้เลย"
+- ตรวจ: branch มี main ล่าสุด (9e16c56) แล้ว ลอง merge จำลองกับ main ไม่ชน ไฟล์นอก 005 ที่แตะ 8 ไฟล์ ทุกบรรทัดที่เปลี่ยนในไฟล์ของคนอื่นเป็นการเติม
+  ข้อความเดิมของ 001, 002 ในตาราง "ใครอ้างใช้บ้าง" ยังอยู่ครบ prompt-log ไม่มีบรรทัดถูกลบ
+- แก้: ข้อความ Status ของ constraints.md v5.1 ให้ตรงว่าเพิ่ม 2 รหัสใหม่ และ FORBIDDEN_ROLE แถวเดียวกับของ 004
+- ผล test: `go test -p 1 ./...` ผ่านทุก package (auth, borrowrequest, config, equipment, handover, platform) `npx vitest run` 23 test ผ่าน `vite build` ผ่าน
+  รอบแรกที่รันพร้อมกันหลาย package test ของ equipment ล้มเพราะ testcontainers ต่อ Docker ไม่ได้ชั่วคราว รันซ้ำแล้วผ่าน ไม่ใช่ปัญหาของโค้ด
