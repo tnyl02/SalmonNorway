@@ -677,3 +677,29 @@ func TestAC_HND_13_OtherRequestUntouched(t *testing.T) {
 		t.Errorf("มี Loan %d รายการ ต้องเป็น 1 (ของ X เท่านั้น)", n)
 	}
 }
+
+// AC-HND-09 (CON-HND-01)
+// Given ผู้ใช้บทบาทนักศึกษายืนยันตัวตนแล้ว
+// When  เรียกบันทึกการส่งมอบของคำขอที่ได้รับอนุมัติแล้วโดยตรง
+// Then  ระบบปฏิเสธ ไม่มี Loan ถูกสร้าง และสถานะอุปกรณ์ไม่เปลี่ยน
+func TestAC_HND_09_StudentForbidden(t *testing.T) {
+	pool := testPool(t)
+	itemID := createItem(t, pool, "T09-ST-0001", "available")
+	requestID := createRequest(t, pool, "student-001", itemID, "approved")
+
+	rec := postHandover(t, routesOnly(pool), tokenStudentA, requestID, validForm(tokenStudentA), twoJPEGs())
+	var e ErrorDTO
+	_ = json.Unmarshal(rec.Body.Bytes(), &e)
+	if rec.Code != http.StatusForbidden || e.Code != "FORBIDDEN_ROLE" {
+		t.Fatalf("HTTP %d %+v ต้องเป็น 403 FORBIDDEN_ROLE", rec.Code, e)
+	}
+	if n := countLoans(t, pool, itemID); n != 0 {
+		t.Errorf("มี Loan %d รายการ ต้องไม่มี", n)
+	}
+	if s := statusOf(t, pool, "equipment_item", itemID); s != "available" {
+		t.Errorf("สถานะอุปกรณ์ = %q ต้องเป็น available", s)
+	}
+	if s := statusOf(t, pool, "borrow_request", requestID); s != "approved" {
+		t.Errorf("สถานะคำขอ = %q ต้องเป็น approved", s)
+	}
+}

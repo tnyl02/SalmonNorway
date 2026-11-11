@@ -1616,3 +1616,13 @@
 - ข้อมูลตั้งต้นตาม AC ตรง ๆ ซึ่งในระบบจริงไม่เกิดแล้ว (Q-SH-06 ปิดบางส่วน) เขียนหมายเหตุใน test ถ้าทีมแก้หรือยกเลิก AC-HND-13 ต้องแก้ test นี้ตาม
 - ขั้น "ส่งมอบ Y" ต้องตั้ง Y เป็น approved เองก่อน เพราะ 005 ส่งมอบได้เฉพาะคำขอที่อนุมัติแล้ว (ถ้าไม่ตั้ง จะได้ REQUEST_NOT_APPROVED แทน ITEM_NOT_AVAILABLE ตามที่ AC เขียน)
 - gofmt จัดรูปแบบคอมเมนต์ของ test ใหม่ (ย่อหน้าใน doc comment)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-23
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/handler_test.go`
+- ผล test: `TestAC_HND_09_StudentForbidden` ผ่าน (`mock-student-001` เรียก POST handover ของคำขออนุมัติแล้ว ได้ 403 FORBIDDEN_ROLE ไม่มี Loan อุปกรณ์ available คำขอยัง approved)
