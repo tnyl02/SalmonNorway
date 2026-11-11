@@ -442,3 +442,35 @@ func TestAC_HND_05_DueAt1600SameDay(t *testing.T) {
 		t.Errorf("กำหนดคืน = %v ต้องเป็น %v", dueAt.In(at.Location()), wantDue)
 	}
 }
+
+// AC-HND-01 (FR-HND-01)
+// Given คำขอยืมแบบปกติที่ยังไม่ได้รับอนุมัติ และอุปกรณ์รายชิ้นในคำขอมีสถานะ "ว่าง"
+// When  เจ้าหน้าที่บันทึกการส่งมอบของคำขอนั้น
+// Then  ระบบไม่บันทึกการส่งมอบ ไม่มี Loan ถูกสร้าง และอุปกรณ์ยังมีสถานะ "ว่าง"
+// เพิ่มกรณีคำขอที่ส่งมอบไปแล้ว (plan.md ข้อ 4 รหัสเดียวกัน)
+func TestAC_HND_01_RequestNotApproved(t *testing.T) {
+	pool := testPool(t)
+	h := routesOnly(pool)
+	for i, status := range []string{"requested", "handed_over"} {
+		t.Run(status, func(t *testing.T) {
+			itemID := createItem(t, pool, "T01-NA-000"+strconv.Itoa(i+1), "available")
+			requestID := createRequest(t, pool, "student-001", itemID, status)
+
+			rec := postHandover(t, h, tokenStaff, requestID, validForm(tokenStudentA), twoJPEGs())
+			var e ErrorDTO
+			_ = json.Unmarshal(rec.Body.Bytes(), &e)
+			if rec.Code != http.StatusConflict || e.Code != "REQUEST_NOT_APPROVED" {
+				t.Fatalf("HTTP %d %+v ต้องเป็น 409 REQUEST_NOT_APPROVED", rec.Code, e)
+			}
+			if n := countLoans(t, pool, itemID); n != 0 {
+				t.Errorf("มี Loan %d รายการ ต้องไม่มี", n)
+			}
+			if s := statusOf(t, pool, "equipment_item", itemID); s != "available" {
+				t.Errorf("สถานะอุปกรณ์ = %q ต้องเป็น available", s)
+			}
+			if s := statusOf(t, pool, "borrow_request", requestID); s != status {
+				t.Errorf("สถานะคำขอ = %q ต้องเป็น %q", s, status)
+			}
+		})
+	}
+}

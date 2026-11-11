@@ -1542,3 +1542,14 @@
 - ไฟล์ที่แก้: `backend/internal/handover/service.go` (Service รับนาฬิกา `now`), `handler.go` (`newHandler` ใส่ verifier และนาฬิกาได้), `handler_test.go`
 - ผล test: `TestAC_HND_05_DueAt1600SameDay` ผ่าน (นาฬิกา 2569-11-12 10:00 Asia/Bangkok ได้เวลาส่งมอบ 10:00 และกำหนดคืน 16:00 วันเดียวกัน ตรวจจากฐานข้อมูล) `go test ./...` ผ่าน
 - ค่า 16:00 อ่านจาก `config.LoanNormalReturnHour` เขตเวลาจาก `config.TimeZone` ไม่อ่านตารางของ 004
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-16
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/handler.go` (แปลง `ErrRequestNotReady` เป็น 409 `REQUEST_NOT_APPROVED`), `handler_test.go`
+  ช่อง "ไฟล์ที่แตะ" ระบุ service.go แต่การตรวจสถานะอยู่ใน transaction ของ T-06 แล้ว งานที่เหลือคือแปลง error ซึ่งอยู่ใน handler.go
+- ผล test: `TestAC_HND_01_RequestNotApproved` ผ่าน 2 กรณี (requested / handed_over ได้ 409 ไม่มี Loan อุปกรณ์ยัง available สถานะคำขอไม่เปลี่ยน) `go test ./...` ผ่าน

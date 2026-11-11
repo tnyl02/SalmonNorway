@@ -182,6 +182,8 @@ func (h *Handler) handover(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, codeValidationFailed, "borrowerCredential")
 	case errors.Is(err, ErrRequestNotFound):
 		http.NotFound(w, r)
+	case errors.Is(err, ErrRequestNotReady):
+		writeError(w, http.StatusConflict, codeRequestNotApproved) // FR-HND-01 ยังไม่อนุมัติ หรือส่งมอบไปแล้ว
 	case errors.Is(err, ErrItemNotAvailable):
 		writeError(w, http.StatusConflict, codeItemNotAvailable) // FR-HND-04
 	default:
