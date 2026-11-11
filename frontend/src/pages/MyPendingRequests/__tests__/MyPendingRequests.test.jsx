@@ -2,7 +2,8 @@
 //   Given นักศึกษามีคำขอที่ยังยกเลิกได้ 2 รายการ ส่งคนละเวลา (หลังบ้านเรียงใหม่ไปเก่ามาแล้ว)
 //   When  เปิดหน้า "คำขอที่รออนุมัติของฉัน"
 //   Then  เห็น 2 แถว ส่งล่าสุดอยู่บนสุด แต่ละแถวมีชื่อรุ่น รหัสครุภัณฑ์ เวลาที่ส่งแบบ Asia/Bangkok และปุ่มยกเลิก
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { ApiError } from '../../../api/client.js'
 import MyPendingRequests from '../MyPendingRequests.jsx'
 import { REQ_A1, REQ_A2, fakeClient } from '../../../__tests__/helpers/cxlFakeClient.js'
 
@@ -30,3 +31,41 @@ test('AC_CXL_08 shows own pending requests newest first', async () => {
     expect(within(row).getByRole('button', { name: 'ยกเลิก' })).toBeTruthy()
   }
 })
+
+// AC-CXL-12 (FR-CXL-06) ไม่มีคำขอแสดง "ไม่มีคำขอที่รออนุมัติ" โหลดไม่สำเร็จแสดงข้อความและปุ่มลองใหม่ (T-12)
+//   Given นักศึกษาไม่มีคำขอที่ยังยกเลิกได้
+//   When  เปิดหน้า "คำขอที่รออนุมัติของฉัน"
+//   Then  แสดง "ไม่มีคำขอที่รออนุมัติ" และไม่มีแถว
+//   และกรณีโหลดไม่สำเร็จ แสดง "โหลดรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" ไม่แสดงว่าไม่มีคำขอ กดลองใหม่แล้วโหลดได้
+test('AC_CXL_12 shows empty message', async () => {
+  // Given / When
+  render(<MyPendingRequests client={fakeClient([])} />)
+
+  // Then
+  expect(await screen.findByText('ไม่มีคำขอที่รออนุมัติ')).toBeTruthy()
+  expect(screen.queryAllByRole('listitem')).toHaveLength(0)
+  expect(screen.queryByRole('alert')).toBeNull()
+})
+
+test('AC_CXL_12 load failed shows retry and recovers', async () => {
+  // Given รอบแรกหลังบ้านตอบ 503 รอบที่สองตอบได้
+  const client = fakeClient([REQ_A1])
+  client.listMyPendingRequests.mockRejectedValueOnce(new ApiError(503, 'UPSTREAM_UNAVAILABLE'))
+
+  // When
+  render(<MyPendingRequests client={client} />)
+
+  // Then ข้อความโหลดไม่สำเร็จ ไม่มีแถว ไม่บอกว่าไม่มีคำขอ
+  expect((await screen.findByRole('alert')).textContent).toBe('โหลดรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง')
+  expect(screen.queryByText('ไม่มีคำขอที่รออนุมัติ')).toBeNull()
+  expect(screen.queryAllByRole('listitem')).toHaveLength(0)
+
+  // When กดลองใหม่
+  fireEvent.click(screen.getByRole('button', { name: 'ลองใหม่' }))
+
+  // Then โหลดรอบสองสำเร็จ ข้อความหาย เห็นรายการ
+  await waitFor(() => expect(screen.queryAllByRole('listitem')).toHaveLength(1))
+  expect(client.listMyPendingRequests).toHaveBeenCalledTimes(2)
+  expect(screen.queryByRole('alert')).toBeNull()
+})
+

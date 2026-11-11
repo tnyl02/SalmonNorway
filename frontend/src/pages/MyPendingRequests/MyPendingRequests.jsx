@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client.js'
-import { MSG_CANCEL_SUCCESS } from '../../config.js'
+import { LABEL_RETRY, MSG_CANCEL_SUCCESS, MSG_LOAD_FAILED, MSG_NO_PENDING } from '../../config.js'
 import { formatDueAt } from '../EquipmentDetail/EquipmentDetail.jsx'
 import CancelDialog from './CancelDialog.jsx'
 
@@ -11,26 +11,31 @@ const formatSubmittedAt = formatDueAt
 // หน้า "คำขอที่รออนุมัติของฉัน" (FR-CXL-06, UC-15)
 // แสดงเฉพาะคำขอของนักศึกษาที่เข้าสู่ระบบที่ยังยกเลิกได้ หลังบ้านกรองและเรียงใหม่ไปเก่ามาแล้ว (FR-CXL-03, CON-CXL-02)
 // กดยกเลิกแล้วต้องยืนยันพร้อมเหตุผลก่อน ยกเลิกสำเร็จแล้วแถวหายจากหน้า (FR-CXL-07, FR-CXL-01)
-// ข้อความไม่มีคำขอและโหลดไม่สำเร็จอยู่ใน T-12 ข้อความเมื่อยกเลิกไม่ได้อยู่ใน T-16, T-18, T-20, T-24
+// ไม่มีคำขอแสดง MSG_NO_PENDING โหลดไม่สำเร็จแสดง MSG_LOAD_FAILED พร้อมปุ่มลองใหม่ ไม่แสดงรายการเก่า (FR-CXL-06, ASM-13)
+// ข้อความเมื่อยกเลิกไม่ได้อยู่ใน T-16, T-18, T-20, T-24
 export default function MyPendingRequests({ client = api }) {
   const [items, setItems] = useState(null)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0) // เพิ่มค่าเมื่อกดลองใหม่ ให้โหลดรายการอีกครั้ง
   const [target, setTarget] = useState(null) // คำขอที่เปิดกล่องยืนยันอยู่
   const [busy, setBusy] = useState(false)
   const [success, setSuccess] = useState(null) // ข้อความยกเลิกสำเร็จ ค้างจนเริ่มยกเลิกรายการถัดไป (ทีมตัดสิน 2569-11-11 T-07)
 
   useEffect(() => {
     let active = true
+    setItems(null)
+    setLoadFailed(false)
     client
       .listMyPendingRequests()
       .then((res) => active && setItems(res.items))
       .catch(() => {
-        // ข้อความและปุ่มลองใหม่ของกรณีนี้อยู่ใน T-12 (FR-CXL-06) ตอนนี้ไม่แสดงรายการเก่า
-        if (active) setItems(null)
+        // โหลดไม่สำเร็จ: ไม่แสดงรายการเก่าและไม่แสดงว่าไม่มีคำขอ (FR-CXL-06)
+        if (active) setLoadFailed(true)
       })
     return () => {
       active = false
     }
-  }, [client])
+  }, [client, reloadKey])
 
   // เปิดกล่องยืนยัน (FR-CXL-07)
   function openDialog(request) {
@@ -62,8 +67,23 @@ export default function MyPendingRequests({ client = api }) {
           {success}
         </p>
       )}
-      {items == null ? (
+      {loadFailed ? (
+        <div className="grid justify-items-start gap-2">
+          <p role="alert" className="text-red-700">
+            {MSG_LOAD_FAILED}
+          </p>
+          <button
+            type="button"
+            onClick={() => setReloadKey((k) => k + 1)}
+            className="rounded border border-teal-700 px-3 py-1 text-sm text-teal-700"
+          >
+            {LABEL_RETRY}
+          </button>
+        </div>
+      ) : items == null ? (
         <p className="text-slate-600">กำลังโหลด...</p>
+      ) : items.length === 0 ? (
+        <p className="text-slate-600">{MSG_NO_PENDING}</p>
       ) : (
         <ul className="grid gap-2">
           {items.map((r) => (
