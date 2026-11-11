@@ -2340,3 +2340,27 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ฟีเจอร์: 004-approve-request
 - คำสั่ง: "t-02 ตรวจแล้วผ่าน"
 - สิ่งที่แก้: tasks.md T-02 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-07 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "ทีมตรวจแล้วผ่าน" (T-06) และ "t-02 ตรวจแล้วผ่าน" -> T-02, T-06 เป็น "เสร็จ"
+- คำสั่ง: "/implement T-07"
+- ไฟล์ที่แก้: `backend/internal/approve/repository.go` (Querier เพิ่ม Exec, Begin; `inTx`, `lockItemRequests` ใช้ `SELECT ... FOR UPDATE OF r` ล็อกคำขอทุกใบของชิ้นนั้น, `setStatus`, `insertDecision`, `insertAudit`), `service.go` (`Approve`, `ErrRequestNotFound`, `ErrNotRequested`), `model.go` (`requestRow`, `decision`, `Result`), `specs/004-approve-request/tasks.md`
+- ไฟล์ที่สร้าง: `backend/internal/approve/service_test.go` (`TestAC_APV_01`, `TestApprove_OnlyRequestedNormal`)
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): ใส่การตรวจ "คำขอต้องเป็น requested" ใน T-07 เพราะเป็นเงื่อนไขของ FR-APV-01 (ค) ที่ T-07 รองรับ (การแยกข้อความยกเลิก / พิจารณาแล้ว / กดพร้อมกัน ยังเป็นงานของ T-23); คำขอค้างคืนหรือรหัสที่ไม่มีอยู่ถือเป็น "ไม่พบ" (ErrRequestNotFound) เพราะอยู่นอกขอบเขตของ 004; `actor_department_id` ของเจ้าหน้าที่ใช้ภาควิชาของเจ้าหน้าที่ (เท่ากับภาควิชาเจ้าของอุปกรณ์เมื่อ T-25 ตรวจแล้ว); audit_log เขียนเองใน repository ของ 004 เพราะยังไม่มี package audit กลาง
+- เรื่องที่ต้องถามตอน T-08: HTTP ของ ErrRequestNotFound ใช้รหัสอะไร CON-TECH-03 ยังไม่มีรหัส "ไม่พบคำขอ"
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-07 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจแล้วผ่าน"
+- สิ่งที่แก้: tasks.md T-07 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)

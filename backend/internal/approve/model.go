@@ -21,3 +21,34 @@ type PendingRequest struct {
 	SubmittedAt   time.Time // เวลาที่ส่ง ใช้เรียงลำดับ (FR-APV-01 ก, DOM-REQ-01)
 	IsFirst       bool      // เป็นคำขอแรกของอุปกรณ์รายชิ้นนั้นหรือไม่ อนุมัติได้เฉพาะคำขอแรก (FR-APV-01 ข, Q-APV-23)
 }
+
+// requestRow คือคำขอ 1 ใบที่ล็อกไว้ระหว่างพิจารณา พร้อมข้อมูลอุปกรณ์ที่ต้องใช้ตรวจ (FR-APV-01 ข ค, ASM-06)
+type requestRow struct {
+	ID           int
+	ItemID       int
+	LoanType     string
+	Status       string    // สถานะของคำขอ (data-model.md v9)
+	StartAt      time.Time // ใช้ตรวจเวลาตัด 16:00 น. ของวันที่เริ่มยืม (T-21)
+	SubmittedAt  time.Time
+	AssetCode    string
+	ItemStatus   string // สถานะอุปกรณ์ (CON-DATA-01) ใช้ตรวจ "ว่าง" (T-19)
+	DepartmentID int    // ภาควิชาเจ้าของอุปกรณ์ (DM-03, ASM-06)
+}
+
+// decision คือผลการพิจารณาที่บันทึกลง approval_decision (FR-APV-01 ฌ, plan.md ข้อ 3)
+type decision struct {
+	RequestID         int
+	Result            string // config.ApprovalKind*
+	Reason            string // ว่างได้เฉพาะการอนุมัติ
+	ActorID           string // รหัสเจ้าหน้าที่ หรือ config.ApprovalSystemActorID
+	ActorName         string // ว่างได้ Principal ยังไม่มีชื่อ (plan.md ข้อ 8, T-38)
+	ActorDepartmentID int
+}
+
+// Result คือผลของการอนุมัติหรือปฏิเสธที่ส่งกลับให้ handler (plan.md ข้อ 4)
+type Result struct {
+	RequestID  int
+	Status     string    // approved / rejected
+	DecidedAt  time.Time // เวลาที่บันทึกผล (FR-APV-01 ฌ)
+	RejectedBy []int     // รหัสคำขออื่นของชิ้นเดียวกันที่ถูกปฏิเสธตาม (FR-APV-01 จ, T-16) ว่างได้
+}

@@ -108,11 +108,11 @@ Updated: 2569-11-12
 ### T-07 สร้าง service อนุมัติ (ล็อกแถว ตรวจสถานะ บันทึกผลและประวัติ)
 - รองรับ: FR-APV-01 (ค)(ฌ), CON-DATA-01, DOM-REQ-01, RQ-25
 - ตรวจด้วย: AC-APV-01
-- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/repository.go`, `backend/internal/approve/service_test.go`
+- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/repository.go`, `backend/internal/approve/service_test.go`, `backend/internal/approve/model.go` (เพิ่ม requestRow, decision, Result)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-02, T-04
 - เสร็จเมื่อ: `TestAC_APV_01` ผ่าน: ใน transaction เดียวล็อกคำขอทุกใบ (ทุกประเภทการยืม) ของอุปกรณ์ชิ้นนั้นด้วย `SELECT ... FOR UPDATE` คำขอเป็น `approved` มีแถว `approval_decision` และ `audit_log` action `approve` และ `equipment_item.status` ยังเป็น `available`
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน `TestAC_APV_01`, `TestApprove_OnlyRequestedNormal` ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 ### T-08 สร้าง POST /v1/approvals/requests/{id}/approve
 - รองรับ: FR-APV-01, CON-TECH-03, IF-IDP-01

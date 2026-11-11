@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"salmonnorway/backend/internal/auth"
+	"salmonnorway/backend/internal/config"
 )
 
 // ErrNoPrincipal เกิดเมื่อไม่มีผู้ใช้ที่ยืนยันตัวตนแล้วใน context (IF-IDP-01) ปกติ auth.Middleware กันไว้ก่อนแล้ว
@@ -50,4 +51,56 @@ func (s *Service) ListPending(ctx context.Context) (items []PendingRequest, load
 		return nil, time.Time{}, err
 	}
 	return items, loadedAt, nil
+}
+
+// ErrRequestNotFound เกิดเมื่อไม่มีคำขอรหัสนี้ หรือไม่ใช่คำขอยืมแบบปกติที่ 004 พิจารณา (FR-APV-01, Q-APV-01)
+var ErrRequestNotFound = errors.New("ไม่พบคำขอยืมแบบปกติรหัสนี้")
+
+// ErrNotRequested เกิดเมื่อคำขอไม่ได้อยู่ในสถานะ requested แล้ว อนุมัติหรือปฏิเสธได้เฉพาะ requested (FR-APV-01 ค ง)
+// T-23 แยกกรณีนี้เป็นถูกยกเลิก / พิจารณาแล้ว / กดพร้อมกัน ตาม FR-APV-01 (ซ)
+var ErrNotRequested = errors.New("คำขอนี้ไม่ได้อยู่ในสถานะรออนุมัติ")
+
+// Approve อนุมัติคำขอยืมแบบปกติ 1 ใบ ใน transaction เดียว (FR-APV-01 ค ฌ, AC-APV-01)
+//   - ล็อกคำขอทุกใบของอุปกรณ์รายชิ้นนั้นก่อน (FR-APV-01 ช, plan.md ข้อ 7.3)
+//   - คำขอเป็น approved บันทึก approval_decision และ audit_log action approve (RQ-25)
+//   - ไม่เปลี่ยนสถานะอุปกรณ์ ยังเป็น "ว่าง" จนกว่า 005 ส่งมอบ (CON-DATA-01, data-model.md แถว UC-12)
+//
+// การตรวจคำขอแรก (T-17), อุปกรณ์ว่าง (T-19), เวลาตัด 16:00 (T-21), ภาควิชา (T-25),
+// ปฏิเสธคำขออื่นตาม (T-16) และ Email (T-15) เพิ่มใน task ของแต่ละเรื่อง
+func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
+	p, err := staff(ctx)
+	if err != nil {
+		return Result{}, err
+	}
+	var out Result
+	err = s.repo.inTx(ctx, func(tx *Repository) error {
+		target, _, ok, err := tx.lockItemRequests(ctx, requestID)
+		if err != nil {
+			return err
+		}
+		if !ok || target.LoanType != config.LoanTypeNormal {
+			return ErrRequestNotFound
+		}
+		if target.Status != config.StatusRequested {
+			return ErrNotRequested
+		}
+		if err := tx.setStatus(ctx, target.ID, config.StatusApproved); err != nil {
+			return err
+		}
+		at, err := tx.insertDecision(ctx, decision{
+			RequestID:         target.ID,
+			Result:            config.ApprovalKindApproved,
+			ActorID:           p.UserID,
+			ActorDepartmentID: p.DepartmentID,
+		})
+		if err != nil {
+			return err
+		}
+		if err := tx.insertAudit(ctx, p.UserID, string(p.Role), config.AuditActionApprove, target.AssetCode, target.ID); err != nil {
+			return err
+		}
+		out = Result{RequestID: target.ID, Status: config.StatusApproved, DecidedAt: at, RejectedBy: []int{}}
+		return nil
+	})
+	return out, err
 }
