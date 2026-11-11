@@ -862,3 +862,30 @@
   - "เรียงตาม requestId" ตีความเป็นมากไปน้อย ให้ตรงกับ "ใหม่ไปเก่า"
   - 403 ใช้กับการสั่งยกเลิกของเจ้าหน้าที่ด้วย ไม่ใช่แค่การเปิดรายการ ตั้งรหัส error `STUDENT_ONLY` เอง
   - TC-CXL-14-5 เพิ่มให้ตรวจทั้ง go test และ vitest เพื่อยืนยันว่านับแบบเดียวกัน
+
+---
+
+## 2569-11-11 /testcases โหมดเขียน test ของ 003 (AC-CXL-08, 01, 09, 14, 12)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (AI อ่าน .claude/commands/testcases.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: เขียนโค้ด test จากแถวที่ "ใช้ได้" (ทีมเปลี่ยนสถานะครบ 30 แถว และ commit 3be55cd แล้ว)
+- โหมด: เขียน test ไม่ได้แก้โค้ดของระบบ
+- ไฟล์ที่สร้าง (ปรับจากไฟล์คำสั่งที่เขียนสำหรับ Python ให้ตรง AGENTS.md):
+  - หลังบ้าน `backend/internal/cancelrequest/`: tc_helpers_test.go (ตัวช่วย ไม่ใช่ test), tc_ac_cxl_08_test.go, tc_ac_cxl_01_test.go,
+    tc_ac_cxl_09_test.go, tc_ac_cxl_14_test.go, tc_ac_cxl_12_test.go รวม 20 test ชื่อ `TestTC_CXL_...`
+  - หน้าจอ `frontend/src/__tests__/`: TC-CXL-08-2, 01-2, 09-1, 09-3, 09-4, 09-5, 14-2, 14-5, 12-2, 12-5 (.test.jsx) รวม 10 ไฟล์
+    และ helpers/cxlFakeClient.js (ตัวช่วย ไม่ใช่ test)
+  - TC-CXL-09-2 เป็น "คน" ไม่ได้เขียนโค้ด
+- ผล test:
+  - `go test -short ./...`: auth, equipment, platform ผ่าน / cancelrequest build failed: undefined NewHandler, NewService, NewRepository
+  - `npm test`: test ของ 001 ผ่าน 10 ไฟล์ 17 test / TC-CXL 10 ไฟล์ไม่ผ่าน: Failed to resolve import ../pages/MyPendingRequests/MyPendingRequests.jsx
+  - ทั้งหมดเป็นกรณี "task ที่ตรวจด้วย AC นี้ยังไม่ได้ทำ" (T-01, T-04 ถึง T-12) ไม่ใช่บั๊ก
+- สิ่งที่ test กำหนดไว้ ทีมต้องรู้ตอน implement:
+  - หลังบ้าน: NewRepository(pool) / NewService(repo) / NewHandler(svc) / Routes() path `/v1/my/pending-requests` และ `/v1/borrow-requests/{id}/cancel` (ไม่มี /api เหมือน 001)
+    package มี TestMain ใน tc_helpers_test.go แล้ว test อื่นของ 003 ห้ามประกาศ TestMain ซ้ำ ให้ใช้ tcServer / tcInsert
+  - หน้าจอ: `<MyPendingRequests client>` client มี listMyPendingRequests() และ cancelRequest(id, reason) แถวเป็น listitem
+    กล่องยืนยันเป็น dialog มี textbox ตัวนับ "x/200" ปุ่ม "ยืนยัน" / "ไม่ยืนยัน" ปุ่มในแถวชื่อ "ยกเลิก" ปุ่มโหลดใหม่ชื่อ "ลองใหม่"
+  - ล้างข้อมูลระหว่าง test ด้วย DELETE FROM borrow_request ถ้า 002 เพิ่ม FK จาก audit_log ต้องแก้ตัวช่วย
+- ต้องติดตั้ง dependency หน้าจอก่อนรัน: `cd frontend && npm ci`
