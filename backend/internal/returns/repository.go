@@ -69,7 +69,8 @@ type ReturnRecord struct {
 //
 // ล็อกแถวด้วย FOR UPDATE: ถ้าบันทึกพร้อมกัน คนที่สองจะไม่พบการยืมที่ยังไม่คืน ได้ ErrNoOpenLoan
 // อุปกรณ์ต้องเป็นของภาควิชา departmentID ของเจ้าหน้าที่ ไม่งั้นได้ ErrForbiddenDepartment และไม่แตะข้อมูล (ASM-03)
-func (r *Repository) RecordReturn(ctx context.Context, assetCode, condition, newStatus string, departmentID int) (ReturnRecord, error) {
+// audit ของการบันทึกสำเร็จเขียนใน transaction เดียวกัน: ไม่มีการรับคืนที่ไม่มี audit (FR-RET-07, DOM-AUDIT-01)
+func (r *Repository) RecordReturn(ctx context.Context, assetCode, condition, newStatus string, departmentID int, audit AuditEntry) (ReturnRecord, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return ReturnRecord{}, err
@@ -106,6 +107,11 @@ func (r *Repository) RecordReturn(ctx context.Context, assetCode, condition, new
 
 	if _, err = tx.Exec(ctx,
 		`UPDATE equipment_item SET status = $2, updated_at = now() WHERE id = $1`, itemID, newStatus); err != nil {
+		return ReturnRecord{}, err
+	}
+
+	audit.Action, audit.AssetCode, audit.Outcome = actionReturn, assetCode, "ok"
+	if err := insertAudit(ctx, tx, audit); err != nil {
 		return ReturnRecord{}, err
 	}
 

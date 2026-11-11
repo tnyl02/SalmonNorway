@@ -24,10 +24,11 @@ func NewService(repo *Repository) *Service {
 // RecordReturn บันทึกการรับคืนของอุปกรณ์ assetCode (FR-RET-02, FR-RET-03, FR-RET-04)
 // สถานะหลังคืนมาจาก config.ReturnConditionStatus ที่เดียว ไม่ฝังในโค้ด (AGENTS.md กฎข้อ 9)
 // departmentID คือภาควิชาของเจ้าหน้าที่จาก IF-IDP-01 บันทึกได้เฉพาะอุปกรณ์ภาควิชาเดียวกัน (FR-RET-01, ASM-03)
-func (s *Service) RecordReturn(ctx context.Context, assetCode, condition string, departmentID int) (ReturnRecord, error) {
+// audit คือผู้บันทึก (actor) เขียนลง audit_log ใน transaction เดียวกับการรับคืน (FR-RET-07)
+func (s *Service) RecordReturn(ctx context.Context, assetCode, condition string, departmentID int, audit AuditEntry) (ReturnRecord, error) {
 	newStatus, ok := config.ReturnConditionStatus[condition]
 	if !ok {
 		return ReturnRecord{}, ErrUnknownCondition
 	}
-	return s.repo.RecordReturn(ctx, assetCode, condition, newStatus, departmentID)
+	return s.repo.RecordReturn(ctx, assetCode, condition, newStatus, departmentID, audit)
 }

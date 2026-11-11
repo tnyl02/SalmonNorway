@@ -25,13 +25,16 @@ func NewHandler(repo *Repository) *Handler {
 // ทุก endpoint ต้องผ่าน auth.Middleware (IF-IDP-01, NFR-SEC-01) แล้วตามด้วย staffOnly (FR-RET-01, AC-RET-08)
 func (h *Handler) Routes(provider auth.Provider) func(*http.ServeMux) {
 	return func(mux *http.ServeMux) {
-		for pattern, handle := range map[string]http.HandlerFunc{
-			"GET /api/v1/returns/open-loans":     h.openLoans,    // FR-RET-01(ข), FR-RET-06
-			"GET /api/v1/returns/lookup":         h.lookup,       // FR-RET-01(ก)
-			"POST /api/v1/returns":               h.recordReturn, // FR-RET-02, 03, 04, 06, 07
-			"GET /api/v1/returns/loans/{loanId}": h.loanDetail,   // FR-RET-06
+		for _, rt := range []struct {
+			pattern, action string
+			handle          http.HandlerFunc
+		}{
+			{"GET /api/v1/returns/open-loans", actionReturnList, h.openLoans},        // FR-RET-01(ข), FR-RET-06
+			{"GET /api/v1/returns/lookup", actionReturnLookup, h.lookup},             // FR-RET-01(ก)
+			{"POST /api/v1/returns", actionReturn, h.recordReturn},                   // FR-RET-02, 03, 04, 06, 07
+			{"GET /api/v1/returns/loans/{loanId}", actionReturnDetail, h.loanDetail}, // FR-RET-06
 		} {
-			mux.Handle(pattern, auth.Middleware(provider, staffOnly(handle)))
+			mux.Handle(rt.pattern, auth.Middleware(provider, h.staffOnly(rt.action, rt.handle)))
 		}
 	}
 }
@@ -48,100 +51,124 @@ type returnResponse struct {
 
 // recordReturn รับ assetCode, condition (form แบบ urlencoded หรือ multipart) แล้วบันทึกการรับคืน (FR-RET-02, FR-RET-03, FR-RET-04)
 // ไม่อ่านฟิลด์เวลาใด ๆ จาก client เวลาคืนมาจากฐานข้อมูลเท่านั้น (FR-RET-02, ASM-04)
+// สำเร็จ: audit "return" อยู่ใน transaction แล้ว / ไม่สำเร็จ: เขียน audit นอก transaction (FR-RET-07)
 func (h *Handler) recordReturn(w http.ResponseWriter, r *http.Request) {
 	p, ok := principal(w, r)
 	if !ok {
 		return
 	}
-	rec, err := h.svc.RecordReturn(r.Context(), r.FormValue("assetCode"), r.FormValue("condition"), p.DepartmentID)
-	switch {
-	case errors.Is(err, ErrForbiddenDepartment):
-		writeForbiddenDepartment(w)
-	case errors.Is(err, ErrUnknownCondition):
-		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"code": "CONDITION_REQUIRED"})
-	case errors.Is(err, ErrNoOpenLoan):
-		writeJSON(w, http.StatusConflict, map[string]string{"code": "NO_OPEN_LOAN"})
-	case err != nil:
-		log.Printf("returns: record return: %v", err)
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"code": "UPSTREAM_UNAVAILABLE", "retryable": true})
-	default:
+	assetCode := r.FormValue("assetCode")
+	e := newAudit(p, actionReturn)
+	e.AssetCode = assetCode
+	rec, err := h.svc.RecordReturn(r.Context(), assetCode, r.FormValue("condition"), p.DepartmentID, e)
+	if err == nil {
 		writeJSON(w, http.StatusOK, returnResponse(rec))
+		return
 	}
+	status, body := errorResponse(err, "record return")
+	h.respond(w, r, e, status, body)
 }
 
-// lookup หาการยืมที่ยังไม่คืนจากรหัสครุภัณฑ์ ก่อนบันทึกการรับคืน (FR-RET-01(ก))
+// lookup หาการยืมที่ยังไม่คืนจากรหัสครุภัณฑ์ ก่อนบันทึกการรับคืน (FR-RET-01(ก)) audit "return_lookup" (DOM-AUDIT-01)
 // ไม่พบ -> 409 NO_OPEN_LOAN (ข้อความบนหน้าจอและ test ของ AC-RET-03 อยู่ใน T-18, T-19)
 func (h *Handler) lookup(w http.ResponseWriter, r *http.Request) {
 	p, ok := principal(w, r)
 	if !ok {
 		return
 	}
-	ol, err := h.svc.repo.FindOpenLoan(r.Context(), r.URL.Query().Get("assetCode"), p.DepartmentID)
-	switch {
-	case errors.Is(err, ErrForbiddenDepartment):
-		writeForbiddenDepartment(w)
-	case errors.Is(err, ErrNoOpenLoan):
-		writeJSON(w, http.StatusConflict, map[string]string{"code": "NO_OPEN_LOAN"})
-	case err != nil:
-		log.Printf("returns: lookup: %v", err)
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"code": "UPSTREAM_UNAVAILABLE", "retryable": true})
-	default:
-		writeJSON(w, http.StatusOK, ol)
-	}
-}
-
-// loanDetail แสดงรายละเอียดการยืม: เวลาคืน สภาพ และคืนเกินกำหนด (FR-RET-06)
-// รหัสไม่ใช่ตัวเลข หรือไม่มีการยืมนี้ -> 404 LOAN_NOT_FOUND
-func (h *Handler) loanDetail(w http.ResponseWriter, r *http.Request) {
-	loanID, err := strconv.Atoi(r.PathValue("loanId"))
+	assetCode := r.URL.Query().Get("assetCode")
+	e := newAudit(p, actionReturnLookup)
+	e.AssetCode, e.Query = assetCode, map[string]string{"assetCode": assetCode}
+	ol, err := h.svc.repo.FindOpenLoan(r.Context(), assetCode, p.DepartmentID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"code": "LOAN_NOT_FOUND"})
+		status, body := errorResponse(err, "lookup")
+		h.respond(w, r, e, status, body)
 		return
 	}
+	h.respond(w, r, e, http.StatusOK, ol)
+}
+
+// loanDetail แสดงรายละเอียดการยืม: เวลาคืน สภาพ และคืนเกินกำหนด (FR-RET-06) audit "return_detail" (DOM-AUDIT-01)
+// รหัสไม่ใช่ตัวเลข หรือไม่มีการยืมนี้ -> 404 LOAN_NOT_FOUND
+func (h *Handler) loanDetail(w http.ResponseWriter, r *http.Request) {
 	p, ok := principal(w, r)
 	if !ok {
 		return
 	}
-	d, err := h.svc.repo.GetLoan(r.Context(), loanID, p.DepartmentID)
-	switch {
-	case errors.Is(err, ErrForbiddenDepartment):
-		writeForbiddenDepartment(w)
-	case errors.Is(err, ErrLoanNotFound):
-		writeJSON(w, http.StatusNotFound, map[string]string{"code": "LOAN_NOT_FOUND"})
-	case err != nil:
-		log.Printf("returns: loan detail: %v", err)
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"code": "UPSTREAM_UNAVAILABLE", "retryable": true})
-	default:
-		writeJSON(w, http.StatusOK, d)
+	e := newAudit(p, actionReturnDetail)
+	e.Query = map[string]string{"loanId": r.PathValue("loanId")}
+	loanID, err := strconv.Atoi(r.PathValue("loanId"))
+	if err != nil {
+		h.respond(w, r, e, http.StatusNotFound, map[string]string{"code": "LOAN_NOT_FOUND"})
+		return
 	}
+	d, err := h.svc.repo.GetLoan(r.Context(), loanID, p.DepartmentID)
+	if err != nil {
+		status, body := errorResponse(err, "loan detail")
+		h.respond(w, r, e, status, body)
+		return
+	}
+	e.AssetCode = d.AssetCode
+	h.respond(w, r, e, http.StatusOK, d)
 }
 
-// openLoans แสดงรายการการยืมที่ยังไม่คืนของภาควิชาเดียวกับเจ้าหน้าที่ (FR-RET-01(ข), ASM-03)
+// openLoans แสดงรายการการยืมที่ยังไม่คืนของภาควิชาเดียวกับเจ้าหน้าที่ (FR-RET-01(ข), ASM-03) audit "return_list" (DOM-AUDIT-01)
 // ภาควิชามาจากผู้ใช้ที่ยืนยันตัวตนแล้ว (IF-IDP-01) ไม่รับจาก query string
 func (h *Handler) openLoans(w http.ResponseWriter, r *http.Request) {
 	p, ok := principal(w, r)
 	if !ok {
 		return
 	}
+	e := newAudit(p, actionReturnList)
 	loans, err := h.svc.repo.ListOpenLoans(r.Context(), p.DepartmentID)
 	if err != nil {
-		log.Printf("returns: open loans: %v", err)
+		status, body := errorResponse(err, "open loans")
+		h.respond(w, r, e, status, body)
+		return
+	}
+	h.respond(w, r, e, http.StatusOK, loans)
+}
+
+// errorResponse แปลง error ของฟีเจอร์เป็น HTTP status และ body ตามตาราง error ใน plan.md ข้อ 4
+func errorResponse(err error, op string) (int, any) {
+	switch {
+	case errors.Is(err, ErrForbiddenDepartment):
+		return http.StatusForbidden, map[string]string{"code": "FORBIDDEN_DEPARTMENT"} // AC-RET-11
+	case errors.Is(err, ErrUnknownCondition):
+		return http.StatusUnprocessableEntity, map[string]string{"code": "CONDITION_REQUIRED"} // AC-RET-04
+	case errors.Is(err, ErrNoOpenLoan):
+		return http.StatusConflict, map[string]string{"code": "NO_OPEN_LOAN"} // AC-RET-03
+	case errors.Is(err, ErrLoanNotFound):
+		return http.StatusNotFound, map[string]string{"code": "LOAN_NOT_FOUND"}
+	default:
+		log.Printf("returns: %s: %v", op, err)
+		return http.StatusServiceUnavailable, map[string]any{"code": "UPSTREAM_UNAVAILABLE", "retryable": true}
+	}
+}
+
+// respond เขียน audit ของ request นี้ก่อน แล้วจึงตอบ (DOM-AUDIT-01 "ทุกครั้งที่เข้าถึง")
+// เขียน audit ไม่สำเร็จ -> 503 และไม่ส่งข้อมูลกลับ (fail closed แบบเดียวกับ plan 6.4 ของ 001)
+func (h *Handler) respond(w http.ResponseWriter, r *http.Request, e AuditEntry, status int, body any) {
+	e.Outcome = outcomeFor(status)
+	if err := h.svc.repo.WriteAudit(r.Context(), e); err != nil {
+		log.Printf("returns: write audit: %v", err)
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"code": "UPSTREAM_UNAVAILABLE", "retryable": true})
 		return
 	}
-	writeJSON(w, http.StatusOK, loans)
+	writeJSON(w, status, body)
 }
 
 // staffOnly ให้ผ่านเฉพาะเจ้าหน้าที่ บทบาทอื่น (นักศึกษา) ได้ 403 FORBIDDEN_ROLE ก่อนถึง handler
 // จึงไม่มีการอ่านหรือเขียนข้อมูลการยืมเลย (FR-RET-01 "เจ้าหน้าที่", RQ-11, AC-RET-08)
-func staffOnly(next http.HandlerFunc) http.HandlerFunc {
+// การถูกปฏิเสธบันทึกลง audit ด้วย action ของ endpoint นั้น outcome forbidden (DOM-AUDIT-01)
+func (h *Handler) staffOnly(action string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		p, ok := principal(w, r)
 		if !ok {
 			return
 		}
 		if p.Role != auth.RoleStaff {
-			writeJSON(w, http.StatusForbidden, map[string]string{"code": "FORBIDDEN_ROLE"})
+			h.respond(w, r, newAudit(p, action), http.StatusForbidden, map[string]string{"code": "FORBIDDEN_ROLE"})
 			return
 		}
 		next(w, r)
@@ -155,11 +182,6 @@ func principal(w http.ResponseWriter, r *http.Request) (auth.Principal, bool) {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"code": "UNAUTHENTICATED"})
 	}
 	return p, ok
-}
-
-// writeForbiddenDepartment ตอบ 403 เมื่ออุปกรณ์เป็นของภาควิชาอื่น ไม่ส่งข้อมูลการยืมกลับ (AC-RET-11, ASM-03)
-func writeForbiddenDepartment(w http.ResponseWriter) {
-	writeJSON(w, http.StatusForbidden, map[string]string{"code": "FORBIDDEN_DEPARTMENT"})
 }
 
 // writeJSON ตอบ JSON และตั้ง Cache-Control: no-store ทุก response ของ 006 (plan.md ข้อ 4, NFR-DATA-01)

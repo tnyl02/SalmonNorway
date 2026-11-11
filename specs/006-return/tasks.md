@@ -413,7 +413,7 @@ task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01, T-18, T-20, T-22
 - เสร็จเมื่อ: `TestAC_RET_07_ReturnAudited` ผ่าน (บันทึกสำเร็จมีแถว `action='return'` `outcome='ok'` อยู่ใน transaction เดียวกัน, ถูกปฏิเสธมี `outcome='forbidden'`, การอ่านมี `return_list` / `return_lookup` / `return_detail`)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 - ความสำคัญ: ต้องทำ
 
 #### จุดตรวจเฟส 12

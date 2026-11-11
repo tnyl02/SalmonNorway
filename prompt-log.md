@@ -920,3 +920,29 @@
 
 ### สิ่งที่เกือบต้องเดา
 - ไม่มี (error code `FORBIDDEN_ROLE` มาจากตาราง error ของ plan.md ข้อ 4)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-23 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 12)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำเลย" -> `/implement T-23 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- ตามช่องไฟล์ที่แตะ: `handler.go` (ทุกคำตอบผ่าน `respond` ที่เขียน audit ก่อนตอบ, `errorResponse` รวมการแปลง error,
+  `staffOnly` เขียน audit forbidden ด้วย action ของ endpoint), `service.go` (ส่ง AuditEntry เข้า transaction),
+  `handler_test.go` (`TestAC_RET_07_ReturnAudited`, ตัวช่วย `auditRowsOf`)
+- นอกช่องไฟล์ที่แตะ: สร้าง `backend/internal/returns/audit.go` (ยังไม่มี package audit ของ 001 จึงเขียนใน returns ใช้คอลัมน์ DM-07 เดิม),
+  แก้ `repository.go` (`RecordReturn` เขียน audit "return" ใน transaction เดียวกัน ตามช่อง "เสร็จเมื่อ")
+
+### ผล test (`cd backend && go test ./... -v`)
+- TestAC_RET_07_ReturnAudited PASS (lookup / return / detail / list ของเจ้าหน้าที่ outcome ok ครบตามลำดับ, บันทึกซ้ำ 409 = error,
+  lookup เก็บเงื่อนไขที่ค้นใน query, audit ของการคืนสำเร็จมีเวลาเท่า returned_at = transaction เดียวกัน, นักศึกษาได้ outcome forbidden)
+- test ทั้งหมดของ backend ยัง PASS (returns 16 tests)
+
+### สิ่งที่เกือบต้องเดา (ทีมต้องยืนยัน)
+- การจับคู่ outcome: 2xx = ok, 403 = forbidden, อื่น ๆ (409, 422, 404, 503) = error เพราะ DM-07 มีแค่ 3 ค่า
+- เขียน audit ไม่สำเร็จตอบ 503 ไม่ส่งข้อมูล (fail closed ตามแนว plan 6.4 ของ 001)
+- ไม่เก็บสถานะก่อน/หลังใน audit (รอ Q-09 T-26)

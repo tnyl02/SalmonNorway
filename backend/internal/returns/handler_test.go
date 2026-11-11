@@ -971,3 +971,106 @@ func TestAC_RET_08_StudentForbidden(t *testing.T) {
 		t.Errorf("เจ้าหน้าที่: status = %d, want 200", rec.Code)
 	}
 }
+
+type auditRow struct {
+	Role, Action, AssetCode, Outcome string
+	Query                            *string
+}
+
+// auditRowsOf อ่าน audit_log ของผู้ใช้ actorID เรียงตามลำดับที่เขียน
+func auditRowsOf(t *testing.T, pool *pgxpool.Pool, actorID string) []auditRow {
+	t.Helper()
+	rows, err := pool.Query(context.Background(), `
+		SELECT actor_role, action, coalesce(asset_code, ''), outcome, query::text
+		FROM audit_log WHERE actor_id = $1 ORDER BY id`, actorID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var out []auditRow
+	for rows.Next() {
+		var a auditRow
+		if err := rows.Scan(&a.Role, &a.Action, &a.AssetCode, &a.Outcome, &a.Query); err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, a)
+	}
+	return out
+}
+
+// AC-RET-07 (FR-RET-07, DOM-AUDIT-01)
+//
+//	Given เจ้าหน้าที่บันทึกการรับคืนสำเร็จ
+//	When  การบันทึกเสร็จสิ้น
+//	Then  มี audit log ของการรับคืนครั้งนั้นตามที่ DOM-AUDIT-01 กำหนด (ผู้เข้าถึง เวลา เงื่อนไขที่ค้น)
+//
+// ตรวจเพิ่มตาม T-23: การอ่านทุก endpoint มี audit และการถูกปฏิเสธมี outcome forbidden
+func TestAC_RET_07_ReturnAudited(t *testing.T) {
+	pool := testPool(t)
+	ctx := context.Background()
+	provider := fixedProvider{
+		"staff-t23":   {UserID: "staff-t23", Role: auth.RoleStaff, DepartmentID: 1},
+		"student-t23": {UserID: "student-t23", Role: auth.RoleStudent, DepartmentID: 1},
+	}
+	router := platform.NewRouter(pool, platform.Routes(NewHandler(NewRepository(pool)).Routes(provider)))
+
+	// Given
+	insertBorrowedItem(t, pool, "T23-AUDIT", 2*time.Hour)
+
+	// When: เจ้าหน้าที่ค้นหา บันทึกคืนสำเร็จ เปิดรายละเอียด เปิดรายการ และบันทึกซ้ำ (ไม่มีการยืมค้างแล้ว)
+	call(router, http.MethodGet, "/api/v1/returns/lookup?assetCode=T23-AUDIT", "staff-t23")
+	rec := postReturn(t, router, "staff-t23", map[string]string{"assetCode": "T23-AUDIT", "condition": "normal"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("บันทึกคืน: status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	var created struct {
+		LoanID int `json:"loanId"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &created)
+	call(router, http.MethodGet, fmt.Sprintf("/api/v1/returns/loans/%d", created.LoanID), "staff-t23")
+	call(router, http.MethodGet, "/api/v1/returns/open-loans", "staff-t23")
+	postReturn(t, router, "staff-t23", map[string]string{"assetCode": "T23-AUDIT", "condition": "normal"})
+
+	// Then: แถว audit ของเจ้าหน้าที่ครบตามลำดับ
+	got := auditRowsOf(t, pool, "staff-t23")
+	want := []struct{ action, asset, outcome string }{
+		{"return_lookup", "T23-AUDIT", "ok"},
+		{"return", "T23-AUDIT", "ok"},
+		{"return_detail", "T23-AUDIT", "ok"},
+		{"return_list", "", "ok"},
+		{"return", "T23-AUDIT", "error"}, // 409 NO_OPEN_LOAN
+	}
+	if len(got) != len(want) {
+		t.Fatalf("audit ของเจ้าหน้าที่ = %+v, want %d แถว", got, len(want))
+	}
+	for i, w := range want {
+		g := got[i]
+		if g.Role != "staff" || g.Action != w.action || g.AssetCode != w.asset || g.Outcome != w.outcome {
+			t.Errorf("แถว %d = %+v, want action=%s asset=%q outcome=%s role=staff", i, g, w.action, w.asset, w.outcome)
+		}
+	}
+	if got[0].Query == nil || !strings.Contains(*got[0].Query, "T23-AUDIT") {
+		t.Errorf("return_lookup ต้องเก็บเงื่อนไขที่ค้น: query = %v", got[0].Query)
+	}
+
+	// แถว "return" ที่สำเร็จมีเวลา และอยู่ใน transaction เดียวกับการปิดการยืม: เวลาเท่ากับ returned_at
+	var sameTx bool
+	if err := pool.QueryRow(ctx, `
+		SELECT a.occurred_at = l.returned_at
+		FROM audit_log a, loan l
+		WHERE a.actor_id = 'staff-t23' AND a.action = 'return' AND a.outcome = 'ok' AND l.id = $1`, created.LoanID).Scan(&sameTx); err != nil {
+		t.Fatal(err)
+	}
+	if !sameTx {
+		t.Error("audit ของการรับคืนสำเร็จต้องเขียนใน transaction เดียวกับการปิดการยืม (now() เท่ากัน)")
+	}
+
+	// นักศึกษาถูกปฏิเสธ: มี audit outcome forbidden
+	postReturn(t, router, "student-t23", map[string]string{"assetCode": "T23-AUDIT", "condition": "normal"})
+	call(router, http.MethodGet, "/api/v1/returns/open-loans", "student-t23")
+	st := auditRowsOf(t, pool, "student-t23")
+	if len(st) != 2 || st[0].Action != "return" || st[1].Action != "return_list" ||
+		st[0].Outcome != "forbidden" || st[1].Outcome != "forbidden" || st[0].Role != "student" {
+		t.Errorf("audit ของนักศึกษา = %+v, want return และ return_list outcome forbidden", st)
+	}
+}
