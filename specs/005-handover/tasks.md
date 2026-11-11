@@ -126,7 +126,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
 - เสร็จเมื่อ: `TestVerifier_Mock` ผ่าน (interface คืนรหัสนักศึกษาของผู้ที่ยืนยันตัวตน ตัวจำลองใช้ผู้ใช้จาก `auth.MockProvider`)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 ### T-09 สร้าง API ยืนยันตัวตนผู้ยืม
 - รองรับ: FR-HND-02, IF-IDP-01

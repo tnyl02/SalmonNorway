@@ -1380,3 +1380,15 @@
 - ไม่ได้สร้าง config_test.go เพราะไม่อยู่ในช่อง "ไฟล์ที่แตะ" และ branch ของ 003 มีไฟล์ชื่อนี้อยู่แล้ว (จะชนตอน merge)
 - สิ่งที่ AI เกือบต้องเดา: ค่าเริ่มต้นของ `PHOTO_DIR` (plan บอกแค่ `/data/photos/handover/`) ใช้ `/data/photos` ตามที่ plan v1.1 เขียนว่า volume mount ที่ `/data/photos`
   และใช้ชื่อ `LoanNormalReturnHour` ตาม plan ของ 002 ที่ยังไม่ได้ใส่ในโค้ด ต้องแจ้งเจ้าของ 002 ให้ใช้ตัวนี้
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-08
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่สร้าง: `backend/internal/handover/verifier.go` (interface `BorrowerVerifier`, `MockBorrowerVerifier`, `ErrBorrowerNotVerified`), `backend/internal/handover/verifier_test.go`
+- ผล test: `TestVerifier_Mock` ผ่าน (2 subtest: token ถูกต้องคืนรหัสผู้ใช้ / token ว่างหรือไม่รู้จักคืน ErrBorrowerNotVerified)
+- สิ่งที่ AI เกือบต้องเดาแต่ไม่ทำ: ไม่ตรวจว่าผู้ยืมต้องเป็นบทบาทนักศึกษา (spec ไม่บอก), ไม่คืนชื่อ-นามสกุล (ที่มารอ Q-HND-13),
+  credential เป็น token จำลองเท่านั้น (รูปแบบจริงรอ Q-HND-11) ไม่ใส่ timeout (เป็นงานของ T-13)
