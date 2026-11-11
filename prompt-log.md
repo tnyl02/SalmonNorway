@@ -1957,3 +1957,17 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - แก้: ข้อความ Status ของ constraints.md v5.1 ให้ตรงว่าเพิ่ม 2 รหัสใหม่ และ FORBIDDEN_ROLE แถวเดียวกับของ 004
 - ผล test: `go test -p 1 ./...` ผ่านทุก package (auth, borrowrequest, config, equipment, handover, platform) `npx vitest run` 23 test ผ่าน `vite build` ผ่าน
   รอบแรกที่รันพร้อมกันหลาย package test ของ equipment ล้มเพราะ testcontainers ต่อ Docker ไม่ได้ชั่วคราว รันซ้ำแล้วผ่าน ไม่ใช่ปัญหาของโค้ด
+
+---
+
+## 2569-11-12 ตรวจชื่อ commit ให้ตรงรูปแบบหลัก
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ไป recheck ชื่อ commit ไป push ไปดูของคนอื่น แล้วทำในรูปแบบหลัก" แล้ว "อนุญาต force push"
+- รูปแบบหลัก (specs/README.md ขั้น 2-5 และ commit ใน main): `00N: spec vX`, `00N: plan vX`, `00N: tasks vX`, `00N: T-xx done` รายละเอียดเพิ่มต่อด้วย ` - `
+- แก้ชื่อ 2 commit (เนื้อหาไฟล์ไม่เปลี่ยน ตรวจด้วย git diff): `005: spec v2.6 ปิด ...` เป็น `005: spec v2.6 - ปิด ...`
+  และ `005: spec v2.5, plan v1.3, tasks v1.3` เป็น `005: tasks v1.3 - รวม spec v2.5 และ plan v1.3 ...` (ไม่มี commit tasks v1 แยกตาม README)
+- force push ด้วย `--force-with-lease=005-handover:3e24726` ตามที่ทีมอนุญาต (branch ของ 005 คนเดียว ยังไม่มี PR) remote เป็น 1876206
+- ไม่ได้สร้าง commit `T-xx reviewed` เพราะต้องให้คนในทีมตรวจจริงก่อน
