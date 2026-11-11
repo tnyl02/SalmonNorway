@@ -586,3 +586,57 @@ func TestAC_HND_06_TwoJpgPhotosSaved(t *testing.T) {
 		t.Errorf("มีรูป %d รูปผูกกับการยืม ต้องเป็น 2", n)
 	}
 }
+
+// dirEntries นับรายการในโฟลเดอร์รูปของ test (ไม่มีโฟลเดอร์ = 0)
+func dirEntries(t *testing.T) int {
+	t.Helper()
+	entries, err := os.ReadDir(testPhotoRoot)
+	if os.IsNotExist(err) {
+		return 0
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	return len(entries)
+}
+
+// AC-HND-12 (FR-HND-06) กรณี (ก) 1 รูป และ (ข) GIF ส่วน (ค) 11 MB รอ Q-HND-10 (T-28)
+// Given คำขอยืมแบบปกติที่ได้รับอนุมัติแล้ว
+// When  เจ้าหน้าที่บันทึกการส่งมอบโดยแนบรูป (ก) 1 รูป หรือ (ข) ไฟล์ GIF
+// Then  ระบบไม่บันทึกการส่งมอบในทุกกรณี และไม่มี Loan ถูกสร้าง (และไม่มีไฟล์ค้างบนดิสก์ T-21)
+func TestAC_HND_12_InvalidPhotos(t *testing.T) {
+	pool := testPool(t)
+	h := routesOnly(pool)
+	gif := []byte("GIF89a\x01\x00\x01\x00\x00\x00\x00")
+
+	for i, tc := range []struct {
+		name   string
+		photos []photoFile
+	}{
+		{"ก_1_รูป", []photoFile{{"1.jpg", "image/jpeg", testJPEG(1024)}}},
+		{"ข_GIF", []photoFile{{"1.jpg", "image/jpeg", testJPEG(1024)}, {"2.gif", "image/gif", gif}}},
+		{"ข_GIF_ตั้งชื่อเป็น_jpg", []photoFile{{"1.jpg", "image/jpeg", testJPEG(1024)}, {"2.jpg", "image/jpeg", gif}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			itemID := createItem(t, pool, "T12-PH-000"+strconv.Itoa(i+1), "available")
+			requestID := createRequest(t, pool, "student-001", itemID, "approved")
+			before := dirEntries(t)
+
+			rec := postHandover(t, h, tokenStaff, requestID, validForm(tokenStudentA), tc.photos)
+			var e ErrorDTO
+			_ = json.Unmarshal(rec.Body.Bytes(), &e)
+			if rec.Code != http.StatusUnprocessableEntity || e.Code != "VALIDATION_FAILED" || len(e.Fields) != 1 || e.Fields[0] != "photos" {
+				t.Fatalf("HTTP %d %+v ต้องเป็น 422 VALIDATION_FAILED ช่อง photos", rec.Code, e)
+			}
+			if n := countLoans(t, pool, itemID); n != 0 {
+				t.Errorf("มี Loan %d รายการ ต้องไม่มี", n)
+			}
+			if s := statusOf(t, pool, "equipment_item", itemID); s != "available" {
+				t.Errorf("สถานะอุปกรณ์ = %q ต้องเป็น available", s)
+			}
+			if after := dirEntries(t); after != before {
+				t.Errorf("โฟลเดอร์รูปมี %d รายการ (ก่อน %d) มีไฟล์ค้าง", after, before)
+			}
+		})
+	}
+}

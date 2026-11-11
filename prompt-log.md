@@ -1592,3 +1592,14 @@
 - ผล test: `TestAC_HND_06_TwoJpgPhotosSaved` ผ่าน (JPG 2 รูป รูปละ 2 MB ได้ 201 มี 2 แถวผูกกับ Loan ไฟล์อยู่ที่ `<root>/<loanId>/` ขนาดตรง) `go test ./...` ผ่าน
 - test เก็บรูปที่โฟลเดอร์ชั่วคราวของระบบ ไม่เขียนลง `/data/photos` ของเครื่อง
 - ขนาด 10 MB ยังไม่ตรวจ (T-28 รอ Q-HND-10)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-21
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/handler_test.go`
+- ผล test: `TestAC_HND_12_InvalidPhotos` ผ่าน 3 กรณี ((ก) 1 รูป, (ข) GIF, (ข) GIF ที่ตั้งชื่อและ Content-Type เป็น jpg) ได้ 422 ช่อง photos ไม่มี Loan อุปกรณ์ available ไม่มีไฟล์ค้าง
+- กรณี (ค) 11 MB ยังไม่ทำ (T-28 รอ Q-HND-10)
