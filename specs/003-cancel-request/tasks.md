@@ -200,7 +200,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-04
 - เสร็จเมื่อ: `TestAC_CXL_12_EmptyList` ผ่าน (คืน `items: []`)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 ### T-12 แสดงข้อความเมื่อไม่มีคำขอ
 - รองรับ: FR-CXL-06
@@ -231,7 +231,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06
 - เสร็จเมื่อ: `TestAC_CXL_05_OtherRequestsOnSameItemUnchanged` ผ่าน
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 6
 - test ที่ต้องผ่านทั้งหมด: `TestAC_CXL_05_OtherRequestsOnSameItemUnchanged` และ test ของเฟส 0-5
@@ -253,7 +253,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06
 - เสร็จเมื่อ: `TestAC_CXL_10_CancelOvernightApprovedByOfficer` ผ่าน (`approved_by_officer` และ `pending_advisor_approval` ยกเลิกได้ทั้งคู่)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 7
 - test ที่ต้องผ่านทั้งหมด: `TestAC_CXL_10_CancelOvernightApprovedByOfficer` และ test ของเฟส 0-6
@@ -306,7 +306,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-15
 - เสร็จเมื่อ: `TestAC_CXL_11_RejectedAndCancelledNotCancellable` ผ่าน (`rejected` และ `cancelled` -> 409 `NOT_CANCELLABLE` สถานะคงเดิม)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 ### T-18 แสดงข้อความ "คำขอนี้ยกเลิกไม่ได้"
 - รองรับ: FR-CXL-02
@@ -368,7 +368,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-15
 - เสร็จเมื่อ: `TestAC_CXL_04_ApprovedBeforeConfirm` ผ่าน (GET เห็นคำขอ -> UPDATE ในฐานข้อมูลเป็น approved แทน 004 -> POST cancel -> 409 `ALREADY_APPROVED` สถานะยัง approved)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 ### T-22 ทดสอบหน้าจอเมื่อกดยืนยันแล้วได้ผลว่าอนุมัติแล้ว
 - รองรับ: FR-CXL-04, FR-CXL-07
@@ -430,7 +430,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06
 - เสร็จเมื่อ: `TestAC_CXL_07_ExpiredSessionNoCancel` ผ่าน (ไม่มี token หรือ token ไม่รู้จัก -> 401 `UNAUTHENTICATED` สถานะไม่เปลี่ยน) ส่วนตรวจ audit_log อยู่ที่ T-31
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 ### T-26 พาไปหน้าเข้าสู่ระบบและกลับมาหน้าเดิม
 - รองรับ: IF-IDP-01

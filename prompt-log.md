@@ -1930,3 +1930,32 @@
   คืนข้อมูล 3002 เป็น requested ของ student-001 หลังทดสอบ
 - ผล: เปลี่ยนสถานะใน tasks.md ของ T-18, T-20 เป็น "เสร็จ"
 
+---
+
+## 2569-11-12 /implement T-11, T-13, T-14, T-17, T-21, T-25 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: ทำกลุ่ม task test ยืนยันหลังบ้าน 6 ตัวในรอบเดียว (ทีมสั่งเป็นกลุ่ม ไม่ใช่ทีละ task ตาม implement.md)
+- ไฟล์ที่แก้: backend/internal/cancelrequest/handler_test.go เท่านั้น ไม่ต้องแก้โค้ด เพราะพฤติกรรมถูกต้องแล้วจาก T-04, T-06, T-15, T-19
+  - T-11: TestAC_CXL_12_EmptyList (มีแต่คำขอที่ยกเลิกไม่ได้ -> items [] ไม่ใช่ null)
+  - T-13: TestAC_CXL_05_OtherRequestsOnSameItemUnchanged (ยกเลิกของ A คำขอของ B บนชิ้นเดียวกันและสถานะอุปกรณ์ไม่เปลี่ยน)
+  - T-14: TestAC_CXL_10_CancelOvernightApprovedByOfficer (approved_by_officer และ pending_advisor_approval ยกเลิกได้)
+  - T-17: TestAC_CXL_11_RejectedAndCancelledNotCancellable (rejected, cancelled, handed_over, returned -> 409 NOT_CANCELLABLE)
+    ช่องไฟล์ที่แตะมี service.go ด้วย แต่ไม่ต้องแก้ เพราะ T-15/T-19 แยกสาเหตุไว้แล้ว
+  - T-21: TestAC_CXL_04_ApprovedBeforeConfirm (GET เห็นคำขอ -> UPDATE เป็น approved แทน 004 -> POST -> 409 ALREADY_APPROVED)
+  - T-25: TestAC_CXL_07_ExpiredSessionNoCancel (ไม่มี token และ token ที่ไม่รู้จัก -> 401 สถานะไม่เปลี่ยน ส่วน audit_log อยู่ใน T-31)
+- ผล test: 6 test ใหม่ผ่านทั้งหมด package cancelrequest ผ่านทั้งหมด
+- สิ่งที่เกือบต้องเดา: ไม่มี (AC ใน spec ครบ)
+- สถานะใน tasks.md: T-11, T-13, T-14, T-17, T-21, T-25 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-12 ทีมตรวจ T-11, T-13, T-14, T-17, T-21, T-25 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ: รัน test ใน backend ผ่านทั้ง 6 ตัว (TestAC_CXL_12_EmptyList, 05, 10, 11, 04, 07) ไม่ได้ลองบนจอจริงเพราะเป็น test อย่างเดียว
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-11, T-13, T-14, T-17, T-21, T-25 เป็น "เสร็จ"
+
