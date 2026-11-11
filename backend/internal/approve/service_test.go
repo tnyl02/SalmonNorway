@@ -170,3 +170,57 @@ func TestAC_APV_02(t *testing.T) {
 		t.Errorf("ต้องมี audit_log action reject 1 แถว แต่ได้ %d", audits)
 	}
 }
+
+// AC-APV-03 (FR-APV-01 จ, DOM-REQ-01)
+// Given อุปกรณ์รายชิ้นเดียวกันมีคำขอ A (ส่งก่อน) และ B สถานะ requested (AP-TEST-0001 ใน approve_dev.sql)
+// When  เจ้าหน้าที่อนุมัติคำขอ A
+// Then  คำขอ A เป็น approved คำขอ B เป็น rejected ด้วยเหตุผล "อุปกรณ์ชิ้นนี้ได้รับการอนุมัติให้คำขออื่นแล้ว"
+//
+//	ผู้ดำเนินการคือเจ้าหน้าที่คนนั้น (T-16 เสร็จเมื่อ: มี audit_log action reject และ Email ผลปฏิเสธของ B)
+func TestAC_APV_03(t *testing.T) {
+	tx := devTx(t)
+	ctx := staffCtx("staff-001", 1)
+	a := requestIDOf(t, tx, "AP-TEST-0001", "student-001")
+	b := requestIDOf(t, tx, "AP-TEST-0001", "student-002")
+	c := requestIDOf(t, tx, "AP-TEST-0001", "student-003") // คำขอค้างคืนของชิ้นเดียวกัน (Q-APV-14)
+
+	res, err := NewService(NewRepository(tx)).Approve(ctx, a)
+	if err != nil {
+		t.Fatalf("อนุมัติ A ต้องสำเร็จ: %v", err)
+	}
+	if len(res.RejectedBy) != 2 {
+		t.Errorf("ต้องปฏิเสธตาม 2 คำขอ (B และค้างคืน C) แต่ได้ %v", res.RejectedBy)
+	}
+
+	status := func(id int) string {
+		t.Helper()
+		var s string
+		if err := tx.QueryRow(context.Background(), `SELECT status FROM borrow_request WHERE id = $1`, id).Scan(&s); err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	if status(a) != "approved" || status(b) != "rejected" || status(c) != "rejected" {
+		t.Errorf("A ต้อง approved, B และ C ต้อง rejected แต่ได้ %s / %s / %s", status(a), status(b), status(c))
+	}
+
+	for _, id := range []int{b, c} {
+		var result, reason, actor string
+		if err := tx.QueryRow(context.Background(),
+			`SELECT result, reason, actor_id FROM approval_decision WHERE request_id = $1`, id).Scan(&result, &reason, &actor); err != nil {
+			t.Fatalf("คำขอ %d ต้องมี approval_decision: %v", id, err)
+		}
+		if result != "rejected" || reason != config.ApprovalSupersededReason || actor != "staff-001" {
+			t.Errorf("คำขอ %d ได้ %q / %q / %q", id, result, reason, actor)
+		}
+		var audits, emails int
+		if err := tx.QueryRow(context.Background(), `
+			SELECT (SELECT count(*) FROM audit_log WHERE request_id = $1 AND action = 'reject'),
+			       (SELECT count(*) FROM approval_email WHERE request_id = $1 AND kind = 'rejected')`, id).Scan(&audits, &emails); err != nil {
+			t.Fatal(err)
+		}
+		if audits != 1 || emails != 1 {
+			t.Errorf("คำขอ %d ต้องมี audit_log reject 1 แถว และ Email ผลปฏิเสธ 1 ฉบับ แต่ได้ %d / %d", id, audits, emails)
+		}
+	}
+}

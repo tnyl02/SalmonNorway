@@ -3675,3 +3675,25 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ฟีเจอร์: 004-approve-request
 - คำสั่ง: "ตรวจแล้วผ่าน"
 - สิ่งที่แก้: tasks.md T-15 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-16 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "ตรวจแล้วผ่าน" (T-15 -> เสร็จ)
+- คำสั่ง: "/implement T-16"
+- ไฟล์ที่แก้: `backend/internal/approve/service.go` (`Approve` เรียก `rejectSuperseded` ใน transaction เดียวกัน: คำขอ requested อื่นของชิ้นเดียวกันทุกประเภทเป็น rejected พร้อม approval_decision เหตุผล ApprovalSupersededReason, audit_log reject, Email ผลปฏิเสธ คืนรหัสใน RejectedBy), `service_test.go` (`TestAC_APV_03` ตรวจ A approved, B และค้างคืน C rejected), `specs/004-approve-request/tasks.md`
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): ใช้แถวที่ล็อกไว้แล้วจาก lockItemRequests ไม่ query ซ้ำ; test ตรวจคำขอค้างคืน C ด้วย (ส่วนของ AC-APV-17 ที่ยัง [เสนอ] T-31 จะตรวจแยกอีกครั้ง)
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-16 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจแล้วผ่าน"
+- สิ่งที่แก้: tasks.md T-16 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)

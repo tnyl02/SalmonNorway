@@ -66,8 +66,9 @@ var ErrNotRequested = errors.New("คำขอนี้ไม่ได้อย�
 //   - คำขอเป็น approved บันทึก approval_decision และ audit_log action approve (RQ-25)
 //   - ไม่เปลี่ยนสถานะอุปกรณ์ ยังเป็น "ว่าง" จนกว่า 005 ส่งมอบ (CON-DATA-01, data-model.md แถว UC-12)
 //
-// การตรวจคำขอแรก (T-17), อุปกรณ์ว่าง (T-19), เวลาตัด 16:00 (T-21), ภาควิชา (T-25),
-// และปฏิเสธคำขออื่นตาม (T-16) เพิ่มใน task ของแต่ละเรื่อง
+//   - คำขออื่นที่ยังเป็น requested ของอุปกรณ์ชิ้นเดียวกัน ทั้งยืมปกติและค้างคืน ถูกปฏิเสธตามทันที (FR-APV-01 จ, Q-APV-14, T-16)
+//
+// การตรวจคำขอแรก (T-17), อุปกรณ์ว่าง (T-19), เวลาตัด 16:00 (T-21) และภาควิชา (T-25) เพิ่มใน task ของแต่ละเรื่อง
 func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
 	p, err := staff(ctx)
 	if err != nil {
@@ -75,7 +76,7 @@ func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
 	}
 	var out Result
 	err = s.repo.inTx(ctx, func(tx *Repository) error {
-		target, _, ok, err := tx.lockItemRequests(ctx, requestID)
+		target, all, ok, err := tx.lockItemRequests(ctx, requestID)
 		if err != nil {
 			return err
 		}
@@ -104,10 +105,49 @@ func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
 		if err := tx.insertEmail(ctx, target.ID, config.ApprovalKindApproved, s.now()); err != nil {
 			return err
 		}
-		out = Result{RequestID: target.ID, Status: config.StatusApproved, DecidedAt: at, RejectedBy: []int{}}
+		rejected, err := s.rejectSuperseded(ctx, tx, p, target, all)
+		if err != nil {
+			return err
+		}
+		out = Result{RequestID: target.ID, Status: config.StatusApproved, DecidedAt: at, RejectedBy: rejected}
 		return nil
 	})
 	return out, err
+}
+
+// rejectSuperseded ปฏิเสธคำขออื่นที่ยังเป็น requested ของอุปกรณ์ชิ้นเดียวกับคำขอที่เพิ่งอนุมัติ (FR-APV-01 จ, Q-SH-06)
+//   - รวมคำขอค้างคืนด้วย (Q-APV-14) แถวทั้งหมดถูกล็อกไว้แล้วใน lockItemRequests
+//   - เหตุผล config.ApprovalSupersededReason ผู้ดำเนินการคือเจ้าหน้าที่ที่กดอนุมัติ
+//   - แต่ละใบมี approval_decision, audit_log action reject และ Email ผลปฏิเสธ (FR-APV-02 ข, RQ-25)
+//
+// คืนรหัสคำขอที่ถูกปฏิเสธตาม ให้หน้าจอเอาออกจากรายการ (plan.md ข้อ 4)
+func (s *Service) rejectSuperseded(ctx context.Context, tx *Repository, p auth.Principal, approved requestRow, all []requestRow) ([]int, error) {
+	rejected := []int{}
+	for _, other := range all {
+		if other.ID == approved.ID || other.Status != config.StatusRequested {
+			continue
+		}
+		if err := tx.setStatus(ctx, other.ID, config.StatusRejected); err != nil {
+			return nil, err
+		}
+		if _, err := tx.insertDecision(ctx, decision{
+			RequestID:         other.ID,
+			Result:            config.ApprovalKindRejected,
+			Reason:            config.ApprovalSupersededReason,
+			ActorID:           p.UserID,
+			ActorDepartmentID: p.DepartmentID,
+		}); err != nil {
+			return nil, err
+		}
+		if err := tx.insertAudit(ctx, p.UserID, string(p.Role), config.AuditActionReject, other.AssetCode, other.ID); err != nil {
+			return nil, err
+		}
+		if err := tx.insertEmail(ctx, other.ID, config.ApprovalKindRejected, s.now()); err != nil {
+			return nil, err
+		}
+		rejected = append(rejected, other.ID)
+	}
+	return rejected, nil
 }
 
 // ErrReasonRequired เกิดเมื่อปฏิเสธโดยไม่ระบุเหตุผล (FR-APV-01 ง, AC-APV-06, CON-TECH-03 VALIDATION_FAILED ช่อง reason)
