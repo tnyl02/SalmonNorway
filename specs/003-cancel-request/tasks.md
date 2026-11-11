@@ -53,7 +53,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: `TestConfig_CancellableStatuses` ผ่าน (มี 3 ค่า requested, approved_by_officer, pending_advisor_approval) และ `CancelDBTimeout` น้อยกว่า 15 วินาที (ตัวเลขทีมเลือกเอง จดใน prompt-log)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 #### จุดตรวจเฟส 0
 - test ที่ต้องผ่านทั้งหมด: `TestMigration_BorrowRequestStatusCheck`, `TestMigration_CancelReasonMaxLen`, `TestConfig_CancellableStatuses` และ test ของ 001 ต้องยังผ่าน

@@ -889,3 +889,23 @@
     กล่องยืนยันเป็น dialog มี textbox ตัวนับ "x/200" ปุ่ม "ยืนยัน" / "ไม่ยืนยัน" ปุ่มในแถวชื่อ "ยกเลิก" ปุ่มโหลดใหม่ชื่อ "ลองใหม่"
   - ล้างข้อมูลระหว่าง test ด้วย DELETE FROM borrow_request ถ้า 002 เพิ่ม FK จาก audit_log ต้องแก้ตัวช่วย
 - ต้องติดตั้ง dependency หน้าจอก่อนรัน: `cd frontend && npm ci`
+
+---
+
+## 2569-11-11 /implement T-03 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request (แก้ของกลาง config.go และ config.js เพราะ 003)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้โหลดใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-03 เพิ่มค่าที่ตั้งได้ของ 003 ใน config
+- ไฟล์ที่แก้หรือสร้าง (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - backend/internal/config/config.go: CancellableStatuses() (CON-CXL-02), CancelReasonMaxLen = 200 (FR-CXL-08), CancelPerfP95 = 15s (NFR-PERF-CXL-01), CancelDBTimeout = 5s (ASM-06)
+  - backend/internal/config/config_test.go (ใหม่): TestConfig_CancellableStatuses, TestConfig_CancelLimits
+  - frontend/src/config.js: CANCEL_REASON_MAX_LEN, MSG_NO_PENDING, MSG_LOAD_FAILED, LABEL_RETRY, MSG_CANCEL_SUCCESS, MSG_ALREADY_APPROVED, MSG_NOT_CANCELLABLE, MSG_REQUEST_NOT_FOUND
+  - ไม่เพิ่ม DisplayTimezone / DISPLAY_TIMEZONE เพราะ 001 มี TimeZone / TIME_ZONE = Asia/Bangkok แล้ว ใช้ตัวเดิม
+- ผล test: `go test ./internal/config/ -v` ผ่าน 2/2, `go build ./...` ผ่าน, test ของ auth / equipment / platform ยังผ่าน,
+  `npm test` test ของ 001 ยังผ่าน 17/17 (TC-CXL 10 ไฟล์ยังไม่ผ่านเพราะยังไม่มีหน้าจอ ตามคาด)
+- สิ่งที่เกือบต้องเดาแต่ถามแทน:
+  1. CancelDBTimeout ใช้กี่วินาที -> ทีม: 5 วินาที (ตามตัวอย่างใน plan ของ 001)
+  2. ข้อความกรณีอนุมัติแล้ว -> ทีม: "ยกเลิกไม่ได้ เพราะคำขอได้รับการอนุมัติแล้ว" (ตามคำใน FR-CXL-02)
+- สถานะใน tasks.md: T-03 เสร็จ รอทีมตรวจ
