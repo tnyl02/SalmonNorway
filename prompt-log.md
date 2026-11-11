@@ -1501,3 +1501,17 @@
 - ผล test: `TestAC_HND_14_ListApprovedOnly` ผ่าน (อนุมัติแล้ว 2 รายการ คนละชิ้น ยังไม่อนุมัติ 1 ส่งมอบแล้ว 1 ได้กลับมา 2 รายการพร้อม assetCode) `go test ./...` ผ่าน
 - สิ่งที่ AI ตัดสินในขอบเขตที่ plan ให้: ตอบเป็น JSON array ตาม plan ข้อ 4 (001 ใช้ `{items, total}` แต่ plan ของ 005 เขียนเป็น array),
   เรียงตามเวลาที่ส่งคำขอเก่าก่อน (spec ไม่บอก ทีมเลือกเอง), test ผ่าน HTTP ใช้ pool และ commit จริงแล้วลบข้อมูลทดสอบตอนจบ
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-09
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/handler.go` (`verifyBorrower`, Handler ถือ `BorrowerVerifier`), `repository.go` (`GetRequester`), `handler_test.go`
+- ผล test: `TestAC_HND_02_AuthApiVerifiedAndCardChecked/verify_borrower` ผ่าน (verified ของ student-001)
+  `TestVerifyBorrower_OtherResults` ผ่าน (ผู้ยืมคนอื่น = mismatch, credential ใช้ไม่ได้ / ว่าง / ไม่ใช่ JSON = 422 VALIDATION_FAILED, ไม่มีคำขอ = 404)
+  `go test ./...` ผ่าน
+- สิ่งที่ AI ตัดสินในขอบเขตที่ plan ให้: ล็อกอินไม่สำเร็จไม่อยู่ใน result 3 ค่าของ plan จึงตอบ 422 VALIDATION_FAILED ช่อง `borrowerCredential`
+  ไม่มีคำขอ = 404 แบบเดียวกับ 001 (plan ไม่ได้กำหนดรหัส), mismatch ตอบ 200 พร้อม result (ส่วน 409 BORROWER_MISMATCH อยู่ที่ POST handover ใน T-20)

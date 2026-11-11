@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -147,5 +149,75 @@ func TestAC_HND_14_ListApprovedOnly(t *testing.T) {
 		if d.ModelName == "" || d.RequesterStudentID == "" || d.SubmittedAt.IsZero() {
 			t.Errorf("ข้อมูลไม่ครบ: %+v", d)
 		}
+	}
+}
+
+func doJSON(h http.Handler, method, path, token, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(method, path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	return rec
+}
+
+func verifyPath(requestID int) string {
+	return PathPrefix + "requests/" + strconv.Itoa(requestID) + "/verify-borrower"
+}
+
+// AC-HND-02 (FR-HND-02, FR-HND-03)
+// Given คำขอยืมแบบปกติที่ได้รับอนุมัติแล้ว Auth API ยืนยันตัวตนผู้ยืมสำเร็จ และผู้ยืมเป็นผู้ส่งคำขอ
+// When  เจ้าหน้าที่ยืนยันว่าตรวจบัตรแล้ว และบันทึกการส่งมอบ
+// Then  ระบบบันทึกการส่งมอบ พร้อมชื่อ นามสกุล รหัสนักศึกษาของผู้ยืม และวันที่และเวลาที่ส่งมอบ
+//
+//	ถ้าเจ้าหน้าที่ไม่ยืนยันการตรวจบัตร ระบบไม่บันทึกการส่งมอบ
+//
+// subtest verify_borrower (T-09) ส่วนบันทึกการส่งมอบอยู่ใน T-10
+func TestAC_HND_02_AuthApiVerifiedAndCardChecked(t *testing.T) {
+	pool := testPool(t)
+	h := routesOnly(pool)
+	requestID := createRequest(t, pool, "student-001", createItem(t, pool, "T02-VB-0001", "available"), "approved")
+
+	t.Run("verify_borrower", func(t *testing.T) {
+		rec := doJSON(h, http.MethodPost, verifyPath(requestID), tokenStaff, `{"borrowerCredential":"`+tokenStudentA+`"}`)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
+		}
+		var got VerifyBorrowerResult
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatal(err)
+		}
+		if got.Result != "verified" || got.UserID != "student-001" {
+			t.Errorf("ผล = %+v ต้องเป็น verified ของ student-001", got)
+		}
+	})
+}
+
+// T-09: ผลอื่นของ verify-borrower ผู้ยืมไม่ใช่ผู้ส่งคำขอ = mismatch, ล็อกอินไม่สำเร็จ = 422, ไม่มีคำขอ = 404 (FR-HND-02, ASM-HND-04)
+func TestVerifyBorrower_OtherResults(t *testing.T) {
+	pool := testPool(t)
+	h := routesOnly(pool)
+	requestID := createRequest(t, pool, "student-001", createItem(t, pool, "T09-VB-0001", "available"), "approved")
+
+	rec := doJSON(h, http.MethodPost, verifyPath(requestID), tokenStaff, `{"borrowerCredential":"`+tokenStudentB+`"}`)
+	var got VerifyBorrowerResult
+	_ = json.Unmarshal(rec.Body.Bytes(), &got)
+	if rec.Code != http.StatusOK || got.Result != "mismatch" {
+		t.Errorf("ผู้ยืมคนอื่น: HTTP %d ผล %+v ต้องเป็น 200 mismatch", rec.Code, got)
+	}
+
+	for _, body := range []string{`{"borrowerCredential":"mock-unknown"}`, `{}`, `not json`} {
+		rec := doJSON(h, http.MethodPost, verifyPath(requestID), tokenStaff, body)
+		var e ErrorDTO
+		_ = json.Unmarshal(rec.Body.Bytes(), &e)
+		if rec.Code != http.StatusUnprocessableEntity || e.Code != "VALIDATION_FAILED" {
+			t.Errorf("body %s: HTTP %d %+v ต้องเป็น 422 VALIDATION_FAILED", body, rec.Code, e)
+		}
+	}
+
+	if rec := doJSON(h, http.MethodPost, verifyPath(999999), tokenStaff, `{"borrowerCredential":"`+tokenStudentA+`"}`); rec.Code != http.StatusNotFound {
+		t.Errorf("ไม่มีคำขอ: HTTP %d ต้องเป็น 404", rec.Code)
 	}
 }

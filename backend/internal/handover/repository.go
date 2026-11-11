@@ -177,3 +177,21 @@ ORDER BY r.submitted_at, r.id`, readyStatuses)
 		return d, err
 	})
 }
+
+// RowQuerier คือส่วนของ pgxpool.Pool ที่ใช้อ่านแถวเดียว
+type RowQuerier interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+// GetRequester คืนรหัสผู้ใช้ของผู้ส่งคำขอ (borrow_request.requester_id) ใช้เทียบกับผู้ยืมที่ยืนยันตัวตน (FR-HND-02, ASM-HND-04)
+// found = false ถ้าไม่มีคำขอรหัสนี้
+func GetRequester(ctx context.Context, q RowQuerier, requestID int) (requesterID string, found bool, err error) {
+	err = q.QueryRow(ctx, `SELECT requester_id FROM borrow_request WHERE id = $1`, requestID).Scan(&requesterID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return requesterID, true, nil
+}

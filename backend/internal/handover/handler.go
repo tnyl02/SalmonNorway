@@ -2,7 +2,10 @@ package handover
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -26,12 +29,19 @@ type DB interface {
 // Handler รับ HTTP request ของ 005 ทุก endpoint ต้องอยู่หลัง auth.Middleware (IF-IDP-01) และเป็นเจ้าหน้าที่ (CON-HND-01)
 type Handler struct {
 	db       DB
-	provider auth.Provider
+	verifier BorrowerVerifier // FR-HND-02 ยืนยันผู้ยืมที่เคาน์เตอร์ (ASM-HND-09)
 }
 
-// NewHandler สร้าง Handler จาก connection pool และระบบยืนยันตัวตน (ใช้ยืนยันผู้ยืมด้วย FR-HND-02)
+// NewHandler สร้าง Handler จาก connection pool และระบบยืนยันตัวตน
+// ผู้ยืมล็อกอินบัญชีมหาวิทยาลัยบนเครื่องเจ้าหน้าที่ (ASM-HND-09) prototype ใช้ provider จำลองตัวเดียวกับ middleware (Q-SH-03)
 func NewHandler(db DB, provider auth.Provider) *Handler {
-	return &Handler{db: db, provider: provider}
+	return &Handler{db: db, verifier: NewMockBorrowerVerifier(provider)}
+}
+
+// requestIDFrom อ่าน {requestId} จาก path ok = false ถ้าไม่ใช่ตัวเลขบวก
+func requestIDFrom(r *http.Request) (int, bool) {
+	id, err := strconv.Atoi(r.PathValue("requestId"))
+	return id, err == nil && id > 0
 }
 
 // Routes คืน router ของ 005 ห่อด้วย requireStaff ให้ main.go ห่อด้วย auth.Middleware แล้วผูกกับ PathPrefix
@@ -69,9 +79,61 @@ func (h *Handler) listRequests(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, items)
 }
 
-// verifyBorrower: POST /v1/handover/requests/{requestId}/verify-borrower (FR-HND-02) ทำใน T-09
-func (h *Handler) verifyBorrower(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+// VerifyBorrowerInput คือ body ของ verify-borrower (plan.md ข้อ 4)
+type VerifyBorrowerInput struct {
+	BorrowerCredential string `json:"borrowerCredential"` // ผู้ยืมล็อกอินบนเครื่องเจ้าหน้าที่ (ASM-HND-09) prototype = token จำลอง
+}
+
+// VerifyBorrowerResult คือผลการยืนยันผู้ยืม result = verified | mismatch | unavailable (plan.md ข้อ 4)
+type VerifyBorrowerResult struct {
+	Result string `json:"result"`
+	UserID string `json:"userId,omitempty"`
+}
+
+// ผลการยืนยันผู้ยืม (plan.md ข้อ 4)
+const (
+	verifyVerified    = "verified"    // ยืนยันได้และเป็นผู้ส่งคำขอ
+	verifyMismatch    = "mismatch"    // ยืนยันได้แต่ไม่ใช่ผู้ส่งคำขอ (FR-HND-02, ASM-HND-04)
+	verifyUnavailable = "unavailable" // Auth API ไม่ตอบภายในเวลา ใช้ผลตรวจบัตรแทน (T-13)
+)
+
+// verifyBorrower: POST /v1/handover/requests/{requestId}/verify-borrower (FR-HND-02, IF-IDP-01, ASM-HND-09)
+// ใช้แสดงผลบนหน้าจอก่อนบันทึก หลังบ้านยืนยันซ้ำเองอีกครั้งตอนบันทึก (plan.md v1.4)
+// ล็อกอินไม่สำเร็จ (credential ใช้ไม่ได้) ตอบ 422 VALIDATION_FAILED ระบุช่อง borrowerCredential
+func (h *Handler) verifyBorrower(w http.ResponseWriter, r *http.Request) {
+	requestID, ok := requestIDFrom(r)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	var in VerifyBorrowerInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.BorrowerCredential == "" {
+		writeError(w, http.StatusUnprocessableEntity, codeValidationFailed, "borrowerCredential")
+		return
+	}
+	requesterID, found, err := GetRequester(r.Context(), h.db, requestID)
+	if err != nil {
+		writeUpstreamError(w, err)
+		return
+	}
+	if !found {
+		http.NotFound(w, r) // ไม่มีคำขอรหัสนี้ (plan ไม่ได้กำหนด error code ของกรณีนี้ ใช้แบบเดียวกับ 001)
+		return
+	}
+	userID, err := h.verifier.VerifyBorrower(r.Context(), in.BorrowerCredential)
+	if errors.Is(err, ErrBorrowerNotVerified) {
+		writeError(w, http.StatusUnprocessableEntity, codeValidationFailed, "borrowerCredential")
+		return
+	}
+	if err != nil {
+		writeUpstreamError(w, err)
+		return
+	}
+	result := verifyVerified
+	if userID != requesterID {
+		result = verifyMismatch
+	}
+	writeJSON(w, http.StatusOK, VerifyBorrowerResult{Result: result, UserID: userID})
 }
 
 // handover: POST /v1/handover/requests/{requestId}/handover (FR-HND-02 ถึง 08) ทำใน T-10
