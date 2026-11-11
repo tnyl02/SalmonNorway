@@ -304,7 +304,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10, T-17
 - เสร็จเมื่อ: `TestAC_HND_13_OtherRequestUntouched` ผ่าน (ส่งมอบ X สำเร็จ สถานะของ Y เท่าเดิม แล้วส่งมอบ Y ได้ 409 `ITEM_NOT_AVAILABLE`)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ผ่าน ทีมรับไว้ก่อน ถ้าแก้ AC-HND-13 ผ่าน CR ต้องแก้ test ตาม)
 
 #### จุดตรวจเฟส 8
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_13_OtherRequestUntouched และ test ของเฟส 0-7
