@@ -2,6 +2,7 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+ 003-cancel-request
 ## [SPEC-CXL-003 ASM-10, Q-15 + tasks.md T-32] - 2569-11-12
 ทีมตัดสินรายละเอียด Email ที่ spec ไม่ได้บอก ตอนทำ T-27 ไม่มี CR เพราะเพิ่มรายละเอียด ไม่เปลี่ยน FR หรือ AC
 
@@ -136,6 +137,26 @@ UC-15 ยกเลิกคำขอยืม (RQ-03, BL-20) ฉบับแร�
 ### Added
 - specs/003-cancel-request/spec.md: FR-CXL-01 ถึง FR-CXL-05, AC-CXL-01 ถึง AC-CXL-07, CON-CXL-01, CON-CXL-02, Q-01 ถึง Q-10
 - constraints.md ตาราง "ใครอ้างใช้บ้าง": เพิ่ม 003-cancel-request ที่ CON-TECH-01, CON-TECH-02, CON-DATA-01, DOM-REQ-01, IF-IDP-01
+=======
+## [SPEC-EQS-001 Draft v4.4 + plan v1.6 + tasks v2.1] - 2569-11-11
+ตามการตัดสินของทีมหลัง PR ของ 002 (CR-003, CR-004) เป็น clarification ไม่ทำ CR เพราะไม่ได้เปลี่ยน FR/AC เดิม
+ส่วนที่ต้องเพิ่ม FR (Q-SH-05) แยกไปเสนอใน CR-005 ยังไม่แก้ spec จนกว่าทีมอนุมัติ
+
+### Changed
+- spec Q-16: ปิดแล้ว (ทีมตัดสิน) ปุ่มส่งคำขอยืมอยู่ทั้งตารางรายชิ้นและหน้ารายละเอียด ขอยืมรายชิ้นตาม FR-EQS-06 เดิม
+- spec Q-SH-05: ปิดแล้ว ชี้ไป CR-005 / Q-12: บันทึกว่า Q-SH-04 ปิดแล้ว ไม่กระทบ FR ของ 001
+- plan ข้อ 5: Error contract อ้าง CON-TECH-03 ต้องมีทั้ง code และ message (เลิกใช้ retryable) เสนอข้อความภาษาไทยของ 4 รหัส
+  ข้อความผูกกับรหัส เก็บที่ของกลาง `platform/apierror.go` / การส่งต่อไป UC-02 ส่ง assetCode วิธีเปิดฟอร์มต้องตกลงกับ 002
+- tasks: T-34 จาก "รอ Q-16" เป็น "พร้อมทำ"
+
+### Added
+- spec Constraints: CON-TECH-03 ในรายการใช้ร่วม (CR-004)
+- tasks: T-37 error body {code, message} ตาม CON-TECH-03 (เฟส 12 ก่อน T-20)
+- specs/changes/CR-005.md (เสนอ รอทีมอนุมัติ): FR-EQS-11, AC-EQS-17 ลำดับคำขอที่ค้างอยู่สำหรับเจ้าหน้าที่ และสัญญา API กับ 002
+
+### Pending
+- 404 และ 405 ยังไม่มีรหัสในรายการกลางของ CON-TECH-03 ต้องให้ทีมเพิ่มก่อน
+ main
 
 ## [SPEC-HND-005 Draft v2.6 + plan v1.4 + tasks v1.4 + constraints v5.1] - 2569-11-11
 ทีมตอบคำถามที่เปิดค้าง (Banlu C) เป็นการตัดสินของทีม ยังไม่ได้ถามผู้ใช้จริง ไม่ทำ CR เพราะตอบ Open Question ไม่เปลี่ยนพฤติกรรมที่ตกลงแล้ว
