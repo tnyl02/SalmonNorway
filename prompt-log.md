@@ -1365,3 +1365,18 @@
 - /implement: AI เลือก T-08 (แตะแค่ไฟล์ใน `backend/internal/handover/`) แต่ตรวจก่อนเริ่มไม่ผ่านข้อ 2 ของคำสั่ง
   เพราะช่อง "ต้องทำหลัง" ของ T-08 คือ T-01 ซึ่งยังไม่เสร็จ AI หยุดและถามทีม ไม่ได้สร้างโค้ด
 - ทุก task ที่ไม่กระทบคนอื่นต้องทำหลัง T-01 (หรือ task ที่รอ Q) ส่วน T-01 แตะ `config.go`, `config.js` ของกลาง (เพิ่มบล็อกต่อท้าย)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-01
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover (แก้ของกลาง `config.go`, `config.js` เพราะ 005 เพิ่มบล็อกต่อท้ายเท่านั้น)
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ทีละ task แล้ว commit `00N: ...` ทุกขั้น" (หลังเลือกทำ T-01 ก่อน T-08)
+- ไฟล์ที่แก้: `backend/internal/config/config.go` (บล็อก 005: `BorrowerAuthTimeout`, `LoanNormalReturnHour`, `HandoverMinPhotos`, `HandoverPhotoMaxBytes`, `HandoverPhotoTypes()`, `PhotoDir()` และ import `time`)
+  `frontend/src/config.js` (บล็อก 005: `HANDOVER_MIN_PHOTOS`, `HANDOVER_PHOTO_MAX_BYTES`, `HANDOVER_PHOTO_TYPES`)
+- ผล test: `go test ./...` ผ่านทุก package (auth, equipment, platform ใช้ PostgreSQL ใน testcontainers) `npx vitest run` 10 ไฟล์ 17 test ผ่าน (ต้อง `npm ci` ก่อน)
+- ไม่ได้สร้าง config_test.go เพราะไม่อยู่ในช่อง "ไฟล์ที่แตะ" และ branch ของ 003 มีไฟล์ชื่อนี้อยู่แล้ว (จะชนตอน merge)
+- สิ่งที่ AI เกือบต้องเดา: ค่าเริ่มต้นของ `PHOTO_DIR` (plan บอกแค่ `/data/photos/handover/`) ใช้ `/data/photos` ตามที่ plan v1.1 เขียนว่า volume mount ที่ `/data/photos`
+  และใช้ชื่อ `LoanNormalReturnHour` ตาม plan ของ 002 ที่ยังไม่ได้ใส่ในโค้ด ต้องแจ้งเจ้าของ 002 ให้ใช้ตัวนี้

@@ -36,7 +36,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: บล็อก `// ---- 005-handover ----` ใน `config.go` มี `BorrowerAuthTimeout`, `HandoverMinPhotos`, `HandoverPhotoMaxBytes`, `HandoverPhotoTypes`, `PhotoDir` (อ่านจาก env) และ `LoanNormalReturnHour` (ถ้า 002 สร้างแล้วใช้ของเดิม ถ้ายังไม่มีสร้างชื่อนี้แล้วแจ้งเจ้าของ 002) บล็อกเดียวกันใน `config.js` มี `HANDOVER_MIN_PHOTOS`, `HANDOVER_PHOTO_MAX_BYTES`, `HANDOVER_PHOTO_TYPES` ทุกตัวมีคอมเมนต์อ้าง ID ไม่แก้บรรทัดของฟีเจอร์อื่น และ `go test ./...`, `npm test` เดิมยังผ่าน
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 ### T-02 สร้าง migration ของการส่งมอบและข้อมูลตัวอย่าง
 - รองรับ: CON-TECH-01, FR-HND-03, FR-HND-05, FR-HND-06, FR-HND-07

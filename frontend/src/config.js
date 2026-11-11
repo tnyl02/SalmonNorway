@@ -8,3 +8,15 @@ export const MOCK_TOKEN = import.meta.env.VITE_MOCK_TOKEN ?? 'mock-student-001'
 
 // เขตเวลาที่ใช้แสดงวันที่และเวลา (glossary: เวลาปัจจุบัน / วันเดียวกัน เทียบด้วย Asia/Bangkok, DOM-LOAN-01)
 export const TIME_ZONE = 'Asia/Bangkok'
+
+// ---- 005-handover (plan.md ข้อ 5 ของ 005, T-01) ----
+// ใช้ตรวจรูปที่หน้าจอก่อนส่งเพื่อความสะดวกเท่านั้น หลังบ้านตรวจซ้ำเสมอ (backend/internal/config/config.go)
+
+// จำนวนรูปสภาพอุปกรณ์ขั้นต่ำตอนส่งมอบ (FR-HND-06, ASM-HND-07)
+export const HANDOVER_MIN_PHOTOS = 2
+
+// ขนาดไฟล์รูปสูงสุด 10 MB (FR-HND-06, ASM-HND-07) ต่อรูปหรือรวม รอ Q-HND-10
+export const HANDOVER_PHOTO_MAX_BYTES = 10 * 1024 * 1024
+
+// ชนิดไฟล์รูปที่รับ JPG และ PNG (FR-HND-06, ASM-HND-07)
+export const HANDOVER_PHOTO_TYPES = ['image/jpeg', 'image/png']
