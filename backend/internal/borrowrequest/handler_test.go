@@ -143,3 +143,82 @@ func TestRoutes_OnlyPost(t *testing.T) {
 		t.Errorf("GET บน path นี้ต้องได้ 405 แต่ได้ %d", w.Code)
 	}
 }
+
+// bodyWithout สร้าง JSON ของฟอร์มที่ครบทุกช่อง ยกเว้นช่องที่ระบุให้ตัดออก (ใช้กับ AC-BRQ-03)
+func bodyWithout(assetCode, omit string) string {
+	fields := map[string]string{
+		"requesterName": `"ธัญลักษณ์ ทดสอบ"`,
+		"studentCode":   `"660710715"`,
+		"startAt":       `"` + time.Now().Format(time.RFC3339) + `"`,
+		"endAt":         `"` + time.Now().Add(2*time.Hour).Format(time.RFC3339) + `"`,
+		"purpose":       `"study"`,
+	}
+	delete(fields, omit)
+	parts := []string{`"assetCode":"` + assetCode + `"`, `"loanType":"normal"`}
+	for k, v := range fields {
+		parts = append(parts, `"`+k+`":`+v)
+	}
+	return "{" + strings.Join(parts, ",") + "}"
+}
+
+// AC-BRQ-03 (FR-BRQ-03)
+// Given ข้อมูลคำขอไม่ครบถ้วน (เช่น ไม่ได้ระบุวันและเวลาที่คืน)
+// When  นักศึกษากดส่งคำขอ
+// Then  ระบบต้องไม่สร้างคำขอ และระบุช่องข้อมูลที่ยังต้องกรอก
+//
+//	(ช่องที่ตรวจ 5 ช่อง: ชื่อ-นามสกุล, รหัสนักศึกษา, วันและเวลาที่เริ่มยืม, วันและเวลาที่คืน, วัตถุประสงค์การยืม)
+func TestAC_BRQ_03(t *testing.T) {
+	pool := testPool(t)
+	srv := newTestServer(t)
+
+	for _, field := range []string{"requesterName", "studentCode", "startAt", "endAt", "purpose"} {
+		w := postRequest(t, srv, tokenStudentDept1, bodyWithout("CS-NB-0001", field))
+		if w.Code != http.StatusUnprocessableEntity {
+			t.Errorf("ขาดช่อง %s ต้องได้ 422 แต่ได้ %d body=%s", field, w.Code, w.Body.String())
+			continue
+		}
+
+		var e struct {
+			Code    string   `json:"code"`
+			Message string   `json:"message"`
+			Fields  []string `json:"fields"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &e); err != nil {
+			t.Fatalf("อ่าน JSON ไม่ได้: %v", err)
+		}
+		if e.Code != "VALIDATION_FAILED" || e.Message == "" {
+			t.Errorf("ขาดช่อง %s ต้องได้ VALIDATION_FAILED พร้อมข้อความ แต่ได้ %+v", field, e)
+		}
+		if len(e.Fields) != 1 || e.Fields[0] != field {
+			t.Errorf("ต้องระบุว่าขาดช่อง %s เท่านั้น แต่ได้ %v", field, e.Fields)
+		}
+	}
+
+	// Then: ต้องไม่มีคำขอเกิดขึ้นเลยจากคำขอที่ข้อมูลไม่ครบ
+	var count int
+	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM borrow_request`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Errorf("ข้อมูลไม่ครบต้องไม่สร้างคำขอ แต่พบ %d ใบ", count)
+	}
+}
+
+// T-06 เสร็จเมื่อ: ขาดหลายช่องพร้อมกัน ต้องบอกครบทุกช่องในครั้งเดียว (FR-BRQ-03)
+func TestValidation_ReportsAllMissingFields(t *testing.T) {
+	srv := newTestServer(t)
+
+	w := postRequest(t, srv, tokenStudentDept1, `{"assetCode":"CS-NB-0001","loanType":"normal"}`)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("ต้องได้ 422 แต่ได้ %d", w.Code)
+	}
+	var e struct {
+		Fields []string `json:"fields"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &e); err != nil {
+		t.Fatal(err)
+	}
+	if len(e.Fields) != 5 {
+		t.Errorf("ไม่กรอกอะไรเลยต้องบอกครบทั้ง 5 ช่อง แต่ได้ %v", e.Fields)
+	}
+}

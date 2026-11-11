@@ -41,7 +41,14 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, err := h.svc.Create(r.Context(), in.toNewRequest())
+	// ตรวจความครบถ้วนของข้อมูลก่อนอนุญาตให้ส่ง ถ้าไม่ครบ ต้องไม่สร้างคำขอ (FR-BRQ-03, AC-BRQ-03)
+	newReq := in.toNewRequest()
+	if missing := missingFields(newReq); len(missing) > 0 {
+		writeValidationError(w, missing)
+		return
+	}
+
+	req, err := h.svc.Create(r.Context(), newReq)
 	switch {
 	case err == nil:
 		writeJSON(w, http.StatusCreated, CreatedDTO{
@@ -71,4 +78,21 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 // writeError ส่ง error ตามรูปแบบกลาง {code, message} ด้วยรหัสจากรายการของ CON-TECH-03 (CR-004)
 func writeError(w http.ResponseWriter, status int, code, message string) {
 	writeJSON(w, status, ErrorDTO{Code: code, Message: message})
+}
+
+// validationErrorDTO คือรูปแบบกลาง {code, message} ที่แนบรายชื่อช่องที่ยังขาดมาด้วย
+// CON-TECH-03 กำหนดให้ VALIDATION_FAILED "แนบรายชื่อช่องที่ผิด" (CR-004)
+type validationErrorDTO struct {
+	Code    string   `json:"code"`
+	Message string   `json:"message"`
+	Fields  []string `json:"fields"`
+}
+
+// writeValidationError บอกผู้ขอว่าช่องไหนยังไม่ได้กรอก และไม่สร้างคำขอ (FR-BRQ-03, AC-BRQ-03)
+func writeValidationError(w http.ResponseWriter, fields []string) {
+	writeJSON(w, http.StatusUnprocessableEntity, validationErrorDTO{
+		Code:    "VALIDATION_FAILED",
+		Message: "กรุณากรอกข้อมูลให้ครบทุกช่องก่อนส่งคำขอ",
+		Fields:  fields,
+	})
 }
