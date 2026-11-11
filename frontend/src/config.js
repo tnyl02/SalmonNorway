@@ -8,3 +8,25 @@ export const MOCK_TOKEN = import.meta.env.VITE_MOCK_TOKEN ?? 'mock-student-001'
 
 // เขตเวลาที่ใช้แสดงวันที่และเวลา (glossary: เวลาปัจจุบัน / วันเดียวกัน เทียบด้วย Asia/Bangkok, DOM-LOAN-01)
 export const TIME_ZONE = 'Asia/Bangkok'
+
+// ---------- ค่าของฟีเจอร์ 002 ส่งคำขอยืม (plan.md ข้อ 5 ตาราง "ค่าที่ตั้งได้") ----------
+
+// ชั่วโมงที่การยืมแบบปกติต้องคืนภายในวันเดียวกัน ใช้แสดงเงื่อนไขและเตือนก่อนส่ง (DOM-LOAN-01, FR-BRQ-03 ข้อ ค, FR-BRQ-10 ข้อ ข)
+export const LOAN_NORMAL_RETURN_HOUR = 16
+
+// ขนาดสูงสุดของใบบันทึกข้อความที่แนบกับการยืมค้างคืน (FR-BRQ-10 ข้อ ก) ต้องตรงกับ AttachmentMaxBytes ใน backend
+export const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
+
+// ชนิดไฟล์ที่รับเป็นใบบันทึกข้อความ (FR-BRQ-10 ข้อ ก) spec เขียนว่า "PDF หรือรูปถ่าย" ทีมยืนยันชนิดรูปเมื่อ 2569-11-11
+export const ATTACHMENT_ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
+
+// วัตถุประสงค์การยืม 3 ค่า พร้อมข้อความที่แสดงบนหน้าจอ (FR-BRQ-02, DM-06)
+// ค่า value ต้องตรงกับ PurposeValues ใน backend/internal/config/config.go
+export const PURPOSE_OPTIONS = [
+  { value: 'study', label: 'เพื่อการเรียน' },
+  { value: 'activity', label: 'เพื่อทำกิจกรรม' },
+  { value: 'other', label: 'อื่น ๆ' },
+]
+
+// ค่าวัตถุประสงค์ที่บังคับให้ผู้ขอพิมพ์ระบุเพิ่ม (FR-BRQ-02 ข้อ ก)
+export const PURPOSE_OTHER = 'other'
