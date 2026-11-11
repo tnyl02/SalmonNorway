@@ -68,7 +68,9 @@ var ErrNotRequested = errors.New("คำขอนี้ไม่ได้อย�
 //
 //   - คำขออื่นที่ยังเป็น requested ของอุปกรณ์ชิ้นเดียวกัน ทั้งยืมปกติและค้างคืน ถูกปฏิเสธตามทันที (FR-APV-01 จ, Q-APV-14, T-16)
 //
-// การตรวจคำขอแรก (T-17), อุปกรณ์ว่าง (T-19), เวลาตัด 16:00 (T-21) และภาควิชา (T-25) เพิ่มใน task ของแต่ละเรื่อง
+//   - อนุมัติได้เฉพาะคำขอแรกของชิ้นนั้น (FR-APV-01 ข, T-17)
+//
+// การตรวจอุปกรณ์ว่าง (T-19), เวลาตัด 16:00 (T-21) และภาควิชา (T-25) เพิ่มใน task ของแต่ละเรื่อง
 func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
 	p, err := staff(ctx)
 	if err != nil {
@@ -85,6 +87,11 @@ func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
 		}
 		if target.Status != config.StatusRequested {
 			return ErrNotRequested
+		}
+		// FR-APV-01 (ข), ASM-04: อนุมัติได้เฉพาะคำขอแรก (ส่งก่อนสุด) ที่ยังเป็น requested ของชิ้นนั้น ข้ามลำดับไม่ได้
+		// นับเฉพาะยืมปกติ คำขอค้างคืนไม่ขวางคิว (Q-APV-23) all เรียงตาม submitted_at, id แล้ว (lockItemRequests)
+		if first, ok := firstInQueue(all); !ok || first.ID != target.ID {
+			return ErrNotFirst
 		}
 		if err := tx.setStatus(ctx, target.ID, config.StatusApproved); err != nil {
 			return err
@@ -113,6 +120,20 @@ func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
 		return nil
 	})
 	return out, err
+}
+
+// ErrNotFirst เกิดเมื่ออนุมัติคำขอที่ไม่ใช่คำขอแรกของอุปกรณ์ชิ้นนั้น (FR-APV-01 ข ซ, AC-APV-07, NOT_FIRST_IN_QUEUE)
+var ErrNotFirst = errors.New("ต้องพิจารณาคำขอที่ส่งก่อนหน้าของอุปกรณ์ชิ้นนี้ก่อน")
+
+// firstInQueue คืนคำขอแรกของชิ้นนั้น = คำขอยืมปกติ requested ที่ส่งก่อนสุด (FR-APV-01 ข, Q-APV-23)
+// all ต้องเรียงตาม submitted_at, id แล้ว แบบเดียวกับ is_first ในหน้ารายการ (ListPending)
+func firstInQueue(all []requestRow) (requestRow, bool) {
+	for _, r := range all {
+		if r.Status == config.StatusRequested && r.LoanType == config.LoanTypeNormal {
+			return r, true
+		}
+	}
+	return requestRow{}, false
 }
 
 // rejectSuperseded ปฏิเสธคำขออื่นที่ยังเป็น requested ของอุปกรณ์ชิ้นเดียวกับคำขอที่เพิ่งอนุมัติ (FR-APV-01 จ, Q-SH-06)

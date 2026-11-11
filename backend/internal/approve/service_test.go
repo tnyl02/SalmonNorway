@@ -2,6 +2,9 @@ package approve
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -222,5 +225,46 @@ func TestAC_APV_03(t *testing.T) {
 		if audits != 1 || emails != 1 {
 			t.Errorf("คำขอ %d ต้องมี audit_log reject 1 แถว และ Email ผลปฏิเสธ 1 ฉบับ แต่ได้ %d / %d", id, audits, emails)
 		}
+	}
+}
+
+// AC-APV-07 (FR-APV-01 ข, DOM-REQ-01)
+// Given อุปกรณ์รายชิ้นเดียวกันมีคำขอ A (ส่งก่อน) และ B สถานะ requested (AP-TEST-0001)
+// When  เจ้าหน้าที่พยายามอนุมัติคำขอ B
+// Then  ระบบไม่อนุมัติ แสดง "ต้องพิจารณาคำขอที่ส่งก่อนหน้าของอุปกรณ์ชิ้นนี้ก่อน" และทั้งสองคำขอคงเดิม
+//
+//	(T-17 เสร็จเมื่อ: ได้ 409 NOT_FIRST_IN_QUEUE และปฏิเสธ B ได้ตามปกติ)
+func TestAC_APV_07(t *testing.T) {
+	tx := devTx(t)
+	a := requestIDOf(t, tx, "AP-TEST-0001", "student-001")
+	b := requestIDOf(t, tx, "AP-TEST-0001", "student-002")
+
+	// When: อนุมัติ B ผ่าน HTTP
+	w := postJSON(newTestServer(tx), tokenStaffDept1, fmt.Sprintf("%srequests/%d/approve", PathPrefix, b), `{}`)
+
+	// Then: 409 NOT_FIRST_IN_QUEUE พร้อมข้อความ
+	if w.Code != http.StatusConflict {
+		t.Fatalf("ต้องได้ 409 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	var e ErrorDTO
+	_ = json.Unmarshal(w.Body.Bytes(), &e)
+	if e.Code != "NOT_FIRST_IN_QUEUE" || e.Message != "ต้องพิจารณาคำขอที่ส่งก่อนหน้าของอุปกรณ์ชิ้นนี้ก่อน" {
+		t.Errorf("ได้ %+v", e)
+	}
+	// ทั้งสองคำขอคงเดิม ไม่มีผลการพิจารณา
+	var requested, decisions int
+	if err := tx.QueryRow(context.Background(), `
+		SELECT count(*) FILTER (WHERE status = 'requested'),
+		       (SELECT count(*) FROM approval_decision WHERE request_id = ANY($1))
+		FROM borrow_request WHERE id = ANY($1)`, []int{a, b}).Scan(&requested, &decisions); err != nil {
+		t.Fatal(err)
+	}
+	if requested != 2 || decisions != 0 {
+		t.Errorf("A และ B ต้องยังเป็น requested และไม่มี approval_decision แต่ได้ %d / %d", requested, decisions)
+	}
+
+	// ปฏิเสธ B ได้ตามปกติ (ลำดับบังคับเฉพาะการอนุมัติ FR-APV-01 ข)
+	if _, err := NewService(NewRepository(tx)).Reject(staffCtx("staff-001", 1), b, "ขอยืมซ้ำ"); err != nil {
+		t.Errorf("ปฏิเสธ B ต้องทำได้ แต่ได้ %v", err)
 	}
 }

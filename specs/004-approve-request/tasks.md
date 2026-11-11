@@ -263,11 +263,11 @@ Updated: 2569-11-12
 ### T-17 ตรวจคำขอแรกก่อนอนุมัติ
 - รองรับ: FR-APV-01 (ข)(ซ), DOM-REQ-01, ASM-04, CON-TECH-03
 - ตรวจด้วย: AC-APV-07
-- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/service_test.go`
+- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/service_test.go`, `backend/internal/approve/handler.go` (แปลงเป็น 409 NOT_FIRST_IN_QUEUE)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-07
 - เสร็จเมื่อ: `TestAC_APV_07` ผ่าน: อนุมัติ B ก่อน A ได้ 409 `NOT_FIRST_IN_QUEUE` ข้อความ "ต้องพิจารณาคำขอที่ส่งก่อนหน้าของอุปกรณ์ชิ้นนี้ก่อน" ทั้งสองคำขอคงเดิม (ปฏิเสธ B ได้ตามปกติ)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน `TestAC_APV_07` ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 ### T-18 แสดงปุ่มอนุมัติเฉพาะคำขอแรก และแสดงข้อความเมื่อได้ NOT_FIRST_IN_QUEUE
 - รองรับ: FR-APV-01 (ข)(ซ)
