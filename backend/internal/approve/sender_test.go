@@ -2,6 +2,7 @@ package approve
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -12,14 +13,19 @@ import (
 
 // fakeMailer จดทุก Email ที่ได้รับ และสั่งให้ส่งไม่สำเร็จได้ (plan.md ข้อ 6: ตัวส่ง Email จำลองบันทึกเวลาและสั่งให้ล้มได้)
 type fakeMailer struct {
-	mu   sync.Mutex
-	sent []Email
-	fail error
+	mu    sync.Mutex
+	sent  []Email
+	fail  error
+	calls []time.Time // เวลาของนาฬิกาจำลองทุกครั้งที่ถูกเรียก (ทั้งสำเร็จและล้ม) ใช้กับ clock
+	clock *fakeClock
 }
 
 func (m *fakeMailer) Send(_ context.Context, e Email) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.clock != nil {
+		m.calls = append(m.calls, m.clock.Now())
+	}
 	if m.fail != nil {
 		return m.fail
 	}
@@ -114,5 +120,70 @@ func TestAC_APV_04(t *testing.T) {
 func TestSender_PollWithinDeadline(t *testing.T) {
 	if config.ApprovalSenderPollInterval <= 0 || config.ApprovalSenderPollInterval >= config.ApprovalEmailDeadline {
 		t.Errorf("ช่วงตรวจคิว %v ต้องมากกว่า 0 และน้อยกว่า %v", config.ApprovalSenderPollInterval, config.ApprovalEmailDeadline)
+	}
+}
+
+// T-32 (FR-APV-02 ง, Q-APV-17) ส่วนส่งซ้ำของ AC-APV-14
+// Given บันทึกผลแล้ว แต่ระบบแจ้งเตือน Email ส่งไม่สำเร็จทุกครั้ง
+// When  ส่งครั้งแรกแล้วส่งซ้ำอัตโนมัติอีกครบ 3 ครั้ง ห่างกันครั้งละ 1 นาที
+// Then  ตัวส่งถูกเรียกรวม 4 ครั้ง สถานะการส่งเป็น failed พร้อมสาเหตุและเวลา และผลการพิจารณาไม่เปลี่ยน
+func TestSender_RetryThenFailed(t *testing.T) {
+	tx := devTx(t)
+	clock := &fakeClock{t: time.Now()}
+	svc := NewService(NewRepository(tx))
+	svc.now = clock.Now
+	id := requestIDOf(t, tx, "AP-TEST-0002", "student-001")
+	if _, err := svc.Approve(staffCtx("staff-001", 1), id, time.Time{}); err != nil {
+		t.Fatal(err)
+	}
+
+	mailer := &fakeMailer{fail: errors.New("smtp: connection refused"), clock: clock}
+	sender := &Sender{db: tx, mailer: mailer, resolver: MockRecipientResolver{}, now: clock.Now}
+	run := func() {
+		t.Helper()
+		if err := sender.SendDue(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	run() // ครั้งแรก
+	// ยังไม่ถึง 1 นาที ต้องไม่ลองซ้ำ
+	clock.Advance(config.ApprovalEmailRetryInterval - time.Second)
+	run()
+	if len(mailer.calls) != 1 {
+		t.Fatalf("ก่อนครบ 1 นาทีต้องไม่ส่งซ้ำ แต่ถูกเรียก %d ครั้ง", len(mailer.calls))
+	}
+	// ส่งซ้ำ 3 ครั้ง ห่างกันครั้งละ 1 นาที
+	clock.Advance(time.Second)
+	for i := 0; i < config.ApprovalEmailRetryCount; i++ {
+		run()
+		clock.Advance(config.ApprovalEmailRetryInterval)
+	}
+	run() // หลังเป็น failed แล้วต้องไม่ส่งอีก
+
+	if want := 1 + config.ApprovalEmailRetryCount; len(mailer.calls) != want {
+		t.Fatalf("ตัวส่งต้องถูกเรียกรวม %d ครั้ง แต่ได้ %d", want, len(mailer.calls))
+	}
+	for i := 1; i < len(mailer.calls); i++ {
+		if gap := mailer.calls[i].Sub(mailer.calls[i-1]); gap < config.ApprovalEmailRetryInterval {
+			t.Errorf("ครั้งที่ %d ห่างจากครั้งก่อน %v ต้องไม่น้อยกว่า %v", i+1, gap, config.ApprovalEmailRetryInterval)
+		}
+	}
+
+	var status, lastError, decision, reqStatus string
+	var attempts int
+	var lastAttempt *time.Time
+	if err := tx.QueryRow(context.Background(), `
+		SELECT e.status, e.attempts, e.last_error, e.last_attempt_at, d.result, r.status
+		FROM approval_email e JOIN approval_decision d ON d.request_id = e.request_id
+		JOIN borrow_request r ON r.id = e.request_id WHERE e.request_id = $1`, id).
+		Scan(&status, &attempts, &lastError, &lastAttempt, &decision, &reqStatus); err != nil {
+		t.Fatal(err)
+	}
+	if status != config.ApprovalEmailFailed || attempts != 4 || !strings.Contains(lastError, "connection refused") || lastAttempt == nil {
+		t.Errorf("Email ต้องเป็น failed 4 ครั้ง พร้อมสาเหตุและเวลา แต่ได้ %q %d %q %v", status, attempts, lastError, lastAttempt)
+	}
+	if decision != "approved" || reqStatus != "approved" {
+		t.Errorf("ผลการพิจารณาต้องไม่เปลี่ยน แต่ได้ %q / %q", decision, reqStatus)
 	}
 }

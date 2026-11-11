@@ -12,7 +12,7 @@ import (
 
 // Sender คือตัวส่ง Email เบื้องหลัง อ่านคิว approval_email แล้วส่งผ่าน Mailer (FR-APV-02, IF-NOT-01, plan.md ข้อ 1)
 // เป็น goroutine ใน process เดียวกับหลังบ้าน ไม่ใช้ cron หรือ queue ภายนอก (plan.md ข้อ 2 ทีมเลือกเอง ไม่ได้มาจาก spec)
-// การส่งซ้ำ 3 ครั้งแล้วเป็น failed เป็นงานของ T-32 / การเริ่ม goroutine ใน main.go เป็นงานของ T-30
+// ส่งไม่สำเร็จส่งซ้ำ 3 ครั้งหลังครั้งแรกแล้วเป็น failed (T-32) / main.go เริ่ม Run เป็น goroutine (T-30)
 type Sender struct {
 	db       Querier
 	mailer   Mailer
@@ -114,9 +114,11 @@ FOR UPDATE OF e SKIP LOCKED`
 	})
 }
 
-// markAttempt บันทึกผลการส่ง 1 ครั้ง (FR-APV-02 ง: สถานะการส่ง สาเหตุ และเวลา)
-// ส่งไม่สำเร็จ: ยังเป็น pending นับครั้ง เก็บสาเหตุ และลองใหม่หลัง config.ApprovalEmailRetryInterval
-// การหยุดส่งซ้ำหลังครบ 3 ครั้งแล้วเป็น failed เป็นงานของ T-32 ผลการพิจารณาไม่ถูกแตะเลย
+// markAttempt บันทึกผลการส่ง 1 ครั้ง (FR-APV-02 ง: สถานะการส่ง สาเหตุ และเวลา) ผลการพิจารณาไม่ถูกแตะเลย
+//   - สำเร็จ: เป็น sent
+//   - ไม่สำเร็จ: นับครั้ง เก็บสาเหตุและเวลา แล้วลองใหม่หลัง config.ApprovalEmailRetryInterval (1 นาที)
+//     ถ้านับรวมครั้งนี้ครบครั้งแรก + config.ApprovalEmailRetryCount (= 4 ครั้ง Q-APV-17) แล้ว เป็น failed หยุดส่งซ้ำ
+//     แล้วขึ้นในรายการ "Email ที่ส่งไม่สำเร็จ" (T-33) (AC-APV-14, T-32)
 func markAttempt(ctx context.Context, tx pgx.Tx, emailID int, now time.Time, sendErr error) error {
 	if sendErr == nil {
 		_, err := tx.Exec(ctx, `
@@ -124,8 +126,13 @@ UPDATE approval_email SET status = $2, attempts = attempts + 1, last_attempt_at 
 WHERE id = $1`, emailID, config.ApprovalEmailSent, now)
 		return err
 	}
+	// ใน SET ค่า attempts ทางขวาคือค่าก่อนแก้ attempts + 1 จึงเป็นจำนวนครั้งรวมครั้งนี้
 	_, err := tx.Exec(ctx, `
-UPDATE approval_email SET attempts = attempts + 1, last_attempt_at = $2, last_error = $3, next_attempt_at = $4
-WHERE id = $1`, emailID, now, sendErr.Error(), now.Add(config.ApprovalEmailRetryInterval))
+UPDATE approval_email
+SET attempts = attempts + 1, last_attempt_at = $2, last_error = $3, next_attempt_at = $4,
+    status = CASE WHEN attempts + 1 >= $5 THEN $6 ELSE status END
+WHERE id = $1`,
+		emailID, now, sendErr.Error(), now.Add(config.ApprovalEmailRetryInterval),
+		1+config.ApprovalEmailRetryCount, config.ApprovalEmailFailed)
 	return err
 }

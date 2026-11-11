@@ -4024,3 +4024,25 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ฟีเจอร์: 004-approve-request
 - คำสั่ง: "ตรวจสอบแล่วผ่าน"
 - สิ่งที่แก้: tasks.md T-31 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-32 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "ตรวจสอบแล่วผ่าน" (T-31 -> เสร็จ)
+- คำสั่ง: "/implement T-32"
+- ไฟล์ที่แก้: `backend/internal/approve/sender.go` (`markAttempt` ส่งไม่สำเร็จครบ 1 + ApprovalEmailRetryCount = 4 ครั้งแล้วเป็น failed ใน UPDATE เดียว), `sender_test.go` (fakeMailer จดเวลาทุกครั้งที่ถูกเรียก, `TestSender_RetryThenFailed`), `specs/004-approve-request/tasks.md`
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): นับครั้งใน SQL (attempts + 1 >= 4) ไม่อ่านค่าก่อน; next_attempt_at ยังถูกตั้งตอนเป็น failed แต่ไม่มีผลเพราะตัวส่งหยิบเฉพาะ pending
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-32 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจสอบแล่วผ่าน"
+- สิ่งที่แก้: tasks.md T-32 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)

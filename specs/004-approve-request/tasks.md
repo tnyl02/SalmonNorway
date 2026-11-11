@@ -532,7 +532,7 @@ Updated: 2569-11-12
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-15
 - เสร็จเมื่อ: test ด้วยนาฬิกาจำลองและตัวส่งที่ล้มทุกครั้ง: ตัวส่งถูกเรียกรวม 4 ครั้ง ห่างกัน `ApprovalEmailRetryInterval` แล้วแถวเป็น `failed` พร้อม `last_error` และ `last_attempt_at` ผลการพิจารณาไม่เปลี่ยน
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน `TestSender_RetryThenFailed` ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 ### T-33 สร้าง GET /v1/approvals/failed-emails และ POST /v1/approvals/emails/{id}/resend
 - รองรับ: FR-APV-02 (ง), ASM-08, ASM-06
