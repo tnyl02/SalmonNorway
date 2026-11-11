@@ -102,3 +102,42 @@ test('AC-APV-02 ปฏิเสธพร้อมเหตุผลแล้ว�
   expect(calls).toEqual([{ requestId: 2, reason: 'อุปกรณ์ต้องใช้สอบ', loadedAt: '2026-11-12T03:00:00Z' }])
   expect(screen.queryByText('นักศึกษาตัวอย่าง ข')).toBeNull()
 })
+
+// AC-APV-06 (FR-APV-01 ง) ฝั่งหน้าจอ (หลังบ้านตรวจซ้ำใน TestAC_APV_06)
+//   Given คำขอสถานะ requested ในรายการ
+//   When  เจ้าหน้าที่กดปฏิเสธโดยไม่ระบุเหตุผล (ว่าง หรือมีแต่ช่องว่าง)
+//   Then  ระบบไม่ปฏิเสธ แสดง "กรุณาระบุเหตุผลในการปฏิเสธ" และคำขอยังอยู่ในรายการ
+test('AC-APV-06 ปฏิเสธโดยไม่ระบุเหตุผลแสดงข้อความและไม่ส่งไปหลังบ้าน', async () => {
+  let called = 0
+  const client = { ...fakeClient(), rejectRequest: async () => { called++ } }
+  render(<ApproveRequests client={client} />)
+
+  const table = await screen.findByRole('table')
+  const first = within(table).getAllByRole('row')[1]
+  fireEvent.click(within(first).getByRole('button', { name: 'ปฏิเสธ' }))
+  for (const value of ['', '   ']) {
+    fireEvent.change(within(first).getByLabelText('เหตุผลในการปฏิเสธ'), { target: { value } })
+    fireEvent.click(within(first).getByRole('button', { name: 'ยืนยันการปฏิเสธ' }))
+    expect((await screen.findByRole('alert')).textContent).toBe('กรุณาระบุเหตุผลในการปฏิเสธ')
+  }
+  expect(called).toBe(0)
+  expect(within(table).getAllByRole('row').slice(1)).toHaveLength(2)
+})
+
+// AC-APV-06: ถ้าหลังบ้านตอบ VALIDATION_FAILED (ตรวจซ้ำ T-12) หน้าจอแสดงข้อความเดียวกันและคำขอยังอยู่
+test('AC-APV-06 หลังบ้านตอบ VALIDATION_FAILED แสดงข้อความตามรหัส', async () => {
+  const client = {
+    ...fakeClient(),
+    rejectRequest: async () => Promise.reject(Object.assign(new Error('422'), { code: 'VALIDATION_FAILED' })),
+  }
+  render(<ApproveRequests client={client} />)
+
+  const table = await screen.findByRole('table')
+  const first = within(table).getAllByRole('row')[1]
+  fireEvent.click(within(first).getByRole('button', { name: 'ปฏิเสธ' }))
+  fireEvent.change(within(first).getByLabelText('เหตุผลในการปฏิเสธ'), { target: { value: 'มีเหตุผล' } })
+  fireEvent.click(within(first).getByRole('button', { name: 'ยืนยันการปฏิเสธ' }))
+
+  expect((await screen.findByRole('alert')).textContent).toBe(APPROVAL_MESSAGES.VALIDATION_FAILED)
+  expect(within(table).getAllByRole('row').slice(1)).toHaveLength(2)
+})

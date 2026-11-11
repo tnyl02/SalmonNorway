@@ -46,9 +46,16 @@ export default function ApproveRequests({ client = api }) {
   // อนุมัติ (FR-APV-01 ค, AC-APV-01)
   const approve = (requestId) => decide(requestId, () => client.approveRequest(requestId, list.loadedAt))
 
-  // ปฏิเสธพร้อมเหตุผลที่เจ้าหน้าที่พิมพ์ (FR-APV-01 ง, AC-APV-02) ข้อความเมื่อไม่ระบุเหตุผลเป็นงานของ T-13
-  const reject = (requestId) =>
-    decide(requestId, () => client.rejectRequest(requestId, reason, list.loadedAt))
+  // ปฏิเสธพร้อมเหตุผลที่เจ้าหน้าที่พิมพ์ (FR-APV-01 ง, AC-APV-02)
+  // ไม่ระบุเหตุผล (ว่างหรือมีแต่ช่องว่าง) ไม่ส่งไปหลังบ้าน แสดงข้อความของ VALIDATION_FAILED เลย คำขอยังอยู่ (AC-APV-06, T-13)
+  // หลังบ้านตรวจซ้ำเสมอ (T-12) ถ้าหลังบ้านตอบ VALIDATION_FAILED ก็แสดงข้อความเดียวกันผ่าน decide
+  const reject = (requestId) => {
+    if (reason.trim() === '') {
+      setActionError('VALIDATION_FAILED')
+      return
+    }
+    return decide(requestId, () => client.rejectRequest(requestId, reason, list.loadedAt))
+  }
 
   useEffect(() => {
     let active = true
