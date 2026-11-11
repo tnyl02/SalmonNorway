@@ -2,6 +2,27 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [SPEC-BRQ-002 Draft v1] - 2569-11-11
+spec ฉบับแรกของฟีเจอร์ 002 ยกข้อความเต็มของ FR-BRQ-01 ถึง FR-BRQ-10 จาก SRS 3.1.2 มาไว้ที่ spec ของฟีเจอร์
+ใช้ ID เดิมทุกข้อ ไม่ทำ CR เพราะเป็นการเปิดฟีเจอร์ใหม่ ไม่ได้แก้ข้อกำหนดเดิมของฟีเจอร์อื่น
+
+### Added
+- `specs/002-borrow-request/spec.md`: Goal, Scope, Constraints, Requirements, Quality Requirements,
+  Acceptance Criteria, Assumptions & Open Questions, Traceability
+- AC-BRQ-01 ถึง AC-BRQ-10 (1 ข้อต่อ 1 FR) โดย AC-BRQ-03, AC-BRQ-04, AC-BRQ-06 มาจาก Acceptance Criteria
+  ใน Use Case Specification UC-02 บน Miro โดยตรง ข้ออื่นแปลงจากข้อความของ FR
+- ASM-BRQ-01 ถึง ASM-BRQ-04 และ Q-BRQ-01 ถึง Q-BRQ-08 (ใช้รหัส Q-BRQ เพื่อไม่ชนกับ Q-xx ของ 001)
+- `specs/000-shared/constraints.md` ตาราง "ใครอ้างใช้บ้าง": เพิ่ม 002-borrow-request ใน 10 ID
+  (CON-TECH-01, CON-TECH-02, CON-DATA-01, CON-DATA-03, DOM-PRIV-01, DOM-AUDIT-01, DOM-ACCESS-01,
+  DOM-REQ-01, DOM-LOAN-01, IF-IDP-01) ไม่แก้ข้อความของ constraint ใด ๆ
+- `specs/README.md`: สถานะ 002 เปลี่ยนจาก "ยังไม่เริ่ม" เป็น "spec Draft v1" และระบุว่ารวม UC-05
+
+### Still open
+- Q-BRQ-07 ค่า `action` ของ audit_log สำหรับการส่งคำขอยืมยังไม่มีใน DM-07 ต้องจองค่าในกลุ่มก่อนเขียน migration
+- Q-BRQ-08 ชื่อสถานะของคำขอหลัง "รออนุมัติ" (กระทบ 003, 004)
+- Q-16 ของ 001 ยังเปิด ถ้ายืนยันว่าเลือกรายชิ้นไม่ได้ ต้องทำ CR กระทบ FR-BRQ-01, 04, 05, 08 (ดู ASM-BRQ-02)
+- ยังไม่มี plan.md, tasks.md, test-cases.md ของ 002
+
 ## [SRS v0.5 ปิด FR-BRQ-09, FR-BRQ-10 ของ 002] - 2569-11-11
 ปิดช่อง `[เติม]` 2 จุดสุดท้ายของหัวข้อ 3.1.2 จาก Use Case Specification UC-02 บน Miro (ทีมส่งภาพให้)
 และคำตอบของทีมเรื่องการยืมค้างคืน ไม่ทำ CR เพราะเป็นการเติมช่องที่เว้นไว้ ไม่ได้แก้ FR / AC / Constraint เดิมของฟีเจอร์อื่น

@@ -60,16 +60,16 @@ Status: v3 | Updated: 2569-11-09 (ปิด Q-SH-01 เพิ่ม DOM-REQ-01) 
 ## ใครอ้างใช้บ้าง
 | ID | ฟีเจอร์ที่อ้าง |
 |---|---|
-| CON-TECH-01 | 001-equipment-status |
-| CON-TECH-02 | 001-equipment-status |
-| CON-DATA-01 | 001-equipment-status |
-| CON-DATA-03 | 001-equipment-status |
-| DOM-PRIV-01 | 001-equipment-status |
-| DOM-AUDIT-01 | 001-equipment-status |
-| DOM-ACCESS-01 | 001-equipment-status |
-| DOM-REQ-01 | 001-equipment-status (จำนวนว่างไม่เปลี่ยนตามคำขอ) |
-| DOM-LOAN-01 | 001-equipment-status (อ่านกำหนดคืน) |
-| IF-IDP-01 | 001-equipment-status |
+| CON-TECH-01 | 001-equipment-status, 002-borrow-request |
+| CON-TECH-02 | 001-equipment-status, 002-borrow-request |
+| CON-DATA-01 | 001-equipment-status, 002-borrow-request (ส่งคำขอได้เฉพาะชิ้นที่ "ว่าง") |
+| CON-DATA-03 | 001-equipment-status, 002-borrow-request |
+| DOM-PRIV-01 | 001-equipment-status, 002-borrow-request (ไม่เปิดเผยชื่อผู้ขอรายอื่น FR-BRQ-05) |
+| DOM-AUDIT-01 | 001-equipment-status, 002-borrow-request (FR-BRQ-08) |
+| DOM-ACCESS-01 | 001-equipment-status, 002-borrow-request (FR-BRQ-07) |
+| DOM-REQ-01 | 001-equipment-status (จำนวนว่างไม่เปลี่ยนตามคำขอ), 002-borrow-request (ส่งคำขอซ้อนและลำดับคำขอ FR-BRQ-05) |
+| DOM-LOAN-01 | 001-equipment-status (อ่านกำหนดคืน), 002-borrow-request (แสดงเงื่อนไขยืมปกติ FR-BRQ-10) |
+| IF-IDP-01 | 001-equipment-status, 002-borrow-request |
 | IF-NOT-01 | - |
 
 เมื่อเปิดฟีเจอร์ 002-006 เจ้าของฟีเจอร์เพิ่มชื่อโฟลเดอร์ของตัวเองในตารางนี้
