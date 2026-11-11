@@ -2,6 +2,19 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [SPEC-APV-004 Draft v2 + CON-TECH-03 FORBIDDEN_ROLE] - 2569-11-11
+อัปเดตจาก /clarify 3 รอบของ Draft v1 ไม่ทำ CR เพราะเป็นการเปลี่ยนก่อนผ่าน Draft v2 และการเพิ่มรหัสใน CON-TECH-03 ทำตามกติกาของ CON-TECH-03 เอง ("เพิ่มแถวในตารางนี้ก่อนใช้")
+
+### Changed
+- `specs/004-approve-request/spec.md`: FR-APV-01 (หน้ารายการ, ลำดับ, เงื่อนไขอนุมัติ, เหตุผลการปฏิเสธ, ปฏิเสธคำขออื่นอัตโนมัติ, ปฏิเสธอัตโนมัติตอนเที่ยงคืน, กดพร้อมกัน, ข้อความ error, ประวัติ) และ FR-APV-02 (60 วินาที, Email 3 แบบ, ส่งไม่สำเร็จ) ID เดิม; แก้ AC-APV-01 ถึง 05
+
+### Added
+- AC-APV-06 ถึง 15 (เสนอ รอทีมอนุมัติ ID), ASM-04 ถึง 09, Q-APV-11, Q-APV-12, หัวข้อ Clarifications
+- `specs/000-shared/constraints.md`: รหัส `FORBIDDEN_ROLE` (403) ในตาราง CON-TECH-03
+
+### ยังเปิด
+- Q-APV-01 รับคำขอค้างคืน (ขัดกับ README, SRS 3.1.7, RQ-15, data-model.md, FR-BRQ-01 ต้องเข้าที่ประชุมทีม), Q-APV-04 Email ผู้ขอ (รอ 002)
+
 ## [SPEC-APV-004 Draft v1 + shared references 004] - 2569-11-11
 เริ่ม 004 ใหม่จากศูนย์บน branch ใหม่ตามที่เจ้าของ 004 สั่ง (งานเดิมอยู่ที่ branch `004-approve-request-old`) ไม่ทำ CR เพราะเป็น Draft v1 และเพิ่มเฉพาะรายการอ้างอิงในตาราง "ใครอ้างใช้บ้าง" โดยไม่เปลี่ยนเนื้อหา constraint
 
