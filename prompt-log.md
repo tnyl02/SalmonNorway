@@ -1101,6 +1101,24 @@
 
 ---
 
+## 2569-11-11 แก้ของกลาง platform/migrate.go ให้ใช้บน Windows ได้
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `backend/internal/platform/migrate.go` ที่ 001 สร้างใน T-02 ตาม AGENTS.md)
+- เครื่องมือ: Claude Code
+- ที่มา: เพื่อนในทีมที่ใช้ Windows เปิดระบบไม่ได้ ถาม AI ว่าทำไม
+- สาเหตุที่ AI พบ: `Migrate` ต่อ path เป็น `"file://"+abs` บน Windows abs เป็น `C:\...\db\migrations`
+  ได้ URL `file://C:\...` ซึ่ง Go แปลงไม่ได้ (invalid port) หลังบ้านจึงหยุดตั้งแต่ขั้นรัน migration
+  AI ยืนยันด้วยการลองแปลง URL ทั้งสองแบบใน Go: แบบ `\` error / แบบ `/` ใช้ได้
+- สิ่งที่แก้: `migrate.New("file://"+filepath.ToSlash(abs), ...)` บรรทัดเดียว บน Linux/Mac ไม่มีผล
+- ก่อนแก้ดึง main ล่าสุด (fast-forward 10 commit รวม migration 0003 ของ 002)
+- test: หลังบ้านผ่านทุก package (รวม migration 0001 ถึง 0003), หน้าจอ 10 ไฟล์ 17 test ผ่าน, `GOOS=windows go build` ผ่าน
+- ยังไม่ได้ลองบนเครื่อง Windows จริง ให้เพื่อนที่ใช้ Windows ลองหลัง merge
+- สาเหตุอื่นบน Windows ที่แจ้งทีม (ไม่ได้แก้โค้ด): ตั้งค่า `VITE_MOCK_TOKEN=...` แบบ Linux ใช้ใน PowerShell ไม่ได้,
+  PostgreSQL ในเครื่องชน port 5432, ต้องเปิด Docker Desktop, ต้อง `npm install`
+
+---
+
 ## 2569-11-10 สร้าง spec ฉบับแรกของ 003-cancel-request
 
 - ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
@@ -1605,4 +1623,14 @@
 - ผล test หลัง merge: go build ผ่าน, go test auth / equipment / platform / config ผ่าน (platform รวม test 0003 ของ 002), npm test ผ่าน 34/34
 - สิ่งที่พบ: tc_helpers_test.go (tcInsert) ของ 003 ใช้ purpose 'เพื่อการเรียน' และไม่มี requester_name, student_code, start_at, end_at
   ซึ่ง 0003 จริงบังคับ จดเพิ่มในช่องไฟล์ที่แตะของ T-01 ให้แก้ตอนทำ T-01
+
+---
+
+## 2569-11-11 merge origin/main เข้า branch 003 รอบที่ 2 (001 แก้ migrate.go เอง)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- ได้จาก main: PR #8 commit 011960b ของ 001 แก้ platform.Migrate บน Windows ด้วย filepath.ToSlash (บรรทัดเดียวกับที่ 003 แก้ไว้)
+- conflict 2 ไฟล์: migrate.go ใช้ของ 001 ทั้งไฟล์ (โค้ดเหมือนกัน ต่างแค่คอมเมนต์ 001 เป็นเจ้าของไฟล์) การแก้ของ 003 จึงไม่เหลือในไฟล์ของกลางแล้ว
+  prompt-log.md เก็บทั้งสองฝั่ง
 

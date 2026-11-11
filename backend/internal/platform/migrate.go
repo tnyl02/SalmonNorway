@@ -21,8 +21,8 @@ func Migrate(databaseURL, migrationsDir string) error {
 	if err != nil {
 		return err
 	}
-	// ToSlash: บน Windows abs เป็น D:\... ซึ่ง URL อ่านไม่ได้ (invalid port) เปลี่ยนเป็น D:/... บน Linux ไม่เปลี่ยนอะไร
-	// แก้โดย 003 (2569-11-11) ไฟล์ของกลางของ 001 ต้องแจ้งเจ้าของ 001
+	// ToSlash: บน Windows abs เป็น C:\...\db\migrations ซึ่งต่อเป็น URL ไม่ได้ (invalid port)
+	// เปลี่ยน \ เป็น / ให้ได้ file://C:/... ที่ golang-migrate อ่านได้ บน Linux/Mac ไม่มีผล
 	m, err := migrate.New("file://"+filepath.ToSlash(abs), toPgx5URL(databaseURL))
 	if err != nil {
 		return fmt.Errorf("migrate init: %w", err)
