@@ -135,7 +135,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-03, T-08
 - เสร็จเมื่อ: `TestAC_HND_02_AuthApiVerifiedAndCardChecked/verify_borrower` ผ่าน (`POST .../verify-borrower` คืน `verified`)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 ### T-10 สร้าง API บันทึกการส่งมอบ
 - รองรับ: FR-HND-02, FR-HND-03, FR-HND-05, FR-HND-07
