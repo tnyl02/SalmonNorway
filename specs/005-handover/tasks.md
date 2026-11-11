@@ -273,7 +273,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `TestAC_HND_04_ItemNotAvailable` ผ่าน (อุปกรณ์ `unavailable` และ `borrowed` ได้ 409 `ITEM_NOT_AVAILABLE` สถานะไม่เปลี่ยน)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 ### T-18 ทดสอบส่งมอบอุปกรณ์ชิ้นเดียวกันพร้อมกัน
 - รองรับ: FR-HND-04, DOM-REQ-01
