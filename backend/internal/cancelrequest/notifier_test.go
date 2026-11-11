@@ -141,3 +141,42 @@ func TestNotify_ReportsFailure(t *testing.T) {
 	}
 }
 
+
+// AC-CXL-16 (FR-CXL-09) T-28 ส่วนที่ไม่เกี่ยวกับ audit (ส่วนบันทึก audit_log notify error อยู่ใน T-32)
+//
+//	Given ระบบแจ้งเตือน Email ไม่ตอบสนอง (Notifier ปลอมคืน error)
+//	When  A ยกเลิกคำขอและยืนยัน
+//	Then  ได้ 200 {requestId, status:"cancelled"} สถานะในฐานข้อมูลเป็น cancelled พร้อมเหตุผล
+//	      Notifier ถูกเรียก 1 ครั้ง (ส่งหลัง commit) และคำขอหายจากรายการ
+func TestAC_CXL_16_NotifyFailureStillCancelled(t *testing.T) {
+	fake := &fakeNotifier{err: errors.New("smtp: connection refused")}
+	srv := notifyServer(t, fake)
+	id := tcInsert(t, tcUserA, tcItemAvailable, "normal", "requested", time.Now())
+
+	rec := tcCancel(t, srv, id, "ไม่ต้องใช้อุปกรณ์แล้ว", tcTokenA)
+
+	tcWantStatus(t, rec, http.StatusOK)
+	if body := tcDecode[tcCancelBody](t, rec); body.RequestID != id || body.Status != "cancelled" {
+		t.Errorf("body = %+v ต้องเป็น {requestId:%d status:cancelled}", body, id)
+	}
+	if len(fake.sent) != 1 {
+		t.Errorf("Notifier ต้องถูกเรียก 1 ครั้ง ได้ %d", len(fake.sent))
+	}
+	r := tcRow(t, id)
+	if r.Status != "cancelled" || r.CancelReason == nil || *r.CancelReason != "ไม่ต้องใช้อุปกรณ์แล้ว" || r.CancelledAt == nil {
+		t.Errorf("แถว = %+v ต้องเป็น cancelled พร้อมเหตุผลและเวลา (ไม่ย้อนการยกเลิก)", r)
+	}
+	list := tcDecode[tcListBody](t, tcGet(t, tcHandlerOnly(t), tcPathMine, tcTokenA))
+	if len(list.Items) != 0 {
+		t.Errorf("คำขอที่ยกเลิกแล้วต้องไม่อยู่ในรายการ ได้ %+v", list.Items)
+	}
+}
+
+// tcHandlerOnly ประกอบ handler แบบเดียวกับ tcServer แต่ไม่ล้างข้อมูล ใช้ตรวจผลหลังทำรายการ
+func tcHandlerOnly(t *testing.T) http.Handler {
+	t.Helper()
+	h := NewHandler(NewService(NewRepository(tcPool(t))))
+	mux := http.NewServeMux()
+	mux.Handle(PathPrefixMine, auth.Middleware(auth.NewMockProvider(), h.Routes()))
+	return mux
+}
