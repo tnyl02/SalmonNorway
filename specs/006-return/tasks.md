@@ -46,7 +46,7 @@ task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: migration รันบน DB ว่างได้ ตาราง `loan` มี `return_condition`, `returned_late` พร้อม CHECK และ `audit_log` รับ action ใหม่ 4 ค่า (ตาราง `loan_return_photo` ถอดออก 2569-11-11 พร้อม FR-RET-05) (test ใน `migrate_test.go` ผ่าน)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ 
 - ความสำคัญ: ต้องทำ
 
 ### T-02 เพิ่มค่าที่ตั้งได้ของการรับคืน
@@ -56,7 +56,7 @@ task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: มี `Timezone` และ `ReturnConditionStatus` ใน config.go และ `TIMEZONE`, `STATUS_LABELS`, `RETURN_CONDITIONS` ใน config.js ทุกตัวมีคอมเมนต์อ้าง ID (ค่ารูปถอดออก 2569-11-11 พร้อม FR-RET-05)
-- สถานะ: เสร็จ รอทีมตรวจ (config.go 2569-11-10, config.js เพิ่มตามทีมสั่ง 2569-11-11)
+- สถานะ: เสร็จ รอทีมตรวจ
 - ความสำคัญ: ต้องทำ
 
 ### T-03 สร้างโครง package returns ผูก route และข้อมูลตัวอย่าง
