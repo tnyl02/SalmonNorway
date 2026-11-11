@@ -11,7 +11,26 @@ import (
 )
 
 // TimeZone คือเขตเวลาที่ใช้เทียบ "วันที่และเวลาปัจจุบัน" (glossary, FR-EQS-04 ข้อ ข, DOM-LOAN-01)
+// 003 ใช้ค่าเดียวกันแสดงเวลาที่ส่งคำขอ (FR-CXL-06)
 const TimeZone = "Asia/Bangkok"
+
+// ---- 003-cancel-request (plan.md ข้อ 5 ของ 003, T-03) ----
+
+// CancellableStatuses คือสถานะของคำขอที่นักศึกษายังยกเลิกได้ (CON-CXL-02, FR-CXL-01, ASM-04)
+// คืน slice ใหม่ทุกครั้ง กันโค้ดที่เรียกใช้เผลอแก้ค่ากลาง
+func CancellableStatuses() []string {
+	return []string{"requested", "approved_by_officer", "pending_advisor_approval"}
+}
+
+// CancelReasonMaxLen คือความยาวสูงสุดของเหตุผลการยกเลิก นับตาม code point (FR-CXL-08, Q-14, ASM-13)
+const CancelReasonMaxLen = 200
+
+// CancelPerfP95 คือเวลาตอบสนอง p95 สูงสุดของการยกเลิกและการเปิดหน้ารายการ (NFR-PERF-CXL-01) ใช้เป็น threshold ของ load test
+const CancelPerfP95 = 15 * time.Second
+
+// CancelDBTimeout คือเวลารอฐานข้อมูลตอนยกเลิกก่อนตอบ 503 (ASM-06)
+// ตัวเลขทีมเลือกเอง ไม่ได้มาจาก spec (ตัดสิน 2569-11-11 ตอนทำ T-03) ต้องน้อยกว่า CancelPerfP95
+const CancelDBTimeout = 5 * time.Second
 
 // ---------- ค่าของฟีเจอร์ 002 ส่งคำขอยืม (plan.md ข้อ 5 ตาราง "ค่าที่ตั้งได้") ----------
 

@@ -114,7 +114,8 @@ func TestMigration_ApprovalAuditActions(t *testing.T) {
 	conn := testDB(t)
 	const req = 9102
 
-	for _, a := range []string{"list", "search", "detail", "cancel", "request", "approve", "reject", "auto_reject"} {
+	// notify ของ 003 (0005) ต้องยังใช้ได้หลัง 0008 เขียน CHECK ใหม่
+	for _, a := range []string{"list", "search", "detail", "cancel", "request", "notify", "approve", "reject", "auto_reject"} {
 		stmt := fmt.Sprintf(`INSERT INTO audit_log (actor_id, actor_role, action, request_id, outcome)
 			VALUES ('staff-001', 'staff', '%s', %d, 'ok')`, a, req)
 		if err := execInTx(t, conn, approvalTestRequest(req), stmt); err != nil {

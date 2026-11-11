@@ -1119,6 +1119,29 @@
 
 ---
 
+## 2569-11-11 spec 001 v4.4, plan v1.6, tasks v2.1 และร่าง CR-005 (หลัง PR ของ 002)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status
+- เครื่องมือ: Claude Code
+- ที่มา: สรุปผลกระทบต่อ 001 หลัง PR #6, #7 ของ 002 (CR-003, CR-004) ทีมส่งมาเป็นรูป AI อธิบายและตรวจกับ main
+- คำถามที่ AI ถาม และคำตอบของทีม (Pannathorn J):
+  1. ปุ่มส่งคำขอยืมอยู่หน้าไหน -> ทั้งสองหน้า (ตารางรายชิ้นและหน้ารายละเอียด)
+  2. message ใน error body บังคับกับ 001 ไหม -> บังคับ
+  3. เลข CR และ FR/AC ใหม่ -> CR-005 (จองในกลุ่มแล้ว merge ไฟล์ CR ก่อน), FR-EQS-11, AC-EQS-17 ต่อท้าย ทีมอนุมัติใน CR ก่อนแก้ spec
+  4. API ของ 002 -> ใช้ `GET /api/v1/equipment/items/{assetCode}/requests` ตาม plan 002 ข้อ 4 002 ผูก route เองใน main.go
+     ไม่ต้องแก้ handler.go ของ 001 / requesterName = ชื่อที่ผู้ขอพิมพ์เอง (FR-BRQ-03 ก) ไม่รวม Q-20
+- สิ่งที่ AI แก้:
+  - spec v4.4: Q-16 ปิด, Q-SH-05 ปิดชี้ไป CR-005, Q-12 บันทึก Q-SH-04 ปิด, เพิ่ม CON-TECH-03 ในรายการใช้ร่วม, Clarifications Session 2569-11-11
+  - plan v1.6: Error contract ตาม CON-TECH-03 พร้อมข้อความที่เสนอ (ทีมเลือกเอง ไม่ได้มาจาก spec รอทีมตรวจ), canRequestLoan ทั้ง 2 หน้า,
+    การส่งต่อไป UC-02 และลำดับคำขอ (CR-005), ข้อ 10 เพิ่ม Q-16, Q-SH-05 และเรื่อง 404/405
+  - tasks v2.1: T-34 พร้อมทำ (เขียนไฟล์ที่แตะและเสร็จเมื่อใหม่), เพิ่ม T-37, T-20 ทำหลัง T-37, ตาราง Constraint และสิ่งที่ยังไม่ทำ
+  - สร้าง specs/changes/CR-005.md สถานะ "เสนอ รอทีมอนุมัติ" และบันทึก CHANGELOG
+- สิ่งที่ AI ไม่ได้ทำ: ไม่เพิ่ม FR-EQS-11 / AC-EQS-17 ใน spec (รออนุมัติ CR-005), ไม่แก้โค้ด, ไม่ commit
+- ข้อค้นพบที่ทีมต้องรู้:
+  - CR-004 เขียนว่า 001 "ไม่ต้องแก้โค้ด" แต่ body error ของ 001 ยังไม่มี message จึงเพิ่ม T-37
+  - 404 / 405 ตอบเป็นข้อความธรรมดาของ Go ไม่ตรง CON-TECH-03 และรายการกลางยังไม่มีรหัส ต้องให้ทีมเพิ่ม
+  - migration 0003 ของ 002 เพิ่ม action `request` ใน CHECK ของ audit_log แล้ว migration `notify` ของ 003 ต้องใส่ `request` ด้วย
 ## 2569-11-11 /implement T-02 (002-borrow-request)
 
 - ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
@@ -1974,6 +1997,1097 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 
 ---
 
+## 2569-11-10 สร้าง spec ฉบับแรกของ 003-cancel-request
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request (และตาราง "ใครอ้างใช้บ้าง" ใน 000-shared/constraints.md)
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: อ่าน AGENTS.md, specs/000-shared/ ทั้ง 3 ไฟล์ และ SRS หัวข้อ 3.0 กับ 3.1.3
+  แล้วสร้าง specs/003-cancel-request/spec.md ครบ 6 ส่วน + Assumptions & Open Questions, Constraint ใช้ร่วมอ้าง ID,
+  ใส่ชื่อในช่อง Owner และเพิ่มชื่อฟีเจอร์ในตาราง "ใครอ้างใช้บ้าง"
+- สิ่งที่ AI ทำ: spec Draft v1 (FR-CXL-01 ถึง 05, AC-CXL-01 ถึง 07), constraints.md ตาราง "ใครอ้างใช้บ้าง",
+  specs/README.md สถานะ, CHANGELOG
+- สิ่งที่ AI ตีความหรือร่างเอง ทีมต้องรู้:
+  - FR-CXL-03 (ยกเลิกได้เฉพาะคำขอของตนเอง) ตีความจาก RQ-03 เทียบ RQ-10 เขียนเป็น ASM-03 รอยืนยัน
+  - FR-CXL-04 (ตัดสินจากสถานะ ณ เวลาที่บันทึก) ร่างจากคำว่า "ก่อน" ใน RQ-03 สำหรับกรณีกดพร้อมกับเจ้าหน้าที่
+  - FR-CXL-05 (บันทึกประวัติ) มาจาก RQ-25 ที่เก็บยังไม่รู้ (Q-07)
+  - CON-CXL-01, CON-CXL-02 เป็น ID ใหม่เฉพาะฟีเจอร์นี้
+  - ไม่ได้อ้าง DOM-AUDIT-01, DOM-PRIV-01, DOM-ACCESS-01 เพราะข้อความพูดถึงข้อมูลอุปกรณ์ ไม่ใช่คำขอ ทีมตรวจใน /clarify
+- สิ่งที่ AI ไม่ได้ทำ (ตั้งใจ): ไม่ตั้งชื่อสถานะของคำขอ (รอ 002, Q-01), ไม่เพิ่มหน้ารายการคำขอ (UC-06 ไม่อยู่ใน prototype, Q-04),
+  ยังไม่เขียน FR-CXL ใน SRS หัวข้อ 3.1.3
+
+---
+
+## 2569-11-10 ตอบ Open Questions ของ 003 (spec Draft v2)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: ตอบ Q-01, Q-02, Q-04 ของ spec Draft v1
+
+### คำถามที่ AI ถาม และคำตอบของทีม
+1. Q-01 สถานะไหนนับว่า "ยังไม่อนุมัติ" -> "ถูกยืม, ไม่พร้อมใช้งาน"
+   AI ทักกลับ: เป็นสถานะของอุปกรณ์ (CON-DATA-01) ไม่ใช่สถานะของคำขอ และขัดกับ DOM-REQ-01 จึงยังไม่ใส่ใน spec รอยืนยัน
+2. Q-02 คำขอค้างคืนที่เจ้าหน้าที่ผ่านขั้นแรกแล้วแต่อาจารย์ยังไม่เซ็น ยกเลิกได้ไหม -> ยกเลิกได้
+3. Q-04 เลือกคำขอจากหน้าไหน -> ฟีเจอร์ 003 มีหน้า "คำขอที่รออนุมัติของฉัน" ของตัวเอง (เฉพาะคำขอของตนที่รออนุมัติ,
+   แสดงอุปกรณ์ เวลาที่ส่ง ปุ่มยกเลิก, ยืนยันก่อนยกเลิก, ยกเลิกแล้วหายจากหน้า, อนุมัติก่อนยืนยันต้องไม่ยกเลิก, ไม่ใช่ UC-06)
+
+### สิ่งที่ AI ทำ
+- spec Draft v2: เพิ่ม FR-CXL-06, FR-CXL-07, AC-CXL-08 ถึง 11, Q-11 แก้ FR-CXL-01, 02, 04 และ Clarifications, CHANGELOG, README
+- สิ่งที่ AI ตีความเอง ทีมต้องรู้:
+  - "อาจารย์ยังไม่เซ็น" = เจ้าหน้าที่ยังไม่บันทึกผลอนุมัติของอาจารย์ (UC-14) เพราะอาจารย์เซ็นนอกระบบ
+  - FR-CXL-07 "ถ้าไม่ยืนยัน สถานะคงเดิม" เขียนเพิ่มจากคำว่า "ต้องยืนยันอีกครั้ง"
+  - คำตอบ Q-04 ข้อ "ไม่ยกเลิกคำขอที่ปฏิเสธ/ยกเลิกไปแล้ว" นำไปใส่ใน FR-CXL-02 ด้วย
+
+---
+
+## 2569-11-10 ปิด Q-01 ของ 003 (สถานะของคำขอ)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code
+- คำถามที่ AI ถาม: ขออธิบาย Q-01 ใหม่ AI แยกสถานะของอุปกรณ์กับสถานะของคำขอ แล้วเสนอตารางสถานะของคำขอ 8 ค่าจาก workflow บน Miro
+  (data-model.md) พร้อมช่องยกเลิกได้/ไม่ได้ (ชื่อภาษาไทยในตาราง AI แปลเอง)
+- คำตอบของทีม: ใช้ตามตารางได้เลย
+- สิ่งที่ AI ทำ: CON-CXL-02 ใส่ตารางสถานะ, FR-CXL-01, 02, 06 อ้างชื่อสถานะ, ปิด Q-01, เพิ่ม Q-12, CHANGELOG (รวมใน Draft v2 เพราะยังไม่ commit)
+- สิ่งที่ AI ตีความเอง: Approved by Officer ใช้กับค้างคืนเท่านั้น คำขอปกติที่เจ้าหน้าที่อนุมัติเป็น Approved ทันที (Q-12)
+  ชื่อสถานะยังต้องตรวจกับ spec ของ 002
+
+---
+
+## 2569-11-10 ตอบคำถามจากหน้าสรุปสถานะของคำขอ (003)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: ให้ AI ทำหน้าเว็บสรุปตารางสถานะของคำขอ (artifact บน claude.ai) เพื่อส่งให้เจ้าของ 002 และ 004 ตรวจ แล้วตอบคำถามในหน้านั้น
+
+### คำถามที่ AI ถาม และคำตอบของทีม
+1. ชื่อสถานะตรงกับ spec ของ 002 ไหม -> ตรงแล้ว
+2. Q-12 คำขอปกติผ่าน Approved by Officer ไหม -> ไม่ผ่าน
+3. ปฏิเสธได้ที่ขั้นไหนบ้าง -> ทั้ง 2 ขั้น ขั้นเจ้าหน้าที่ และหลังอาจารย์ไม่เซ็น
+
+### สิ่งที่ AI ทำ
+- spec: CON-CXL-02 เพิ่มเส้นทางของคำขอ ปิด Q-12 เพิ่ม Clarifications, CHANGELOG (รวมใน Draft v2 เพราะยังไม่ commit), อัปเดตหน้าเว็บสรุป
+- หมายเหตุ: ยังไม่มี spec ของ 002 ใน repo (branch นี้) คำว่า "ตรงแล้ว" บันทึกตามที่เจ้าของ 003 ยืนยัน
+
+---
+
+## 2569-11-10 เขียน FR-CXL ลง SRS หัวข้อ 3.1.3
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request (docs/srs/SRS.md หัวข้อ 3.1.3)
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: เขียน FR-CXL ลง SRS หัวข้อ 3.1.3
+- สิ่งที่ AI ทำ: แทน `[เติม]` ด้วย FR-CXL-01 ถึง 07 แบบสรุป (ID และความหมายตาม spec Draft v2 ไม่เพิ่มข้อใหม่) ตามรูปแบบหัวข้อ 3.1.1
+  เพิ่ม RQ-25 ในบรรทัดที่มา และบรรทัด "สิ่งที่รู้แล้ว", CHANGELOG
+- สิ่งที่ AI ไม่ได้ทำ (ตั้งใจ): ไม่เปลี่ยนเลขเวอร์ชันและวันที่หัวเอกสาร SRS เพราะเจ้าของฟีเจอร์อื่นแก้ SRS ใน branch ของตัวเองพร้อมกัน จะ conflict
+
+---
+
+## 2569-11-10 /clarify รอบที่ 1 ของ 003 (spec Draft v3)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /clarify ไม่ได้โหลดใน session เพราะเปิดจากโฟลเดอร์แม่ AI อ่าน .claude/commands/clarify.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /clarify specs/003-cancel-request/spec.md แล้วให้ทำหน้าเว็บใบตอบคำถาม (artifact บน claude.ai) ตอบผ่านหน้าเว็บแล้ววางคำตอบกลับมา
+
+### คำถามที่ AI ถาม และคำตอบของทีม
+1. ประวัติการยกเลิกเก็บที่ไหน บันทึกกรณีไหน -> audit_log (DM-07) เฉพาะผู้ใช้ที่ล็อกอินแล้ว รวมคำขอของผู้อื่น
+2. ยกเลิกที่ Approved by Officer ขัด RQ-03 -> บันทึกเป็นการตัดสินของทีม (ASM) และทำใน prototype ด้วย seed
+3. ตารางสถานะ / กฎใครบันทึกก่อน เป็นของกลางไหม -> เก็บไว้ใน 003 ให้ 004 เขียนกฎฝั่งตัวเอง
+4. หน้า "คำขอที่รออนุมัติของฉัน" แสดงอะไร -> ชื่อรุ่น + รหัสครุภัณฑ์, ใหม่ไปเก่า, "ไม่มีคำขอที่รออนุมัติ"
+5. ยกเลิกไม่ได้แจ้งว่าอะไร -> "คำขอนี้ยกเลิกไม่ได้" ทุกกรณี คำขอของผู้อื่น "ไม่พบคำขอ"
+6. บันทึกไม่สำเร็จ -> แจ้งข้อผิดพลาด สถานะคงเดิม ลองใหม่ได้ (แบบ FR-EQS-08)
+7. session หมดอายุ -> กลับหน้า "คำขอที่รออนุมัติของฉัน" ไม่ยกเลิกอัตโนมัติ
+8. Q-05, Q-06, Q-09, Q-10 ตัดออกจาก prototype ได้ไหม -> ไม่ตัด ต้องได้คำตอบก่อน plan
+
+### สิ่งที่ AI แก้
+- spec Draft v3: FR-CXL-01, 02, 03, 05, 06, AC-CXL-03, 06, 07, 08, 11 แก้ตามคำตอบ, เพิ่ม AC-CXL-12, 13, ASM-04 ถึง 07, Q-13
+  ปิด Q-03, Q-07, Q-08, Q-11, Clarifications, Traceability
+- SRS 3.1.3, specs/README.md, CHANGELOG
+- สิ่งที่ AI ตีความเอง ทีมต้องรู้:
+  - ข้อ 5 "ทุกกรณี" ตีความว่าเฉพาะกรณีที่ยังไม่มีข้อความ กรณี Approved ยังแจ้ง "ได้รับการอนุมัติแล้ว" ตามคำตอบ Q-04 เดิม
+  - เพิ่ม AC ใหม่ 2 ข้อ (AC-CXL-12, 13) เพื่อให้คำตอบข้อ 4 และ 6 ทดสอบได้ ไม่ได้เพิ่ม FR ใหม่
+  - พบว่า DM-07 ไม่มีฟิลด์รหัสคำขอ เปิดเป็น Q-13 (กระทบของกลางและ 001)
+
+---
+
+## 2569-11-10 ตอบ Q-05, Q-06, Q-09, Q-10 ของ 003 (รวมใน spec Draft v3)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request (และตาราง "ใครอ้างใช้บ้าง" ใน constraints.md, SRS 3.1.3 และ 3.3)
+- เครื่องมือ: Claude Code
+
+### คำถามที่ AI ถาม และคำตอบของทีม
+1. Q-05 ต้องระบุเหตุผลไหม -> ต้องระบุ / AI ถามต่อ: แบบไหน -> พิมพ์เอง บังคับไม่ว่าง
+2. Q-06 แจ้งเจ้าหน้าที่ไหม -> แจ้ง / AI ถามต่อ: แจ้งใคร ส่งไม่สำเร็จทำอย่างไร -> Email เจ้าหน้าที่ภาควิชาเจ้าของอุปกรณ์ ยกเลิกสำเร็จเสมอ
+3. Q-09 กี่วินาที -> 15 วินาที / AI ถามต่อ: ใช้กับอะไร -> ทั้งยกเลิกและเปิดหน้า p95
+4. Q-10 เจ้าหน้าที่ยกเลิกแทนได้ไหม -> ได้ / AI ถามต่อ: ทำแค่ไหน -> เขียนใน spec แต่ไม่ทำใน prototype
+
+### สิ่งที่ AI แก้
+- spec: เพิ่ม FR-CXL-08, 09, 10, NFR-PERF-CXL-01, AC-CXL-14 ถึง 17, ASM-08, ASM-09, Q-14 ถึง Q-16 แก้ FR-CXL-07, Scope, Constraints (IF-NOT-01)
+- SRS 3.1.3 และ 3.3, constraints.md (IF-NOT-01), CHANGELOG
+- สิ่งที่ AI ตีความหรือร่างเอง ทีมต้องรู้:
+  - คำตอบทั้ง 4 ข้อ บันทึกเป็นการตัดสินของเจ้าของฟีเจอร์ (ASM-08) ยังไม่ได้ถามนักศึกษาหรือเจ้าหน้าที่จริง
+  - เนื้อหาใน Email (ผู้ยกเลิก ชื่อรุ่น รหัสครุภัณฑ์ เวลา เหตุผล) AI ร่างเอง
+  - ใช้ ID ใหม่ NFR-PERF-CXL-01 (ไม่ใช้ NFR-PERF-02 กันชนกับฟีเจอร์อื่น) และเพิ่มแถวใน SRS 3.3
+  - เหตุผลการยกเลิกต้องมีช่องในตาราง borrow_request ของ 002 (ASM-09)
+
+---
+
+## 2569-11-10 /plan ของ 003 (plan v1, spec Draft v3.1)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (plan mode) คำสั่ง /plan ไม่ได้โหลดใน session เพราะเปิดจากโฟลเดอร์แม่ AI อ่าน .claude/commands/plan.md แล้วทำตามเอง
+- สิ่งที่สั่ง: /plan specs/003-cancel-request/spec.md
+
+### คำถามที่ AI ถาม และคำตอบของทีม
+1. ตาราง borrow_request ยังไม่มี ใครสร้าง -> 003 ร่างเบื้องต้น ให้ 002 รับช่วง (ASM-11)
+2. Q-14 เหตุผลยาวสูงสุด -> 200 ตัวอักษร
+3. Q-15 prototype ส่ง Email จริงหรือจำลอง -> จำลอง แบบ auth จำลอง (ASM-10)
+
+### สิ่งที่ AI ทำ
+- spec Draft v3.1: FR-CXL-08, AC-CXL-14 (200 ตัวอักษร), ASM-10, ASM-11, ปิด Q-14, Q-15 ปิดบางส่วน, SRS 3.1.3, CHANGELOG, README
+- สร้าง specs/003-cancel-request/plan.md Draft v1 (8 หัวข้อ, Constraints 8 ตัว, AC 17 ตัว, ลำดับงาน 9 ขั้น)
+- อ้างโครงกลางจาก origin/001-equipment-status (auth.Middleware, Provider pattern, config.go, migration 0001, seed)
+- สิ่งที่ AI เลือกเอง ทีมต้องตรวจ:
+  - ชื่อ package `cancelrequest`, หน้า `MyPendingRequests`, path API, รหัส error (REQUEST_NOT_FOUND, ALREADY_APPROVED, NOT_CANCELLABLE ฯลฯ)
+  - ค่าสถานะในฐานข้อมูลเป็นภาษาอังกฤษตัวเล็ก "ยกเลิก" = `cancelled` ต้องตรงกับ 002
+  - ตาราง staff_contact (จำลอง) และ `CancelDBTimeout` (ตัวเลขทีมเลือกเอง)
+  - ส่ง Email หลัง commit และไม่เก็บเหตุผลใน audit_log
+- สิ่งที่อยากเดาแต่ไม่ได้เดา: รูปแบบช่องรหัสคำขอใน audit_log (Q-13)
+
+---
+
+## 2569-11-10 /tasks ของ 003 (tasks v1)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /tasks ไม่ได้โหลดใน session AI อ่าน .claude/commands/tasks.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: `/tasks specs/003-cancel-request/spec.md`
+- ผลลัพธ์: specs/003-cancel-request/tasks.md 18 เฟส (ฐานราก + 16 เฟสตาม AC + รอคำตอบ) 32 task รอ Q-13 3 task (T-30 ถึง T-32)
+  ตาราง AC 17/17, Constraint 8/8, FR 10 ตัว (FR-CXL-10 ไม่มี AC และไม่มี task เพราะไม่ทำใน prototype)
+  แก้ specs/README.md สถานะเป็น tasks v1
+- สิ่งที่ AI เลือกเอง ทีมต้องตรวจ:
+  - ใช้ไฟล์ seed แยก `seed_003_cancel_request.sql` ไม่แก้ seed.sql ของ 001
+  - เพิ่มค่า `MSG_ALREADY_APPROVED` ใน config.js (T-03) ซึ่ง plan หัวข้อ 5 ไม่ได้ระบุ แต่ FR-CXL-02 ต้องใช้ข้อความนี้
+  - เรื่องที่รอ 002 (schema) และรอ 001 merge ไม่ใช่ Q ใน spec จึงเขียนไว้ในส่วนหัว ไม่ได้ใส่เป็นสถานะของ task
+  - จุดตรวจเฟส 8-11 ให้ลองด้วย curl และ psql เพราะหน้าจอไปถึงกรณีเหล่านี้ไม่ได้ และ 004 ยังไม่มี
+  - AC-CXL-17 ต้องมีผู้ใช้จำลอง 50 คน แต่ auth จำลองของกลางมี 4 คน ทีมต้องตัดสินวิธีทดสอบ
+
+---
+
+## 2569-11-11 merge main เข้า branch 003 และปิด Q-13 (spec Draft v3.2)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request และของกลาง (specs/000-shared/data-model.md แก้เพราะ 003)
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: ดึงงานของเพื่อนใน main เข้า branch 003 โดยไม่ให้งาน 003 เข้า main
+- สิ่งที่ AI ทำ: `git merge origin/main` บน branch 003 (เจ้าของฟีเจอร์เริ่ม merge เอง AI แก้ conflict)
+  conflict 2 ไฟล์ prompt-log.md และ specs/CHANGELOG.md แก้โดยเก็บทั้งสองฝั่ง ไม่ลบบันทึกใด
+  (CHANGELOG: รายการ 003 อยู่บน, prompt-log: บันทึกของ 001 ก่อน แล้วต่อด้วยของ 003) merge commit 65b9588 ยังไม่ push
+
+### คำถามที่ AI ถาม และคำตอบของทีม
+1. main มี request_id และ action cancel แล้ว แต่ไม่มี cancel_notify_failed จะบันทึก Email ล้มเหลวอย่างไร
+   -> เอาตามที่ AI แนะนำ: เพิ่ม action `notify` ด้วย migration ใหม่ (ใช้ร่วมกับ 004 ได้)
+2. แต่ละกรณีใช้ outcome ค่าไหน -> เอาตามที่ AI แนะนำ: `ok` / `forbidden` + สาเหตุใน query, `error` เฉพาะระบบผิดพลาด
+   คำขอที่ไม่มีอยู่ให้ request_id ว่าง และบันทึกกรณีเหตุผลไม่ผ่านด้วย
+
+### สิ่งที่ AI แก้
+- spec Draft v3.2: FR-CXL-05 (ตารางการบันทึก), FR-CXL-09, ASM-12, ปิด Q-13, Clarifications, Traceability
+- data-model.md v4.1 (ของกลาง): เพิ่มแถว action `notify` ใน DM-07 ต้องแจ้งเจ้าของ 001
+- plan.md v1.1, tasks.md v1.1 (T-30 ถึง T-32 พร้อมทำ, เฟส 17 มีจุดตรวจ), CHANGELOG
+- สิ่งที่ AI พบ ทีมต้องรู้: data-model.md จองเลข migration `0003_borrow_request` ให้ 002 และ `0004` ขึ้นไปให้ 003
+  ขัดกับ ASM-11 ที่ให้ 003 ร่าง borrow_request ต้องตกลงกับ 002 ว่าใครสร้างไฟล์ 0003
+
+---
+
+## 2569-11-11 /testcases โหมดร่าง ของ 003 (AC-CXL-08, 01, 09, 14, 12)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session AI อ่าน .claude/commands/testcases.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /testcases เส้นทางหลัก 5 AC (เจ้าของฟีเจอร์เลือกจาก 3 ทางที่ AI เสนอ)
+- โหมด: ร่าง สร้าง specs/003-cancel-request/test-cases.md ตามแบบในภาคผนวก ยังไม่เขียนโค้ด test
+- TC ที่เสนอ 30 แถว สถานะ "ร่าง" ทั้งหมด:
+  TC-CXL-08-1 ถึง 08-6, TC-CXL-01-1 ถึง 01-7, TC-CXL-09-1 ถึง 09-6, TC-CXL-14-1 ถึง 14-6, TC-CXL-12-1 ถึง 12-5
+- ปรับจากไฟล์คำสั่งที่เขียนสำหรับ Python ให้ตรง AGENTS.md: ตรวจด้วย go test, ชื่อ test `TestTC_CXL_...`
+- Then ที่ spec ไม่ได้บอก (เสนอเป็นคำถาม): ลำดับเมื่อเวลาส่งเท่ากัน (08-4), เจ้าหน้าที่เปิดหน้านี้ (08-6),
+  ข้อความยกเลิกสำเร็จ (01-2), ช่องเหตุผลหลังกดไม่ยืนยัน (09-5), วิธีนับ "ตัวอักษร" ภาษาไทย (14-5), โหลดรายการไม่สำเร็จ (12-5)
+
+---
+
+## 2569-11-11 ตอบ 6 จุดที่ spec ไม่ได้บอก จาก /testcases (spec Draft v3.3)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code
+
+### คำถามที่ AI ถาม และคำตอบของทีม
+1. TC-CXL-08-4 ส่งเวลาเดียวกัน -> เรียงตาม requestId
+2. TC-CXL-08-6 เจ้าหน้าที่เรียก -> 403 ถูกปฏิเสธ
+3. TC-CXL-01-2 ข้อความสำเร็จ -> "ยกเลิกคำขอยืม {ชื่อรุ่น} ({รหัสครุภัณฑ์}) เรียบร้อยแล้ว"
+4. TC-CXL-09-5 กดไม่ยืนยันแล้วเปิดใหม่ -> ล้างช่องเหตุผล
+5. TC-CXL-14-5 นับตัวอักษร -> นับตาม code point และแสดงตัวนับ "x/200" ใต้ช่อง
+6. TC-CXL-12-5 โหลดไม่สำเร็จ -> "โหลดรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" พร้อมปุ่ม "ลองใหม่"
+
+### สิ่งที่ AI แก้
+- spec Draft v3.3: FR-CXL-01, 03, 06, 07, 08 และ ASM-13, Clarifications (แก้ spec ก่อน แล้วค่อยแก้ test-cases ตามกติกาว่า spec เป็นแหล่งข้อมูลหลัก)
+- plan v1.2, tasks (T-03, T-04, T-07, T-08, T-10, T-12), test-cases 6 แถว (ยังเป็นสถานะร่าง ทีมต้องเปลี่ยนเป็นใช้ได้เอง), CHANGELOG
+- สิ่งที่ AI ตีความเอง ทีมต้องตรวจ:
+  - "เรียงตาม requestId" ตีความเป็นมากไปน้อย ให้ตรงกับ "ใหม่ไปเก่า"
+  - 403 ใช้กับการสั่งยกเลิกของเจ้าหน้าที่ด้วย ไม่ใช่แค่การเปิดรายการ ตั้งรหัส error `STUDENT_ONLY` เอง
+  - TC-CXL-14-5 เพิ่มให้ตรวจทั้ง go test และ vitest เพื่อยืนยันว่านับแบบเดียวกัน
+
+---
+
+## 2569-11-11 /testcases โหมดเขียน test ของ 003 (AC-CXL-08, 01, 09, 14, 12)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (AI อ่าน .claude/commands/testcases.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: เขียนโค้ด test จากแถวที่ "ใช้ได้" (ทีมเปลี่ยนสถานะครบ 30 แถว และ commit 3be55cd แล้ว)
+- โหมด: เขียน test ไม่ได้แก้โค้ดของระบบ
+- ไฟล์ที่สร้าง (ปรับจากไฟล์คำสั่งที่เขียนสำหรับ Python ให้ตรง AGENTS.md):
+  - หลังบ้าน `backend/internal/cancelrequest/`: tc_helpers_test.go (ตัวช่วย ไม่ใช่ test), tc_ac_cxl_08_test.go, tc_ac_cxl_01_test.go,
+    tc_ac_cxl_09_test.go, tc_ac_cxl_14_test.go, tc_ac_cxl_12_test.go รวม 20 test ชื่อ `TestTC_CXL_...`
+  - หน้าจอ `frontend/src/__tests__/`: TC-CXL-08-2, 01-2, 09-1, 09-3, 09-4, 09-5, 14-2, 14-5, 12-2, 12-5 (.test.jsx) รวม 10 ไฟล์
+    และ helpers/cxlFakeClient.js (ตัวช่วย ไม่ใช่ test)
+  - TC-CXL-09-2 เป็น "คน" ไม่ได้เขียนโค้ด
+- ผล test:
+  - `go test -short ./...`: auth, equipment, platform ผ่าน / cancelrequest build failed: undefined NewHandler, NewService, NewRepository
+  - `npm test`: test ของ 001 ผ่าน 10 ไฟล์ 17 test / TC-CXL 10 ไฟล์ไม่ผ่าน: Failed to resolve import ../pages/MyPendingRequests/MyPendingRequests.jsx
+  - ทั้งหมดเป็นกรณี "task ที่ตรวจด้วย AC นี้ยังไม่ได้ทำ" (T-01, T-04 ถึง T-12) ไม่ใช่บั๊ก
+- สิ่งที่ test กำหนดไว้ ทีมต้องรู้ตอน implement:
+  - หลังบ้าน: NewRepository(pool) / NewService(repo) / NewHandler(svc) / Routes() path `/v1/my/pending-requests` และ `/v1/borrow-requests/{id}/cancel` (ไม่มี /api เหมือน 001)
+    package มี TestMain ใน tc_helpers_test.go แล้ว test อื่นของ 003 ห้ามประกาศ TestMain ซ้ำ ให้ใช้ tcServer / tcInsert
+  - หน้าจอ: `<MyPendingRequests client>` client มี listMyPendingRequests() และ cancelRequest(id, reason) แถวเป็น listitem
+    กล่องยืนยันเป็น dialog มี textbox ตัวนับ "x/200" ปุ่ม "ยืนยัน" / "ไม่ยืนยัน" ปุ่มในแถวชื่อ "ยกเลิก" ปุ่มโหลดใหม่ชื่อ "ลองใหม่"
+  - ล้างข้อมูลระหว่าง test ด้วย DELETE FROM borrow_request ถ้า 002 เพิ่ม FK จาก audit_log ต้องแก้ตัวช่วย
+- ต้องติดตั้ง dependency หน้าจอก่อนรัน: `cd frontend && npm ci`
+
+---
+
+## 2569-11-11 /implement T-03 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request (แก้ของกลาง config.go และ config.js เพราะ 003)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้โหลดใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-03 เพิ่มค่าที่ตั้งได้ของ 003 ใน config
+- ไฟล์ที่แก้หรือสร้าง (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - backend/internal/config/config.go: CancellableStatuses() (CON-CXL-02), CancelReasonMaxLen = 200 (FR-CXL-08), CancelPerfP95 = 15s (NFR-PERF-CXL-01), CancelDBTimeout = 5s (ASM-06)
+  - backend/internal/config/config_test.go (ใหม่): TestConfig_CancellableStatuses, TestConfig_CancelLimits
+  - frontend/src/config.js: CANCEL_REASON_MAX_LEN, MSG_NO_PENDING, MSG_LOAD_FAILED, LABEL_RETRY, MSG_CANCEL_SUCCESS, MSG_ALREADY_APPROVED, MSG_NOT_CANCELLABLE, MSG_REQUEST_NOT_FOUND
+  - ไม่เพิ่ม DisplayTimezone / DISPLAY_TIMEZONE เพราะ 001 มี TimeZone / TIME_ZONE = Asia/Bangkok แล้ว ใช้ตัวเดิม
+- ผล test: `go test ./internal/config/ -v` ผ่าน 2/2, `go build ./...` ผ่าน, test ของ auth / equipment / platform ยังผ่าน,
+  `npm test` test ของ 001 ยังผ่าน 17/17 (TC-CXL 10 ไฟล์ยังไม่ผ่านเพราะยังไม่มีหน้าจอ ตามคาด)
+- สิ่งที่เกือบต้องเดาแต่ถามแทน:
+  1. CancelDBTimeout ใช้กี่วินาที -> ทีม: 5 วินาที (ตามตัวอย่างใน plan ของ 001)
+  2. ข้อความกรณีอนุมัติแล้ว -> ทีม: "ยกเลิกไม่ได้ เพราะคำขอได้รับการอนุมัติแล้ว" (ตามคำใน FR-CXL-02)
+- สถานะใน tasks.md: T-03 เสร็จ
+
+---
+
+## 2569-11-11 บันทึกคำตอบของเจ้าของ 004 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: บันทึกคำตอบของณัฐสุดา (004) 3 ข้อ
+  1. ตอนอนุมัติใช้เงื่อนไขสถานะแบบเดียวกัน ไม่เจอแถวแจ้งเจ้าหน้าที่ -> รับไปเขียนใน spec ของ 004
+  2. คำขอปกติอนุมัติแล้วเป็น approved ทันที -> ยืนยัน
+  3. หน้าอนุมัติไม่แสดงคำขอ cancelled -> ซ่อน
+- ไฟล์ที่แก้: spec.md (Draft v3.4, ASM-05 และ Clarifications), plan.md หัวข้อ 8, tasks.md หมายเหตุหัวไฟล์, specs/CHANGELOG.md
+- ไม่แก้ FR, AC, test หรือโค้ด เพราะคำตอบตรงกับที่ spec สมมติไว้แล้ว
+
+---
+
+## 2569-11-11 บันทึกการจองเลข migration (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: แจ้งว่าจองเลข migration 0004 และ 0005 ในกลุ่มได้แล้ว ขอสรุปงานที่เหลือ
+- ไฟล์ที่แก้: tasks.md หมายเหตุหัวไฟล์, plan.md หัวข้อ 8
+
+---
+
+## 2569-11-11 /implement T-05 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request (แก้ของกลาง App.jsx และ api/client.js เพราะ 003)
+- เครื่องมือ: Claude Code (AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-05 หน้า "คำขอที่รออนุมัติของฉัน" แสดงรายการ
+- ตรวจก่อนเริ่มไม่ผ่านข้อ 2 (ต้องทำหลัง T-04 ซึ่งยังไม่เสร็จ) AI หยุดถาม ทีมตัดสินให้แก้ T-05 เป็นต้องทำหลัง T-03 (บันทึกใน tasks.md และ CHANGELOG)
+- ไฟล์ที่แก้หรือสร้าง (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx (ใหม่): รายการ ชื่อรุ่น รหัสครุภัณฑ์ เวลาที่ส่ง ปุ่มยกเลิก (ยังไม่มีการทำงาน รอ T-07)
+  - frontend/src/pages/MyPendingRequests/__tests__/MyPendingRequests.test.jsx (ใหม่): AC_CXL_08 shows own pending requests newest first
+  - frontend/src/api/client.js: listMyPendingRequests -> GET /v1/my/pending-requests
+  - frontend/src/App.jsx: ปุ่มสลับหน้า "รายการอุปกรณ์" / "คำขอที่รออนุมัติของฉัน" (เริ่มที่หน้าของ 001 เหมือนเดิม)
+- ผล test: `npx vitest run` ผ่าน 19 test ได้แก่ test ของ 001 17 ตัว, AC_CXL_08 และ TC-CXL-08-2
+  ไม่ผ่าน 9 ไฟล์ TC-CXL ตามคาด (ไม่มี dialog รอ T-07/T-08/T-10, ข้อความว่างและโหลดไม่สำเร็จรอ T-12) `npm run build` ผ่าน
+- สิ่งที่เกือบต้องเดาแต่ถามแทน:
+  1. ลำดับ task (T-04 ยังไม่เสร็จ) -> ทีม: แก้ให้ทำหลัง T-03
+  2. รูปแบบเวลาที่ส่ง -> ทีม: ใช้ formatDueAt ของ 001 "2569-11-10 10:30"
+  3. ทางเข้าหน้าใน App.jsx -> ทีม: ปุ่มสลับ 2 ปุ่ม ไม่ใช้ router
+- สถานะใน tasks.md: T-05 เสร็จ
+
+---
+
+## 2569-11-11 บันทึกคำตอบของเจ้าของ 002 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (อ่านคำตอบจากหน้าเว็บที่ธัญลักษณ์ทำ https://claude.ai/artifact/SrBS61rXxEcNSCGiZkK5uW)
+- สิ่งที่สั่ง: บันทึกคำตอบลง spec, plan, tasks ยังไม่ทำ T-01
+- คำตอบของ 002: (1) 002 สร้าง borrow_request เองที่ 0003 (2) ชื่อคอลัมน์และสถานะ 8 ค่าใช้ตามที่ 003 เสนอ
+  (3) cancel_reason VARCHAR(200) NULL, cancelled_at TIMESTAMPTZ NULL สร้างให้ใน 0003 (4) FK จาก audit_log.request_id เพิ่มใน 0003
+  แจ้งเพิ่ม: Q-SH-06 ปิด (ปฏิเสธอัตโนมัติเป็น rejected), 002 เพิ่ม action request, ยืมรายชิ้น
+- ไฟล์ที่แก้: spec.md (Draft v3.5: ASM-09, ASM-11, Q-SH-06, Clarifications), plan.md (v1.3 หัวข้อ 2, 3, 7, 8), tasks.md (หัวไฟล์, T-01, T-30, T-31), CHANGELOG, README
+- สิ่งที่ AI พบและไม่ได้ตัดสินเอง: index (requester_id, status, submitted_at DESC) ไม่อยู่ในโครงของ 002 ยังไม่รู้ว่าใครเพิ่ม (บันทึกใน plan หัวข้อ 8)
+- 002 ขอคำตอบกลับ 2 ข้อ: ชนิดข้อมูลตรงไหม (ตรง) และต้องได้ตารางเมื่อไร (เร็วที่สุด)
+
+---
+
+## 2569-11-11 บันทึกคำตอบรอบที่ 2 ของเจ้าของ 002 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (อ่านจาก https://claude.ai/artifact/SrBS61rXxEcNSCGiZkK5uW ส่วน "รอบที่ 2")
+- คำตอบ: (3) data-model v5-v8 อยู่ในเครื่อง 002 ยังไม่ push 003 นำแถว notify ไปวางบน v8 เป็น v9
+  (4) 002 ใส่ index idx_request_owner_status ใน 0003 (5) constraint ชื่อ audit_log_action_check 0005 ใส่ค่าครบรวม request
+  002 ขอ: ห้าม push 0005 เข้า main ก่อน 0003
+- ไฟล์ที่แก้: spec.md (Draft v3.6 ASM-11, ASM-12, Clarifications), plan.md (v1.4 หัวข้อ 3, 8), tasks.md (หัวไฟล์, T-30, T-31), CHANGELOG, README
+- สิ่งที่ AI พบและไม่ได้ตัดสินเอง: audit_log เป็น append-only (trigger ใน 0002) เมื่อมี FK จาก 0003 ตัวช่วย test ล้าง borrow_request ไม่ได้
+  และแผนเดิมที่ให้ลบแถว audit_log ก่อนทำไม่ได้ บันทึกทางเลือก 3 ทางใน plan หัวข้อ 8 ให้ทีมตัดสินก่อน T-31
+
+---
+
+## 2569-11-11 บันทึกคำตอบของเจ้าของ 001 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code
+- คำตอบของพรรณธร: รับ action notify (migration ใหม่ ไม่แก้ 0002, constraint audit_log_action_check), writer.go (T-19 ของ 001) จะรับ pool และ pgx.Tx
+  ยังไม่ระบุวันเสร็จ รอไม่ไหวใช้แผนสำรองได้, ขอให้ยืนยันเลข 0003/0004 ในกลุ่ม, รับทราบ App.jsx และ formatDueAt
+- ไฟล์ที่แก้: spec.md (Draft v3.7 ASM-12, Clarifications), plan.md (v1.5 หัวข้อ 3, 8), tasks.md (หัวไฟล์), CHANGELOG, README
+- สิ่งที่ AI พบ: 001 เขียนว่า CHECK ต้องมี 5 ค่า (ไม่มี request) ขัดกับที่ตกลงกับ 002 ว่า 0005 ต้องมี 6 ค่า ใช้ 6 ค่าและต้องแจ้ง 001
+  คำตอบเรื่องวันเสร็จของ T-19 ยังเป็นช่องว่าง "[ใส่วันที่]" ไม่ได้เดาวันที่
+
+---
+
+## 2569-11-11 แก้ลำดับงานหน้าจอ (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: แก้ลำดับงานหน้าจอ ให้ไม่ต้องรองานหลังบ้าน (ใช้เหตุผลเดียวกับ T-05)
+- ไฟล์ที่แก้: tasks.md (ช่อง "ต้องทำหลัง" ของ T-07, 10, 12, 16, 18, 20, 22, 24, 26 และหมายเหตุหัวไฟล์), CHANGELOG
+- T-08 ไม่ต้องแก้ (ต้องทำหลัง T-07 อยู่แล้ว) ไม่ได้เริ่ม task ไหน
+
+---
+
+## 2569-11-11 /implement T-07 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request (แก้ของกลาง frontend/src/api/client.js เพราะ 003)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-07 กล่องยืนยันการยกเลิกและแสดงผลสำเร็จ
+- ไฟล์ที่แก้หรือสร้าง (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - frontend/src/pages/MyPendingRequests/CancelDialog.jsx (ใหม่): กล่อง role=dialog ช่องเหตุผล ปุ่มยืนยัน
+  - frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx: ปุ่มยกเลิกเปิดกล่อง ยกเลิกสำเร็จแล้วเอาแถวออกและแสดงข้อความ role=status
+  - frontend/src/pages/MyPendingRequests/__tests__/CancelDialog.test.jsx (ใหม่): AC_CXL_01 cancels with reason and shows success, AC_CXL_01 keeps row when cancel fails
+  - frontend/src/api/client.js: เพิ่ม postJSON (ใช้ร่วม), apiError (แยกจาก getJSON พฤติกรรมเดิม), cancelRequest
+- ผล test: `npx vitest run` ผ่าน 23 test (001 17 ตัว, AC_CXL_08, AC_CXL_01 x2, TC-CXL-08-2, 01-2, 09-3)
+  ไม่ผ่าน 7 ตามคาด: TC-CXL-09-1, 09-5 (T-08), 14-2, 14-5 (T-10), 12-2, 12-5, 09-4 (T-12) `npm run build` ผ่าน
+- สิ่งที่เกือบต้องเดาแต่ถามแทน:
+  1. วิธีส่ง POST ใน client.js -> ทีม: เพิ่ม postJSON ใช้ร่วม
+  2. ข้อความสำเร็จแสดงตรงไหน นานแค่ไหน -> ทีม: แถบเหนือรายการ ค้างจนเริ่มยกเลิกรายการถัดไป
+- ที่ AI เลือกเองในขอบเขต task: ยกเลิกไม่สำเร็จคงแถวและกล่องไว้โดยยังไม่แสดงข้อความ (ข้อความอยู่ใน T-16, 18, 20, 24) ส่งเหตุผลตามที่พิมพ์ไม่ตัดช่องว่าง (หลังบ้านตรวจใน T-09)
+- สถานะใน tasks.md: T-07 เสร็จ
+
+---
+
+## 2569-11-11 /implement T-08 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-08 ปุ่มไม่ยืนยันปิดกล่องโดยไม่ยกเลิก
+- ไฟล์ที่แก้:
+  - CancelDialog.jsx: ปุ่ม "ไม่ยืนยัน" เรียก onCancel ช่องเหตุผลอยู่ใน state ของกล่อง ปิดแล้วเปิดใหม่จึงว่าง
+  - MyPendingRequests.jsx: ส่ง onCancel ให้กล่อง ปิดกล่องโดยไม่เรียก API (ไฟล์นอกช่อง "ไฟล์ที่แตะ" AI หยุดถาม ทีมอนุญาตและเพิ่มในช่องของ T-08 แล้ว)
+  - __tests__/CancelDialog.test.jsx: AC_CXL_09 confirm dialog cancel then confirm
+- ผล test: `npx vitest run` ผ่าน 25 (เพิ่ม AC_CXL_09 และ TC-CXL-09-1) ไม่ผ่าน 6 ตามคาด:
+  TC-CXL-09-5 เหลือแค่ตัวนับ "0/200" (T-10), 14-2, 14-5 (T-10), 12-2, 12-5, 09-4 (T-12) `npm run build` ผ่าน
+- สิ่งที่เกือบต้องเดาแต่ถามแทน: แตะ MyPendingRequests.jsx ซึ่งไม่อยู่ในช่องไฟล์ที่แตะ -> ทีม: เพิ่มไฟล์ใน T-08
+- สถานะใน tasks.md: T-08 เสร็จ
+
+---
+
+## 2569-11-11 /implement T-10 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-10 ปิดปุ่มยืนยันเมื่อเหตุผลว่างหรือเกิน และแสดงตัวนับ x/200
+- ไฟล์ที่แก้ (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - CancelDialog.jsx: countReason (นับ code point), reasonProblem (empty / too_long), ตัวนับใต้ช่อง (aria-describedby), ปุ่มยืนยัน disabled เมื่อเหตุผลใช้ไม่ได้ ใช้ CANCEL_REASON_MAX_LEN จาก config.js
+  - __tests__/CancelDialog.test.jsx: AC_CXL_14 confirm disabled when reason empty or too long (รวมขอบ 200 พอดีกดได้)
+- ผล test: `npx vitest run` ผ่าน 29 (เพิ่ม AC_CXL_14, TC-CXL-09-5, 14-2, 14-5) ไม่ผ่าน 3 ตามคาด: TC-CXL-12-2, 12-5, 09-4 (T-12) `npm run build` ผ่าน
+- สิ่งที่เกือบต้องเดา: ไม่มี (FR-CXL-08, ASM-13 บอกครบ)
+- ที่ AI เลือกเองในขอบเขต task: ตัวนับนับข้อความตามที่พิมพ์รวมช่องว่าง ("   " = 3/200) ส่วนการเช็กว่างใช้ trim ตัวนับเป็นสีแดงเมื่อเกิน
+- สถานะใน tasks.md: T-10 เสร็จ
+
+---
+
+## 2569-11-11 แก้บั๊ก migrate.go บน Windows (ไฟล์ของกลางของ 001 แก้เพราะ 003)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- ปัญหา: ตอนตรวจ task ที่รอทีมตรวจบน Windows `go test ./internal/equipment/ ./internal/platform/` ไม่ผ่าน 21 test และ `go run ./cmd/server` เปิดไม่ขึ้น
+  error: migrate init: failed to open source "file://D:\...\db\migrations": invalid port (URL อ่าน path แบบ Windows ไม่ได้)
+- แก้: backend/internal/platform/migrate.go บรรทัดเดียว `"file://"+abs` -> `"file://"+filepath.ToSlash(abs)` บน Linux/Codespaces ผลเหมือนเดิม
+- ผล test หลังแก้: go build ./... ผ่าน, go test auth / equipment / platform / config ผ่านทั้งหมด
+- ต้องแจ้งเจ้าของ 001 (พรรณธร) ไม่อยู่ใน task ของ 003
+- หมายเหตุเครื่องพัฒนา: พอร์ต 5432 ถูกใช้โดยโปรเจกต์อื่นและ PostgreSQL ของ Windows จึงรันฐานข้อมูลด้วย docker run ที่พอร์ต 5433 และตั้ง DATABASE_URL ใน terminal ไม่ได้แก้ไฟล์ใน repo
+
+---
+
+## 2569-11-11 ทีมตรวจ T-03, T-05, T-07, T-08, T-10 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจและเช็กสถานะเครื่อง)
+- วิธีตรวจ:
+  - A รัน test: `npm test` ผ่าน 29 ไม่ผ่าน 3 ตามคาด (TC-CXL-12-2, 12-5, 09-4 เป็นของ T-12), `go test ./internal/config/` ผ่าน
+    test ของ 001 (auth, equipment, platform) ผ่านหลังแก้บั๊ก migrate.go บน Windows
+  - B รันระบบจริง: ฐานข้อมูล (docker ที่พอร์ต 5433 เพราะ 5432 ถูกใช้ในเครื่อง), หลังบ้าน `go run ./cmd/server`, หน้าเว็บ `npm run dev`
+    /healthz 200, /v1/equipment/models มี token ได้ JSON ไม่มี token 401, /v1/my/pending-requests 404 ตามคาด (T-04 ยังไม่ทำ)
+    หน้าเว็บมีปุ่มสลับ 2 หน้า หน้า 003 แสดง "กำลังโหลด..." และส่ง GET /api/v1/my/pending-requests จาก client.js
+  - C อ่านโค้ดตามเช็กลิสต์
+- ข้อจำกัด: กล่องยืนยัน (T-07, T-08, T-10) ตรวจผ่าน test เท่านั้น ยังลองบนจอจริงไม่ได้จนกว่า T-04, T-06 เสร็จ (จุดตรวจเฟส 1, 2)
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-03, T-05, T-07, T-08, T-10 เป็น "เสร็จ"
+
+---
+
+## 2569-11-11 /implement T-12 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-12 ข้อความเมื่อไม่มีคำขอ และโหลดไม่สำเร็จพร้อมปุ่มลองใหม่
+- ไฟล์ที่แก้ (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - MyPendingRequests.jsx: ไม่มีคำขอแสดง MSG_NO_PENDING, โหลดไม่สำเร็จแสดง MSG_LOAD_FAILED (role=alert) และปุ่ม LABEL_RETRY โหลดใหม่ ไม่แสดงรายการเก่า
+  - __tests__/MyPendingRequests.test.jsx: AC_CXL_12 shows empty message, AC_CXL_12 load failed shows retry and recovers
+- ผล test: `npx vitest run` ผ่านทั้งหมด 22 ไฟล์ 34 test รวม TC-CXL หน้าจอครบ 10/10 (TC-CXL-12-2, 12-5, 09-4 ผ่านเพิ่ม) `npm run build` ผ่าน
+- สิ่งที่เกือบต้องเดา: ไม่มี (ข้อความอยู่ใน config.js ตาม ASM-13)
+- สถานะใน tasks.md: T-12 เสร็จ
+
+---
+
+## 2569-11-11 merge origin/main เข้า branch 003 (ได้ 0003 ของ 002)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: ตรวจการ pull จาก main และแก้ conflict
+- ได้จาก main: backend/db/migrations/0003_borrow_request (ของ 002 มี cancel_reason, cancelled_at, idx_request_owner_status, FK audit_log.request_id, action request),
+  spec/plan/tasks ของ 002, CR-003, CR-004, SRS, migrate_test.go ของ 001
+- conflict 5 ไฟล์ แก้แบบรวมทั้งสองฝั่ง:
+  - data-model.md: ใช้เนื้อหา v9 ของ 002 แล้วเพิ่มแถว notify ของ 003 เป็น v10 (ตกลงไว้ว่า v9 แต่ 002 ใช้เลข v9 แล้ว)
+    แก้หมายเหตุ request_id ว่ามี FK แล้ว และใส่เลข 0004, 0005 ของ 003 ในตารางเลข migration (จองในกลุ่มแล้ว)
+  - constraints.md: ตาราง "ใครอ้างใช้บ้าง" รวม 002 และ 003 ในแต่ละแถว
+  - specs/README.md: แถว 002 จาก main แถว 003 ของ 003
+  - CHANGELOG.md, prompt-log.md: เก็บทั้งสองฝั่ง
+- ผล test หลัง merge: go build ผ่าน, go test auth / equipment / platform / config ผ่าน (platform รวม test 0003 ของ 002), npm test ผ่าน 34/34
+- สิ่งที่พบ: tc_helpers_test.go (tcInsert) ของ 003 ใช้ purpose 'เพื่อการเรียน' และไม่มี requester_name, student_code, start_at, end_at
+  ซึ่ง 0003 จริงบังคับ จดเพิ่มในช่องไฟล์ที่แตะของ T-01 ให้แก้ตอนทำ T-01
+
+---
+
+## 2569-11-11 merge origin/main เข้า branch 003 รอบที่ 2 (001 แก้ migrate.go เอง)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- ได้จาก main: PR #8 commit 011960b ของ 001 แก้ platform.Migrate บน Windows ด้วย filepath.ToSlash (บรรทัดเดียวกับที่ 003 แก้ไว้)
+- conflict 2 ไฟล์: migrate.go ใช้ของ 001 ทั้งไฟล์ (โค้ดเหมือนกัน ต่างแค่คอมเมนต์ 001 เป็นเจ้าของไฟล์) การแก้ของ 003 จึงไม่เหลือในไฟล์ของกลางแล้ว
+  prompt-log.md เก็บทั้งสองฝั่ง
+
+---
+
+## 2569-11-11 /implement T-01 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request (เพิ่มไฟล์ใน backend/db/migrations ซึ่งเป็นของกลาง เพราะ 003)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-01 สร้าง migration staff_contact และตรวจตาราง borrow_request ของ 002
+- ไฟล์ที่แก้หรือสร้าง:
+  - backend/db/migrations/0004_staff_contact.up.sql (ใหม่): staff_contact(department_id FK department, email) ตาม plan ข้อ 3 (ASM-10)
+  - backend/internal/cancelrequest/migrationtest/migration_test.go (ใหม่ package แยก): TestMigration_BorrowRequestStatusCheck,
+    TestMigration_CancelReasonMaxLen, TestMigration_StaffContactExists, TestMigration_NoEquipmentSideEffects
+  - backend/internal/cancelrequest/tc_helpers_test.go (ตัวช่วย ไม่ใช่ TC): tcInsert ใส่คอลัมน์ตาม 0003 จริง
+    (requester_name 'ผู้ทดสอบ', student_code 'TEST-000', purpose 'study', start_at = submitted_at + 1 วัน, end_at = start_at + 6 ชม. ค่าทดสอบ ไม่ได้มาจาก spec)
+- ผล test: `go test ./internal/cancelrequest/migrationtest/ -v` ผ่าน 4/4, platform / equipment / config / auth ยังผ่าน
+  package cancelrequest ยัง compile ไม่ผ่าน (undefined NewHandler) ตามคาด รอ T-04, T-06
+- สิ่งที่เกือบต้องเดาแต่ถามแทน: ที่วาง migration_test.go (package cancelrequest compile ไม่ผ่าน) -> ทีม: package แยก migrationtest
+  แก้ช่อง "ไฟล์ที่แตะ" ของ T-01 และ T-30 ให้ตรง
+- ไม่ได้ทำ: 0004 ไม่มีไฟล์ .down.sql (ไม่อยู่ในช่องไฟล์ที่แตะ 0001, 0002 ของ 001 ก็ไม่มี)
+  ห้าม push 0004 เข้า main ก่อน 0003 ตามที่ตกลง (0003 อยู่ใน main แล้ว จึงไม่ติด)
+- สถานะใน tasks.md: T-01 เสร็จ
+
+---
+
+## 2569-11-11 ทีมตรวจ T-01, T-12 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ T-01:
+  - `go test -count=1 -v ./internal/cancelrequest/migrationtest/` ผ่าน 4/4 และ test ของ 001/002 (auth, equipment, platform, config) ผ่าน
+    (รอบแรก platform ขึ้น "rootless Docker is not supported on Windows" เป็นอาการติดต่อ Docker ไม่ได้ชั่วขณะ รันซ้ำแล้วผ่าน)
+  - ฐานข้อมูลในเครื่อง (salmon-db พอร์ต 5433): schema_migrations version 4 dirty f, มีตาราง borrow_request และ staff_contact
+    borrow_request มี cancel_reason varchar(200), cancelled_at, idx_request_owner_status, ใส่สถานะ 'ยกเลิก' ถูกปฏิเสธด้วย check constraint
+- วิธีตรวจ T-12: หน้าเว็บ http://localhost:5173 หน้า "คำขอที่รออนุมัติของฉัน" แสดง "โหลดรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" และปุ่ม "ลองใหม่"
+  (หลังบ้านยังตอบ 404 เพราะ T-04 ยังไม่ทำ) ข้อความ "ไม่มีคำขอที่รออนุมัติ" ตรวจผ่าน test (TC-CXL-12-2) ยังลองบนจอจริงไม่ได้จนกว่า T-04 เสร็จ
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-01, T-12 เป็น "เสร็จ"
+
+---
+
+## 2569-11-11 /implement T-02 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-02 ข้อมูลตั้งต้นคำขอทุกสถานะและ Email เจ้าหน้าที่จำลอง
+- ค่าที่ทีมเลือก (ไม่ได้มาจาก spec): student-001 = "ใจดี สวยมาก" 660710755, student-002 = "มีสุข ใจเย็น" 660710756 (AI เสนอ ทีมรับ),
+  Email เจ้าหน้าที่ภาควิชา 1 = staff-it@example.test
+- ไฟล์ที่แก้หรือสร้าง:
+  - backend/db/seed/seed_003_cancel_request.sql (ใหม่): คำขอ id 3001-3008 ตามช่อง "เสร็จเมื่อ" และ staff_contact ภาควิชา 1 โหลดซ้ำได้
+  - backend/internal/cancelrequest/migrationtest/seed_test.go (ใหม่ ทีมอนุญาตเพิ่มในช่องไฟล์ที่แตะ): TestSeed003_RequestsAndStaffContact
+  - backend/internal/cancelrequest/migrationtest/migration_test.go: เพิ่ม dbURL, ผู้ขอใน test ของ T-01 เปลี่ยนเป็น student-test ไม่ชนกับ seed
+- ผล test: `go test -count=1 -v ./internal/cancelrequest/migrationtest/` ผ่าน 5/5
+- สิ่งที่ AI เลือกเองในขอบเขต task:
+  - ตาราง 0003 มี unique index ห้ามผู้ขอคนเดิมมีคำขอที่ยังไม่จบบนชิ้นเดียวกันเกิน 1 ใบ คำขอที่ยังไม่จบของ student-001 จึงอยู่คนละชิ้น
+    (CS-NB-0001, CS-PJ-0001, CS-NB-0002, CS-NB-0003, XX-NB-0001) ใช้เฉพาะชิ้นที่ว่าง คำขอ approved อยู่บน XX-NB-0001 ของภาควิชา 2 เพราะชิ้นว่างของภาควิชา 1 ไม่พอ
+  - approved_by_officer และ pending_advisor_approval เป็นยืมค้างคืน (ASM-04), เวลาที่ส่งเป็นวันที่ตายตัว 2569-11-04 ถึง 11-10 วัตถุประสงค์และเวลายืมเป็นค่าทดสอบ
+- สถานะใน tasks.md: T-02 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-11 ทีมตรวจ T-02 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ และโหลด seed ใหม่ในฐานข้อมูลของเครื่องพัฒนา)
+- วิธีตรวจ:
+  - A: `go test -count=1 -v ./internal/cancelrequest/migrationtest/` ผ่าน 5/5 (รวม TestSeed003_RequestsAndStaffContact)
+  - B: ฐานข้อมูลในเครื่อง (salmon-db) schema_migrations version 4, โหลด seed ได้ INSERT 0 8 และ INSERT 0 1, โหลดซ้ำได้ INSERT 0 0,
+    จำนวนคำขอแต่ละสถานะตรงช่อง "เสร็จเมื่อ", ชื่อภาษาไทยและเหตุผลของ 3007 ถูกต้อง, staff_contact = staff-it@example.test, สถานะอุปกรณ์ไม่เปลี่ยน
+  - C: อ่าน seed_003_cancel_request.sql แล้วค่าตรงกับที่ตกลง
+- ปัญหาที่พบตอนตรวจ: โหลด seed ด้วย `Get-Content ... | docker exec -i ... psql` ใน PowerShell 5.1 ทำให้ภาษาไทยกลายเป็น ? ในฐานข้อมูล (ไฟล์ seed ไม่ผิด)
+  แก้โดยลบแถว 3001-3008 และ staff_contact (ไม่มี audit_log อ้างถึง) แล้วโหลดใหม่ด้วย `docker cp` + `psql -f`
+  ถ้าดูผลใน PowerShell ให้ตั้ง [Console]::OutputEncoding เป็น UTF8 ก่อน ไม่อย่างนั้นหน้าจอแสดงภาษาไทยเป็น ?
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-02 เป็น "เสร็จ"
+
+---
+
+## 2569-11-11 /implement T-04 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request (แก้ของกลาง backend/cmd/server/main.go เพราะ 003)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-04 API รายการคำขอที่รออนุมัติของฉัน
+- ไฟล์ที่แก้หรือสร้าง:
+  - backend/internal/cancelrequest/dto.go, repository.go, service.go, handler.go (ใหม่): GET /v1/my/pending-requests
+    เฉพาะคำขอของ Principal.UserID สถานะใน config.CancellableStatuses() เรียง submitted_at DESC, id DESC เจ้าหน้าที่ 403 STUDENT_ONLY
+  - backend/internal/cancelrequest/handler_test.go (ใหม่): TestAC_CXL_08_ListOwnPendingSorted, TestListPending_EmptyIsArray
+  - backend/cmd/server/main.go: ลงทะเบียน /v1/my/ และ /v1/borrow-requests/ หลัง auth.Middleware
+  - specs/003-cancel-request/test-cases.md แถว TC-CXL-08-1, 08-3 (ทีมตัดสิน) และ tc_ac_cxl_08_test.go, tc_helpers_test.go (tcItemAvailable2) ตาม
+- ผล test: package cancelrequest compile ผ่านแล้ว AC_CXL_08 ผ่าน, TC-CXL-08-1, 08-3, 08-4, 08-5, 08-6, 12-1, 12-3, 12-4 ผ่าน
+  TC ของการยกเลิก (01, 09-6, 14) ยังไม่ผ่านเพราะยังไม่มี route POST (T-06 ขึ้นไป) ตามคาด
+  auth / equipment / platform / config / migrationtest ผ่าน, npm test 34/34, ลองหลังบ้านจริงกับ salmon-db (พอร์ต 8010 ชั่วคราว):
+  student-001 ได้ 4 รายการ (3001, 3002, 3003, 3004) student-101 ได้ [] staff 403 ไม่มี token 401
+- สิ่งที่เกือบต้องเดาแต่ถามแทน:
+  1. TC-CXL-08-1, 08-3 ใส่ข้อมูลไม่ได้เพราะชน uq_request_open_per_item ของ 002 -> ทีม: แก้ Given ใน test-cases.md
+  2. ลงทะเบียน route ที่ไหน (tasks เขียน platform/http.go แต่ 001 ใช้ main.go) -> ทีม: main.go แบบ 001
+- ที่ AI เลือกเองในขอบเขต task: submittedAt ส่งเป็น ISO 8601 เวลา UTC (หน้าจอแปลงเป็น Asia/Bangkok)
+- สถานะใน tasks.md: T-04 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-11 ทีมตรวจ T-04 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ:
+  - A: `go test -run "AC_CXL_08|ListPending_|TC_CXL_08|TC_CXL_12" ./internal/cancelrequest/` (รันจากโฟลเดอร์ backend) และ test ของ 001/002/migrationtest
+  - B: หลังบ้านจริงกับ salmon-db: student-001 ได้ 4 รายการ, student-002 ได้ของตัวเอง, student-101 ได้ [], staff 403, ไม่มี token 401
+  - C: หน้าเว็บ "คำขอที่รออนุมัติของฉัน" แสดงคำขอจาก seed (จุดตรวจเฟส 1)
+  - D: อ่าน main.go (route ของ 003 อยู่หลัง auth.Middleware), service.go (ผู้ขอมาจาก p.UserID),
+    test-cases.md แถว TC-CXL-08-1, 08-3 (เปลี่ยนแค่ชิ้นอุปกรณ์ ช่อง Then เหมือนเดิม) ทีมยืนยันการแก้ Given
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-04 เป็น "เสร็จ"
+
+---
+
+## 2569-11-11 /implement T-06 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-06 API ยกเลิกคำขอ (กรณีสำเร็จ)
+- ไฟล์ที่แก้ (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - dto.go: CancelRequestDTO, CancelResultDTO
+  - repository.go: Querier เพิ่ม Begin, Cancel ด้วย UPDATE ... WHERE id AND requester_id AND status = ANY(cancellable) RETURNING id (FR-CXL-04)
+  - service.go: Cancel เปิด transaction, UPDATE, commit (เผื่อ audit_log ใน transaction เดียวกันของ T-31) เจ้าหน้าที่ ErrStudentOnly
+  - handler.go: POST /v1/borrow-requests/{id}/cancel ตอบ 200 {requestId, status:"cancelled"}
+  - handler_test.go: TestAC_CXL_01_CancelPendingNormal, TestCancel_SecondTimeDoesNotOverwrite
+- ผล test: AC_CXL_01 ผ่าน, TC-CXL-01-1, 01-3, 01-4, 01-5, 09-6, 14-1, 14-3 ผ่าน (รวม TC เดิมของ 08 และ 12)
+  ไม่ผ่านตามคาด: TC-CXL-01-6 (T-15), 01-7 (T-19), 14-4, 14-5, 14-6 (T-09) auth / equipment / platform / config / migrationtest ผ่าน
+- สิ่งที่ AI เลือกเองชั่วคราวในขอบเขต task (task ถัดไปจะแทนที่):
+  - UPDATE ไม่เจอแถว ตอบ 409 NOT_CANCELLABLE ทุกกรณี จนกว่า T-15, T-17, T-19 จะแยกสาเหตุ
+  - body อ่านไม่ได้ ตอบ 400 REASON_REQUIRED, id ไม่ใช่ตัวเลข ตอบ 404 REQUEST_NOT_FOUND
+  - เก็บเหตุผลตามที่ส่งมา ยังไม่ตรวจว่างหรือยาวเกิน (T-09)
+- สถานะใน tasks.md: T-06 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-11 /implement T-09 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-09 ตรวจเหตุผลที่หลังบ้าน
+- หมายเหตุ: ก่อนเริ่ม ทีมเปลี่ยนสถานะ T-06 เป็น "เสร็จ" ใน tasks.md เอง (ยังไม่ได้ commit ตอนนั้น)
+- ไฟล์ที่แก้ (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - service.go: ValidateReason (trim ว่าง -> ErrReasonRequired, นับ code point ของข้อความเดิมเกิน config.CancelReasonMaxLen -> ErrReasonTooLong) เรียกก่อนเปิด transaction
+  - handler.go: 400 REASON_REQUIRED / REASON_TOO_LONG
+  - handler_test.go: TestAC_CXL_14_ReasonValidation, TestValidateReason_Boundary
+- ผล test: AC_CXL_14 ผ่าน, TC-CXL-14-1, 14-3, 14-4, 14-5, 14-6 ผ่านครบ ไม่ผ่านตามคาด: TC-CXL-01-6 (T-15), 01-7 (T-19)
+- สิ่งที่เกือบต้องเดา: ไม่มี (FR-CXL-08, ASM-13)
+- ที่ AI เลือกเองในขอบเขต task: นับความยาวจากข้อความเดิมไม่ตัดช่องว่าง ให้ตรงกับตัวนับบนหน้าจอ (T-10) เก็บเหตุผลตามที่ส่งมา
+  เจ้าหน้าที่ตรวจ 403 ก่อนตรวจเหตุผล
+- สถานะใน tasks.md: T-09 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-11 ทีมตรวจ T-09 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ: `go test -run "AC_CXL_14|ValidateReason|TC_CXL_14" ./internal/cancelrequest/` ผ่าน 7 ตัว
+  และเรียก POST /v1/borrow-requests/3002/cancel ด้วยเหตุผล "   " ได้ 400 REASON_REQUIRED คำขอไม่ถูกยกเลิก
+  ไม่ได้ทดสอบหน้าเว็บ เพราะ T-09 ไม่แตะ frontend และหน้าเว็บกันเหตุผลผิดไว้แล้วตั้งแต่ T-10
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-09 เป็น "เสร็จ" (T-06 ทีมเปลี่ยนเป็น "เสร็จ" เองก่อนหน้า)
+
+---
+
+## 2569-11-11 /implement T-15 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-15 แยกสาเหตุเมื่อยกเลิกไม่สำเร็จ กรณีอนุมัติแล้ว
+- ไฟล์ที่แก้ (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - repository.go: OwnStatus (SELECT status WHERE id AND requester_id ใน transaction เดียวกัน)
+  - service.go: UPDATE ไม่เจอแถว -> อ่านสถานะ ถ้า approved -> ErrAlreadyApproved นอกนั้นยังเป็น ErrNotCancelled
+  - handler.go: 409 ALREADY_APPROVED
+  - handler_test.go: TestAC_CXL_02_ApprovedNotCancellable
+- ผล test: AC_CXL_02 ผ่าน, TC-CXL-01-6 ผ่าน, test อื่นในแพ็กเกจยังผ่าน ไม่ผ่านตามคาด: TC-CXL-01-7 (T-19)
+- สิ่งที่เกือบต้องเดา: ไม่มี (plan.md ข้อ 4 ขั้น 2)
+- สถานะใน tasks.md: T-15 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-11 ทีมตรวจ T-15 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ: `go test -run "AC_CXL_02|TC_CXL_01_6" ./internal/cancelrequest/` ผ่าน
+  หลังบ้านจริง: POST cancel ของ 3005 (approved) ได้ 409 ALREADY_APPROVED สถานะยัง approved
+  ไม่ได้ทดสอบหน้าเว็บ เพราะ T-15 ไม่แตะ frontend ข้อความบนหน้าเว็บอยู่ใน T-16
+- ปัญหาที่พบตอนตรวจ (ไม่ใช่บั๊กของโค้ด):
+  - รอบแรกได้ NOT_CANCELLABLE เพราะหลังบ้านที่รันอยู่เปิดก่อนเขียนโค้ด T-15 ต้องปิดแล้วเปิด go run ใหม่ทุกครั้งหลังแก้โค้ด
+  - คำสั่ง curl ที่ AI ให้แบบ -d "{\"reason\":...}" ใช้ไม่ได้ใน PowerShell 5.1 (body เสีย ได้ REASON_REQUIRED)
+    ข้อความที่มีช่องว่างก็ถูกตัด ใช้ -d '{\"reason\":\"test\"}' หรือเขียน body ลงไฟล์แล้ว --data-binary @body.json
+    การตรวจ T-09 ด้วย curl รอบก่อนจึงยังไม่ได้พิสูจน์อะไร AI ตรวจซ้ำด้วย body ที่ถูกต้องแล้ว: เหตุผล "   " ได้ 400 REASON_REQUIRED
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-15 เป็น "เสร็จ"
+
+---
+
+## 2569-11-11 /implement T-19 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-19 ตอบไม่พบคำขอเมื่อไม่ใช่คำขอของตนเอง
+- ไฟล์ที่แก้:
+  - service.go: UPDATE ไม่เจอแถว และ OwnStatus ไม่พบ (ไม่มี หรือของผู้อื่น) -> ErrRequestNotFound
+  - handler.go: 404 REQUEST_NOT_FOUND (ไฟล์นอกช่อง "ไฟล์ที่แตะ" AI หยุดถาม ทีมอนุญาตและเพิ่มในช่องของ T-19 แล้ว)
+  - handler_test.go: TestAC_CXL_03_OthersRequestNotFound (คำขอของผู้อื่นและ id ไม่มี ตอบเหมือนกัน body มีแค่ code)
+- ผล test: package cancelrequest ผ่านทั้งหมด 28 test รวม TC หลังบ้านทุกตัว (TC-CXL-01-7 ผ่านเพิ่ม), `go test -p 1 ./...` ผ่านทุก package
+- สิ่งที่เกือบต้องเดาแต่ถามแทน: แตะ handler.go ซึ่งไม่อยู่ในช่องไฟล์ที่แตะ -> ทีม: เพิ่มใน T-19
+- สถานะใน tasks.md: T-19 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-12 ทีมตรวจ T-19 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ: `go test -count=1 -p 1 ./...` ใน backend ผ่านทุก package (auth, cancelrequest, migrationtest, config, equipment, platform)
+  รวม TestAC_CXL_03_OthersRequestNotFound และ TC หลังบ้านของ 003 ทุกตัว
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-19 เป็น "เสร็จ"
+
+---
+
+## 2569-11-12 /implement T-16 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-16 แสดงข้อความเมื่อคำขอได้รับการอนุมัติแล้ว
+- ไฟล์ที่แก้ (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - MyPendingRequests.jsx: client ตอบ 409 ALREADY_APPROVED -> ปิดกล่อง แสดง MSG_ALREADY_APPROVED (role=alert แถบแดง) แล้วโหลดรายการใหม่
+  - __tests__/MyPendingRequests.test.jsx: AC_CXL_02 shows already approved message and reloads
+- ผล test: `npx vitest run` ผ่าน 35/35 (รวม TC-CXL หน้าจอ 10/10 และ 001 17 ตัว) `npm run build` ผ่าน
+- สิ่งที่เกือบต้องเดา: ไม่มี (plan.md ข้อ 4: 409/404 แสดงข้อความแล้วโหลดรายการใหม่ ข้อความจาก config.js ตาม T-03)
+- ที่ AI เลือกเองในขอบเขต task: ปิดกล่องยืนยันเมื่อได้ ALREADY_APPROVED, แถบแดงอยู่ตำแหน่งเดียวกับแถบเขียวของข้อความสำเร็จ
+  ค้างไว้จนเริ่มยกเลิกรายการถัดไป (แบบเดียวกับข้อความสำเร็จที่ทีมตัดสินใน T-07)
+- สถานะใน tasks.md: T-16 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-12 ทีมตรวจ T-16 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ: `npm test` ผ่าน 35/35 และลองบนจอจริงตาม AC-CXL-04 ด้วยมือ:
+  เปิดหน้าเห็นคำขอ 3002 (CS-PJ-0001) -> UPDATE ในฐานข้อมูลเป็น approved แทน 004 -> กดยกเลิกโดยไม่รีเฟรช
+  -> กล่องปิด แถบแดง "ยกเลิกไม่ได้ เพราะคำขอได้รับการอนุมัติแล้ว" แถว CS-PJ-0001 หายหลังโหลดรายการใหม่
+- รอบแรกไม่เห็นข้อความเพราะหน้าโหลดรายการใหม่หลัง UPDATE แล้ว (ไม่ได้ผ่านขั้นกดยกเลิก) ไม่ใช่บั๊ก
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-16 เป็น "เสร็จ"
+
+---
+
+## 2569-11-12 /implement T-18 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-18 แสดงข้อความ "คำขอนี้ยกเลิกไม่ได้"
+- ไฟล์ที่แก้ (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - MyPendingRequests.jsx: เปลี่ยนเงื่อนไขของ T-16 เป็นตาราง CANCEL_REJECTED (รหัส error -> ข้อความใน config.js)
+    เพิ่ม NOT_CANCELLABLE -> MSG_NOT_CANCELLABLE ปิดกล่อง แสดงแถบแดง โหลดรายการใหม่ (พฤติกรรมของ ALREADY_APPROVED เหมือนเดิม)
+  - __tests__/MyPendingRequests.test.jsx: AC_CXL_11 shows not cancellable message, cancel error clears when opening next dialog
+- ผล test: `npx vitest run` ผ่าน 37/37 (TC-CXL หน้าจอ 10/10, AC_CXL_02 ของ T-16 ยังผ่าน) `npm run build` ผ่าน
+- สิ่งที่เกือบต้องเดา: ไม่มี (plan.md ข้อ 4)
+- สถานะใน tasks.md: T-18 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-12 /implement T-20 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-20 แสดงข้อความ "ไม่พบคำขอ"
+- ไฟล์ที่แก้ (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - MyPendingRequests.jsx: เพิ่ม REQUEST_NOT_FOUND -> MSG_REQUEST_NOT_FOUND ในตาราง CANCEL_REJECTED (ปิดกล่อง แถบแดง โหลดรายการใหม่)
+  - __tests__/MyPendingRequests.test.jsx: AC_CXL_03 shows request not found message
+- ผล test: `npx vitest run` ผ่าน 38/38 `npm run build` ผ่าน
+- สิ่งที่เกือบต้องเดา: ไม่มี (plan.md ข้อ 4)
+- หมายเหตุ: ต้องทำหลัง T-18 ซึ่งยังเป็น "เสร็จ รอทีมตรวจ" (commit แล้ว)
+- สถานะใน tasks.md: T-20 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-12 ทีมตรวจ T-18, T-20 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ: `npm test` ผ่าน 38/38 และลองบนจอจริงโดยเปลี่ยนข้อมูลคำขอ 3002 ระหว่างที่หน้าเปิดค้าง
+  - T-18: status = rejected -> กดยกเลิก -> แถบแดง "คำขอนี้ยกเลิกไม่ได้" แถวหายหลังโหลดใหม่
+  - T-20: requester_id = student-002 -> กดยกเลิก -> แถบแดง "ไม่พบคำขอ" แถวหายหลังโหลดใหม่
+  คืนข้อมูล 3002 เป็น requested ของ student-001 หลังทดสอบ
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-18, T-20 เป็น "เสร็จ"
+
+---
+
+## 2569-11-12 /implement T-11, T-13, T-14, T-17, T-21, T-25 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: ทำกลุ่ม task test ยืนยันหลังบ้าน 6 ตัวในรอบเดียว (ทีมสั่งเป็นกลุ่ม ไม่ใช่ทีละ task ตาม implement.md)
+- ไฟล์ที่แก้: backend/internal/cancelrequest/handler_test.go เท่านั้น ไม่ต้องแก้โค้ด เพราะพฤติกรรมถูกต้องแล้วจาก T-04, T-06, T-15, T-19
+  - T-11: TestAC_CXL_12_EmptyList (มีแต่คำขอที่ยกเลิกไม่ได้ -> items [] ไม่ใช่ null)
+  - T-13: TestAC_CXL_05_OtherRequestsOnSameItemUnchanged (ยกเลิกของ A คำขอของ B บนชิ้นเดียวกันและสถานะอุปกรณ์ไม่เปลี่ยน)
+  - T-14: TestAC_CXL_10_CancelOvernightApprovedByOfficer (approved_by_officer และ pending_advisor_approval ยกเลิกได้)
+  - T-17: TestAC_CXL_11_RejectedAndCancelledNotCancellable (rejected, cancelled, handed_over, returned -> 409 NOT_CANCELLABLE)
+    ช่องไฟล์ที่แตะมี service.go ด้วย แต่ไม่ต้องแก้ เพราะ T-15/T-19 แยกสาเหตุไว้แล้ว
+  - T-21: TestAC_CXL_04_ApprovedBeforeConfirm (GET เห็นคำขอ -> UPDATE เป็น approved แทน 004 -> POST -> 409 ALREADY_APPROVED)
+  - T-25: TestAC_CXL_07_ExpiredSessionNoCancel (ไม่มี token และ token ที่ไม่รู้จัก -> 401 สถานะไม่เปลี่ยน ส่วน audit_log อยู่ใน T-31)
+- ผล test: 6 test ใหม่ผ่านทั้งหมด package cancelrequest ผ่านทั้งหมด
+- สิ่งที่เกือบต้องเดา: ไม่มี (AC ใน spec ครบ)
+- สถานะใน tasks.md: T-11, T-13, T-14, T-17, T-21, T-25 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-12 ทีมตรวจ T-11, T-13, T-14, T-17, T-21, T-25 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ: รัน test ใน backend ผ่านทั้ง 6 ตัว (TestAC_CXL_12_EmptyList, 05, 10, 11, 04, 07) ไม่ได้ลองบนจอจริงเพราะเป็น test อย่างเดียว
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-11, T-13, T-14, T-17, T-21, T-25 เป็น "เสร็จ"
+
+---
+
+## 2569-11-12 /implement T-22 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-22 ทดสอบหน้าจอเมื่อกดยืนยันแล้วได้ผลว่าอนุมัติแล้ว
+- ไฟล์ที่แก้ (ตรงกับช่อง "ไฟล์ที่แตะ"): frontend/src/pages/MyPendingRequests/__tests__/CancelDialog.test.jsx
+  เพิ่ม AC_CXL_04 approved while dialog open (เปิดกล่องก่อน แล้ว client จำลองเปลี่ยนเป็นตอบ 409 ALREADY_APPROVED) ไม่ต้องแก้โค้ด เพราะ T-16 ทำไว้แล้ว
+- ผล test: `npx vitest run` ผ่าน 39/39
+- สิ่งที่เกือบต้องเดา: ไม่มี
+- สถานะใน tasks.md: T-22 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-12 /implement T-23, T-24 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request (แก้ของกลาง frontend/src/config.js เพราะ 003)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: ทำ T-23 และ T-24 ในรอบเดียว
+- T-23 (หลังบ้าน):
+  - service.go: Service มี dbTimeout = config.CancelDBTimeout, Cancel ใช้ context.WithTimeout ฐานข้อมูลไม่ตอบ -> error -> 503 และ rollback
+  - handler.go: คอมเมนต์ writeUpstreamError (503 UPSTREAM_UNAVAILABLE retryable มีอยู่แล้วตั้งแต่ T-04)
+  - handler_test.go: TestAC_CXL_13_DBDownReturns503
+  - ต่างจากช่อง "เสร็จเมื่อ": ไม่หยุด container เพราะ test ทั้งแพ็กเกจใช้ฐานข้อมูลร่วมกัน (หยุดแล้วเปิดใหม่พอร์ตเปลี่ยน)
+    จำลองด้วย pool ที่ต่อไม่ได้ (127.0.0.1:1) และฐานข้อมูลที่ค้างเกินเวลา (dbTimeout 50ms) แล้วตรวจกับฐานข้อมูลจริงว่าสถานะยัง requested และยกเลิกใหม่ได้
+- T-24 (หน้าเว็บ):
+  - config.js: MSG_CANCEL_FAILED = "ยกเลิกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" (ไฟล์นอกช่องไฟล์ที่แตะ เพิ่มในช่องของ T-24 แล้ว)
+  - CancelDialog.jsx: prop error แสดงข้อความในกล่อง (role=alert) ปุ่มยืนยันเปลี่ยนชื่อเป็น "ลองใหม่" เหตุผลที่พิมพ์ยังอยู่
+  - MyPendingRequests.jsx: error ที่ไม่อยู่ใน CANCEL_REJECTED (503, ส่งไม่ถึง) -> dialogError ไม่ปิดกล่อง ไม่โหลดรายการใหม่ แถวยังอยู่
+  - CancelDialog.test.jsx: AC_CXL_13 shows error with retry, dialog error clears when reopened
+- สิ่งที่เกือบต้องเดาแต่ถามแทน:
+  1. ข้อความเมื่อ 503 -> ทีม: "ยกเลิกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง"
+  2. ปุ่มลองใหม่อยู่ที่ไหน -> ทีม: ในกล่องยืนยัน ส่งเหตุผลเดิม
+- ผล test: go test ./internal/cancelrequest/ ผ่านทั้งหมด, npx vitest run ผ่าน 41/41, npm run build ผ่าน
+- สถานะใน tasks.md: T-23, T-24 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-12 ทีมตรวจ T-23, T-24 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ: go test ./... ผ่านทุก package, npm test ผ่าน 41/41 และลองบนจอจริงตามวิธีที่ AI ให้ (หยุด salmon-db ระหว่างกล่องยืนยันเปิด -> ข้อความแดงในกล่องและปุ่มลองใหม่ -> เปิดฐานข้อมูลกลับแล้วลองใหม่สำเร็จ)
+- ทีมยอมรับวิธีทดสอบ T-23 ที่จำลองฐานข้อมูลล่มแทนการหยุด container ของ test
+- ข้อจำกัดที่รู้: session หมดอายุ (401) ตอนนี้ขึ้นข้อความ "ยกเลิกไม่สำเร็จ" ด้วย จนกว่า T-26 จะพาไปหน้าเข้าสู่ระบบ
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-23, T-24 เป็น "เสร็จ"
+
+---
+
+## 2569-11-12 ทีมตรวจ T-22 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ทีมเปลี่ยนสถานะ T-22 ใน tasks.md เป็น "เสร็จ" เอง (บันทึกย้อนหลังโดย Claude Code ตามที่ทีมแจ้ง)
+- วิธีตรวจ: npm test ผ่าน (รวม AC_CXL_04 approved while dialog open) ลำดับเหตุการณ์ AC-CXL-04 บนจอจริงทดสอบไปแล้วตอนตรวจ T-16
+
+---
+
+## 2569-11-12 /implement T-30 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request (เพิ่มไฟล์ใน backend/db/migrations ซึ่งเป็นของกลาง เพราะ 003)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-30 เพิ่ม action notify ใน audit_log
+- ก่อนเริ่มเช็ก origin/main: ยังไม่มี migration เลข 0005 และ CHECK ใน 0003 ของ 002 เป็น 5 ค่า (list, search, detail, cancel, request)
+- ไฟล์ที่แก้หรือสร้าง (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - backend/db/migrations/0005_audit_log_notify_action.up.sql (ใหม่): DROP แล้ว ADD audit_log_action_check ชื่อเดิม 6 ค่า รวม notify ไม่แก้ 0002
+  - backend/internal/cancelrequest/migrationtest/migration_test.go: TestMigration_AuditLogAcceptsNotify (ใส่ใน transaction ที่ rollback ทิ้ง)
+- ผล test: `go test -p 1 ./...` ผ่านทุก package (รวม test audit_log ของ 001 และ 002 ใน platform)
+- สิ่งที่เกือบต้องเดา: ไม่มี (ตกลงชื่อ constraint และค่าครบกับ 001, 002 แล้ว)
+- ไม่ได้ทำ: ไม่มีไฟล์ .down.sql (ไม่อยู่ในช่องไฟล์ที่แตะ แบบเดียวกับ 0004)
+  data-model.md v10 มีแถว notify อยู่แล้วตั้งแต่ merge main ไม่ต้องแก้
+- สถานะใน tasks.md: T-30 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-12 ทีมตัดสินวิธีล้างข้อมูลใน test และ audit writer (003-cancel-request)
+
+- ผู้ตัดสิน: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (อธิบายทางเลือกและผลกระทบ)
+- เรื่องที่ 1 ล้างข้อมูลระหว่าง test เมื่อ audit_log (append-only) มี FK ไป borrow_request: เลือก (ข)
+  ปิด trigger และ FK ชั่วคราวด้วย SET LOCAL session_replication_role = replica ใน transaction ของการล้างเท่านั้น
+  ข้อระวังที่ AI แจ้ง: ห้ามใช้ SET ธรรมดาเพราะค้างใน connection ของ pool, ใช้ได้เพราะผู้ใช้ test เป็น superuser,
+  ต้องเขียนคอมเมนต์ว่าใช้กับฐานข้อมูล test เท่านั้น กฎ append-only ยังตรวจด้วย test ของ 001
+- เรื่องที่ 2 audit writer: รอ 001 ทำ writer.go (T-19 ของ 001) ก่อน ยังไม่ใช้แผนสำรอง T-31, T-32 จึงยังไม่เริ่ม
+- ไฟล์ที่แก้: specs/003-cancel-request/plan.md หัวข้อ 8 (บันทึกการตัดสิน) ยังไม่ได้แก้โค้ด
+
+---
+
+## 2569-11-12 ทีมตรวจ T-30 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ: go test (TestMigration_AuditLogAcceptsNotify และทุก package) ผ่าน
+  ฐานข้อมูลในเครื่อง: schema_migrations version 5, audit_log_action_check มี 6 ค่า, ใส่ notify ได้ (ใน transaction ที่ rollback),
+  ใส่ cancel_notify_failed ถูกปฏิเสธด้วย check constraint ไม่มีข้อมูลทดสอบค้างใน audit_log
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-30 เป็น "เสร็จ"
+
+---
+
+## 2569-11-12 merge origin/main เข้า branch 003 รอบที่ 3 (ได้งาน 002 PR #9 และ 005 PR #10)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- ได้จาก main: backend/internal/borrowrequest (002), backend/internal/handover และ 0006_handover, handover_dev.sql, หน้า handover (005),
+  spec/plan/tasks ของ 005, seed.sql (แค่คอมเมนต์ของ 002), migrate_test.go, SRS
+- ตรวจก่อนแก้: 0006_handover ของ 005 ไม่แตะ audit_log จึงไม่ลบ action notify ของ 0005
+  handover_dev.sql ใช้อุปกรณ์ชุดของตัวเอง (HO-TEST-*) และ id อัตโนมัติ ไม่ชนกับ seed_003 (3001-3008)
+  ถ้าโหลดทั้งสองไฟล์ student-001 จะเห็น HO-TEST-0003 (requested) ในหน้า 003 เพิ่มอีก 1 รายการ
+- conflict 7 ไฟล์ แก้แบบรวมทั้งสองฝั่ง:
+  - backend/internal/config/config.go, frontend/src/config.js: ค่าของ 003 และ 002 อยู่คู่กัน
+  - backend/internal/config/config_test.go: รวม import (slices, testing, time) และ test ของ 003 กับ 002
+  - backend/cmd/server/main.go: import ทั้ง borrowrequest และ cancelrequest (เรียงตามตัวอักษร) route ของทุกฟีเจอร์อยู่ครบ
+  - specs/000-shared/constraints.md: ตาราง "ใครอ้างใช้บ้าง" รวม 002, 003, 005 ในแต่ละแถว
+  - specs/CHANGELOG.md, prompt-log.md: เก็บทั้งสองฝั่ง
+- ผล test หลัง merge: go build, go vet ผ่าน, go test -p 1 ./... ผ่านทุก package (รวม borrowrequest, handover), npm test 47/47, npm run build ผ่าน
+
+---
+
+## 2569-11-12 /implement T-27 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-27 สร้าง Notifier จำลองและส่งหลังยกเลิกสำเร็จ
+- ไฟล์ที่แก้หรือสร้าง:
+  - notifier.go (ใหม่): CancelNotice, interface Notifier, LogNotifier (Email จำลองเขียนลง log ASM-10)
+  - repository.go: CancelledNotice อ่านชื่อรุ่น รหัสครุภัณฑ์ ภาควิชาเจ้าของอุปกรณ์ cancelled_at และ Email จาก staff_contact ใน transaction
+  - service.go: NewService ใช้ LogNotifier เป็นค่าเริ่มต้น, WithNotifier เปลี่ยนตัวส่ง, ส่งหลัง commit เท่านั้น ส่งไม่สำเร็จเขียน log ไม่ย้อนการยกเลิก
+  - notifier_test.go (ใหม่): TestAC_CXL_15_NotifyDepartmentStaff, TestNotify_NotSentWhenNotCancelled, TestNotify_NoStaffEmailStillCancelled
+  - ไม่แก้ backend/cmd/server/main.go (อยู่ในช่องไฟล์ที่แตะ) เพราะ NewService ใช้ LogNotifier เป็นค่าเริ่มต้นแล้ว ไม่ต้องแตะไฟล์กลาง
+    ไม่แก้ tc_helpers_test.go เพราะวิธีสร้าง Service ไม่เปลี่ยน
+- ผล test: package cancelrequest ผ่านทั้งหมด `go test -p 1 ./...` ผ่านทุก package
+- ที่ AI เลือกเองในขอบเขต task (spec ไม่ได้บอก ต้องให้ทีมตรวจ):
+  - ภาควิชาที่ไม่มี Email ใน staff_contact: ยกเลิกสำเร็จตามปกติ ไม่เรียก Notifier เขียน log ไว้
+  - ผู้ยกเลิกในข้อความเป็นรหัสผู้ใช้ (Principal.UserID) เพราะ IF-IDP-01 ไม่ส่งชื่อมา
+  - ส่ง Email แบบรอผล (ไม่แยก goroutine) หลัง commit ใช้ context.WithoutCancel ไม่ให้ dbTimeout ตัดการส่ง
+- สถานะใน tasks.md: T-27 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-12 แก้รูปแบบเวลาใน Email จำลอง (T-27, 003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: ตอนลองบนจอจริง เวลาในฐานข้อมูล (2026-11-11 18:25:39+00 UTC) กับใน Email จำลอง (2026-11-12T01:25:39+07:00) ดูไม่เหมือนกัน
+  ขอให้แสดงเหมือนกันและไม่ต้องมีวินาที (เป็นเวลาเดียวกัน ต่างแค่เขตเวลา)
+- ไฟล์ที่แก้: notifier.go เพิ่ม FormatNoticeTime เวลาไทย (config.TimeZone) ปี พ.ศ. ไม่มีวินาที "2569-11-12 01:25" แบบเดียวกับหน้าเว็บ
+  notifier_test.go เพิ่ม TestFormatNoticeTime ค่าที่เก็บในฐานข้อมูลไม่เปลี่ยน
+- ที่ AI เลือก: ใช้ปี พ.ศ. ให้ตรงกับเวลาบนหน้าเว็บ (formatDueAt ของ 001), ตัดวินาทีทิ้งไม่ปัด
+- คำสั่งดูเวลาในฐานข้อมูลแบบเดียวกัน: to_char ใน psql (ให้ไว้ในแชต)
+
+---
+
+## 2569-11-12 ลอง T-27 บนจอจริงผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- วิธีตรวจ: เปิดหลังบ้านใหม่ ยกเลิกคำขอบนหน้าเว็บ Email จำลองใน log มีผู้รับ staff-it@example.test ผู้ยกเลิก ชื่อรุ่น รหัสครุภัณฑ์
+  เวลา (รูปแบบใหม่ 2569-11-12 01:25 ตรงกับ cancelled_at ในฐานข้อมูลเมื่อแปลงเป็นเวลาไทย) และเหตุผล
+- ยังค้าง: ทีมยังไม่ตอบ 3 เรื่องที่ spec ไม่ได้บอก (ภาควิชาที่ไม่มี Email, ผู้ยกเลิกเป็นรหัสหรือชื่อ, รอผลหรือส่งเบื้องหลัง) สถานะ T-27 ยังเป็น "เสร็จ รอทีมตรวจ"
+
+---
+
+## 2569-11-12 ทีมตัดสิน 3 เรื่องของ Email (T-27, 003-cancel-request)
+
+- ผู้ตัดสิน: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- คำตอบ: (1) ภาควิชาที่ไม่มี Email เจ้าหน้าที่ นับเป็นส่งไม่สำเร็จ (2) ผู้ยกเลิกแสดงทั้งชื่อ/รหัสนักศึกษาจากคำขอและรหัสผู้ใช้ (3) ส่งแบบรอผล
+- ไฟล์ที่แก้:
+  - notifier.go: CancelNotice เพิ่ม RequesterName, StudentCode, FormatCanceller, ErrNoRecipients
+  - repository.go: CancelledNotice อ่าน requester_name, student_code
+  - service.go: notify คืน error (ไม่มีผู้รับ = ErrNoRecipients) ให้ T-32 ใช้บันทึก audit การยกเลิกยังสำเร็จ
+  - notifier_test.go: ตรวจ FormatCanceller, เพิ่ม TestNotify_ReportsFailure
+  - spec.md ASM-10 (บันทึก 4 ข้อของ Email), Q-15 (เพิ่มคำถามเวลาส่งของตัวส่งจริง), tasks.md T-32, CHANGELOG
+- ผล test: `go test -p 1 ./...` ผ่านทุก package
+
+---
+
+## 2569-11-12 ทีมตรวจ T-27 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ:
+  - A: test 5 ตัว (AC_CXL_15, Notify_NotSent, Notify_NoStaffEmail, Notify_ReportsFailure, FormatNoticeTime) และ go test -p 1 ./... ผ่าน
+  - B: บนจอจริง กรณียกเลิกสำเร็จ Email จำลองมีผู้รับ ผู้ยกเลิก (ชื่อ รหัสนักศึกษา รหัสผู้ใช้) ชื่อรุ่น รหัสครุภัณฑ์ เวลา (ตรงกับฐานข้อมูล) เหตุผล
+    กรณียกเลิกไม่สำเร็จไม่มี Email, กรณีภาควิชา 2 ไม่มี Email ขึ้น "ส่งไม่สำเร็จ: no staff email" และยกเลิกสำเร็จ
+  - C: อ่านโค้ด ส่งหลัง commit และหาภาควิชาจากอุปกรณ์
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-27 เป็น "เสร็จ"
+
+---
+
+## 2569-11-12 /implement T-28 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-28 ไม่ย้อนการยกเลิกเมื่อ Notifier ล้มเหลว
+- ไฟล์ที่แก้: backend/internal/cancelrequest/notifier_test.go เท่านั้น
+  - TestAC_CXL_16_NotifyFailureStillCancelled (Notifier ปลอมคืน error -> 200 cancelled เหตุผลถูกเก็บ คำขอหายจากรายการ)
+  - tcHandlerOnly ตัวช่วยตรวจรายการโดยไม่ล้างข้อมูล
+  - ไม่ต้องแก้ service.go (อยู่ในช่องไฟล์ที่แตะ) เพราะ T-27 ส่ง Email หลัง commit และไม่ย้อนการยกเลิกไว้แล้ว
+- ผล test: package cancelrequest ผ่านทั้งหมด (รอบแรกใช้ 31 วินาทีเพราะ Docker เริ่มฐานข้อมูล test ช้า รันซ้ำ 3.4 วินาที)
+- ข้อค้นพบที่ต้องให้ทีมตัดสิน (ไม่ได้แก้): Notifier ที่ "ค้างไม่ตอบ" (ไม่ใช่คืน error) จะทำให้นักศึกษารอไม่สิ้นสุด
+  เพราะส่งแบบรอผลและไม่มีเวลาจำกัด ตัวจำลองไม่เกิด แต่ตัวส่งจริงอาจเกิด เสนอเพิ่มเวลารอการส่ง Email ใน config (ต้องให้ทีมกำหนดตัวเลข)
+- สถานะใน tasks.md: T-28 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-12 ทีมตรวจ T-28 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- วิธีตรวจ: `go test -run AC_CXL_16 ./internal/cancelrequest/` ผ่าน (ลองบนจอจริงไม่ได้ เพราะตัวจำลองส่งสำเร็จเสมอ)
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-28 เป็น "เสร็จ"
+- ยังค้าง: ทีมยังไม่ตัดสินเรื่องเวลารอการส่ง Email (NotifyTimeout) กรณีตัวส่งค้างไม่ตอบ
+
+---
+
+## 2569-11-12 /implement T-29 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-29 เขียน load test ด้วย k6 (ทีมเลือกรัน k6 ผ่าน Docker เพราะเครื่องไม่มี k6)
+- ไฟล์ที่สร้าง (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - backend/db/seed/seed_003_load.sql: อุปกรณ์ทดสอบ LD-0001 ถึง LD-1000 (รุ่น 5001 ภาควิชา 1) และคำขอ 50001-51000
+    (ครึ่งแรก student-001 ครึ่งหลัง student-002) โหลดซ้ำ = รีเซ็ตเป็น requested ด้วย UPDATE (ไม่ใช้ DELETE เผื่อมี audit_log ใน T-31)
+  - tests/load/cancel_request.js: 50 VU per-vu-iterations คนละ 20 รอบ แต่ละรอบ GET รายการ + POST ยกเลิกคำขอของตัวเอง (ไม่แย่งใบเดียวกัน)
+    threshold p95 < 15000 ms แยกของ list และ cancel (ค่าจาก config.CancelPerfP95) และ checks rate == 1.0
+- ที่ AI เลือกเอง (ไม่ได้มาจาก spec): จำนวนรอบ 20 ต่อผู้ใช้ (รวม 1,000), รันกับฐานข้อมูลแยก salmon_load ใน container เดิม
+  เพื่อไม่ปนกับข้อมูลที่ใช้ลองหน้าเว็บ, เรียกหลังบ้านตรงไม่ผ่าน proxy ของ vite
+- ผล: หลังบ้านชั่วคราวพอร์ต 8010 ต่อ salmon_load, k6 v2.3.0 ใน Docker
+  list p95 = 106.63 ms, cancel p95 = 38.9 ms, checks 2000/2000, http_req_failed 0%, คำขอ 1,000 ใบเป็น cancelled
+  Email จำลอง 1,000 บรรทัด ฐานข้อมูล salmon (ที่ใช้ลองหน้าเว็บ) ไม่มีข้อมูล load test
+- ข้อจำกัด: วัดบนเครื่องพัฒนาเครื่องเดียว (หลังบ้าน ฐานข้อมูล และ k6 อยู่เครื่องเดียวกัน) ไม่ใช่สภาพแวดล้อมจริง และยังไม่มี audit_log (T-31)
+- สถานะใน tasks.md: T-29 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-12 ทีมตรวจ T-29 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ: หลังบ้านต่อฐานข้อมูลแยก salmon_load, โหลด seed_003_load.sql (รีเซ็ตคำขอ 1,000 ใบ),
+  รัน k6 ผ่าน Docker (grafana/k6) กับ tests/load/cancel_request.js ผ่าน threshold ทั้ง 3 (list p95, cancel p95 < 15000 ms, checks 100%)
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-29 เป็น "เสร็จ"
+
+
+---
+
 ## 2569-11-11 คำสั่ง: เริ่ม 004-approve-request ใหม่จากศูนย์ (spec Draft v1)
 
 - ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
@@ -2476,3 +3590,19 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ฟีเจอร์: 004-approve-request
 - คำสั่ง: "ทีมตรวจแล้วผ่าน"
 - สิ่งที่แก้: tasks.md T-12 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: รับเรื่องจาก 003 และแก้ conflict ตอน merge main (PR #12 ของ 003) เข้า 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request (แก้ไฟล์ร่วม constraints.md, main.go, client.js เพราะ merge)
+- คำสั่ง: ข้อความจากเจ้าของ 003 (ภาพ) "ข้อ 1 ให้เพิ่ม ข้อ 2 บอกเฉยๆ เผื่อ"
+  1. migration 0005 ของ 003 เพิ่ม action `notify` -> 0008 ของ 004 ที่เขียน CHECK ใหม่ต้องใส่ `notify` ด้วย
+  2. 003 เพิ่ม `postJSON` ใน api/client.js แล้ว ตอน merge ใช้ของที่มีอยู่ ไม่ต้องเพิ่มซ้ำ
+- สิ่งที่แก้:
+  - `backend/db/migrations/0008_approval.up.sql`: เพิ่ม `notify` ใน `audit_log_action_check` / `0008_approval.down.sql`: คืนเป็นชุดของ 0005 (มี notify)
+  - `backend/internal/platform/migrate_approval_test.go`: `TestMigration_ApprovalAuditActions` ตรวจว่า notify ยังใช้ได้
+  - แก้ conflict: `main.go` เก็บ route ทั้ง 004 และ 003 / `client.js` ใช้ `postJSON` + `apiError` ของ 003 ตัดของ 004 ออก เก็บฟังก์ชัน API ทั้งของ 004 และ 003 / `constraints.md` ตาราง "ใครอ้างใช้บ้าง" ใส่ทั้ง 003 และ 004, IF-NOT-01 ใส่ทั้ง 003 และ 004 / `CHANGELOG.md`, `prompt-log.md` เก็บทั้งสองฝั่ง
+  - `CHANGELOG.md` ของ main มีเศษ marker ค้างจากการ merge ครั้งก่อน (บรรทัด ` 003-cancel-request`, `=======`, ` main`) ลบเฉพาะเศษ marker เนื้อหาครบ
+- ข้อสังเกตของ AI (ไม่แก้ ไม่ใช่ของ 004): 003 ใช้รหัส `REQUEST_NOT_FOUND` และ `ALREADY_APPROVED`, `NOT_CANCELLABLE`, `REASON_*` ใน client.js แต่ CON-TECH-03 มีแค่ `REQUEST_NOT_FOUND` (ที่ 004 ลงทะเบียน) -> แจ้ง 003 ให้เพิ่ม 003 ในคอลัมน์ "ใครใช้แล้ว" และลงทะเบียนรหัสที่เหลือ

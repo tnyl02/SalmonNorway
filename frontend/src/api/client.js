@@ -23,37 +23,31 @@ async function getJSON(path) {
     headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
     cache: 'no-store',
   })
-  if (!res.ok) {
-    let code
-    try {
-      code = (await res.json()).code
-    } catch {
-      code = undefined
-    }
-    throw new ApiError(res.status, code)
-  }
+  if (!res.ok) throw await apiError(res)
   return res.json()
 }
 
-// postJSON ส่ง body เป็น JSON แบบเดียวกับ getJSON (เพิ่มโดย 004 T-09 plan.md ข้อ 4)
-// ไม่สำเร็จ throw ApiError ที่มี code จากหลังบ้าน (CON-TECH-03) ให้หน้าจอเลือกข้อความจากรหัส
+// postJSON ส่ง body เป็น JSON แบบเดียวกับ getJSON (token, no-store, ApiError) เพิ่มโดย 003 T-07 ฟีเจอร์อื่นใช้ร่วมได้
 async function postJSON(path, body) {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${MOCK_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
     cache: 'no-store',
+    body: JSON.stringify(body),
   })
-  if (!res.ok) {
-    let code
-    try {
-      code = (await res.json()).code
-    } catch {
-      code = undefined
-    }
-    throw new ApiError(res.status, code)
-  }
+  if (!res.ok) throw await apiError(res)
   return res.json()
+}
+
+// apiError อ่าน code จาก Error contract ใน plan.md (ถ้าอ่านไม่ได้ code เป็น undefined)
+async function apiError(res) {
+  let code
+  try {
+    code = (await res.json()).code
+  } catch {
+    code = undefined
+  }
+  return new ApiError(res.status, code)
 }
 
 // 001 FR-EQS-02: แปลงตัวกรอง { categories: [...], statuses: [...] } เป็น query string
@@ -91,4 +85,13 @@ export const api = {
   // 004 FR-APV-01 (ง): ปฏิเสธคำขอพร้อมเหตุผล -> { requestId, status, decidedAt, rejectedRequestIds }
   rejectRequest: (requestId, reason, loadedAt) =>
     postJSON(`/v1/approvals/requests/${encodeURIComponent(requestId)}/reject`, { reason, loadedAt }),
+
+  // 003 FR-CXL-06: คำขอที่ยังยกเลิกได้ของผู้ใช้ที่เข้าสู่ระบบ เรียงใหม่ไปเก่า (plan.md ข้อ 4 ของ 003)
+  //   -> { items: [{ requestId, modelName, assetCode, submittedAt }] }
+  listMyPendingRequests: () => getJSON('/v1/my/pending-requests'),
+
+  // 003 FR-CXL-01, FR-CXL-08: ยกเลิกคำขอพร้อมเหตุผล (plan.md ข้อ 4 ของ 003)
+  //   -> สำเร็จ หรือ throw ApiError(400 REASON_*, 404 REQUEST_NOT_FOUND, 409 ALREADY_APPROVED / NOT_CANCELLABLE, 503)
+  cancelRequest: (requestId, reason) =>
+    postJSON(`/v1/borrow-requests/${encodeURIComponent(requestId)}/cancel`, { reason }),
 }

@@ -55,8 +55,9 @@ CREATE INDEX idx_approval_email_due
     ON approval_email (status, next_attempt_at);
 
 -- RQ-25: เพิ่มค่า action ของ 004 ใน audit_log (DM-07) ด้วยวิธีเดียวกับ 0003 ห้ามแก้ไฟล์ 0002 / 0003
--- รายการต้องรวมค่าของทุก migration ก่อนหน้า ถ้า 0004 ถึง 0007 ของฟีเจอร์อื่นเพิ่มค่า ต้องเพิ่มค่าเหล่านั้นที่นี่ด้วย
+-- รายการต้องรวมค่าของทุก migration ก่อนหน้า: list, search, detail (001), cancel (003 ใน 0002), request (002 ใน 0003),
+-- notify (003 ใน 0005 แจ้งจาก 003 ก่อนเปิด PR 2569-11-12) ถ้า 0006 / 0007 เพิ่มค่าภายหลัง ต้องเพิ่มที่นี่ด้วย
 ALTER TABLE audit_log DROP CONSTRAINT audit_log_action_check;
 ALTER TABLE audit_log ADD CONSTRAINT audit_log_action_check
-    CHECK (action IN ('list', 'search', 'detail', 'cancel', 'request',
+    CHECK (action IN ('list', 'search', 'detail', 'cancel', 'request', 'notify',
                       'approve', 'reject', 'auto_reject'));
