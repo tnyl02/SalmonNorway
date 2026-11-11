@@ -1563,3 +1563,18 @@
 - เครื่องมือ: Claude Code
 - ไฟล์ที่แก้: `backend/internal/handover/handler_test.go`
 - ผล test: `TestAC_HND_04_ItemNotAvailable` ผ่าน 2 กรณี (unavailable / borrowed ได้ 409 ITEM_NOT_AVAILABLE ไม่มี Loan ใหม่ สถานะอุปกรณ์ไม่เปลี่ยน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-20
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/repository.go` (เทียบผู้ยืมกับ `requester_id` ใน transaction เดียวกับการล็อกคำขอ `ErrBorrowerMismatch`),
+  `handler.go` (409 `BORROWER_MISMATCH`), `handler_test.go`, `repository_test.go`
+  ช่อง "ไฟล์ที่แตะ" ระบุ service.go แต่ AI ย้ายการเทียบไปไว้ใน transaction เพื่อใช้แถวคำขอที่ล็อกแล้ว ไม่ต้องอ่านคำขอซ้ำ
+- ผล test: `TestAC_HND_10_BorrowerMismatch` ผ่าน (นักศึกษา B ล็อกอินรับของคำขอของ A ได้ 409 ไม่มี Loan อุปกรณ์ available คำขอยัง approved)
+- test ที่ไม่ผ่านระหว่างทาง: `TestHandover_ConcurrentSameItem` (T-18) เพราะข้อมูลตั้งต้นใช้ผู้ยืม student-001 กับคำขอของ student-002 ด้วย
+  แก้ข้อมูลตั้งต้นของ test ให้ผู้ยืมตรงกับผู้ขอของแต่ละคำขอ (ไม่ใช่ test ที่ขึ้นต้นด้วย TestTC_ และไม่ได้ลดสิ่งที่ test ตรวจ) ผ่าน 3 รอบติด
+- `go test ./...` ผ่านทุก package

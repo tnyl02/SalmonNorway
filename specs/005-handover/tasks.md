@@ -326,7 +326,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-08, T-10
 - เสร็จเมื่อ: `TestAC_HND_10_BorrowerMismatch` ผ่าน (verifier คืนนักศึกษา B สำหรับคำขอของ A ได้ 409 `BORROWER_MISMATCH` อุปกรณ์ยัง `available`)
-- สถานะ: พร้อมทำ (เทียบกับ `borrow_request.requester_id` ซึ่งเป็นรหัสจากการล็อกอิน ตาม ASM-BRQ-06 ของ 002)
+- สถานะ: เสร็จ รอทีมตรวจ
 
 #### จุดตรวจเฟส 9
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_10_BorrowerMismatch และ test ของเฟส 0-8

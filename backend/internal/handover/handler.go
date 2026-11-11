@@ -184,6 +184,8 @@ func (h *Handler) handover(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 	case errors.Is(err, ErrRequestNotReady):
 		writeError(w, http.StatusConflict, codeRequestNotApproved) // FR-HND-01 ยังไม่อนุมัติ หรือส่งมอบไปแล้ว
+	case errors.Is(err, ErrBorrowerMismatch):
+		writeError(w, http.StatusConflict, codeBorrowerMismatch) // FR-HND-02, ASM-HND-04
 	case errors.Is(err, ErrItemNotAvailable):
 		writeError(w, http.StatusConflict, codeItemNotAvailable) // FR-HND-04
 	default:

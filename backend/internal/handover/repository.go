@@ -22,6 +22,8 @@ var (
 	ErrRequestNotFound = errors.New("borrow request not found")
 	// ErrRequestNotReady หมายถึงคำขอไม่อยู่ในสถานะที่ส่งมอบได้ เช่น ยังไม่อนุมัติ หรือส่งมอบไปแล้ว (FR-HND-01)
 	ErrRequestNotReady = errors.New("borrow request not ready for handover")
+	// ErrBorrowerMismatch หมายถึงผู้ยืมที่ยืนยันตัวตนไม่ใช่ผู้ส่งคำขอ (FR-HND-02, ASM-HND-04)
+	ErrBorrowerMismatch = errors.New("borrower is not the requester")
 	// ErrItemNotAvailable หมายถึงอุปกรณ์รายชิ้นในคำขอไม่ได้มีสถานะ "ว่าง" (FR-HND-04, CON-DATA-01)
 	ErrItemNotAvailable = errors.New("equipment item not available")
 )
@@ -95,14 +97,18 @@ func (r *Repository) CreateHandover(ctx context.Context, rec HandoverRecord, rea
 	}
 
 	// FR-HND-01: คำขอต้องยังอยู่ในสถานะที่ส่งมอบได้ (ล็อกไว้กันการเปลี่ยนสถานะพร้อมกัน)
-	var requestStatus, loanType string
+	var requestStatus, loanType, requesterID string
 	if err := tx.QueryRow(ctx,
-		`SELECT status, loan_type FROM borrow_request WHERE id = $1 FOR UPDATE`, rec.RequestID,
-	).Scan(&requestStatus, &loanType); err != nil {
+		`SELECT status, loan_type, requester_id FROM borrow_request WHERE id = $1 FOR UPDATE`, rec.RequestID,
+	).Scan(&requestStatus, &loanType, &requesterID); err != nil {
 		return HandoverResult{}, err
 	}
 	if !slices.Contains(readyStatuses, requestStatus) {
 		return HandoverResult{}, ErrRequestNotReady
+	}
+	// FR-HND-02: ผู้ยืมที่ยืนยันตัวตนต้องเป็นผู้ส่งคำขอ (requester_id คือรหัสจากการล็อกอิน ASM-BRQ-06 ของ 002)
+	if rec.BorrowerUserID != requesterID {
+		return HandoverResult{}, ErrBorrowerMismatch
 	}
 
 	// FR-HND-07: สร้าง Loan ด้วยคอลัมน์เดิมของ 001 (DM-05) ไม่แก้โครงตาราง loan

@@ -502,3 +502,29 @@ func TestAC_HND_04_ItemNotAvailable(t *testing.T) {
 		})
 	}
 }
+
+// AC-HND-10 (FR-HND-02)
+// Given คำขอยืมแบบปกติที่ได้รับอนุมัติแล้วของนักศึกษา A
+// When  ผู้ที่ยืนยันตัวตนตอนรับอุปกรณ์คือนักศึกษา B
+// Then  ระบบปฏิเสธการส่งมอบ ไม่มี Loan ถูกสร้าง และอุปกรณ์ยังมีสถานะ "ว่าง"
+func TestAC_HND_10_BorrowerMismatch(t *testing.T) {
+	pool := testPool(t)
+	itemID := createItem(t, pool, "T10-MM-0001", "available")
+	requestID := createRequest(t, pool, "student-001", itemID, "approved") // นักศึกษา A
+
+	rec := postHandover(t, routesOnly(pool), tokenStaff, requestID, validForm(tokenStudentB), twoJPEGs()) // นักศึกษา B ล็อกอิน
+	var e ErrorDTO
+	_ = json.Unmarshal(rec.Body.Bytes(), &e)
+	if rec.Code != http.StatusConflict || e.Code != "BORROWER_MISMATCH" {
+		t.Fatalf("HTTP %d %+v ต้องเป็น 409 BORROWER_MISMATCH", rec.Code, e)
+	}
+	if n := countLoans(t, pool, itemID); n != 0 {
+		t.Errorf("มี Loan %d รายการ ต้องไม่มี", n)
+	}
+	if s := statusOf(t, pool, "equipment_item", itemID); s != "available" {
+		t.Errorf("สถานะอุปกรณ์ = %q ต้องเป็น available", s)
+	}
+	if s := statusOf(t, pool, "borrow_request", requestID); s != "approved" {
+		t.Errorf("สถานะคำขอ = %q ต้องเป็น approved", s)
+	}
+}

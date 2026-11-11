@@ -210,14 +210,16 @@ func TestHandover_ConcurrentSameItem(t *testing.T) {
 	start := make(chan struct{})
 	errs := make(chan error, 2)
 	var wg sync.WaitGroup
-	for _, req := range []int{reqA, reqB} {
+	for requestID, requester := range map[int]string{reqA: "student-001", reqB: "student-002"} {
+		rec := sampleRecord(requestID)
+		rec.BorrowerUserID, rec.BorrowerStudentID = requester, requester // ผู้ยืมตรงกับผู้ขอของแต่ละคำขอ (FR-HND-02)
 		wg.Add(1)
-		go func(requestID int) {
+		go func() {
 			defer wg.Done()
 			<-start
-			_, err := repo.CreateHandover(ctx, sampleRecord(requestID), ready)
+			_, err := repo.CreateHandover(ctx, rec, ready)
 			errs <- err
-		}(req)
+		}()
 	}
 	close(start)
 	wg.Wait()
