@@ -1,7 +1,11 @@
+import { useState } from 'react'
 import HandoverList from './HandoverList.jsx'
+import HandoverForm from './HandoverForm.jsx'
 
-// หน้าบันทึกการส่งมอบของเจ้าหน้าที่ (UC-08) ตอนนี้มีรายการคำขอที่รอส่งมอบ (FR-HND-01)
-// ฟอร์มบันทึกการส่งมอบเพิ่มใน T-11 ไม่มี mockup ทีมออกแบบเอง
+// หน้าบันทึกการส่งมอบของเจ้าหน้าที่ (UC-08): เลือกคำขอจากรายการ (FR-HND-01) แล้วบันทึกในฟอร์ม (FR-HND-02 ถึง 07)
+// ไม่มี mockup ทีมออกแบบเอง
 export default function HandoverPage() {
-  return <HandoverList />
+  const [selected, setSelected] = useState(null)
+  if (selected) return <HandoverForm request={selected} onBack={() => setSelected(null)} />
+  return <HandoverList onSelect={setSelected} />
 }

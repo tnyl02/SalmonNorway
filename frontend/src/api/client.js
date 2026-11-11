@@ -71,6 +71,7 @@ async function handoverRequest(path, init = {}) {
   if (!res.ok) {
     const err = new ApiError(res.status, body?.code)
     err.fields = body?.fields ?? []
+    err.serverMessage = body?.message // ข้อความภาษาไทยจากหลังบ้าน (CON-TECH-03)
     throw err
   }
   return body

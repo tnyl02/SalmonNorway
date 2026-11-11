@@ -1652,3 +1652,15 @@
 - ไม่มี mockup ทีมออกแบบเอง หัวคอลัมน์และข้อความ "เลือก" "ไม่มีคำขอที่รอส่งมอบ" ทีมเลือกเอง ไม่ได้มาจาก spec
 - ไม่มี router ใน template จึงใช้ path ของเบราว์เซอร์ตรง ๆ แทนการเพิ่ม library (plan ไม่ได้ระบุ)
 - หมายเหตุ: App.jsx ใช้ CRLF แก้ด้วย Edit
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-11
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่สร้าง/แก้: `frontend/src/pages/Handover/HandoverForm.jsx`, `HandoverPage.jsx` (รายการ -> ฟอร์ม), `frontend/src/api/client.js` (เก็บ message จากหลังบ้านไว้แสดง), `frontend/src/__tests__/AC-HND-02.test.jsx`
+- ผล test: `AC-HND-02.test.jsx` ผ่าน 2 test (ไม่ติ๊กตรวจบัตร ปุ่มใช้ไม่ได้และไม่ส่ง / ติ๊กแล้วส่งชื่อ นามสกุล cardChecked=true รูป 2 ไฟล์ และแสดงเวลาที่ส่งมอบ) `npx vitest run` 12 ไฟล์ 20 test ผ่าน
+- ไม่มี mockup ข้อความบนฟอร์มทีมเลือกเอง ไม่ได้มาจาก spec ข้อผิดพลาดแสดง message ที่หลังบ้านส่งมา (CON-TECH-03)
+- ช่องล็อกอินของผู้ยืม (borrowerCredential) ยังไม่มี เป็นงานของ T-12 ระหว่างนี้หลังบ้านจะตอบ 422 ถ้ายังไม่ได้ทำ T-12
