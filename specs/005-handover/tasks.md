@@ -45,7 +45,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01 (migration 0003 ของ 002 merge แล้ว)
 - เสร็จเมื่อ: `TestMigration_HandoverPhotoContentType` ผ่าน (`content_type` นอก jpeg/png ถูกปฏิเสธ) `TestMigration_HandoverIdentityMethod` ผ่าน (`identity_method` นอก `auth_api`/`card_only` ถูกปฏิเสธ) ไม่มีคอลัมน์เลขบัตรใด ๆ และ test ของ 001 ทั้งหมดยังผ่าน
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 ### T-03 สร้าง package handover ผูก route และกันผู้ที่ไม่ใช่เจ้าหน้าที่
 - รองรับ: CON-HND-01, IF-IDP-01, CON-TECH-02

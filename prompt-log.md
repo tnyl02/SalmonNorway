@@ -1392,3 +1392,22 @@
 - ผล test: `TestVerifier_Mock` ผ่าน (2 subtest: token ถูกต้องคืนรหัสผู้ใช้ / token ว่างหรือไม่รู้จักคืน ErrBorrowerNotVerified)
 - สิ่งที่ AI เกือบต้องเดาแต่ไม่ทำ: ไม่ตรวจว่าผู้ยืมต้องเป็นบทบาทนักศึกษา (spec ไม่บอก), ไม่คืนชื่อ-นามสกุล (ที่มารอ Q-HND-13),
   credential เป็น token จำลองเท่านั้น (รูปแบบจริงรอ Q-HND-11) ไม่ใส่ timeout (เป็นงานของ T-13)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-02
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover (เพิ่มไฟล์ใหม่ใน `backend/db/migrations/` และ `backend/db/seed/` ซึ่งเป็นโฟลเดอร์ของกลาง ไม่ได้แก้ไฟล์ของใคร)
+- เครื่องมือ: Claude Code
+- ไฟล์ที่สร้าง: `backend/db/migrations/0006_handover.up.sql` (ตาราง `handover`, `handover_photo` ไม่ ALTER `loan`),
+  `backend/internal/handover/fixture_test.go` (testcontainers แบบเดียวกับ 001 + helper เพิ่มคำขอและการยืม),
+  `backend/internal/handover/migration_test.go`, `backend/db/seed/handover_dev.sql` (ข้อมูลลองระบบ ทีมเลือกเอง)
+- ผล test: `TestMigration_HandoverIdentityMethod` (4 กรณี), `TestMigration_HandoverPhotoContentType` (4 กรณี), `TestMigration_HandoverNoCardNumberColumn` ผ่าน
+  `go test ./...` ทุก package ผ่าน (test ของ 001 ใน equipment และ platform ยังผ่าน)
+  `handover_dev.sql` ลองโหลดใน container ของ test ชั่วคราวแล้ว ได้คำขอ approved 2, handed_over 1, แถว handover 1 (ลบไฟล์ test ชั่วคราวแล้ว)
+- สิ่งที่ AI ตัดสินในขอบเขตที่ plan ให้: `card_checked` ใส่ CHECK ให้เป็น true เสมอ (ASM-HND-01 ตรวจบัตรทุกครั้ง),
+  ชื่อ-นามสกุลเป็น NOT NULL เพราะ FR-HND-03 บังคับบันทึก (ที่มายังรอ Q-HND-13), ไม่เขียน down migration เพราะไม่อยู่ในช่อง "ไฟล์ที่แตะ"
+  ข้อมูลลองระบบเพิ่มรุ่นและอุปกรณ์ชุดใหม่ (HO-TEST-*) ไม่แตะอุปกรณ์ของ seed.sql ของ 001
+- ต้องแจ้งทีม: เลข 0006 มาก่อน 0004, 0005 ของ 003 ที่ยังไม่ merge ฐานข้อมูลในเครื่องที่รัน 0006 ไปแล้ว golang-migrate จะไม่รัน 0004, 0005 ย้อนหลัง
+  ต้องล้างฐานข้อมูลในเครื่อง (docker compose down -v) หลัง 003 merge
