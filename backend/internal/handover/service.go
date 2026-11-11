@@ -113,7 +113,7 @@ func (s *Service) Handover(ctx context.Context, in HandoverInput) (HandoverOutpu
 	return HandoverOutput{LoanID: res.LoanID, AssetCode: res.AssetCode, HandedOverAt: rec.HandedOverAt, DueAt: rec.DueAt}, nil
 }
 
-// normalDueAt คือกำหนดคืนของการยืมแบบปกติ = HandoverDueHour:00 ของวันที่ส่งมอบตามเขตเวลา TimeZone (FR-HND-05, DOM-LOAN-01)
+// normalDueAt คือกำหนดคืนของการยืมแบบปกติ = LoanNormalReturnHour:00 (ค่าของ 002 ใน config.go) ของวันที่ส่งมอบตามเขตเวลา TimeZone (FR-HND-05, DOM-LOAN-01)
 // กรณีส่งมอบหลัง 16:00 ยังรอ Q-HND-03 (T-25)
 func normalDueAt(handedOverAt time.Time) time.Time {
 	loc, err := time.LoadLocation(config.TimeZone)
@@ -121,5 +121,5 @@ func normalDueAt(handedOverAt time.Time) time.Time {
 		loc = time.UTC
 	}
 	t := handedOverAt.In(loc)
-	return time.Date(t.Year(), t.Month(), t.Day(), config.HandoverDueHour, 0, 0, 0, loc)
+	return time.Date(t.Year(), t.Month(), t.Day(), config.LoanNormalReturnHour, 0, 0, 0, loc)
 }

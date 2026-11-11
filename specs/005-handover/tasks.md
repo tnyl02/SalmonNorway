@@ -19,7 +19,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 กติกาไม่กระทบฟีเจอร์อื่น (plan.md v1.1 ข้อ 3, 4)
 - ไม่แก้โครงตาราง `loan` ของ 001 ข้อมูลการส่งมอบอยู่ในตาราง `handover` ของ 005 (seed และ test ของ 001 ไม่พัง ไม่ต้องแก้ DM-05)
 - migration ของ 005 มี 2 ไฟล์ เลขถัดจาก 0005 ของ 003 ต้องจองในกลุ่มก่อน ไฟล์ action ต้องมีทุกค่าเดิมใน CHECK (list, search, detail, cancel, request, notify และของ 004)
-- 16:00 ใช้ `HandoverDueHour` ชื่อแยกชั่วคราวจาก `LoanNormalReturnHour` ของ 002 (ยังไม่ merge) กันประกาศชื่อซ้ำ เมื่อ 002 merge แล้วเปลี่ยนไปใช้ของ 002
+- 16:00 ใช้ `LoanNormalReturnHour` ของ 002 ใน config.go (merge เข้า main แล้ว) ไม่ประกาศซ้ำ
 - error ตอบเป็น `{code, message}` ตาม CON-TECH-03 ใช้รหัสกลางเท่านั้น รหัสใหม่ 3 ตัวของ 005 ลงทะเบียนแล้ว (Q-P4)
 - สถานะคำขอที่ส่งมอบได้อ่านจาก `HandoverReadyStatuses()` ใน config ไม่ต้องแก้ของ 002 ไม่อ่านตารางของ 004
 - audit log ใช้ writer.go ของ 001 ถ้ามีแล้ว ถ้ายังไม่มีเขียนใน repository ของ 005 (แผนสำรองแบบ 003) ไม่สร้าง package `audit` เอง
@@ -35,7 +35,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - ไฟล์ที่แตะ: `backend/internal/config/config.go`, `frontend/src/config.js`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
-- เสร็จเมื่อ: บล็อก `// ---- 005-handover ----` ใน `config.go` มี `BorrowerAuthTimeout`, `HandoverMinPhotos`, `HandoverPhotoMaxBytes`, `HandoverPhotoTypes`, `PhotoDir` (อ่านจาก env) และ `HandoverDueHour` (ชื่อชั่วคราว ดูหัวไฟล์) บล็อกเดียวกันใน `config.js` มี `HANDOVER_MIN_PHOTOS`, `HANDOVER_PHOTO_MAX_BYTES`, `HANDOVER_PHOTO_TYPES` ทุกตัวมีคอมเมนต์อ้าง ID ไม่แก้บรรทัดของฟีเจอร์อื่น และ `go test ./...`, `npm test` เดิมยังผ่าน
+- เสร็จเมื่อ: บล็อก `// ---- 005-handover ----` ใน `config.go` มี `BorrowerAuthTimeout`, `HandoverMinPhotos`, `HandoverPhotoMaxBytes`, `HandoverPhotoTypes`, `PhotoDir` (อ่านจาก env) (ค่า 16:00 ใช้ `LoanNormalReturnHour` ของ 002) บล็อกเดียวกันใน `config.js` มี `HANDOVER_MIN_PHOTOS`, `HANDOVER_PHOTO_MAX_BYTES`, `HANDOVER_PHOTO_TYPES` ทุกตัวมีคอมเมนต์อ้าง ID ไม่แก้บรรทัดของฟีเจอร์อื่น และ `go test ./...`, `npm test` เดิมยังผ่าน
 - สถานะ: เสร็จ รอทีมตรวจ
 
 ### T-02 สร้าง migration ของการส่งมอบและข้อมูลตัวอย่าง
@@ -206,7 +206,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - ไฟล์ที่แตะ: `backend/internal/handover/service.go`, `backend/internal/handover/handler_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10
-- เสร็จเมื่อ: `TestAC_HND_05_DueAt1600SameDay` ผ่าน (clock 2569-11-12 10:00 Asia/Bangkok ได้ `handed_over_at` 10:00 และ `due_at` 16:00 วันเดียวกัน ค่า 16:00 อ่านจาก `HandoverDueHour`)
+- เสร็จเมื่อ: `TestAC_HND_05_DueAt1600SameDay` ผ่าน (clock 2569-11-12 10:00 Asia/Bangkok ได้ `handed_over_at` 10:00 และ `due_at` 16:00 วันเดียวกัน ค่า 16:00 อ่านจาก `LoanNormalReturnHour`)
 - สถานะ: เสร็จ รอทีมตรวจ
 
 #### จุดตรวจเฟส 4

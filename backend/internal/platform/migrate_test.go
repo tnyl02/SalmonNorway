@@ -280,3 +280,54 @@ func TestMigration_AuditLogRequestAction(t *testing.T) {
 		t.Error("request_id ที่ไม่มีในตาราง borrow_request ต้องถูกปฏิเสธด้วย foreign key (ASM-BRQ-03)")
 	}
 }
+
+// T-03 (002) เสร็จเมื่อ: ข้อมูลตั้งต้นมีครบ 3 กรณีที่จุดตรวจของฟีเจอร์ 002 ต้องใช้
+// เป็นเกราะกันไม่ให้ใครแก้ seed แล้วทำให้จุดตรวจของ 002 ใช้ไม่ได้โดยไม่รู้ตัว
+func TestSeed_BorrowRequestScenarios(t *testing.T) {
+	conn := testDB(t)
+	ctx := context.Background()
+
+	// (1) อุปกรณ์ว่างของภาควิชา 1 สำหรับส่งคำขอสำเร็จ (FR-BRQ-01)
+	var availableOwn int
+	if err := conn.QueryRow(ctx, `
+		SELECT count(*) FROM equipment_item i
+		JOIN equipment_model m ON m.id = i.model_id
+		WHERE i.status = 'available' AND m.department_id = 1`).Scan(&availableOwn); err != nil {
+		t.Fatal(err)
+	}
+	if availableOwn < 1 {
+		t.Error("ต้องมีอุปกรณ์ว่างของภาควิชา 1 อย่างน้อย 1 ชิ้น สำหรับลองส่งคำขอ")
+	}
+
+	// (2) อุปกรณ์ว่างของภาควิชาอื่น สำหรับลองคำขอข้ามภาควิชา (FR-BRQ-07, DOM-ACCESS-01)
+	var availableOther int
+	if err := conn.QueryRow(ctx, `
+		SELECT count(*) FROM equipment_item i
+		JOIN equipment_model m ON m.id = i.model_id
+		WHERE i.status = 'available' AND m.department_id <> 1`).Scan(&availableOther); err != nil {
+		t.Fatal(err)
+	}
+	if availableOther < 1 {
+		t.Error("ต้องมีอุปกรณ์ว่างของภาควิชาอื่นอย่างน้อย 1 ชิ้น สำหรับลองคำขอข้ามภาควิชา")
+	}
+
+	// (3) ผู้ขอที่มีของคืนเกินกำหนดค้างอยู่ สำหรับลองกฎปฏิเสธอัตโนมัติ (FR-BRQ-06)
+	var overdue int
+	if err := conn.QueryRow(ctx, `
+		SELECT count(*) FROM loan
+		WHERE borrower_id = 'student-002' AND returned_at IS NULL AND due_at < now()`).Scan(&overdue); err != nil {
+		t.Fatal(err)
+	}
+	if overdue < 1 {
+		t.Error("ต้องมี loan ของ student-002 ที่เลยกำหนดคืนและยังไม่คืน สำหรับลองกฎของค้างเกินกำหนด")
+	}
+
+	// ตาราง borrow_request ต้องว่างเปล่า คำขอทุกใบต้องเกิดจาก API ของ 002 เท่านั้น
+	var requests int
+	if err := conn.QueryRow(ctx, `SELECT count(*) FROM borrow_request`).Scan(&requests); err != nil {
+		t.Fatal(err)
+	}
+	if requests != 0 {
+		t.Errorf("ข้อมูลตั้งต้นต้องไม่มีคำขอยืม แต่พบ %d ใบ", requests)
+	}
+}

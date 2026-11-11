@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"salmonnorway/backend/internal/auth"
+	"salmonnorway/backend/internal/borrowrequest"
 	"salmonnorway/backend/internal/config"
 	"salmonnorway/backend/internal/equipment"
 	"salmonnorway/backend/internal/handover"
@@ -56,6 +57,10 @@ func main() {
 	ho := handover.NewHandler(db, provider) // 005 บันทึกการส่งมอบ เฉพาะเจ้าหน้าที่ (CON-HND-01)
 	mux.Handle(equipment.PathPrefix, auth.Middleware(provider, eq.Routes()))
 	mux.Handle(handover.PathPrefix, auth.Middleware(provider, ho.Routes()))
+
+	// ฟีเจอร์ 002 ส่งคำขอยืม (T-05) ต้องผ่านการยืนยันตัวตนเช่นกัน (IF-IDP-01, NFR-SEC-01)
+	br := borrowrequest.NewHandler(borrowrequest.NewService(borrowrequest.NewRepository(db)))
+	mux.Handle(borrowrequest.PathPrefix, auth.Middleware(provider, br.Routes()))
 
 	log.Printf("listening on %s", cfg.HTTPAddr)
 	// ทุก response ห้าม cache เพื่อให้รีเฟรชแล้วเห็นสถานะล่าสุด (NFR-DATA-01, T-16)
