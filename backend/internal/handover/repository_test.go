@@ -3,10 +3,12 @@ package handover
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"salmonnorway/backend/internal/config"
 )
@@ -158,5 +160,89 @@ func assertNoLoan(t *testing.T, tx pgx.Tx, itemID int) {
 	}
 	if n != 0 {
 		t.Errorf("มี Loan %d รายการ ต้องไม่มี", n)
+	}
+}
+
+// T-18 เสร็จเมื่อ: เจ้าหน้าที่ 2 คนส่งมอบอุปกรณ์ชิ้นเดียวกันพร้อมกัน สำเร็จได้ 1 อีกคนได้ ErrItemNotAvailable
+// และมี Loan 1 แถว (FR-HND-04 ยืนยัน SELECT ... FOR UPDATE, DOM-REQ-01)
+// ใช้ connection pool จริงและ commit จริง เพราะ transaction ที่ยกเลิกทิ้งทดสอบการแย่งกันข้าม connection ไม่ได้ ข้อมูลที่สร้างลบทิ้งตอนจบ
+func TestHandover_ConcurrentSameItem(t *testing.T) {
+	testDB(t) // เตรียมฐานข้อมูลและ dbURL
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, dbURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close) // ลงทะเบียนก่อน จึงทำงานหลังการลบข้อมูล (Cleanup ทำงานย้อนลำดับ)
+
+	// คำขออนุมัติแล้ว 2 รายการของอุปกรณ์ชิ้นเดียวกัน คนละผู้ขอ (ข้อมูลตั้งเองเพื่อบังคับให้แย่งกัน)
+	var itemID, reqA, reqB int
+	if err := pool.QueryRow(ctx,
+		`INSERT INTO equipment_item (asset_code, model_id, status) VALUES ('T18-CC-0001', 1, 'available') RETURNING id`,
+	).Scan(&itemID); err != nil {
+		t.Fatal(err)
+	}
+	const insertReq = `INSERT INTO borrow_request (requester_id, requester_name, student_code, item_id, loan_type, purpose, start_at, end_at, status)
+		VALUES ($1, 'ผู้ขอทดสอบ', $1, $2, 'normal', 'study', now(), now(), 'approved') RETURNING id`
+	if err := pool.QueryRow(ctx, insertReq, "student-001", itemID).Scan(&reqA); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, insertReq, "student-002", itemID).Scan(&reqB); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if _, err := pool.Exec(ctx, `DELETE FROM handover WHERE request_id IN ($1, $2)`, reqA, reqB); err != nil {
+			t.Errorf("ลบข้อมูลทดสอบไม่สำเร็จ: %v", err)
+		}
+		if _, err := pool.Exec(ctx, `DELETE FROM loan WHERE item_id = $1`, itemID); err != nil {
+			t.Errorf("ลบข้อมูลทดสอบไม่สำเร็จ: %v", err)
+		}
+		if _, err := pool.Exec(ctx, `DELETE FROM borrow_request WHERE id IN ($1, $2)`, reqA, reqB); err != nil {
+			t.Errorf("ลบข้อมูลทดสอบไม่สำเร็จ: %v", err)
+		}
+		if _, err := pool.Exec(ctx, `DELETE FROM equipment_item WHERE id = $1`, itemID); err != nil {
+			t.Errorf("ลบข้อมูลทดสอบไม่สำเร็จ: %v", err)
+		}
+	})
+
+	repo := NewRepository(pool)
+	ready := config.HandoverReadyStatuses()
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+	var wg sync.WaitGroup
+	for _, req := range []int{reqA, reqB} {
+		wg.Add(1)
+		go func(requestID int) {
+			defer wg.Done()
+			<-start
+			_, err := repo.CreateHandover(ctx, sampleRecord(requestID), ready)
+			errs <- err
+		}(req)
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+
+	var ok, notAvailable int
+	for err := range errs {
+		switch {
+		case err == nil:
+			ok++
+		case errors.Is(err, ErrItemNotAvailable):
+			notAvailable++
+		default:
+			t.Errorf("error ที่ไม่คาดคิด: %v", err)
+		}
+	}
+	if ok != 1 || notAvailable != 1 {
+		t.Fatalf("สำเร็จ %d ครั้ง ได้ ErrItemNotAvailable %d ครั้ง ต้องเป็น 1 และ 1", ok, notAvailable)
+	}
+
+	var loans int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM loan WHERE item_id = $1`, itemID).Scan(&loans); err != nil {
+		t.Fatal(err)
+	}
+	if loans != 1 {
+		t.Errorf("มี Loan %d แถว ต้องเป็น 1", loans)
 	}
 }

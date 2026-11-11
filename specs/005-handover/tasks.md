@@ -282,7 +282,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06
 - เสร็จเมื่อ: `TestHandover_ConcurrentSameItem` ผ่าน (2 goroutine ส่งมอบชิ้นเดียวกัน สำเร็จ 1 อีกอันได้ `ITEM_NOT_AVAILABLE` มี Loan 1 แถว)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 #### จุดตรวจเฟส 7
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_04_ItemNotAvailable, TestHandover_ConcurrentSameItem และ test ของเฟส 0-6
