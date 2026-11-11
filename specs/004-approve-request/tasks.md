@@ -27,7 +27,7 @@ Updated: 2569-11-12
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: migration 0008 รันต่อจาก migration ที่มีอยู่ผ่าน (ตอนนี้ใน repo มีถึง 0003 เลข 0004 ถึง 0007 เป็นของฟีเจอร์อื่น) และ `audit_log_action_check` ที่ ADD ใหม่ต้องรวมค่า action ของทุก migration ก่อนหน้า และ test ยืนยันว่า (ก) `approval_decision.request_id` UNIQUE และมี FK ไป `borrow_request` (ข) `result` / `approval_email.kind` / `approval_email.status` รับเฉพาะค่าตาม plan ข้อ 3 (ค) `audit_log.action` รับ `approve`, `reject`, `auto_reject` ได้ (DROP แล้ว ADD `audit_log_action_check` ไม่แก้ migration เดิม)
-- สถานะ: เสร็จ รอทีมตรวจ (ทีมให้ implement ก่อนแล้วค่อยรัน test 2569-11-12 ยังไม่ได้รัน `TestMigration_ApprovalTables`, `TestMigration_ApprovalAuditActions`)
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ทีมให้ implement ก่อนแล้วค่อยรัน test ยังไม่ได้รัน `TestMigration_ApprovalTables`, `TestMigration_ApprovalAuditActions`)
 
 ### T-02 เพิ่มค่าที่ตั้งได้ของ 004 ใน config
 - รองรับ: FR-APV-01 (ค)(จ)(ฉ)(ซ), FR-APV-02, DOM-LOAN-01, CON-TECH-03
