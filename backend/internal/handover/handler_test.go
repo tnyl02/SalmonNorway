@@ -397,3 +397,48 @@ func TestAC_HND_07_HandoverCreatesLoan(t *testing.T) {
 		t.Errorf("สถานะคำขอ = %q ต้องเป็น handed_over", s)
 	}
 }
+
+// bangkok คือเวลา Asia/Bangkok ของวันที่และเวลาที่กำหนด (2569 = ค.ศ. 2026)
+func bangkok(t *testing.T, year int, month time.Month, day, hour, minute int) time.Time {
+	t.Helper()
+	loc, err := time.LoadLocation("Asia/Bangkok")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return time.Date(year, month, day, hour, minute, 0, 0, loc)
+}
+
+// routesAt คือ router ที่นาฬิกาหยุดอยู่ที่ at (FR-HND-05)
+func routesAt(db DB, at time.Time) http.Handler {
+	provider := auth.NewMockProvider()
+	return auth.Middleware(provider, newHandler(db, NewMockBorrowerVerifier(provider), func() time.Time { return at }).Routes())
+}
+
+// AC-HND-05 (FR-HND-05, DOM-LOAN-01)
+// Given คำขอยืมแบบปกติที่ได้รับอนุมัติแล้ว
+// When  เจ้าหน้าที่บันทึกการส่งมอบสำเร็จเมื่อ 2569-11-12 เวลา 10:00 น. (Asia/Bangkok)
+// Then  การยืมนั้นมีเวลาที่ส่งมอบ 2569-11-12 10:00 น. และกำหนดคืน 2569-11-12 16:00 น.
+func TestAC_HND_05_DueAt1600SameDay(t *testing.T) {
+	pool := testPool(t)
+	itemID := createItem(t, pool, "T05-HO-0001", "available")
+	requestID := createRequest(t, pool, "student-001", itemID, "approved")
+	at := bangkok(t, 2026, time.November, 12, 10, 0)
+	wantDue := bangkok(t, 2026, time.November, 12, 16, 0)
+
+	rec := postHandover(t, routesAt(pool, at), tokenStaff, requestID, validForm(tokenStudentA), twoJPEGs())
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
+	}
+	var handedOverAt, dueAt time.Time
+	if err := pool.QueryRow(context.Background(),
+		`SELECT h.handed_over_at, l.due_at FROM handover h JOIN loan l ON l.id = h.loan_id WHERE h.request_id = $1`,
+		requestID).Scan(&handedOverAt, &dueAt); err != nil {
+		t.Fatal(err)
+	}
+	if !handedOverAt.Equal(at) {
+		t.Errorf("เวลาที่ส่งมอบ = %v ต้องเป็น %v", handedOverAt.In(at.Location()), at)
+	}
+	if !dueAt.Equal(wantDue) {
+		t.Errorf("กำหนดคืน = %v ต้องเป็น %v", dueAt.In(at.Location()), wantDue)
+	}
+}

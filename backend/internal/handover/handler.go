@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -36,8 +37,12 @@ type Handler struct {
 // NewHandler สร้าง Handler จาก connection pool และระบบยืนยันตัวตน
 // ผู้ยืมล็อกอินบัญชีมหาวิทยาลัยบนเครื่องเจ้าหน้าที่ (ASM-HND-09) prototype ใช้ provider จำลองตัวเดียวกับ middleware (Q-SH-03)
 func NewHandler(db DB, provider auth.Provider) *Handler {
-	verifier := NewMockBorrowerVerifier(provider)
-	return &Handler{db: db, verifier: verifier, svc: NewService(NewRepository(db), verifier)}
+	return newHandler(db, NewMockBorrowerVerifier(provider), time.Now)
+}
+
+// newHandler ประกอบ Handler จากส่วนที่เปลี่ยนได้ ใช้ใน test เพื่อแทน verifier และนาฬิกา
+func newHandler(db DB, verifier BorrowerVerifier, now func() time.Time) *Handler {
+	return &Handler{db: db, verifier: verifier, svc: NewService(NewRepository(db), verifier, now)}
 }
 
 // multipartMaxMemory คือขนาดที่อ่านเข้าหน่วยความจำตอนแยก multipart ส่วนเกินพักไว้ในไฟล์ชั่วคราว (ทีมเลือกเอง ไม่ได้มาจาก spec)

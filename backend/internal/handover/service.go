@@ -49,11 +49,15 @@ type HandoverOutput struct {
 type Service struct {
 	repo     *Repository
 	verifier BorrowerVerifier
+	now      func() time.Time // นาฬิกา inject ได้ ใช้ทดสอบเวลา 10:00 และ 16:30 โดยไม่ต้องรอจริง (FR-HND-05, plan.md ข้อ 6)
 }
 
-// NewService สร้าง Service
-func NewService(repo *Repository, verifier BorrowerVerifier) *Service {
-	return &Service{repo: repo, verifier: verifier}
+// NewService สร้าง Service now = nil ใช้ time.Now
+func NewService(repo *Repository, verifier BorrowerVerifier, now func() time.Time) *Service {
+	if now == nil {
+		now = time.Now
+	}
+	return &Service{repo: repo, verifier: verifier, now: now}
 }
 
 // Handover ตรวจข้อมูล ยืนยันผู้ยืม แล้วบันทึกการส่งมอบ (FR-HND-02, 03, 05, 07)
@@ -82,7 +86,7 @@ func (s *Service) Handover(ctx context.Context, in HandoverInput) (HandoverOutpu
 		return HandoverOutput{}, err
 	}
 
-	now := time.Now()
+	now := s.now() // FR-HND-05 เวลาส่งมอบจริง
 	rec := HandoverRecord{
 		RequestID:         in.RequestID,
 		BorrowerUserID:    borrowerID,

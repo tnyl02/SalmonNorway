@@ -1531,3 +1531,14 @@
   ช่องที่ขาดตอบ 422 VALIDATION_FAILED พร้อมชื่อช่อง, กำหนดคืนใช้ `LoanNormalReturnHour` กับ time.Now (นาฬิกาที่ inject ได้อยู่ใน T-14)
 - ยังไม่ทำใน task นี้ (เป็นของ task อื่น): รูป (T-15) test ส่งรูป JPG 2 รูปไว้แล้วแต่ยังไม่ถูกเก็บ, เทียบผู้ยืมกับผู้ขอ (T-20),
   timeout 10 วินาที (T-13), REQUEST_NOT_APPROVED (T-16 ตอนนี้คำขอที่ไม่พร้อมได้ 503 ชั่วคราว)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-14
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/service.go` (Service รับนาฬิกา `now`), `handler.go` (`newHandler` ใส่ verifier และนาฬิกาได้), `handler_test.go`
+- ผล test: `TestAC_HND_05_DueAt1600SameDay` ผ่าน (นาฬิกา 2569-11-12 10:00 Asia/Bangkok ได้เวลาส่งมอบ 10:00 และกำหนดคืน 16:00 วันเดียวกัน ตรวจจากฐานข้อมูล) `go test ./...` ผ่าน
+- ค่า 16:00 อ่านจาก `config.LoanNormalReturnHour` เขตเวลาจาก `config.TimeZone` ไม่อ่านตารางของ 004
