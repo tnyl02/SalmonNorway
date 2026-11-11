@@ -29,6 +29,7 @@ export const APPROVAL_MESSAGES = {
   VALIDATION_FAILED: 'กรุณาระบุเหตุผลในการปฏิเสธ',
   FORBIDDEN_ROLE: 'บทบาทของคุณไม่มีสิทธิ์ทำรายการนี้',
   FORBIDDEN_DEPARTMENT: 'คำขอนี้เป็นของอุปกรณ์ภาควิชาอื่น คุณไม่มีสิทธิ์พิจารณา',
+  UPSTREAM_UNAVAILABLE: 'ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง',
 }
 // ---- จบ 004-approve-request ----
 

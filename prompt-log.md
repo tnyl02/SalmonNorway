@@ -2285,3 +2285,26 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ฟีเจอร์: 004-approve-request
 - คำสั่ง: "ทีมตรวจแล้วผ่าน"
 - สิ่งที่แก้: tasks.md T-04 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-05 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่ง: "/implement T-05"
+- คำถามที่ AI ถามระหว่างทำ และคำตอบ: Q-APV-24 ข้อความเมื่อฐานข้อมูลไม่ตอบ (UPSTREAM_UNAVAILABLE) -> "ใช้ข้อความเดียวกับ 002" ("ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง") เพิ่มแถวในตาราง FR-APV-01 (ซ) และปิด Q-APV-24
+- ไฟล์ที่สร้าง: `backend/internal/approve/service.go` (`Service`, `staff()`, `ListPending` คืน loadedAt, นาฬิกา inject ได้), `dto.go` (`PendingRequestDTO`, `PendingListDTO`, `ErrorDTO` camelCase แบบ 002), `handler.go` (`PathPrefix = "/v1/approvals/"`, `requireStaff` ห่อทุก endpoint, `GET /v1/approvals/requests`), `handler_test.go` (`TestAC_APV_11_HTTP`, `TestApprovals_RequiresStaff`)
+- ไฟล์ที่แก้: `backend/cmd/server/main.go` (ของกลาง แก้เพราะ 004: ผูก route `/v1/approvals/` หลัง auth.Middleware), `config.go` + `config.js` + `config_approval_test.go` (ข้อความ UPSTREAM_UNAVAILABLE), `specs/000-shared/constraints.md` (UPSTREAM_UNAVAILABLE ใครใช้แล้ว เพิ่ม 004), `spec.md`, `tasks.md`
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): ชื่อช่อง JSON เป็น camelCase แบบ 002; ตรวจบทบาทครั้งเดียวที่ `requireStaff` ครอบทุก endpoint; กรณีไม่มี principal (เกิดเมื่อผูก route ผิดเท่านั้น) ตอบ UNAUTHENTICATED โดย message ว่าง เพราะ spec ของ 004 ไม่มีข้อความนี้ (ข้อความ 401 ปกติมาจาก auth.Middleware ของกลาง ซึ่งยังไม่มี message ตาม plan ข้อ 8)
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-05 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ทีมตรวจแล้วผ่าน"
+- สิ่งที่แก้: tasks.md T-05 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)

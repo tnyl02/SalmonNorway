@@ -77,11 +77,11 @@ Updated: 2569-11-12
 ### T-05 สร้าง GET /v1/approvals/requests พร้อมตัวตรวจบทบาทและผูก route
 - รองรับ: FR-APV-01 (ก), IF-IDP-01, NFR-SEC-01, CON-TECH-02, CON-TECH-03
 - ตรวจด้วย: AC-APV-11
-- ไฟล์ที่แตะ: `backend/internal/approve/handler.go`, `backend/internal/approve/dto.go`, `backend/internal/approve/service.go`, `backend/internal/approve/handler_test.go`, `backend/cmd/server/main.go` (ของกลาง บันทึกใน prompt-log)
+- ไฟล์ที่แตะ: `backend/internal/approve/handler.go`, `backend/internal/approve/dto.go`, `backend/internal/approve/service.go`, `backend/internal/approve/handler_test.go`, `backend/cmd/server/main.go` (ของกลาง บันทึกใน prompt-log), `backend/internal/config/config.go` + `frontend/src/config.js` + `backend/internal/config/config_approval_test.go` (ข้อความ UPSTREAM_UNAVAILABLE ตาม Q-APV-24)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-04
 - เสร็จเมื่อ: `TestAC_APV_11` ผ่านทาง HTTP คืนรายการพร้อม `loaded_at` และทุก endpoint ใต้ `/v1/approvals/` ตอบ `FORBIDDEN_ROLE` เมื่อไม่ใช่เจ้าหน้าที่ (`{code, message}` ตาม CON-TECH-03)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน `TestAC_APV_11_HTTP`, `TestApprovals_RequiresStaff` ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 ### T-06 สร้างหน้าจอ ApproveRequests แสดงรายการคำขอ
 - รองรับ: FR-APV-01 (ก)

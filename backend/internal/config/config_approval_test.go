@@ -82,7 +82,7 @@ func TestConfig_ApprovalValues(t *testing.T) {
 func TestConfig_ApprovalMessagesMatchFrontend(t *testing.T) {
 	codes := []string{"ITEM_NOT_AVAILABLE", "REQUEST_CANCELLED", "REQUEST_ALREADY_DECIDED",
 		"REQUEST_DECIDED_CONCURRENTLY", "NOT_FIRST_IN_QUEUE", "APPROVAL_CUTOFF_PASSED",
-		"VALIDATION_FAILED", "FORBIDDEN_ROLE", "FORBIDDEN_DEPARTMENT"}
+		"VALIDATION_FAILED", "FORBIDDEN_ROLE", "FORBIDDEN_DEPARTMENT", "UPSTREAM_UNAVAILABLE"}
 	if len(ApprovalMessages) != len(codes) {
 		t.Errorf("ต้องมีข้อความ %d รหัส แต่ได้ %d", len(codes), len(ApprovalMessages))
 	}

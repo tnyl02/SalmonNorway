@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"salmonnorway/backend/internal/approve"
 	"salmonnorway/backend/internal/auth"
 	"salmonnorway/backend/internal/borrowrequest"
 	"salmonnorway/backend/internal/config"
@@ -61,6 +62,10 @@ func main() {
 	// ฟีเจอร์ 002 ส่งคำขอยืม (T-05) ต้องผ่านการยืนยันตัวตนเช่นกัน (IF-IDP-01, NFR-SEC-01)
 	br := borrowrequest.NewHandler(borrowrequest.NewService(borrowrequest.NewRepository(db)))
 	mux.Handle(borrowrequest.PathPrefix, auth.Middleware(provider, br.Routes()))
+
+	// ฟีเจอร์ 004 อนุมัติคำขอยืมปกติ (T-05) ต้องยืนยันตัวตนและเป็นเจ้าหน้าที่ (IF-IDP-01, NFR-SEC-01, AC-APV-05)
+	ap := approve.NewHandler(approve.NewService(approve.NewRepository(db)))
+	mux.Handle(approve.PathPrefix, auth.Middleware(provider, ap.Routes()))
 
 	log.Printf("listening on %s", cfg.HTTPAddr)
 	// ทุก response ห้าม cache เพื่อให้รีเฟรชแล้วเห็นสถานะล่าสุด (NFR-DATA-01, T-16)
