@@ -2017,3 +2017,21 @@
 - ทีมเปลี่ยนสถานะ T-22 ใน tasks.md เป็น "เสร็จ" เอง (บันทึกย้อนหลังโดย Claude Code ตามที่ทีมแจ้ง)
 - วิธีตรวจ: npm test ผ่าน (รวม AC_CXL_04 approved while dialog open) ลำดับเหตุการณ์ AC-CXL-04 บนจอจริงทดสอบไปแล้วตอนตรวจ T-16
 
+---
+
+## 2569-11-12 /implement T-30 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request (เพิ่มไฟล์ใน backend/db/migrations ซึ่งเป็นของกลาง เพราะ 003)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-30 เพิ่ม action notify ใน audit_log
+- ก่อนเริ่มเช็ก origin/main: ยังไม่มี migration เลข 0005 และ CHECK ใน 0003 ของ 002 เป็น 5 ค่า (list, search, detail, cancel, request)
+- ไฟล์ที่แก้หรือสร้าง (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - backend/db/migrations/0005_audit_log_notify_action.up.sql (ใหม่): DROP แล้ว ADD audit_log_action_check ชื่อเดิม 6 ค่า รวม notify ไม่แก้ 0002
+  - backend/internal/cancelrequest/migrationtest/migration_test.go: TestMigration_AuditLogAcceptsNotify (ใส่ใน transaction ที่ rollback ทิ้ง)
+- ผล test: `go test -p 1 ./...` ผ่านทุก package (รวม test audit_log ของ 001 และ 002 ใน platform)
+- สิ่งที่เกือบต้องเดา: ไม่มี (ตกลงชื่อ constraint และค่าครบกับ 001, 002 แล้ว)
+- ไม่ได้ทำ: ไม่มีไฟล์ .down.sql (ไม่อยู่ในช่องไฟล์ที่แตะ แบบเดียวกับ 0004)
+  data-model.md v10 มีแถว notify อยู่แล้วตั้งแต่ merge main ไม่ต้องแก้
+- สถานะใน tasks.md: T-30 เสร็จ รอทีมตรวจ
+

@@ -527,7 +527,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
 - เสร็จเมื่อ: `TestMigration_AuditLogAcceptsNotify` ผ่าน (insert action `notify` ได้ ค่า action อื่นนอกตาราง DM-07 ยังถูกปฏิเสธ และ action เดิมของ 001 กับ `request` ของ 002 ยังใช้ได้)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 ### T-31 บันทึก audit_log ทุกครั้งที่พยายามยกเลิก
 - รองรับ: FR-CXL-05, ASM-07

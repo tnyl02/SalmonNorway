@@ -178,3 +178,30 @@ func TestMigration_NoEquipmentSideEffects(t *testing.T) {
 		t.Errorf("equipment_item ต้องไม่มี FK ไป borrow_request แต่มี %d", fks)
 	}
 }
+
+// T-30 (FR-CXL-05, FR-CXL-09, ASM-12, DM-07): audit_log รับ action notify หลัง migration 0005
+// ค่าเดิมของ 001 (list, search, detail), cancel และ request ของ 002 ยังใช้ได้ ค่าอื่นนอกตาราง DM-07 ยังถูกปฏิเสธ
+// ใส่ใน transaction ที่ rollback ทิ้ง เพราะ audit_log ลบไม่ได้ (append-only)
+func TestMigration_AuditLogAcceptsNotify(t *testing.T) {
+	ctx := context.Background()
+	insert := func(action string) error {
+		tx, err := pool(t).Begin(ctx)
+		if err != nil {
+			t.Fatalf("เปิด transaction ไม่สำเร็จ: %v", err)
+		}
+		defer tx.Rollback(ctx)
+		_, err = tx.Exec(ctx,
+			`INSERT INTO audit_log (actor_id, actor_role, action, outcome) VALUES ('student-test', 'student', $1, 'error')`, action)
+		return err
+	}
+	for _, a := range []string{"list", "search", "detail", "cancel", "request", "notify"} {
+		if err := insert(a); err != nil {
+			t.Errorf("action %q ต้องใส่ได้: %v", a, err)
+		}
+	}
+	for _, a := range []string{"cancel_notify_failed", "email", "NOTIFY"} {
+		if err := insert(a); err == nil {
+			t.Errorf("action %q นอกตาราง DM-07 ต้องถูกปฏิเสธ", a)
+		}
+	}
+}
