@@ -1,5 +1,5 @@
 # Implementation Plan: อนุมัติคำขอยืมปกติ (Approve Request)
-Spec: SPEC-APV-004 (specs/004-approve-request/spec.md, Draft v2) | Plan status: Draft v1 | Updated: 2569-11-11
+Spec: SPEC-APV-004 (specs/004-approve-request/spec.md, Draft v2.1) | Plan status: Draft v1.1 | Updated: 2569-11-12 (ตามคำตอบ Q-APV-14 ถึง 21)
 Owner: 660710758 นางสาวณัฐสุดา กัญญาบุญ (@natsuda05)
 อ้างอิง: specs/000-shared/{constraints.md v5, data-model.md v9, glossary.md}, migration 0003 ของ 002
 
@@ -8,7 +8,7 @@ Owner: 660710758 นางสาวณัฐสุดา กัญญาบุ�
 - หลังบ้านเป็น package `backend/internal/approve/` หน้าจอเป็น `frontend/src/pages/ApproveRequest/` ตรวจบทบาท ภาควิชา ลำดับ สถานะ และเวลาที่ฝั่ง server ทั้งหมด
 - บันทึกผลใน transaction เดียว ล็อกแถวคำขอทุกใบของอุปกรณ์ชิ้นนั้น ปฏิเสธคำขออื่นของชิ้นเดียวกันในครั้งเดียว และบันทึกประวัติ (FR-APV-01 จ ฌ)
 - Email เขียนลงตาราง outbox ใน transaction เดียวกับผล แล้วตัวส่งเบื้องหลังส่งภายใน 60 วินาที ส่งซ้ำ 3 ครั้งห่าง 1 นาที (FR-APV-02)
-- งานตั้งเวลาใน process ปฏิเสธคำขอที่ค้างเมื่อถึง 00:00 น. หลังวันที่ส่ง (FR-APV-01 ฉ)
+- งานตั้งเวลาใน process ปฏิเสธคำขอยืมปกติที่ค้างเมื่อถึง 00:00 น. หลังวันที่ส่ง และไล่ปฏิเสธคำขอที่เลยเวลาแล้วทันทีตอน server เริ่มทำงาน (FR-APV-01 ฉ, Q-APV-21)
 
 ## 2. เทคโนโลยีที่ใช้
 | สิ่งที่เลือก | มาจาก | หมายเหตุ |
@@ -34,7 +34,9 @@ Owner: 660710758 นางสาวณัฐสุดา กัญญาบุ�
 | `audit_log` (DM-07) | actor_id, actor_role, action, request_id, asset_code, outcome | บันทึกทุกการพิจารณา (RQ-25) เพิ่มค่า action `approve`, `reject`, `auto_reject` | 001 (migration 0002) |
 
 - ไม่เปลี่ยน `equipment_item.status` (CON-DATA-01, data-model.md แถว UC-12)
-- หน้ารายการและการอนุมัติกรองเฉพาะ `loan_type = 'normal'` (ค้างคืนรอ Q-APV-01)
+- หน้ารายการ การอนุมัติ/ปฏิเสธ และงานเที่ยงคืน กรองเฉพาะ `loan_type = 'normal'` (ค้างคืนรอ Q-APV-01, Q-APV-14)
+- การปฏิเสธตามเมื่อมีคำขออื่นได้อนุมัติ (FR-APV-01 จ) **ไม่กรอง** loan_type: คำขอ `requested` ทุกประเภทของชิ้นนั้นถูกปฏิเสธ (Q-APV-14)
+  จึงต้องล็อกคำขอทุกประเภทของชิ้นนั้นด้วย
 - `approval_decision` ไม่มี UPDATE / DELETE และ request_id UNIQUE จึงพิจารณาซ้ำหรือเปลี่ยนผลไม่ได้ (Out of scope)
 - ผลแต่ละแบบ:
   | กรณี | `borrow_request.status` | `approval_decision.result` | reason | actor |
@@ -45,7 +47,7 @@ Owner: 660710758 นางสาวณัฐสุดา กัญญาบุ�
   | เที่ยงคืน (FR-APV-01 ฉ) | `rejected` | `auto_rejected` | `ApprovalAutoRejectReason` | `system` / `System` + ภาควิชาเจ้าของอุปกรณ์ |
 - ไม่มีคอลัมน์จำนวนอุปกรณ์ เพราะ 1 คำขอ = อุปกรณ์รายชิ้น 1 ชิ้น (FR-BRQ-01, ASM-BRQ-02) และไม่มีคอลัมน์ Email (รอ Q-APV-04)
 - `actor_name` ว่างได้ เพราะ Principal (DM-08) ยังไม่มีชื่อ ดูข้อ 8
-- migration ของ 004 ใช้เลขที่จองในกลุ่ม (0004 ขึ้นไป) และเพิ่มค่า action ด้วยวิธีเดียวกับ 0003 (DROP แล้ว ADD `audit_log_action_check`) ห้ามแก้ migration เดิม
+- migration ของ 004 คือ `0008_approval` (ทีมจองให้ 2569-11-12) และเพิ่มค่า action ด้วยวิธีเดียวกับ 0003 (DROP แล้ว ADD `audit_log_action_check`) ห้ามแก้ migration เดิม
 
 ## 4. API / หน้าจอ
 ทุก endpoint ขึ้นต้นด้วย `/v1/approvals/` ผ่าน `auth.Middleware` (IF-IDP-01) แล้วตรวจ `Role == staff` (AC-APV-05)
@@ -64,14 +66,14 @@ error (CON-TECH-03) ข้อความตาม FR-APV-01 (ซ) อยู่�
 |---|---|---|---|---|
 | `UNAUTHENTICATED` | 401 | ไม่ยืนยันตัวตน | มีแล้ว | AC-APV-05 |
 | `FORBIDDEN_ROLE` | 403 | ไม่ใช่เจ้าหน้าที่ | มีแล้ว (004 ลงทะเบียน) | AC-APV-05 |
-| `FORBIDDEN_DEPARTMENT` | 403 | อุปกรณ์ภาควิชาอื่น | มีแล้ว | AC-APV-12 |
+| `FORBIDDEN_DEPARTMENT` | 403 | อุปกรณ์ภาควิชาอื่น (ข้อความ Q-APV-18) | มีแล้ว | AC-APV-12 |
 | `ITEM_NOT_AVAILABLE` | 409 | อุปกรณ์ไม่ "ว่าง" | มีแล้ว | AC-APV-08 |
 | `VALIDATION_FAILED` | 422 | ไม่ระบุเหตุผลการปฏิเสธ (field `reason`) | มีแล้ว | AC-APV-06 |
-| `REQUEST_CANCELLED` | 409 | คำขอ `cancelled` | ต้องลงทะเบียน | AC-APV-09 |
-| `REQUEST_ALREADY_DECIDED` | 409 | พิจารณาไปแล้วก่อนหน้าจอโหลด | ต้องลงทะเบียน | AC-APV-09 |
-| `REQUEST_DECIDED_CONCURRENTLY` | 409 | ถูกพิจารณาหลังหน้าจอโหลด (กดพร้อมกัน) | ต้องลงทะเบียน | AC-APV-10 |
-| `NOT_FIRST_IN_QUEUE` | 409 | ไม่ใช่คำขอแรกของชิ้นนั้น | ต้องลงทะเบียน | AC-APV-07 |
-| `APPROVAL_CUTOFF_PASSED` | 409 | เลย 16:00 น. ของวันที่เริ่มยืม | ต้องลงทะเบียน | AC-APV-16 |
+| `REQUEST_CANCELLED` | 409 | คำขอ `cancelled` | ลงทะเบียนแล้ว 2569-11-12 (Q-APV-19) | AC-APV-09 |
+| `REQUEST_ALREADY_DECIDED` | 409 | พิจารณาไปแล้วก่อนหน้าจอโหลด | ลงทะเบียนแล้ว 2569-11-12 (Q-APV-19) | AC-APV-09 |
+| `REQUEST_DECIDED_CONCURRENTLY` | 409 | ถูกพิจารณาหลังหน้าจอโหลด (กดพร้อมกัน) | ลงทะเบียนแล้ว 2569-11-12 (Q-APV-19) | AC-APV-10 |
+| `NOT_FIRST_IN_QUEUE` | 409 | ไม่ใช่คำขอแรกของชิ้นนั้น | ลงทะเบียนแล้ว 2569-11-12 (Q-APV-19) | AC-APV-07 |
+| `APPROVAL_CUTOFF_PASSED` | 409 | เลย 16:00 น. ของวันที่เริ่มยืม | ลงทะเบียนแล้ว 2569-11-12 (Q-APV-19) | AC-APV-16 |
 
 - แยก `REQUEST_ALREADY_DECIDED` กับ `REQUEST_DECIDED_CONCURRENTLY` ด้วยการเทียบ `approval_decision.decided_at` กับ `loaded_at` ที่หน้าจอส่งมา (ทีมเลือกเอง ไม่ได้มาจาก spec)
 - auth.Middleware ของกลางตอบแค่ `{code}` ไม่มี `message` ดูข้อ 8 / handler ของ 004 ตอบครบทั้ง `code` และ `message`
@@ -85,7 +87,7 @@ error (CON-TECH-03) ข้อความตาม FR-APV-01 (ซ) อยู่�
 |---|---|---|
 | CON-TECH-01 | ตาราง `approval_decision`, `approval_email` และ migration ของ 004 ใน PostgreSQL (ข้อ 3) | ใช้แล้ว |
 | CON-TECH-02 | route อยู่ใน server เดิมหลัง proxy HTTPS และ Docker ของกลาง (ข้อ 2, 4) | ใช้แล้ว |
-| CON-TECH-03 | ตาราง error ข้อ 4 รหัสใหม่ 5 ตัวลงทะเบียนก่อนใช้ | ใช้แล้ว (middleware ของกลางยังไม่มี message ดูข้อ 8) |
+| CON-TECH-03 | ตาราง error ข้อ 4 รหัสใหม่ 5 ตัวลงทะเบียนแล้ว 2569-11-12 (Q-APV-19) | ใช้แล้ว (middleware ของกลางยังไม่มี message ดูข้อ 8) |
 | CON-DATA-01 | อนุมัติได้เฉพาะอุปกรณ์ `available` และไม่เปลี่ยนสถานะอุปกรณ์ (ข้อ 3, `ITEM_NOT_AVAILABLE`) | ใช้แล้ว |
 | DOM-REQ-01 | เรียงตาม submitted_at, `is_first`, `NOT_FIRST_IN_QUEUE`, ปฏิเสธคำขออื่นเมื่อมีคำขอได้อนุมัติ (ข้อ 3, 4) | ใช้แล้ว |
 | DOM-LOAN-01 | เวลาตัด 16:00 น. ของวันที่เริ่มยืม (`APPROVAL_CUTOFF_PASSED`) / กำหนดคืนใน Email = end_at ที่ 002 ตรวจแล้ว | ใช้แล้ว |
@@ -96,7 +98,7 @@ error (CON-TECH-03) ข้อความตาม FR-APV-01 (ซ) อยู่�
 | ค่า | มาจาก ID | ชื่อตัวแปรและไฟล์ |
 |---|---|---|
 | ส่ง Email ภายใน 60 วินาทีหลังบันทึกผล | FR-APV-02 | `ApprovalEmailDeadline` (config.go) |
-| ส่งซ้ำอัตโนมัติ 3 ครั้ง | FR-APV-02 ง | `ApprovalEmailRetryCount` (config.go) |
+| ส่งซ้ำอัตโนมัติอีก 3 ครั้งหลังครั้งแรก (รวม 4 ครั้ง) | FR-APV-02 ง, Q-APV-17 | `ApprovalEmailRetryCount` = 3 นับเฉพาะครั้งที่ส่งซ้ำ (config.go) |
 | ห่างกันครั้งละ 1 นาที | FR-APV-02 ง | `ApprovalEmailRetryInterval` (config.go) |
 | อนุมัติไม่ได้หลัง 16:00 น. ของวันที่เริ่มยืม | FR-APV-01 ค, Q-APV-11, DOM-LOAN-01 | `ApprovalApproveCutoff` (config.go) |
 | ปฏิเสธอัตโนมัติ 00:00 น. หลังวันที่ส่ง | FR-APV-01 ฉ, ASM-05 | `ApprovalAutoRejectAt` (config.go) |
@@ -106,7 +108,7 @@ error (CON-TECH-03) ข้อความตาม FR-APV-01 (ซ) อยู่�
 | เหตุผล "อุปกรณ์ชิ้นนี้ได้รับการอนุมัติให้คำขออื่นแล้ว" | FR-APV-01 จ | `ApprovalSupersededReason` (config.go) |
 | เหตุผล "คำขอยังคงค้างอยู่และไม่ได้รับการพิจารณาภายในเวลาที่กำหนด" | FR-APV-01 ฉ | `ApprovalAutoRejectReason` (config.go) |
 | แนวทาง "หากยังต้องการยืมอุปกรณ์ สามารถยื่นคำขอใหม่ได้" | FR-APV-02 ค | ใน `ApprovalEmailTemplates` (config.go) |
-| ข้อความ error 8 ข้อความ | FR-APV-01 ซ, ASM-07 | `ApprovalMessages` (config.go) และ `APPROVAL_MESSAGES` (config.js) |
+| ข้อความ error 9 ข้อความ | FR-APV-01 ซ, ASM-07, Q-APV-18 | `ApprovalMessages` (config.go) และ `APPROVAL_MESSAGES` (config.js) |
 | ค่า action `approve`, `reject`, `auto_reject` | RQ-25, DM-07 | `AuditActionApprove`, `AuditActionReject`, `AuditActionAutoReject` (config.go) |
 
 ## 6. แผนทดสอบจาก Acceptance Criteria
@@ -118,6 +120,7 @@ test หลังบ้านอยู่ใน `backend/internal/approve/*_test
 | AC-APV-01 | TestAC_APV_01 | อนุมัติคำขอแรกของอุปกรณ์ `available` -> `approved`, `equipment_item.status` ยังเป็น `available`, มีแถว `approval_decision` |
 | AC-APV-02 | TestAC_APV_02 | ปฏิเสธพร้อมเหตุผล -> `rejected` เหตุผลถูกบันทึก สถานะอุปกรณ์ไม่เปลี่ยน |
 | AC-APV-03 | TestAC_APV_03 | คำขอ A, B ของชิ้นเดียวกัน อนุมัติ A -> A `approved`, B `rejected` reason = `ApprovalSupersededReason` actor = เจ้าหน้าที่คนเดียวกัน และมี Email ผลปฏิเสธของ B |
+| AC-APV-17 [เสนอ] | TestAC_APV_17 | คำขอปกติ A และคำขอค้างคืน C ของชิ้นเดียวกัน อนุมัติ A -> C `rejected` reason = `ApprovalSupersededReason` มี Email ผลปฏิเสธของ C / อีกกรณี: ถึง 00:00 น. หลังวันที่ส่งของ C -> C ยังเป็น `requested` (ID รอ Q-APV-22) |
 | AC-APV-04 | TestAC_APV_04 | หลังอนุมัติ/ปฏิเสธ ตัวส่งจำลองได้ Email ภายใน 60 วินาที หัวข้อและข้อมูลครบตาม FR-APV-02 ก ข (ไม่มีจำนวนอุปกรณ์) |
 | AC-APV-05 | TestAC_APV_05 | ไม่มี token -> 401 `UNAUTHENTICATED` / `mock-student-001` -> 403 `FORBIDDEN_ROLE` สถานะคำขอคงเดิม |
 | AC-APV-06 | TestAC_APV_06 (+ vitest) | reason ว่างหรือมีแต่ช่องว่าง -> 422 `VALIDATION_FAILED` สถานะคงเดิม / หน้าจอแสดง "กรุณาระบุเหตุผลในการปฏิเสธ" |
@@ -126,21 +129,22 @@ test หลังบ้านอยู่ใน `backend/internal/approve/*_test
 | AC-APV-09 | TestAC_APV_09 (+ vitest) | คำขอ `cancelled` -> `REQUEST_CANCELLED` / พิจารณาแล้ว -> `REQUEST_ALREADY_DECIDED` ผลเดิมคงไว้ / หน้าจอแสดงข้อความตามกรณี |
 | AC-APV-10 | TestAC_APV_10 (+ vitest) | 2 goroutine อนุมัติ/ปฏิเสธคำขอเดียวกันพร้อมกัน -> สำเร็จ 1 อีกคน `REQUEST_DECIDED_CONCURRENTLY` มี `approval_decision` 1 แถว Email 1 ฉบับ |
 | AC-APV-11 | TestAC_APV_11 (+ vitest) | ข้อมูลผสม (requested ภาควิชา 1 หลายใบ, พิจารณาแล้ว, ภาควิชา 2, ค้างคืน) -> เห็นเฉพาะ requested ยืมปกติของภาควิชาตนเอง เรียงตาม submitted_at พร้อมข้อมูลครบ |
-| AC-APV-12 | TestAC_APV_12 | เจ้าหน้าที่ภาควิชา 2 อนุมัติ/ปฏิเสธคำขอของอุปกรณ์ภาควิชา 1 -> 403 `FORBIDDEN_DEPARTMENT` สถานะคงเดิม |
-| AC-APV-13 | TestAC_APV_13 | ตั้งนาฬิกาเป็น 00:00 น. หลังวันที่ D -> คำขอ requested ที่ส่งวัน D เป็น `rejected` result `auto_rejected` actor `system` และ Email ปฏิเสธอัตโนมัติภายใน 60 วินาที / คำขอที่ส่งวัน D+1 ไม่ถูกแตะ |
-| AC-APV-14 | TestAC_APV_14 (+ vitest) | ตัวส่งจำลองล้มทุกครั้ง -> ส่งซ้ำ 3 ครั้งห่าง 1 นาที (นาฬิกาจำลอง) แล้ว `failed` พร้อม last_error และเวลา อยู่ใน failed-emails / กดส่งซ้ำหลังตัวส่งกลับมาปกติ -> `sent` และ `approval_decision` ไม่เปลี่ยน |
+| AC-APV-12 | TestAC_APV_12 | เจ้าหน้าที่ภาควิชา 2 อนุมัติ/ปฏิเสธคำขอของอุปกรณ์ภาควิชา 1 -> 403 `FORBIDDEN_DEPARTMENT` message ตาม Q-APV-18 สถานะคงเดิม |
+| AC-APV-13 | TestAC_APV_13 | ตั้งนาฬิกาเป็น 00:00 น. หลังวันที่ D -> คำขอ requested ที่ส่งวัน D เป็น `rejected` result `auto_rejected` actor `system` และ Email ปฏิเสธอัตโนมัติภายใน 60 วินาที / คำขอที่ส่งวัน D+1 และคำขอค้างคืนที่ส่งวัน D ไม่ถูกแตะ |
+| AC-APV-18 [เสนอ] | TestAC_APV_18 | ตั้งนาฬิกาเลย 00:00 น. หลังวันที่ D แล้วจึงเริ่ม service (จำลอง server ไม่ได้ทำงานตอนเที่ยงคืน) -> คำขอปกติที่ส่งวัน D เป็น `rejected` result `auto_rejected` และมี Email ปฏิเสธอัตโนมัติ (ID รอ Q-APV-22) |
+| AC-APV-14 | TestAC_APV_14 (+ vitest) | ตัวส่งจำลองล้มทุกครั้ง -> ส่งครั้งแรก + ส่งซ้ำ 3 ครั้งห่าง 1 นาที (ตัวส่งจำลองถูกเรียกรวม 4 ครั้ง นาฬิกาจำลอง) แล้ว `failed` พร้อม last_error และเวลา อยู่ใน failed-emails / กดส่งซ้ำหลังตัวส่งกลับมาปกติ -> `sent` และ `approval_decision` ไม่เปลี่ยน |
 | AC-APV-15 | TestAC_APV_15 | หลังอนุมัติ ปฏิเสธ ปฏิเสธตาม และปฏิเสธอัตโนมัติ -> แต่ละครั้งมีแถว `approval_decision` (รหัสคำขอ ผล เหตุผล ผู้ดำเนินการ วันเวลา) และ `audit_log` action ตรงกับกรณี |
 | AC-APV-16 | TestAC_APV_16 | ตั้งนาฬิกาเลย 16:00 น. ของวันที่เริ่มยืม -> 409 `APPROVAL_CUTOFF_PASSED` สถานะคงเดิม (ID ของ AC นี้รอทีมอนุมัติ Q-APV-13) |
 
 vitest อยู่ที่ `frontend/src/pages/ApproveRequest/ApproveRequests.test.jsx` และ `FailedEmails.test.jsx` ตั้งชื่อ test ขึ้นต้นด้วย AC ID
 
 ## 7. ลำดับงาน
-1. migration ของ 004: ตาราง `approval_decision`, `approval_email` และเพิ่มค่า action ใน `audit_log_action_check` (FR-APV-01 ฌ, FR-APV-02 ง) รอจองเลข migration และแถวใน DM-07
-2. ลงทะเบียนรหัส error 5 ตัวใน CON-TECH-03 และเพิ่มค่าในตารางข้อ 5 ลง `config.go` / `config.js` (FR-APV-01 ซ, FR-APV-02)
-3. repository: อ่านรายการตามภาควิชาและลำดับ, ล็อกคำขอทุกใบของอุปกรณ์ชิ้นนั้นด้วย `SELECT ... FOR UPDATE` (AC-APV-10, 11)
-4. service ตรวจก่อนพิจารณา (บทบาท, ภาควิชา, สถานะคำขอ, คำขอแรก, สถานะอุปกรณ์, 16:00, เหตุผล) แล้ว approve / reject + ปฏิเสธคำขออื่น + `approval_decision` + `audit_log` + outbox (AC-APV-01, 02, 03, 05 ถึง 10, 12, 15, 16)
-5. `Mailer`, `RecipientResolver`, ตัวส่งเบื้องหลังจาก `approval_email` ส่งซ้ำ 3 ครั้ง (AC-APV-04, 14)
-6. งานเที่ยงคืนปฏิเสธคำขอค้าง (AC-APV-13)
+1. migration ของ 004: ตาราง `approval_decision`, `approval_email` และเพิ่มค่า action ใน `audit_log_action_check` (FR-APV-01 ฌ, FR-APV-02 ง) ไฟล์ `0008_approval` (ค่า action กำหนดใน migration นี้ ไม่เขียนใน data-model.md ทีมตัดสิน 2569-11-12)
+2. เพิ่มค่าในตารางข้อ 5 ลง `config.go` / `config.js` (FR-APV-01 ซ, FR-APV-02) (รหัส error 5 ตัวลงทะเบียนใน CON-TECH-03 แล้ว 2569-11-12)
+3. repository: อ่านรายการตามภาควิชาและลำดับ, ล็อกคำขอทุกใบ (ทุกประเภทการยืม) ของอุปกรณ์ชิ้นนั้นด้วย `SELECT ... FOR UPDATE` (AC-APV-10, 11, 17)
+4. service ตรวจก่อนพิจารณา (บทบาท, ภาควิชา, สถานะคำขอ, คำขอแรก, สถานะอุปกรณ์, 16:00, เหตุผล) แล้ว approve / reject + ปฏิเสธคำขออื่นทุกประเภท + `approval_decision` + `audit_log` + outbox (AC-APV-01, 02, 03, 05 ถึง 10, 12, 15, 16, 17)
+5. `Mailer`, `RecipientResolver`, ตัวส่งเบื้องหลังจาก `approval_email` ส่งครั้งแรก + ส่งซ้ำ 3 ครั้ง (AC-APV-04, 14)
+6. งานเที่ยงคืนปฏิเสธคำขอยืมปกติที่ค้าง และไล่ปฏิเสธคำขอที่เลยเวลาตอน service เริ่มทำงาน (AC-APV-13, 17, 18)
 7. handler และ endpoint failed-emails / resend, ผูก route ใน `backend/cmd/server/main.go` และเริ่ม goroutine (แก้ของกลาง บันทึกใน prompt-log ว่าแก้เพราะ 004) (AC-APV-14)
 8. หน้าจอ `ApproveRequests` และ `FailedEmails` + ฟังก์ชันใน `frontend/src/api/client.js` (AC-APV-06 ถึง 11, 14)
 
@@ -151,10 +155,15 @@ vitest อยู่ที่ `frontend/src/pages/ApproveRequest/ApproveRequests.
 - Q-APV-01 รับคำขอยืมแบบค้างคืน -> ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (plan กรองเฉพาะ `loan_type = 'normal'`)
 - Q-APV-04 Email ของผู้ขอมาจากไหน -> ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (`RecipientResolver` ตัวจริง)
 - Q-APV-13 ทีมอนุมัติ ID ของ AC-APV-16 -> ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (TestAC_APV_16 ตั้งชื่อรอไว้)
+- Q-APV-22 ทีมอนุมัติ ID ของ AC-APV-17, 18 -> TestAC_APV_17, 18 ตั้งชื่อรอไว้ พฤติกรรมตาม FR-APV-01 (จ)(ฉ) ทำได้เลยเพราะทีมตอบแล้ว
+
+ทีมตอบแล้ว 2569-11-12 (Q-APV-14 ถึง 21) และแก้ plan ตามแล้ว ข้อที่ไม่ต้องแก้ plan:
+- Q-APV-15 เที่ยงคืนนับจากวันที่ส่ง (เดิม) / Q-APV-16 คำขอแรกที่เลย 16:00 น. ยังขวางคิว (เดิม ใช้ `APPROVAL_CUTOFF_PASSED` และเจ้าหน้าที่ปฏิเสธเอง)
+- Q-APV-20 ไม่แจ้ง 003 เรื่องล็อกแถว ความเสี่ยงที่เหลือ: ถ้า 003 ไม่ล็อกแถวเดียวกัน คำขอที่เพิ่งอนุมัติอาจถูกยกเลิกทับได้ (ทีมรับทราบ)
 
 เรื่องที่พบตอนทำ plan (004 ไม่ตัดสินเอง):
 - **ชื่อเจ้าหน้าที่ไม่มีใน Principal (DM-08, IF-IDP-01)** แต่ spec ต้องการชื่อผู้อนุมัติ / ผู้พิจารณาใน Email (FR-APV-02 ก ข) และชื่อเจ้าหน้าที่ในประวัติ (FR-APV-01 ฌ)
   -> เสนอรวมใน CR เดียวกับ Email (Q-APV-04) ให้ระบบยืนยันตัวตนส่งชื่อและ Email มาด้วย ระหว่างรอ `actor_name` ว่างได้
 - **`auth.Middleware` ของกลางตอบแค่ `{code}` ไม่มี `message`** ไม่ครบ CON-TECH-03 -> แจ้งเจ้าของ 001 (ไม่แก้ใน 004)
-- **ค่า action `approve`, `reject`, `auto_reject`** ต้องเพิ่มแถวในตาราง DM-07 ของ data-model.md -> คุยกับ 001 / ทีม
-- **เลข migration ของ 004** ต้องจองในกลุ่ม (0004 ขึ้นไป) -> คุยในกลุ่ม
+- **ค่า action `approve`, `reject`, `auto_reject` และเลข migration 0008** [ปิดแล้ว 2569-11-12 ทีมตัดสิน] ยังไม่ต้องเขียนใน data-model.md กำหนดใน migration 0008 ที่ฐานข้อมูลเท่านั้น
+- **ลำดับ migration**: ตกลงลำดับ merge ให้ 0004 ถึง 0007 ขึ้นก่อน 0008 เพราะ golang-migrate ไม่รันเลขที่น้อยกว่าเวอร์ชันที่ฐานข้อมูลอยู่แล้ว

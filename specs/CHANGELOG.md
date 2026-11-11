@@ -2,6 +2,28 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [tasks 004 v1] - 2569-11-12
+ไม่ทำ CR เพราะไม่ได้เปลี่ยน spec หรือ constraint
+
+### Added
+- `specs/004-approve-request/tasks.md` จาก /tasks: 20 เฟส 39 task (เฟส 1 ถึง 18 เฟสละ 1 AC), เฟสรอคำตอบ 3 task (T-37, T-38 รอ Q-APV-04, T-39 รอ Q-SH-03), ตารางตรวจความครบ AC / Constraint / FR
+
+## [SPEC-APV-004 Draft v2.1 + plan 004 v1.1 + CON-TECH-03 รหัสของ 004] - 2569-11-12
+ทีมตอบคำถามค้าง 8 ข้อที่พบตอนอ่าน spec และ plan (Q-APV-14 ถึง 21) ผ่านหน้าเว็บ https://claude.ai/artifact/LdTfyp1kd4ZEEpYnUhU6pc
+ไม่ทำ CR เพราะเป็นการตอบ Open Questions ภายใน spec ของ 004 (ID เดิม ไม่เพิ่ม FR) และการเพิ่มรหัสใน CON-TECH-03 ทำตามกติกาของ CON-TECH-03 เอง เหมือนตอนเพิ่ม `FORBIDDEN_ROLE`
+
+### Changed
+- `specs/004-approve-request/spec.md`: FR-APV-01 (ข) คำขอแรกที่เลย 16:00 น. ยังขวางคิว, (จ) ปฏิเสธตามรวมคำขอค้างคืน, (ฉ) เที่ยงคืนเฉพาะยืมปกติ นับจากวันที่ส่ง และไล่ปฏิเสธตอนระบบเริ่มทำงาน, (ซ) เพิ่มข้อความ `FORBIDDEN_DEPARTMENT`; FR-APV-02 (ง) ส่งครั้งแรก + ซ้ำ 3 = 4 ครั้ง; แก้ AC-APV-12, 14
+- `specs/004-approve-request/plan.md`: ข้อ 1, 3, 4, 5, 6, 7, 8 ตามคำตอบ
+- `specs/000-shared/constraints.md`: เพิ่ม 004 ในคอลัมน์ "ใครใช้แล้ว" ของ `UNAUTHENTICATED`, `FORBIDDEN_DEPARTMENT`, `VALIDATION_FAILED`, `ITEM_NOT_AVAILABLE`
+
+### Added
+- `specs/000-shared/constraints.md` CON-TECH-03: `REQUEST_CANCELLED`, `REQUEST_ALREADY_DECIDED`, `REQUEST_DECIDED_CONCURRENTLY`, `NOT_FIRST_IN_QUEUE`, `APPROVAL_CUTOFF_PASSED` (409 ทั้งหมด)
+- spec: AC-APV-17, 18 (เสนอ รอทีมอนุมัติ ID Q-APV-22), Q-APV-14 ถึง 22, Clarifications session 2569-11-12
+
+### ยังเปิด
+- Q-APV-01, Q-APV-04, Q-APV-13 (ID ของ AC-APV-16), Q-APV-22 (ID ของ AC-APV-17, 18)
+
 ## [plan 004 v1] - 2569-11-11
 ไม่ทำ CR เพราะไม่ได้เปลี่ยน spec หรือ constraint
 
