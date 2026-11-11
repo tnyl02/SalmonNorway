@@ -244,3 +244,29 @@ for (const [code, message] of [
     expect(within(table).getAllByRole('row').slice(1)).toHaveLength(2)
   })
 }
+
+// AC-APV-12 (FR-APV-01 ก, IF-IDP-01) ฝั่งหน้าจอ (หลังบ้านตรวจใน TestAC_APV_12)
+//   Given เจ้าหน้าที่ภาควิชาไม่ตรงกับภาควิชาเจ้าของอุปกรณ์ (ปกติหน้ารายการไม่แสดงคำขอภาควิชาอื่นอยู่แล้ว)
+//   When  กดอนุมัติหรือปฏิเสธ แล้วหลังบ้านตอบ FORBIDDEN_DEPARTMENT
+//   Then  แสดง "คำขอนี้เป็นของอุปกรณ์ภาควิชาอื่น คุณไม่มีสิทธิ์พิจารณา" และรายการไม่เปลี่ยน
+test('AC-APV-12 อนุมัติแล้วหลังบ้านตอบ FORBIDDEN_DEPARTMENT แสดงข้อความตามรหัส', async () => {
+  render(<ApproveRequests client={{ ...fakeClient(), approveRequest: failWith('FORBIDDEN_DEPARTMENT') }} />)
+  const table = await screen.findByRole('table')
+  const first = within(table).getAllByRole('row')[1]
+  fireEvent.click(within(first).getByRole('button', { name: 'อนุมัติ' }))
+
+  expect((await screen.findByRole('alert')).textContent).toBe('คำขอนี้เป็นของอุปกรณ์ภาควิชาอื่น คุณไม่มีสิทธิ์พิจารณา')
+  expect(within(table).getAllByRole('row').slice(1)).toHaveLength(2)
+})
+
+test('AC-APV-12 ปฏิเสธแล้วหลังบ้านตอบ FORBIDDEN_DEPARTMENT แสดงข้อความตามรหัส', async () => {
+  render(<ApproveRequests client={{ ...fakeClient(), rejectRequest: failWith('FORBIDDEN_DEPARTMENT') }} />)
+  const table = await screen.findByRole('table')
+  const first = within(table).getAllByRole('row')[1]
+  fireEvent.click(within(first).getByRole('button', { name: 'ปฏิเสธ' }))
+  fireEvent.change(within(first).getByLabelText('เหตุผลในการปฏิเสธ'), { target: { value: 'มีเหตุผล' } })
+  fireEvent.click(within(first).getByRole('button', { name: 'ยืนยันการปฏิเสธ' }))
+
+  expect((await screen.findByRole('alert')).textContent).toBe(APPROVAL_MESSAGES.FORBIDDEN_DEPARTMENT)
+  expect(within(table).getAllByRole('row').slice(1)).toHaveLength(2)
+})
