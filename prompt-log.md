@@ -1678,3 +1678,14 @@
 - ปุ่มบันทึกใช้ได้เมื่อผลเป็น verified หรือ unavailable และติ๊กตรวจบัตรแล้ว หลังบ้านยืนยันผู้ยืมซ้ำเองเสมอ (plan v1.4)
 - ช่องบัญชีผู้ยืมเป็นช่องรหัสผ่าน prototype กรอก token จำลอง (เช่น mock-student-001) จนกว่าจะรู้โปรโตคอลของ Auth API (Q-SH-03)
 - ข้อความบนหน้าจอทีมเลือกเอง ไม่ได้มาจาก spec
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-22
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่สร้าง/แก้: `frontend/src/pages/Handover/HandoverForm.jsx` (ตรวจจำนวนและชนิดรูปจาก `HANDOVER_MIN_PHOTOS`, `HANDOVER_PHOTO_TYPES` ก่อนส่ง), `frontend/src/__tests__/AC-HND-12.test.jsx`
+- ผล test: `AC-HND-12.test.jsx` ผ่าน 2 กรณี ((ก) 1 รูป, (ข) GIF ไม่เรียก client และแสดงข้อความแจ้ง) `npx vitest run` 13 ไฟล์ผ่านทั้งหมด `vite build` ผ่าน
+- ข้อความแจ้งเรียบเรียงจาก FR-HND-06 (อย่างน้อย 2 รูป JPG หรือ PNG) ตัวเลขอ่านจาก config.js ขนาดไฟล์ยังไม่ตรวจ (T-28 รอ Q-HND-10)

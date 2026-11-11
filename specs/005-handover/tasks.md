@@ -357,7 +357,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี (ไม่มี mockup ทีมออกแบบเอง)
 - ต้องทำหลัง: T-11, T-21
 - เสร็จเมื่อ: `AC-HND-12.test.jsx` ผ่าน (1 รูป หรือ GIF ไม่เรียก client จำลอง ใช้ค่าจาก `config.js`)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 #### จุดตรวจเฟส 10
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_12_InvalidPhotos (ก, ข), AC-HND-12.test.jsx และ test ของเฟส 0-9

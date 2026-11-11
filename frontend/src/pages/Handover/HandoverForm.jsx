@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { handoverApi } from '../../api/client.js'
-import { TIME_ZONE } from '../../config.js'
+import { HANDOVER_MIN_PHOTOS, HANDOVER_PHOTO_TYPES, TIME_ZONE } from '../../config.js'
+
+// ตรวจรูปก่อนส่งเพื่อความสะดวก (FR-HND-06, ASM-HND-07) หลังบ้านตรวจซ้ำจากเนื้อไฟล์เสมอ ขนาดไฟล์ตรวจใน T-28 (รอ Q-HND-10)
+function photosValid(photos) {
+  return photos.length >= HANDOVER_MIN_PHOTOS && photos.every((p) => HANDOVER_PHOTO_TYPES.includes(p.type))
+}
 
 const fmt = (iso) => new Date(iso).toLocaleString('th-TH', { timeZone: TIME_ZONE })
 
@@ -45,6 +50,10 @@ export default function HandoverForm({ request, client = handoverApi, onBack }) 
   async function submit(e) {
     e.preventDefault()
     if (!canSave) return // FR-HND-02, FR-HND-03
+    if (!photosValid(photos)) {
+      setError(`ต้องแนบรูปสภาพอุปกรณ์อย่างน้อย ${HANDOVER_MIN_PHOTOS} รูป เป็นไฟล์ JPG หรือ PNG`)
+      return
+    }
     const form = new FormData()
     form.append('borrowerCredential', credential)
     form.append('borrowerFirstName', firstName)
