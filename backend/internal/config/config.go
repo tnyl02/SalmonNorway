@@ -85,6 +85,10 @@ const (
 	StatusRejected = "rejected"
 )
 
+// ItemStatusAvailable คือสถานะอุปกรณ์ "ว่าง" (CON-DATA-01, data-model.md) อนุมัติได้เฉพาะอุปกรณ์สถานะนี้ (FR-APV-01 ค, T-19)
+// ค่าเดียวกับ equipment.StatusAvailable ของ 001 004 ไม่ import package ของ 001
+const ItemStatusAvailable = "available"
+
 // LoanTypeNormal คือประเภทการยืมแบบปกติ (DM-05, DM-06) 004 พิจารณาเฉพาะประเภทนี้ (FR-APV-01, Q-APV-01)
 // ลำดับคำขอแรกและงานเที่ยงคืนนับเฉพาะประเภทนี้ (Q-APV-23, Q-APV-14) ค่าเดียวกับ CHECK ของ borrow_request ใน 0003
 const LoanTypeNormal = "normal"

@@ -70,7 +70,9 @@ var ErrNotRequested = errors.New("คำขอนี้ไม่ได้อย�
 //
 //   - อนุมัติได้เฉพาะคำขอแรกของชิ้นนั้น (FR-APV-01 ข, T-17)
 //
-// การตรวจอุปกรณ์ว่าง (T-19), เวลาตัด 16:00 (T-21) และภาควิชา (T-25) เพิ่มใน task ของแต่ละเรื่อง
+//   - อนุมัติได้เฉพาะอุปกรณ์ที่ "ว่าง" (FR-APV-01 ค, T-19)
+//
+// การตรวจเวลาตัด 16:00 (T-21) และภาควิชา (T-25) เพิ่มใน task ของแต่ละเรื่อง
 func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
 	p, err := staff(ctx)
 	if err != nil {
@@ -92,6 +94,10 @@ func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
 		// นับเฉพาะยืมปกติ คำขอค้างคืนไม่ขวางคิว (Q-APV-23) all เรียงตาม submitted_at, id แล้ว (lockItemRequests)
 		if first, ok := firstInQueue(all); !ok || first.ID != target.ID {
 			return ErrNotFirst
+		}
+		// FR-APV-01 (ค), CON-DATA-01: อนุมัติได้เมื่ออุปกรณ์รายชิ้นมีสถานะ "ว่าง" เท่านั้น (AC-APV-08, T-19)
+		if target.ItemStatus != config.ItemStatusAvailable {
+			return ErrItemNotAvailable
 		}
 		if err := tx.setStatus(ctx, target.ID, config.StatusApproved); err != nil {
 			return err
@@ -121,6 +127,9 @@ func (s *Service) Approve(ctx context.Context, requestID int) (Result, error) {
 	})
 	return out, err
 }
+
+// ErrItemNotAvailable เกิดเมื่ออุปกรณ์รายชิ้นไม่ได้อยู่ในสถานะ "ว่าง" (FR-APV-01 ค ซ, AC-APV-08, ITEM_NOT_AVAILABLE)
+var ErrItemNotAvailable = errors.New("อุปกรณ์ชิ้นนี้ไม่ได้อยู่ในสถานะว่างแล้ว")
 
 // ErrNotFirst เกิดเมื่ออนุมัติคำขอที่ไม่ใช่คำขอแรกของอุปกรณ์ชิ้นนั้น (FR-APV-01 ข ซ, AC-APV-07, NOT_FIRST_IN_QUEUE)
 var ErrNotFirst = errors.New("ต้องพิจารณาคำขอที่ส่งก่อนหน้าของอุปกรณ์ชิ้นนี้ก่อน")

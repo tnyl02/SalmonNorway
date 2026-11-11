@@ -3733,3 +3733,25 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ไฟล์ที่แก้: `frontend/src/pages/ApproveRequest/ApproveRequests.jsx` (แสดงปุ่ม "อนุมัติ" เฉพาะแถว isFirst แถวอื่นมีแค่ปุ่มปฏิเสธ), `ApproveRequests.test.jsx` (2 test `AC-APV-07`: ปุ่มเฉพาะคำขอแรก และหลังบ้านตอบ NOT_FIRST_IN_QUEUE), `specs/004-approve-request/tasks.md`
 - ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
 - สิ่งที่ AI เลือกเอง (ทีมตรวจ): ซ่อนปุ่มอนุมัติไปเลย (ไม่แสดงแบบกดไม่ได้); ข้อความ NOT_FIRST_IN_QUEUE ใช้ทางเดียวกับ error อื่นที่ทำไว้ใน T-09 จึงไม่ต้องแก้โค้ดส่วนแสดงข้อความ
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-18 และ /implement T-19 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่ง: "ตรวจสอบผ่าน /implement T-19"
+- T-18: tasks.md "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+- T-19 ไฟล์ที่แก้: `backend/internal/approve/service.go` (`ErrItemNotAvailable` ตรวจ target.ItemStatus หลังตรวจคำขอแรก), `handler.go` (แปลงเป็น 409 ITEM_NOT_AVAILABLE), `config.go` (`ItemStatusAvailable` ค่าเดียวกับ equipment.StatusAvailable ของ 001 ไม่ import package ของ 001), `service_test.go` (`TestAC_APV_08` ทั้งอุปกรณ์ถูกยืมและไม่พร้อมใช้งาน), `specs/004-approve-request/tasks.md`
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): ลำดับการตรวจ: สถานะคำขอ -> คำขอแรก -> อุปกรณ์ว่าง (คำขอที่ไม่ใช่คำขอแรกได้ NOT_FIRST_IN_QUEUE ก่อน ITEM_NOT_AVAILABLE)
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-19 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจสอบผ่าน"
+- สิ่งที่แก้: tasks.md T-19 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)

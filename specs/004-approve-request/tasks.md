@@ -276,7 +276,7 @@ Updated: 2569-11-12
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-09, T-17
 - เสร็จเมื่อ: vitest `AC-APV-07` ผ่าน: แถวที่ `is_first = false` ไม่มีปุ่มอนุมัติ และเมื่อ client จำลองตอบ `NOT_FIRST_IN_QUEUE` หน้าจอแสดงข้อความตาม config
-- สถานะ: เสร็จ รอทีมตรวจ (ยังไม่ได้รัน vitest `AC-APV-07` ตามลำดับการทดสอบที่ทีมตัดสิน)
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน vitest `AC-APV-07` ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 #### จุดตรวจเฟส 7
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_07`, vitest `AC-APV-07` และ test ของเฟส 0 ถึง 6
@@ -294,11 +294,11 @@ Updated: 2569-11-12
 ### T-19 ตรวจสถานะอุปกรณ์ก่อนอนุมัติ
 - รองรับ: FR-APV-01 (ค)(ซ), CON-DATA-01, CON-TECH-03
 - ตรวจด้วย: AC-APV-08
-- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/service_test.go`
+- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/service_test.go`, `backend/internal/approve/handler.go` (แปลงเป็น 409 ITEM_NOT_AVAILABLE), `backend/internal/config/config.go` (`ItemStatusAvailable`)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-07
 - เสร็จเมื่อ: `TestAC_APV_08` ผ่าน: อุปกรณ์ `borrowed` หรือ `unavailable` ได้ 409 `ITEM_NOT_AVAILABLE` ข้อความตาม config สถานะคงเดิม
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน `TestAC_APV_08` ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 ### T-20 แสดงข้อความ ITEM_NOT_AVAILABLE บนหน้าจอ
 - รองรับ: FR-APV-01 (ซ)

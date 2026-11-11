@@ -268,3 +268,44 @@ func TestAC_APV_07(t *testing.T) {
 		t.Errorf("ปฏิเสธ B ต้องทำได้ แต่ได้ %v", err)
 	}
 }
+
+// AC-APV-08 (FR-APV-01 ค, CON-DATA-01)
+// Given คำขอแรกสถานะ requested ของอุปกรณ์รายชิ้นที่สถานะไม่ใช่ "ว่าง"
+//
+//	(AP-TEST-0004 ถูกยืม ใน approve_dev.sql และ AP-TEST-0002 ที่ test เปลี่ยนเป็นไม่พร้อมใช้งาน)
+//
+// When  เจ้าหน้าที่พยายามอนุมัติ
+// Then  ระบบไม่อนุมัติ ตอบ ITEM_NOT_AVAILABLE แสดง "อุปกรณ์ชิ้นนี้ไม่ได้อยู่ในสถานะว่างแล้ว อนุมัติไม่ได้" และสถานะคงเดิม
+func TestAC_APV_08(t *testing.T) {
+	tx := devTx(t)
+	if _, err := tx.Exec(context.Background(),
+		`UPDATE equipment_item SET status = 'unavailable' WHERE asset_code = 'AP-TEST-0002'`); err != nil {
+		t.Fatal(err)
+	}
+	srv := newTestServer(tx)
+
+	for _, c := range []struct{ asset, requester, itemStatus string }{
+		{"AP-TEST-0004", "student-001", "borrowed"},
+		{"AP-TEST-0002", "student-001", "unavailable"},
+	} {
+		id := requestIDOf(t, tx, c.asset, c.requester)
+		w := postJSON(srv, tokenStaffDept1, fmt.Sprintf("%srequests/%d/approve", PathPrefix, id), `{}`)
+		if w.Code != http.StatusConflict {
+			t.Errorf("%s (%s) ต้องได้ 409 แต่ได้ %d", c.asset, c.itemStatus, w.Code)
+			continue
+		}
+		var e ErrorDTO
+		_ = json.Unmarshal(w.Body.Bytes(), &e)
+		if e.Code != "ITEM_NOT_AVAILABLE" || e.Message != "อุปกรณ์ชิ้นนี้ไม่ได้อยู่ในสถานะว่างแล้ว อนุมัติไม่ได้" {
+			t.Errorf("%s ได้ %+v", c.asset, e)
+		}
+		var reqStatus, itemStatus string
+		if err := tx.QueryRow(context.Background(), `
+			SELECT r.status, i.status FROM borrow_request r JOIN equipment_item i ON i.id = r.item_id WHERE r.id = $1`, id).Scan(&reqStatus, &itemStatus); err != nil {
+			t.Fatal(err)
+		}
+		if reqStatus != "requested" || itemStatus != c.itemStatus {
+			t.Errorf("%s สถานะต้องคงเดิม (requested / %s) แต่ได้ %s / %s", c.asset, c.itemStatus, reqStatus, itemStatus)
+		}
+	}
+}
