@@ -1746,3 +1746,25 @@
     test-cases.md แถว TC-CXL-08-1, 08-3 (เปลี่ยนแค่ชิ้นอุปกรณ์ ช่อง Then เหมือนเดิม) ทีมยืนยันการแก้ Given
 - ผล: เปลี่ยนสถานะใน tasks.md ของ T-04 เป็น "เสร็จ"
 
+---
+
+## 2569-11-11 /implement T-06 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-06 API ยกเลิกคำขอ (กรณีสำเร็จ)
+- ไฟล์ที่แก้ (ตรงกับช่อง "ไฟล์ที่แตะ"):
+  - dto.go: CancelRequestDTO, CancelResultDTO
+  - repository.go: Querier เพิ่ม Begin, Cancel ด้วย UPDATE ... WHERE id AND requester_id AND status = ANY(cancellable) RETURNING id (FR-CXL-04)
+  - service.go: Cancel เปิด transaction, UPDATE, commit (เผื่อ audit_log ใน transaction เดียวกันของ T-31) เจ้าหน้าที่ ErrStudentOnly
+  - handler.go: POST /v1/borrow-requests/{id}/cancel ตอบ 200 {requestId, status:"cancelled"}
+  - handler_test.go: TestAC_CXL_01_CancelPendingNormal, TestCancel_SecondTimeDoesNotOverwrite
+- ผล test: AC_CXL_01 ผ่าน, TC-CXL-01-1, 01-3, 01-4, 01-5, 09-6, 14-1, 14-3 ผ่าน (รวม TC เดิมของ 08 และ 12)
+  ไม่ผ่านตามคาด: TC-CXL-01-6 (T-15), 01-7 (T-19), 14-4, 14-5, 14-6 (T-09) auth / equipment / platform / config / migrationtest ผ่าน
+- สิ่งที่ AI เลือกเองชั่วคราวในขอบเขต task (task ถัดไปจะแทนที่):
+  - UPDATE ไม่เจอแถว ตอบ 409 NOT_CANCELLABLE ทุกกรณี จนกว่า T-15, T-17, T-19 จะแยกสาเหตุ
+  - body อ่านไม่ได้ ตอบ 400 REASON_REQUIRED, id ไม่ใช่ตัวเลข ตอบ 404 REQUEST_NOT_FOUND
+  - เก็บเหตุผลตามที่ส่งมา ยังไม่ตรวจว่างหรือยาวเกิน (T-09)
+- สถานะใน tasks.md: T-06 เสร็จ รอทีมตรวจ
+

@@ -116,7 +116,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-04
 - เสร็จเมื่อ: `TestAC_CXL_01_CancelPendingNormal` ผ่าน (`POST /api/v1/borrow-requests/{id}/cancel` ด้วย UPDATE แบบมีเงื่อนไขคำสั่งเดียว ตอบ 200 สถานะเป็น `cancelled` เก็บ cancel_reason และ cancelled_at และ `equipment_item.status` ยังเป็น `available`)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 ### T-07 สร้างกล่องยืนยันการยกเลิกและแสดงผลสำเร็จ
 - รองรับ: FR-CXL-01, FR-CXL-07, FR-CXL-08

@@ -79,3 +79,52 @@ func TestListPending_EmptyIsArray(t *testing.T) {
 		t.Errorf("body = %q ต้องเป็น {\"items\":[]}", got)
 	}
 }
+
+// AC-CXL-01 (FR-CXL-01, FR-CXL-04, FR-CXL-08, CON-CXL-01) T-06
+//
+//	Given A มีคำขอแบบปกติ requested ของอุปกรณ์ X สถานะ available และ B มีคำขอ requested บน X เช่นกัน
+//	When  A ยกเลิกคำขอของตนพร้อมเหตุผล
+//	Then  ได้ 200 {requestId, status:"cancelled"} ฐานข้อมูลเป็น cancelled เก็บเหตุผลและเวลาที่ยกเลิก
+//	      อุปกรณ์ X ยัง available คำขอของ B ไม่เปลี่ยน และคำขอนั้นหายจากรายการของ A
+func TestAC_CXL_01_CancelPendingNormal(t *testing.T) {
+	srv := tcServer(t)
+	now := time.Now()
+	id := tcInsert(t, tcUserA, tcItemAvailable, "normal", "requested", now)
+	ofB := tcInsert(t, tcUserB, tcItemAvailable, "normal", "requested", now)
+
+	rec := tcCancel(t, srv, id, "ไม่ต้องใช้อุปกรณ์แล้ว", tcTokenA)
+
+	tcWantStatus(t, rec, http.StatusOK)
+	if body := tcDecode[tcCancelBody](t, rec); body.RequestID != id || body.Status != "cancelled" {
+		t.Errorf("body = %+v ต้องเป็น {requestId:%d status:cancelled}", body, id)
+	}
+	row := tcRow(t, id)
+	if row.Status != "cancelled" || row.CancelReason == nil || *row.CancelReason != "ไม่ต้องใช้อุปกรณ์แล้ว" || row.CancelledAt == nil {
+		t.Errorf("แถวในฐานข้อมูล = %+v ต้องเป็น cancelled พร้อมเหตุผลและเวลา", row)
+	}
+	if s := tcItemStatus(t, tcItemAvailable); s != "available" {
+		t.Errorf("สถานะอุปกรณ์ = %s ต้องยังเป็น available (CON-CXL-01)", s)
+	}
+	if s := tcRow(t, ofB).Status; s != "requested" {
+		t.Errorf("คำขอของ B = %s ต้องยังเป็น requested (DOM-REQ-01)", s)
+	}
+	list := tcDecode[tcListBody](t, tcGet(t, srv, tcPathMine, tcTokenA))
+	if len(list.Items) != 0 {
+		t.Errorf("หลังยกเลิกรายการของ A ต้องว่าง ได้ %+v", list.Items)
+	}
+}
+
+// FR-CXL-04: ยกเลิกซ้ำไม่เขียนทับเหตุผลเดิม เพราะ UPDATE มีเงื่อนไขสถานะ (ตอบ 409 จนกว่า T-17 จะแยกรหัส)
+func TestCancel_SecondTimeDoesNotOverwrite(t *testing.T) {
+	srv := tcServer(t)
+	id := tcInsert(t, tcUserA, tcItemAvailable, "normal", "requested", time.Now())
+	tcWantStatus(t, tcCancel(t, srv, id, "ครั้งแรก", tcTokenA), http.StatusOK)
+
+	rec := tcCancel(t, srv, id, "ครั้งที่สอง", tcTokenA)
+
+	tcWantStatus(t, rec, http.StatusConflict)
+	if r := tcRow(t, id); r.CancelReason == nil || *r.CancelReason != "ครั้งแรก" {
+		t.Errorf("cancel_reason = %v ต้องยังเป็น ครั้งแรก", r.CancelReason)
+	}
+}
+

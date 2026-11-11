@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 
 	"salmonnorway/backend/internal/auth"
 )
@@ -27,10 +28,10 @@ func NewHandler(svc *Service) *Handler {
 }
 
 // Routes คืน router ของฟีเจอร์นี้ ให้ main.go ห่อด้วย auth.Middleware แล้วผูกกับ PathPrefixMine และ PathPrefixRequests
-// การยกเลิก (POST .../cancel) เพิ่มใน T-06
 func (h *Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET "+pathPendingList, h.listPending)
+	mux.HandleFunc("POST "+PathPrefixRequests+"{id}/cancel", h.cancel)
 	return mux
 }
 
@@ -49,6 +50,36 @@ func (h *Handler) listPending(w http.ResponseWriter, r *http.Request) {
 		writeUpstreamError(w, err)
 	default:
 		writeJSON(w, http.StatusOK, PendingListDTO{Items: items})
+	}
+}
+
+// cancel: POST /v1/borrow-requests/{id}/cancel ยกเลิกคำขอพร้อมเหตุผล (FR-CXL-01, FR-CXL-04, AC-CXL-01)
+func (h *Handler) cancel(w http.ResponseWriter, r *http.Request) {
+	p, ok := auth.FromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, ErrorDTO{Code: "UNAUTHENTICATED"}) // ไม่ควรเกิดถ้าอยู่หลัง middleware
+		return
+	}
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || id <= 0 {
+		writeJSON(w, http.StatusNotFound, ErrorDTO{Code: "REQUEST_NOT_FOUND"}) // รหัสที่ไม่ใช่ตัวเลข ถือว่าไม่มีคำขอนี้ (FR-CXL-03)
+		return
+	}
+	var in CancelRequestDTO
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorDTO{Code: "REASON_REQUIRED"}) // body อ่านไม่ได้ = ไม่มีเหตุผล (FR-CXL-08)
+		return
+	}
+	res, err := h.svc.Cancel(r.Context(), p, id, in.Reason)
+	switch {
+	case errors.Is(err, ErrStudentOnly):
+		writeJSON(w, http.StatusForbidden, ErrorDTO{Code: "STUDENT_ONLY"})
+	case errors.Is(err, ErrNotCancelled):
+		writeJSON(w, http.StatusConflict, ErrorDTO{Code: "NOT_CANCELLABLE"}) // แยกสาเหตุใน T-15, T-17, T-19
+	case err != nil:
+		writeUpstreamError(w, err)
+	default:
+		writeJSON(w, http.StatusOK, res)
 	}
 }
 

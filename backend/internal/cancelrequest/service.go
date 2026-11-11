@@ -11,6 +11,10 @@ import (
 // ErrStudentOnly คือผู้ใช้ไม่ใช่นักศึกษา ตอบ 403 STUDENT_ONLY (FR-CXL-03, ASM-13)
 var ErrStudentOnly = errors.New("student only")
 
+// ErrNotCancelled คือไม่มีแถวที่ยกเลิกได้ (UPDATE ไม่เจอแถว) ตอนนี้ตอบ 409 NOT_CANCELLABLE ทุกกรณี
+// การแยกสาเหตุเป็น 404 REQUEST_NOT_FOUND / 409 ALREADY_APPROVED / 409 NOT_CANCELLABLE อยู่ใน T-15, T-17, T-19
+var ErrNotCancelled = errors.New("not cancelled")
+
 // Service คือกฎของฟีเจอร์ 003
 type Service struct {
 	repo *Repository
@@ -41,4 +45,30 @@ func (s *Service) ListMyPending(ctx context.Context, p auth.Principal) ([]Pendin
 		})
 	}
 	return out, nil
+}
+
+// Cancel ยกเลิกคำขอ requestID ของนักศึกษาที่เข้าสู่ระบบพร้อมเหตุผล (FR-CXL-01, FR-CXL-04, FR-CXL-08, CON-CXL-02)
+// ผู้ขอมาจาก Principal เสมอ (IF-IDP-01) ไม่เปลี่ยนสถานะอุปกรณ์ (CON-CXL-01)
+// การตรวจเหตุผลอยู่ใน T-09 การบันทึก audit_log ใน transaction เดียวกันอยู่ใน T-31 การส่ง Email หลัง commit อยู่ใน T-27
+func (s *Service) Cancel(ctx context.Context, p auth.Principal, requestID int, reason string) (CancelResultDTO, error) {
+	if p.Role != auth.RoleStudent {
+		return CancelResultDTO{}, ErrStudentOnly
+	}
+	tx, err := s.repo.db.Begin(ctx)
+	if err != nil {
+		return CancelResultDTO{}, err
+	}
+	defer tx.Rollback(ctx) // ไม่มีผลถ้า commit ไปแล้ว
+
+	ok, err := s.repo.Cancel(ctx, tx, requestID, p.UserID, reason, config.CancellableStatuses())
+	if err != nil {
+		return CancelResultDTO{}, err
+	}
+	if !ok {
+		return CancelResultDTO{}, ErrNotCancelled
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return CancelResultDTO{}, err
+	}
+	return CancelResultDTO{RequestID: requestID, Status: "cancelled"}, nil
 }

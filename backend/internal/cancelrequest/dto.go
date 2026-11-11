@@ -17,6 +17,17 @@ type PendingListDTO struct {
 	Items []PendingRequestDTO `json:"items"`
 }
 
+// CancelRequestDTO คือ body ของ POST /v1/borrow-requests/{id}/cancel (FR-CXL-08)
+type CancelRequestDTO struct {
+	Reason string `json:"reason"`
+}
+
+// CancelResultDTO คือ body เมื่อยกเลิกสำเร็จ (FR-CXL-01, plan.md ข้อ 4)
+type CancelResultDTO struct {
+	RequestID int    `json:"requestId"`
+	Status    string `json:"status"`
+}
+
 // ErrorDTO คือ body เมื่อตอบไม่สำเร็จ ตามตาราง error ใน plan.md ข้อ 4
 type ErrorDTO struct {
 	Code      string `json:"code"`

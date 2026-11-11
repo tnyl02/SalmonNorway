@@ -2,15 +2,18 @@ package cancelrequest
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 )
 
 // Querier คือส่วนของ pgxpool.Pool ที่ repository ใช้ (แทนด้วยตัวจำลองได้)
+// Begin ใช้เปิด transaction ของการยกเลิก ให้ audit_log (T-31) เขียนใน transaction เดียวกันได้ (FR-CXL-05)
 type Querier interface {
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	Begin(ctx context.Context) (pgx.Tx, error)
 }
 
 // Repository อ่านและเขียนตาราง borrow_request ของ 002 (DM-06) เฉพาะส่วนที่ 003 ใช้
@@ -58,4 +61,26 @@ func (r *Repository) ListPending(ctx context.Context, requesterID string, status
 		out = append(out, p)
 	}
 	return out, rows.Err()
+}
+
+// cancelSQL เปลี่ยนสถานะเป็น cancelled ด้วย UPDATE แบบมีเงื่อนไขคำสั่งเดียว (FR-CXL-04)
+// ฐานข้อมูลตัดสินจากสถานะ ณ เวลาที่บันทึก ถ้าคำขอถูกอนุมัติหรือเปลี่ยนสถานะไปก่อน จะไม่เจอแถว
+// แก้เฉพาะแถวของ id และผู้ขอที่ระบุ ไม่แตะคำขออื่นและ equipment_item (DOM-REQ-01, CON-CXL-01, CON-DATA-01)
+const cancelSQL = `
+UPDATE borrow_request
+SET status = 'cancelled', cancel_reason = $3, cancelled_at = now()
+WHERE id = $1 AND requester_id = $2 AND status = ANY($4::text[])
+RETURNING id`
+
+// Cancel ยกเลิกคำขอใน transaction tx คืน false ถ้าไม่มีแถวที่ยกเลิกได้ (FR-CXL-01, FR-CXL-04, FR-CXL-08)
+func (r *Repository) Cancel(ctx context.Context, tx pgx.Tx, requestID int, requesterID, reason string, statuses []string) (bool, error) {
+	var id int
+	err := tx.QueryRow(ctx, cancelSQL, requestID, requesterID, reason, statuses).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
