@@ -1,11 +1,11 @@
 # Tasks: บันทึกการส่งมอบอุปกรณ์ (Handover)
-Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3: 2569-11-11 (v1.1 ไม่กระทบฟีเจอร์อื่น, v1.2 รับผล CR-003, v1.3 รับผล CR-004, migration 0003 และ 004 spec v1) | Owner: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn101219)
+Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4: 2569-11-11 (v1.1 ไม่กระทบฟีเจอร์อื่น, v1.2 รับผล CR-003, v1.3 รับผล CR-004, migration 0003 และ 004 spec v1, v1.4 ปิด Q-HND-11, Q-HND-13, Q-P4) | Owner: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn101219)
 
 สรุป
 - 14 เฟส (ฐานราก + 12 เฟสตาม AC + รอคำตอบ) รวม 31 task
-- รอ Q-xx 13 task: Q-P4 (ลงทะเบียนรหัส error 3 ตัว ตาม CON-TECH-03) กั้น T-03 ซึ่งเป็นฐานของเฟส 1 ขึ้นไป รองลงมาคือ Q-HND-11, Q-HND-13 (ยืนยันผู้ยืม / ที่มาของชื่อ)
-  task ที่เริ่มได้ทันที: T-01, T-02, T-07, T-08 เมื่อตอบ Q-P4 แล้ว: T-03 แล้วต่อ T-04, T-05, T-06
-- เฟสแรกที่ลองใช้งานได้จริง: เฟส 1 (เห็นรายการคำขอที่รอส่งมอบ) migration 0003 ของ 002 merge แล้ว เหลือ Q-P4
+- รอ Q-xx 7 task (T-25 ถึง T-31 ในเฟสรอคำตอบ) เส้นทางหลักไม่ติดคำถามแล้ว (Q-HND-11, Q-HND-13, Q-P4 ปิด 2569-11-11)
+  เสร็จแล้ว: T-01, T-02, T-06, T-07, T-08, T-18 ถัดไป: T-03 -> T-04 -> T-05 และ T-09 -> T-10 -> ที่เหลือ
+- เฟสแรกที่ลองใช้งานได้จริง: เฟส 1 (เห็นรายการคำขอที่รอส่งมอบ) migration 0003 ของ 002 merge แล้ว
 
 เทคโนโลยีตาม plan.md ข้อ 2: Go (net/http + pgx), PostgreSQL 16, React + Vite, เก็บรูปบน Docker volume
 (ทีมเลือกเอง ไม่ได้มาจาก spec ยกเว้น PostgreSQL / HTTPS / Docker ตาม CON-TECH-01, 02)
@@ -20,7 +20,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
 - ไม่แก้โครงตาราง `loan` ของ 001 ข้อมูลการส่งมอบอยู่ในตาราง `handover` ของ 005 (seed และ test ของ 001 ไม่พัง ไม่ต้องแก้ DM-05)
 - migration ของ 005 มี 2 ไฟล์ เลขถัดจาก 0005 ของ 003 ต้องจองในกลุ่มก่อน ไฟล์ action ต้องมีทุกค่าเดิมใน CHECK (list, search, detail, cancel, request, notify และของ 004)
 - 16:00 ใช้ `LoanNormalReturnHour` ชื่อเดียวกับ plan ของ 002 (002 สร้าง 005 ใช้ตัวเดิม ถ้า 005 ทำก่อนให้สร้างชื่อนี้)
-- error ตอบเป็น `{code, message}` ตาม CON-TECH-03 ใช้รหัสกลางเท่านั้น รหัสใหม่ต้องลงทะเบียนก่อน (Q-P4)
+- error ตอบเป็น `{code, message}` ตาม CON-TECH-03 ใช้รหัสกลางเท่านั้น รหัสใหม่ 3 ตัวของ 005 ลงทะเบียนแล้ว (Q-P4)
 - สถานะคำขอที่ส่งมอบได้อ่านจาก `HandoverReadyStatuses()` ใน config ไม่ต้องแก้ของ 002 ไม่อ่านตารางของ 004
 - audit log ใช้ writer.go ของ 001 ถ้ามีแล้ว ถ้ายังไม่มีเขียนใน repository ของ 005 (แผนสำรองแบบ 003) ไม่สร้าง package `audit` เอง
 - ไฟล์ของกลาง (`config.go`, `config.js`, `main.go`, `App.jsx`, `client.js`, `docker-compose.yml`) เพิ่มต่อท้ายเป็นบล็อกของ 005 เท่านั้น ทำหลัง merge 003
@@ -53,8 +53,8 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
 - ไฟล์ที่แตะ: `backend/internal/handover/handler.go`, `backend/internal/handover/errors.go`, `backend/internal/handover/handler_test.go`, `backend/cmd/server/main.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
-- เสร็จเมื่อ: `TestHandover_NonStaffForbidden` ผ่าน (ทั้ง 3 route ตอบ 403 `{code, message}` ด้วยรหัสที่ลงทะเบียนใน Q-P4 (เสนอ `FORBIDDEN_ROLE`) เมื่อใช้ `mock-student-001` และตอบ 401 เมื่อไม่มี token ผ่าน middleware เดิม)
-- สถานะ: รอ Q-P4
+- เสร็จเมื่อ: `TestHandover_NonStaffForbidden` ผ่าน (ทั้ง 3 route ตอบ 403 `{code, message}` `FORBIDDEN_ROLE` เมื่อใช้ `mock-student-001` และตอบ 401 เมื่อไม่มี token ผ่าน middleware เดิม)
+- สถานะ: พร้อมทำ
 
 #### จุดตรวจเฟส 0
 - test ที่ต้องผ่านทั้งหมด: TestMigration_HandoverPhotoContentType, TestMigration_HandoverIdentityMethod, TestHandover_NonStaffForbidden และ test เดิมของ 001 ทั้งหมด
@@ -63,7 +63,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
   Given เปิดฐานข้อมูลและหลังบ้านแล้ว
   When เรียก `GET http://localhost:8000/api/v1/handover/requests` ด้วย `Bearer mock-student-001`
   Then ได้ 403 และ body `{code, message}`
-- ยังขาด: T-03 รอ Q-P4
+- ยังขาด: ไม่มี
 
 ---
 
@@ -94,7 +94,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
   Given ข้อมูลตัวอย่างมีคำขออนุมัติแล้ว 2 รายการ (อุปกรณ์คนละชิ้น) ยังไม่อนุมัติ 1 และส่งมอบแล้ว 1
   When เข้าหน้ารายการคำขอเพื่อส่งมอบในฐานะ `mock-staff-001`
   Then เห็นเฉพาะคำขอที่อนุมัติแล้วและยังไม่ส่งมอบ 2 รายการ
-- ยังขาด: ไม่มี (ขึ้นกับ T-03 ที่รอ Q-P4)
+- ยังขาด: ไม่มี
 
 ---
 
@@ -135,7 +135,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-03, T-08
 - เสร็จเมื่อ: `TestAC_HND_02_AuthApiVerifiedAndCardChecked/verify_borrower` ผ่าน (`POST .../verify-borrower` คืน `verified`)
-- สถานะ: รอ Q-HND-11 (รูปแบบ input ที่เคาน์เตอร์)
+- สถานะ: พร้อมทำ (ผู้ยืมล็อกอินบนเครื่องเจ้าหน้าที่ ASM-HND-09 prototype = token จำลอง)
 
 ### T-10 สร้าง API บันทึกการส่งมอบ
 - รองรับ: FR-HND-02, FR-HND-03, FR-HND-05, FR-HND-07
@@ -144,7 +144,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06, T-07, T-09
 - เสร็จเมื่อ: `TestAC_HND_07_HandoverCreatesLoan` และ `TestAC_HND_02_AuthApiVerifiedAndCardChecked` ผ่าน (201 พร้อมชื่อ นามสกุล รหัสนักศึกษา เวลาที่ส่งมอบใน Loan / `cardChecked=false` ได้ 422 `VALIDATION_FAILED` ระบุช่อง `cardChecked` ไม่มี Loan)
-- สถานะ: รอ Q-HND-13
+- สถานะ: พร้อมทำ (ชื่อ-นามสกุลเจ้าหน้าที่พิมพ์ตามบัตร ASM-HND-10 หลังบ้านยืนยันผู้ยืมซ้ำด้วย credential ตาม plan v1.4)
 
 ### T-11 สร้างหน้า HandoverForm ส่วนตรวจบัตร แนบรูป และบันทึก
 - รองรับ: FR-HND-03, FR-HND-06, FR-HND-07
@@ -162,7 +162,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
 - แบบหน้าจอ: ไม่มี (ไม่มี mockup ทีมออกแบบเอง)
 - ต้องทำหลัง: T-11
 - เสร็จเมื่อ: `AC-HND-02.test.jsx` ผ่านกรณียืนยันตัวตนผู้ยืมก่อนบันทึก
-- สถานะ: รอ Q-HND-11
+- สถานะ: พร้อมทำ
 
 #### จุดตรวจเฟส 2
 - test ที่ต้องผ่านทั้งหมด: TestRepository_CreateHandover, TestPhotoStore_SaveAndRemove, TestVerifier_Mock, TestAC_HND_02_AuthApiVerifiedAndCardChecked, TestAC_HND_07_HandoverCreatesLoan, AC-HND-02.test.jsx และ test ของเฟส 0-1
@@ -172,7 +172,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
   When เจ้าหน้าที่เลือกคำขอ ยืนยันตัวตนผู้ยืม ติ๊กว่าตรวจบัตรแล้ว แนบรูป แล้วกดบันทึก
   Then บันทึกสำเร็จ หน้ารายละเอียดอุปกรณ์ของ 001 แสดง "ถูกยืม" และคำขอหายจากรายการรอส่งมอบ
        ลองอีกครั้งโดยไม่ติ๊กตรวจบัตร ต้องบันทึกไม่ได้
-- ยังขาด: T-09, T-10, T-12 (รอ Q-HND-11, Q-HND-13)
+- ยังขาด: ไม่มี
 
 ---
 
@@ -194,7 +194,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
   Given คำขออนุมัติแล้ว และ verifier จำลองไม่ตอบ
   When เจ้าหน้าที่ยืนยันตัวตนผู้ยืม รอเกิน 10 วินาที ติ๊กตรวจบัตร แล้วบันทึก
   Then บันทึกสำเร็จ Loan มี `identity_method = card_only`
-- ยังขาด: ส่วนหน้าจอขึ้นกับ T-12 (รอ Q-HND-11)
+- ยังขาด: ไม่มี
 
 ---
 
@@ -250,8 +250,8 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
 - ไฟล์ที่แตะ: `backend/internal/handover/service.go`, `backend/internal/handover/handler_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10
-- เสร็จเมื่อ: `TestAC_HND_01_RequestNotApproved` ผ่าน (409 ด้วยรหัสที่ลงทะเบียนใน Q-P4 (เสนอ `REQUEST_NOT_APPROVED`) ไม่มี Loan อุปกรณ์ยัง `available`)
-- สถานะ: รอ Q-P4
+- เสร็จเมื่อ: `TestAC_HND_01_RequestNotApproved` ผ่าน (409 `REQUEST_NOT_APPROVED` ไม่มี Loan อุปกรณ์ยัง `available`)
+- สถานะ: พร้อมทำ
 
 #### จุดตรวจเฟส 6
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_01_RequestNotApproved และ test ของเฟส 0-5
@@ -260,7 +260,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
   Given คำขอที่ยังไม่อนุมัติในข้อมูลตัวอย่าง อุปกรณ์ "ว่าง"
   When เรียก `POST /api/v1/handover/requests/{requestId}/handover` ด้วย `mock-staff-001`
   Then ได้ 409 และอุปกรณ์ยัง "ว่าง"
-- ยังขาด: ไม่มี (ขึ้นกับ T-10 ที่รอ Q-HND-13)
+- ยังขาด: ไม่มี
 
 ---
 
@@ -291,7 +291,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
   Given ตั้งอุปกรณ์ของคำขออนุมัติแล้วเป็น "ไม่พร้อมใช้งาน" ในฐานข้อมูล
   When เจ้าหน้าที่บันทึกการส่งมอบ
   Then บันทึกไม่ได้ หน้าจอแสดงข้อผิดพลาด และสถานะอุปกรณ์ยังเป็น "ไม่พร้อมใช้งาน"
-- ยังขาด: ไม่มี (แต่ขึ้นกับ T-10 ที่รอ Q-HND-13)
+- ยังขาด: ไม่มี
 
 ---
 
@@ -325,8 +325,8 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
 - ไฟล์ที่แตะ: `backend/internal/handover/service.go`, `backend/internal/handover/handler_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-08, T-10
-- เสร็จเมื่อ: `TestAC_HND_10_BorrowerMismatch` ผ่าน (verifier คืนนักศึกษา B สำหรับคำขอของ A ได้ 409 ด้วยรหัสที่ลงทะเบียนใน Q-P4 (เสนอ `BORROWER_MISMATCH`) อุปกรณ์ยัง `available`)
-- สถานะ: รอ Q-P4 (เทียบกับ `borrow_request.requester_id` ซึ่งเป็นรหัสจากการล็อกอิน ตาม ASM-BRQ-06 ของ 002)
+- เสร็จเมื่อ: `TestAC_HND_10_BorrowerMismatch` ผ่าน (verifier คืนนักศึกษา B สำหรับคำขอของ A ได้ 409 `BORROWER_MISMATCH` อุปกรณ์ยัง `available`)
+- สถานะ: พร้อมทำ (เทียบกับ `borrow_request.requester_id` ซึ่งเป็นรหัสจากการล็อกอิน ตาม ASM-BRQ-06 ของ 002)
 
 #### จุดตรวจเฟส 9
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_10_BorrowerMismatch และ test ของเฟส 0-8
@@ -335,7 +335,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
   Given คำขออนุมัติแล้วของ `mock-student-001`
   When ผู้ที่ยืนยันตัวตนที่เคาน์เตอร์คือ `mock-student-101` แล้วเจ้าหน้าที่กดบันทึก
   Then บันทึกไม่ได้ และอุปกรณ์ยัง "ว่าง"
-- ยังขาด: ส่วนหน้าจอรอ Q-HND-11 (ผ่าน T-12)
+- ยังขาด: ไม่มี
 
 ---
 
@@ -464,7 +464,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.5) | Plan: plan.md Draft v1.3 | tasks v1.3:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-13
 - เสร็จเมื่อ: ยืนยันตัวตนผู้ยืมกับ Auth API จริงได้ และ `TestAC_HND_02`, `TestAC_HND_03` ยังผ่าน
-- สถานะ: รอ Q-HND-11, Q-SH-03
+- สถานะ: รอ Q-SH-03 (วิธีล็อกอินที่เคาน์เตอร์ตอบแล้วใน ASM-HND-09 เหลือโปรโตคอลของ Auth API ตัวจริง)
 
 ### T-30 รองรับการส่งมอบยืมแบบค้างคืน
 - รองรับ: FR-HND-01, FR-HND-05, FR-HND-06
@@ -546,8 +546,8 @@ FR ทุกข้อมี AC แต่ส่วนยืมแบบค้า�
 | Q-HND-07 ต้องทดสอบยืมแบบค้างคืนเทอมนี้ไหม (ขึ้นกับว่า 004 ทำ UC-14 ไหม) -> ทีม + เจ้าของ 004 | T-30 |
 | Q-HND-09 เวลาตอบสนองของการบันทึกการส่งมอบ -> เจ้าหน้าที่ | ไม่มี task (ไม่มี NFR ID รองรับ จะเสนอเป็น NFR เมื่อได้คำตอบ) |
 | Q-HND-10 10 MB ต่อรูปหรือรวม และมากสุดกี่รูป -> เจ้าหน้าที่ | T-28 |
-| Q-HND-11 ผู้ยืมยืนยันตัวตนที่เคาน์เตอร์อย่างไร -> นักเทคโนโลยีสารสนเทศ | T-09, T-12, T-29 |
-| Q-HND-13 ชื่อ-นามสกุลผู้ยืมมาจากไหน (ไม่ต้องแก้ DM-05 แล้ว เก็บในตาราง `handover`) -> ทีม / นักเทคโนโลยีสารสนเทศ | T-10 |
+| Q-HND-11 [ปิดแล้ว] ผู้ยืมล็อกอินบนเครื่องเจ้าหน้าที่ (ASM-HND-09) | ไม่มี task รอ |
+| Q-HND-13 [ปิดแล้ว] เจ้าหน้าที่พิมพ์ชื่อตามบัตร (ASM-HND-10) | ไม่มี task รอ |
 | Q-HND-14 ส่งมอบไม่สำเร็จต้องบันทึก audit log ไหม -> เจ้าหน้าที่ | T-27 |
 | Q-HND-15 ย้าย CON-HND-01 ไป constraints.md ไหม -> ทีม | ไม่มี task (ไม่กระทบโค้ด) |
 | Q-SH-03 auth จริง (ของกลาง) | T-29 |
@@ -556,6 +556,6 @@ FR ทุกข้อมี AC แต่ส่วนยืมแบบค้า�
 | Q-SH-08 ระบบยืนยันตัวตนเชื่อมต่อไม่ได้ตอนเข้าใช้ทั่วไป | ไม่มี task (ใช้ middleware เดิมของ 001) |
 | Q-P2 (plan) ส่งมอบหลัง 16:00 ขัดกับ Email ของ 004 / จำกัดเจ้าหน้าที่ตามภาควิชาไหม -> ทีม | T-25 (ส่วนเวลา) ส่วนภาควิชาไม่มี task เพราะไม่มีใน spec |
 | Q-P3 [หมดไปแล้ว] 004 spec v1 ไม่มีที่เก็บกำหนดคืนตอนอนุมัติ 005 เป็นที่เดียวที่บันทึกกำหนดคืน | ไม่มี task รอ |
-| Q-P4 (plan v1.3) ลงทะเบียนรหัส error `FORBIDDEN_ROLE`, `REQUEST_NOT_APPROVED`, `BORROWER_MISMATCH` ใน CON-TECH-03 -> ทีม | T-03, T-16, T-20 |
+| Q-P4 [ปิดแล้ว] ลงทะเบียน `FORBIDDEN_ROLE`, `REQUEST_NOT_APPROVED`, `BORROWER_MISMATCH` ใน CON-TECH-03 แล้ว | ไม่มี task รอ |
 
 นอกจากนี้ยังต้องทำก่อนเริ่ม (ไม่ใช่ Open Question): แจ้งกลุ่มว่า 005 ใช้ migration 0006, 0007 (T-02, T-26), merge 003 ก่อนแตะ `App.jsx`/`client.js`, แจ้ง 006 เรื่อง volume `photos`

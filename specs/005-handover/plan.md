@@ -1,5 +1,5 @@
 # Implementation Plan: บันทึกการส่งมอบอุปกรณ์ (Handover)
-Spec: SPEC-HND-005 (specs/005-handover/spec.md, Draft v2.5) | Plan status: Draft v1.3 | Updated: 2569-11-11 (v1.1 ไม่กระทบฟีเจอร์อื่น, v1.2 รับผล CR-003, v1.3 รับผล CR-004, migration 0003 และ 004 spec v1)
+Spec: SPEC-HND-005 (specs/005-handover/spec.md, Draft v2.6) | Plan status: Draft v1.4 | Updated: 2569-11-11 (v1.1 ไม่กระทบฟีเจอร์อื่น, v1.2 รับผล CR-003, v1.3 รับผล CR-004, migration 0003 และ 004 spec v1, v1.4 ปิด Q-HND-11, Q-HND-13, Q-P4)
 Owner: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn101219)
 
 ## 1. สรุปแนวทาง
@@ -18,7 +18,7 @@ Owner: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn10121
 | React + Vite, vitest | ทีมเลือกเอง ไม่ได้มาจาก spec | ค่าเริ่มต้นของรายวิชา |
 | golang-migrate (SQL ล้วน) | ทีมเลือกเอง ไม่ได้มาจาก spec | migration ใหม่เท่านั้น ห้ามแก้ 0001, 0002 |
 | เก็บไฟล์รูปบน Docker volume (โฟลเดอร์บนดิสก์) | ทีมเลือกเอง ไม่ได้มาจาก spec (Q-P1 ปิดแล้ว) | SRS 2.3 บอกว่ามี "ที่เก็บไฟล์" แต่ไม่บอกชนิด ต้องรวม volume ใน backup รายวัน |
-| auth จำลอง (`auth.MockProvider`) สำหรับเจ้าหน้าที่และผู้ยืม | ทีมเลือกเอง ไม่ได้มาจาก spec (Q-SH-03) | ผู้ยืมผ่าน interface `BorrowerVerifier` เปลี่ยนเป็นตัวจริงได้เมื่อตอบ Q-HND-11 |
+| auth จำลอง (`auth.MockProvider`) สำหรับเจ้าหน้าที่และผู้ยืม | ทีมเลือกเอง ไม่ได้มาจาก spec (Q-SH-03) | ผู้ยืมผ่าน interface `BorrowerVerifier` ผู้ยืมล็อกอินบนเครื่องเจ้าหน้าที่ (ASM-HND-09) เปลี่ยนเป็นตัวจริงได้เมื่อตอบ Q-SH-03 |
 
 ## 3. โมเดลข้อมูล
 ตาราง `equipment_item`, `loan` (0001) และ `audit_log` (0002) มีแล้ว ตาราง `borrow_request` เป็นของ 002 (migration 0003)
@@ -27,7 +27,7 @@ Owner: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn10121
 | Entity / การเปลี่ยน | ฟิลด์หลัก | รองรับ |
 |---|---|---|
 | `loan` (DM-05) **ไม่แก้โครงตาราง** | INSERT ด้วยคอลัมน์เดิม `item_id`, `borrower_id` (รหัสนักศึกษาที่ยืนยันแล้ว), `loan_type`, `due_at` | FR-HND-07 |
-| `handover` (ใหม่ เฉพาะ 005 ผูก 1:1 กับ `loan`) | `loan_id` PK/FK -> `loan`, `request_id` FK -> `borrow_request` UNIQUE, `handed_over_at TIMESTAMPTZ`, `handed_over_by` (รหัสเจ้าหน้าที่), `borrower_student_id`, `borrower_first_name`, `borrower_last_name`, `identity_method` CHECK IN (`auth_api`, `card_only`), `card_checked BOOLEAN NOT NULL CHECK (card_checked)` | FR-HND-02, 03, 05, 07 (ชื่อ-นามสกุลรอ Q-HND-13 เรื่องที่มา) |
+| `handover` (ใหม่ เฉพาะ 005 ผูก 1:1 กับ `loan`) | `loan_id` PK/FK -> `loan`, `request_id` FK -> `borrow_request` UNIQUE, `handed_over_at TIMESTAMPTZ`, `handed_over_by` (รหัสเจ้าหน้าที่), `borrower_student_id`, `borrower_first_name`, `borrower_last_name`, `identity_method` CHECK IN (`auth_api`, `card_only`), `card_checked BOOLEAN NOT NULL CHECK (card_checked)` | FR-HND-02, 03, 05, 07 (ชื่อ-นามสกุลเจ้าหน้าที่พิมพ์ตามบัตร ASM-HND-10, รหัสนักศึกษา = รหัสผู้ใช้จากการยืนยัน ASM-HND-09) |
 | `loan.due_at` (มีแล้ว) | ยืมปกติ = 16:00 ของวันส่งมอบ / ค้างคืน = 16:00 ของวันที่สิ้นสุดการยืมในคำขอ (Q-SH-04, CR-003) คำนวณใน 005 เอง ไม่อ่านค่าจากตารางของ 004 | FR-HND-05 (ส่งมอบหลัง 16:00 รอ Q-HND-03, ค้างคืนรอ Q-HND-07) |
 | `handover_photo` (ใหม่) | `id`, `loan_id` FK -> `handover`, `file_path`, `content_type` CHECK IN (`image/jpeg`, `image/png`), `size_bytes`, `uploaded_at` | FR-HND-06 |
 | `equipment_item.status` (มีแล้ว) | `available` -> `borrowed` | FR-HND-04, 07, CON-DATA-01 |
@@ -49,15 +49,15 @@ Owner: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn10121
 | Method / Path | รองรับ | Input / Output หลัก |
 |---|---|---|
 | `GET /api/v1/handover/requests` | FR-HND-01 | out: `[{requestId, assetCode, modelName, requesterStudentId, submittedAt}]` เฉพาะสถานะอนุมัติแล้วและยังไม่ส่งมอบ |
-| `POST /api/v1/handover/requests/{requestId}/verify-borrower` | FR-HND-02 | in: ข้อมูลยืนยันตัวตนผู้ยืม (รูปแบบรอ Q-HND-11) out: `{result: "verified"\|"mismatch"\|"unavailable"}` ถ้า Auth API ไม่ตอบภายใน 10 วินาที = `unavailable` |
-| `POST /api/v1/handover/requests/{requestId}/handover` (multipart) | FR-HND-02 ถึง 08 | in: `cardChecked=true`, `identityMethod`, `photos[]` out 201: `{loanId, assetCode, handedOverAt, dueAt}` |
+| `POST /api/v1/handover/requests/{requestId}/verify-borrower` | FR-HND-02 | in: `{borrowerCredential}` ผู้ยืมล็อกอินบัญชีมหาวิทยาลัยบนเครื่องเจ้าหน้าที่ (ASM-HND-09, prototype = token จำลอง) out: `{result: "verified"|"mismatch"|"unavailable", userId}` ถ้า Auth API ไม่ตอบภายใน 10 วินาที = `unavailable` ใช้แสดงผลบนหน้าจอก่อนบันทึก |
+| `POST /api/v1/handover/requests/{requestId}/handover` (multipart) | FR-HND-02 ถึง 08 | in: `borrowerCredential`, `borrowerFirstName`, `borrowerLastName` (เจ้าหน้าที่พิมพ์ตามบัตร ASM-HND-10), `cardChecked=true`, `photos[]` out 201: `{loanId, assetCode, handedOverAt, dueAt}` **หลังบ้านยืนยันผู้ยืมซ้ำเองด้วย `borrowerCredential` และกำหนด `identity_method` เอง ไม่เชื่อค่าที่หน้าจอส่งมา** รหัสนักศึกษาที่บันทึก = รหัสผู้ใช้จากการยืนยัน (ASM-HND-09) |
 
 Error contract ของ `POST ./handover` ตอบเป็น `{code, message}` ตาม CON-TECH-03 (CR-004) ใช้รหัสจากรายการกลางเท่านั้น:
 | กรณี | HTTP | code | อ้างอิง |
 |---|---|---|---|
-| ไม่ใช่เจ้าหน้าที่ | 403 | `FORBIDDEN_ROLE` **ยังไม่อยู่ในรายการกลาง ต้องลงทะเบียน (Q-P4)** | CON-HND-01, AC-HND-09 |
-| คำขอไม่ใช่ `approved` (ยังไม่อนุมัติ หรือส่งมอบไปแล้ว) | 409 | `REQUEST_NOT_APPROVED` **ต้องลงทะเบียน (Q-P4)** | FR-HND-01, AC-HND-01 |
-| ผู้ยืมไม่ใช่ผู้ส่งคำขอ | 409 | `BORROWER_MISMATCH` **ต้องลงทะเบียน (Q-P4)** | FR-HND-02, AC-HND-10 |
+| ไม่ใช่เจ้าหน้าที่ | 403 | `FORBIDDEN_ROLE` | CON-HND-01, AC-HND-09 |
+| คำขอไม่ใช่ `approved` (ยังไม่อนุมัติ หรือส่งมอบไปแล้ว) | 409 | `REQUEST_NOT_APPROVED` | FR-HND-01, AC-HND-01 |
+| ผู้ยืมไม่ใช่ผู้ส่งคำขอ | 409 | `BORROWER_MISMATCH` | FR-HND-02, AC-HND-10 |
 | ไม่ได้ยืนยันการตรวจบัตร | 422 | `VALIDATION_FAILED` (ช่องที่ผิด: `cardChecked`) | FR-HND-03, AC-HND-02, 03 |
 | อุปกรณ์ไม่ "ว่าง" | 409 | `ITEM_NOT_AVAILABLE` | FR-HND-04, AC-HND-04, 13 |
 | รูปไม่ครบ ชนิดผิด หรือใหญ่เกิน | 422 | `VALIDATION_FAILED` (ช่องที่ผิด: `photos`) | FR-HND-06, AC-HND-12 |
@@ -85,13 +85,13 @@ audit log: ถ้า `backend/internal/audit/writer.go` ของ 001 (T-19 ข�
 |---|---|---|
 | CON-TECH-01 | ข้อ 2, 3: PostgreSQL ตารางเดิม + migration ใหม่ | ใช้แล้ว |
 | CON-TECH-02 | ข้อ 2: ใช้ HTTPS/Docker ของ `deploy/` เดิม ไม่เปิด endpoint ผ่าน HTTP | ใช้แล้ว |
-| CON-TECH-03 | ข้อ 4: error contract ใช้ `{code, message}` และรหัสกลาง รหัสใหม่ 3 ตัวรอลงทะเบียน (Q-P4) | ใช้แล้วบางส่วน รอ Q-P4 |
+| CON-TECH-03 | ข้อ 4: error contract ใช้ `{code, message}` และรหัสกลาง รหัสใหม่ 3 ตัวลงทะเบียนแล้ว (Q-P4) | ใช้แล้ว |
 | CON-DATA-01 | ข้อ 3, 4: เปลี่ยนเฉพาะ `available` -> `borrowed` ไม่มีค่าใหม่ | ใช้แล้ว |
 | CON-DATA-03 | ข้อ 4: ระบุอุปกรณ์ด้วย `asset_code` ใน response และ audit log | ใช้แล้ว |
 | DOM-AUDIT-01 | ข้อ 3, 4: เขียน `audit_log` ทุกครั้งที่บันทึกการส่งมอบ ผ่าน package `audit` เดิม | ใช้แล้ว (ค่า action รอ Q-HND-06) |
 | DOM-LOAN-01 | ข้อ 3, 5: `due_at` = 16:00 Asia/Bangkok ของวันส่งมอบ | ใช้แล้วบางส่วน ส่วน "ใช้ได้เฉพาะในพื้นที่มหาวิทยาลัย" ยังไม่ได้ใช้ เพราะรอ Q-HND-04 |
 | DOM-REQ-01 | ข้อ 4: สถานะเปลี่ยนเป็น `borrowed` ที่ transaction ของฟีเจอร์นี้เท่านั้น ไม่แตะคำขออื่น | ใช้แล้ว |
-| IF-IDP-01 | ข้อ 4: `auth` middleware สำหรับเจ้าหน้าที่ + `BorrowerVerifier` สำหรับผู้ยืม timeout 10 วินาที | ใช้แล้ว (วิธียืนยันผู้ยืมรอ Q-HND-11) |
+| IF-IDP-01 | ข้อ 4: `auth` middleware สำหรับเจ้าหน้าที่ + `BorrowerVerifier` สำหรับผู้ยืม timeout 10 วินาที | ใช้แล้ว (ผู้ยืมล็อกอินบนเครื่องเจ้าหน้าที่ ASM-HND-09 Auth API ตัวจริงรอ Q-SH-03) |
 | CON-HND-01 | ข้อ 4: ตรวจ `role == staff` ทุก endpoint | ใช้แล้ว |
 
 ### ค่าที่ตั้งได้
@@ -158,10 +158,10 @@ test หลังบ้านอยู่ที่ `backend/internal/handover/ha
   ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (ไม่มี test ด้านเวลา)
 - Q-HND-10 "ไม่เกิน 10 MB" ต่อรูปหรือรวม และแนบได้มากสุดกี่รูป -> ถามเจ้าหน้าที่
   ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (การตรวจขนาดรูป)
-- Q-HND-11 ผู้ยืมยืนยันตัวตนผ่าน Auth API ที่เคาน์เตอร์อย่างไร -> ถามนักเทคโนโลยีสารสนเทศ
-  ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (ใช้ verifier จำลองเท่านั้น)
-- Q-HND-13 ชื่อและนามสกุลผู้ยืมได้มาจากไหน (เรื่องเพิ่มคอลัมน์ใน DM-05 ไม่ต้องถามแล้ว เพราะ v1.1 เก็บในตาราง `handover` ของ 005) -> ทีม / นักเทคโนโลยีสารสนเทศ
-  ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ
+- Q-HND-11 [ปิดแล้ว 2569-11-11] ผู้ยืมล็อกอินบัญชีมหาวิทยาลัยบนเครื่องเจ้าหน้าที่ (ASM-HND-09)
+  ไม่ต้องรอแล้ว prototype ใช้ verifier จำลอง ตัวจริงรอ Q-SH-03 (T-29)
+- Q-HND-13 [ปิดแล้ว 2569-11-11] เจ้าหน้าที่พิมพ์ชื่อและนามสกุลตามบัตรนักศึกษาหรือบัตรประชาชน (ASM-HND-10)
+  ไม่ต้องรอแล้ว
 - Q-HND-14 การส่งมอบที่ไม่สำเร็จต้องบันทึก audit log ด้วยไหม -> ถามเจ้าหน้าที่
   ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ
 - Q-HND-15 ย้าย CON-HND-01 ไป constraints.md ไหม -> ทีม
@@ -182,6 +182,6 @@ test หลังบ้านอยู่ที่ `backend/internal/handover/ha
   ยังเปิด: ส่งมอบหลัง 16:00 กับข้อความใน Email ของ 004 (เนื้อหา Email รอ Q-APV-03 ของ 004, กำหนดคืนรอ Q-HND-03)
   และจะจำกัดให้เจ้าหน้าที่ส่งมอบได้เฉพาะอุปกรณ์ภาควิชาตนเองไหม (004 spec v1 ยังเปิดที่ Q-APV-08) -> ทีมตัดสิน
 - Q-P3 [หมดไปแล้ว 2569-11-11] 004 spec v1 ไม่มีตารางที่เก็บกำหนดคืนตอนอนุมัติ ช่วงรับก่อน 16:00 และงานปฏิเสธอัตโนมัติ 16:00 แล้ว 005 เป็นที่เดียวที่บันทึกกำหนดคืน (ตรงกับ DM-05)
-- Q-P4 [ใหม่ v1.3 จาก CR-004] รหัส error 3 ตัวที่ยังไม่อยู่ในรายการกลาง CON-TECH-03: `FORBIDDEN_ROLE` (403), `REQUEST_NOT_APPROVED` (409), `BORROWER_MISMATCH` (409)
-  CR-004 บอกว่าต้องเพิ่มแถวในตารางของ `constraints.md` ก่อนใช้ ไฟล์นี้เป็นของกลาง ต้องแจ้งกลุ่มก่อนเพิ่ม -> ทีม
-  ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (T-03, T-16, T-20)
+- Q-P4 [ปิดแล้ว 2569-11-11 ทีมเลือกทางที่ 1] ลงทะเบียน `FORBIDDEN_ROLE` (403), `REQUEST_NOT_APPROVED` (409), `BORROWER_MISMATCH` (409) ในตาราง CON-TECH-03 ของ `constraints.md`
+  ตามกติกาของ CR-004 ("เพิ่มแถวในตารางก่อนใช้") ไม่ต้องทำ CR แต่ต้องแจ้งกลุ่ม
+  ไม่ต้องรอแล้ว (T-03, T-16, T-20)

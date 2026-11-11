@@ -1,5 +1,5 @@
 # Constraint ที่ใช้ร่วมทุกฟีเจอร์ (shared constraints)
-Status: v5 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบบและรายการรหัส error กลาง ตาม CR-004) | Source: Miro (Requirement table, Use Case Diagram, Architecture), spec 001
+Status: v5.1 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบบและรายการรหัส error กลาง ตาม CR-004, v5.1 เพิ่มรหัส error 3 ตัวของ 005 ตามกติกาของ CON-TECH-03) | Source: Miro (Requirement table, Use Case Diagram, Architecture), spec 001
 
 กติกา: Constraint ที่ใช้มากกว่า 1 ฟีเจอร์ เขียนที่นี่ **ที่เดียว** spec ของแต่ละฟีเจอร์อ้าง ID ในหมวด Constraints ไม่ copy ข้อความ
 ถ้าแก้ไฟล์นี้ ต้องทำ CR และดู Impact Analysis กับทุก spec ที่อ้าง ID นั้น (ดู rtm.md ของแต่ละฟีเจอร์)
@@ -21,6 +21,9 @@ Status: v5 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบบ
   | `ITEM_NOT_AVAILABLE` | 409 | อุปกรณ์ไม่ได้อยู่ในสถานะ "ว่าง" แล้ว | 002 |
   | `DUPLICATE_REQUEST` | 409 | ผู้ขอคนเดิมมีคำขอที่ยังไม่จบของอุปกรณ์ชิ้นเดิมอยู่แล้ว | 002 |
   | `HAS_OVERDUE_LOAN` | 409 | ผู้ขอมีอุปกรณ์ที่คืนเกินกำหนดค้างอยู่ | 002 |
+  | `FORBIDDEN_ROLE` | 403 | ยืนยันตัวตนแล้วและบทบาทถูกต้อง แต่บทบาทนี้ไม่มีสิทธิ์ทำสิ่งนี้ (เช่น นักศึกษาเรียกงานของเจ้าหน้าที่) | 005 (ลงทะเบียน 2569-11-11) |
+  | `REQUEST_NOT_APPROVED` | 409 | คำขอยืมไม่อยู่ในสถานะที่ทำสิ่งนี้ได้ (ยังไม่อนุมัติ หรือส่งมอบไปแล้ว) | 005 (ลงทะเบียน 2569-11-11) |
+  | `BORROWER_MISMATCH` | 409 | ผู้ที่ยืนยันตัวตนไม่ใช่ผู้ส่งคำขอ | 005 (ลงทะเบียน 2569-11-11) |
 
   ฟีเจอร์ที่ต้องการรหัสใหม่ ให้เพิ่มแถวในตารางนี้ก่อนใช้ ห้ามตั้งรหัสเองในโค้ดโดยไม่ลงทะเบียน
 
@@ -85,7 +88,7 @@ Status: v5 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบบ
 |---|---|
 | CON-TECH-01 | 001-equipment-status, 002-borrow-request, 005-handover |
 | CON-TECH-02 | 001-equipment-status, 002-borrow-request, 005-handover |
-| CON-TECH-03 | 001-equipment-status (รหัสเดิม 4 ตัว), 002-borrow-request, 005-handover (ต้องลงทะเบียนรหัสใหม่ 3 ตัว ดู Q-P4 ใน plan ของ 005) |
+| CON-TECH-03 | 001-equipment-status (รหัสเดิม 4 ตัว), 002-borrow-request, 005-handover (ลงทะเบียน FORBIDDEN_ROLE, REQUEST_NOT_APPROVED, BORROWER_MISMATCH) |
 | CON-DATA-01 | 001-equipment-status, 002-borrow-request (ส่งคำขอได้เฉพาะชิ้นที่ "ว่าง"), 005-handover |
 | CON-DATA-03 | 001-equipment-status, 002-borrow-request, 005-handover |
 | DOM-PRIV-01 | 001-equipment-status, 002-borrow-request (ไม่เปิดเผยชื่อผู้ขอรายอื่น FR-BRQ-05) |
