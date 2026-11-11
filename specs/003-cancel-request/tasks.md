@@ -20,8 +20,10 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 ต้องเคลียร์ก่อนเริ่ม /implement (ไม่ใช่ Q ใน spec จึงไม่ได้ใส่เป็นสถานะของ task)
 - ~~โครงกลางยังไม่อยู่ใน main~~ merge เข้า main และเข้า branch 003 แล้ว (2569-11-11)
 - เลข migration ต้องจองในกลุ่มก่อน: data-model.md จอง `0003_borrow_request` ให้ 002 และ `0004` ขึ้นไปให้ 003 (T-01, T-30)
+  จองในกลุ่มแล้ว 2569-11-11: 003 ได้ `0004` และ `0005`
 - ชื่อคอลัมน์และค่าสถานะของ `borrow_request` ต้องตกลงกับเจ้าของ 002 ก่อนทำ T-01 (ASM-09, ASM-11)
 - 004 ต้องใช้เงื่อนไขสถานะตอนอนุมัติ (ASM-05) ไม่กระทบ task ของ 003 แต่กระทบผลของ AC-CXL-04 ตอนลองทั้งระบบ
+  ณัฐสุดายืนยันแล้ว 2569-11-11: รับกฎไปเขียนใน spec ของ 004 และหน้าอนุมัติซ่อนคำขอ cancelled
 - task ที่แตะไฟล์ของกลาง (`backend/internal/platform/http.go`, `backend/cmd/server/main.go`, `frontend/src/App.jsx`, `frontend/src/api/client.js`, `backend/internal/config/config.go`, `backend/db/migrations/`) ต้องจดใน prompt-log ว่าแก้เพราะ 003 (AGENTS.md)
 
 ---
@@ -82,9 +84,9 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ตรวจด้วย: AC-CXL-08
 - ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/MyPendingRequests.test.jsx`, `frontend/src/api/client.js` (ของกลาง เพิ่ม `listMyPendingRequests`), `frontend/src/App.jsx` (ของกลาง เพิ่มทางเข้าหน้า)
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
-- ต้องทำหลัง: T-04
+- ต้องทำหลัง: T-03 (เดิม T-04 ทีมแก้ 2569-11-11: สัญญา API อยู่ใน plan ข้อ 4 แล้ว และ test หน้าจอใช้ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจเฟส 1 หลัง T-04 เสร็จ)
 - เสร็จเมื่อ: vitest `AC_CXL_08 shows own pending requests newest first` ผ่าน (แต่ละแถวมีชื่อรุ่น รหัสครุภัณฑ์ เวลาที่ส่งแบบ Asia/Bangkok และปุ่มยกเลิก)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 #### จุดตรวจเฟส 1
 - test ที่ต้องผ่านทั้งหมด: `TestMigration_BorrowRequestStatusCheck`, `TestMigration_CancelReasonMaxLen`, `TestConfig_CancellableStatuses`, `TestAC_CXL_08_ListOwnPendingSorted`, vitest `AC_CXL_08 ...` และ test ของ 001 ต้องยังผ่าน

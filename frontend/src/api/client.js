@@ -56,4 +56,8 @@ export const api = {
 
   // 001 FR-EQS-04: รายละเอียดอุปกรณ์รายชิ้น -> { assetCode, status, dueAt? } (dueAt มีเฉพาะถูกยืม)
   getItem: (assetCode) => getJSON(`/v1/equipment/items/${encodeURIComponent(assetCode)}`),
+
+  // 003 FR-CXL-06: คำขอที่ยังยกเลิกได้ของผู้ใช้ที่เข้าสู่ระบบ เรียงใหม่ไปเก่า (plan.md ข้อ 4 ของ 003)
+  //   -> { items: [{ requestId, modelName, assetCode, submittedAt }] }
+  listMyPendingRequests: () => getJSON('/v1/my/pending-requests'),
 }
