@@ -28,7 +28,7 @@ func (h *Handler) Routes(provider auth.Provider) func(*http.ServeMux) {
 	return func(mux *http.ServeMux) {
 		for pattern, handle := range map[string]http.HandlerFunc{
 			"GET /api/v1/returns/open-loans":                      notImplemented, // FR-RET-01(ข), FR-RET-06 ทำใน T-17
-			"GET /api/v1/returns/lookup":                          notImplemented, // FR-RET-01(ก) ทำใน T-05
+			"GET /api/v1/returns/lookup":                          h.lookup,       // FR-RET-01(ก)
 			"POST /api/v1/returns":                                h.recordReturn, // FR-RET-02 ถึง 07
 			"GET /api/v1/returns/loans/{loanId}":                  notImplemented, // FR-RET-06 ทำใน T-14
 			"GET /api/v1/returns/loans/{loanId}/photos/{photoId}": notImplemented, // FR-RET-05 ทำใน T-14
@@ -102,6 +102,21 @@ func readPhotos(r *http.Request) ([]Photo, error) {
 		photos = append(photos, Photo{ContentType: http.DetectContentType(data), Data: data})
 	}
 	return photos, nil
+}
+
+// lookup หาการยืมที่ยังไม่คืนจากรหัสครุภัณฑ์ ก่อนบันทึกการรับคืน (FR-RET-01(ก))
+// ไม่พบ -> 409 NO_OPEN_LOAN (ข้อความบนหน้าจอและ test ของ AC-RET-03 อยู่ใน T-21, T-22)
+func (h *Handler) lookup(w http.ResponseWriter, r *http.Request) {
+	ol, err := h.svc.repo.FindOpenLoan(r.Context(), r.URL.Query().Get("assetCode"))
+	switch {
+	case errors.Is(err, ErrNoOpenLoan):
+		writeJSON(w, http.StatusConflict, map[string]string{"code": "NO_OPEN_LOAN"})
+	case err != nil:
+		log.Printf("returns: lookup: %v", err)
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"code": "UPSTREAM_UNAVAILABLE", "retryable": true})
+	default:
+		writeJSON(w, http.StatusOK, ol)
+	}
 }
 
 // notImplemented ตอบ 501 ให้ endpoint ที่ยังไม่ถึง task ของมัน

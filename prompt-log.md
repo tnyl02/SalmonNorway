@@ -520,3 +520,25 @@
   - ต้องทำ 13 (T-01 ถึง T-06, T-08, T-09, T-11, T-21, T-23, T-25, T-26) / ควรทำ 13 / ไม่ต้องทำตอนนี้ 4 (T-27 ถึง T-30 รอ Q)
 - เกณฑ์ที่ AI ใช้ (ทีมต้องตรวจ): "ต้องทำ" = ไม่ทำแล้วระบบผิดหรือไม่ปลอดภัย, "ควรทำ" = มี AC รองรับแต่ระบบหลักใช้ได้, "ไม่ต้องทำตอนนี้" = ติด Q
 - AI เตือน: ข้าม task ไหน RTM จะแสดงว่า AC นั้นยังไม่ผ่าน / ลำดับที่แนะนำดึง T-25 ขึ้นก่อน แต่ช่อง "ต้องทำหลัง" ของ T-25 ยังชี้ T-17, T-14 ต้องให้ทีมปรับก่อน
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-05 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 1)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำ task ต่อไปได้เลย" -> `/implement T-05 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- `backend/internal/returns/repository.go`: `OpenLoan`, `FindOpenLoan` (isOverdue = now() > due_at ที่ฐานข้อมูล)
+- `backend/internal/returns/handler.go`: `GET /api/v1/returns/lookup?assetCode=` -> 200 / 409 `NO_OPEN_LOAN` / 503
+- `backend/internal/returns/handler_test.go`: `TestReturns_Lookup_FoundOpenLoan`
+
+### ผล test (`cd backend && go test ./... -v`)
+- TestReturns_Lookup_FoundOpenLoan PASS (พบการยืม ข้อมูลครบ isOverdue ถูกทั้งยังไม่เลยและเลยกำหนด, คืนแล้วได้ 409)
+- test เดิมทั้งหมดยัง PASS
+
+### สิ่งที่เกือบต้องเดา
+- ไม่ส่ง `assetCode` มาเลย: ตอบเหมือนหาไม่พบ (409 `NO_OPEN_LOAN`) ไม่สร้าง error code ใหม่ เพราะ plan ข้อ 4 ไม่มี code สำหรับกรณีนี้
+- ยังไม่กรองภาควิชา (T-23) และไม่ลง audit `return_lookup` (T-26)

@@ -270,3 +270,45 @@ func TestAC_RET_01_NormalReturnBecomesAvailable(t *testing.T) {
 		t.Errorf("รูปที่เก็บ = %d, want 1 (FR-RET-05)", photoCount)
 	}
 }
+
+// T-05 เสร็จเมื่อ: lookup คืนการยืมที่ยังไม่คืนของรหัสครุภัณฑ์ (FR-RET-01(ก)) ใช้ในขั้นหาการยืมของ AC-RET-01
+func TestReturns_Lookup_FoundOpenLoan(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+
+	// Given อุปกรณ์ "ถูกยืม" 2 ชิ้น: ชิ้นแรกยังไม่เลยกำหนด ชิ้นที่สองเลยกำหนดแล้ว
+	insertBorrowedItem(t, pool, "T05-LOOKUP", 2*time.Hour)
+	insertBorrowedItem(t, pool, "T05-LATE", -1*time.Hour)
+
+	for _, tc := range []struct {
+		assetCode string
+		overdue   bool
+	}{{"T05-LOOKUP", false}, {"T05-LATE", true}} {
+		// When เจ้าหน้าที่กรอกรหัสครุภัณฑ์
+		rec := call(router, http.MethodGet, "/api/v1/returns/lookup?assetCode="+tc.assetCode, "mock-staff-001")
+
+		// Then ได้การยืมที่ยังไม่คืนพร้อมข้อมูลตาม plan.md ข้อ 4
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d, want 200 body=%s", tc.assetCode, rec.Code, rec.Body.String())
+		}
+		var got OpenLoan
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatal(err)
+		}
+		if got.LoanID == 0 || got.AssetCode != tc.assetCode || got.ModelName == "" ||
+			got.BorrowerID != "student-001" || got.LoanType != "normal" || got.DueAt.IsZero() {
+			t.Errorf("%s: response = %+v ข้อมูลไม่ครบ", tc.assetCode, got)
+		}
+		if got.IsOverdue != tc.overdue {
+			t.Errorf("%s: isOverdue = %v, want %v", tc.assetCode, got.IsOverdue, tc.overdue)
+		}
+		if rec.Header().Get("Cache-Control") != "no-store" {
+			t.Errorf("%s: ต้องมี Cache-Control: no-store", tc.assetCode)
+		}
+	}
+
+	// การยืมที่คืนแล้วต้องหาไม่พบ (CS-NB-0001 คืนแล้วใน seed_006_return.sql) กรณีอื่นของ AC-RET-03 อยู่ใน T-21
+	if rec := call(router, http.MethodGet, "/api/v1/returns/lookup?assetCode=CS-NB-0001", "mock-staff-001"); rec.Code != http.StatusConflict {
+		t.Errorf("อุปกรณ์ที่ไม่มีการยืมค้าง: status = %d, want 409", rec.Code)
+	}
+}

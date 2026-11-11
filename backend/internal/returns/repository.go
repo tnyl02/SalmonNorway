@@ -92,3 +92,32 @@ func (r *Repository) RecordReturn(ctx context.Context, assetCode, condition, new
 
 	return rec, tx.Commit(ctx)
 }
+
+// OpenLoan คือการยืมที่ยังไม่คืน 1 รายการ ตามรูปแบบใน plan.md ข้อ 4 (FR-RET-01)
+type OpenLoan struct {
+	LoanID     int       `json:"loanId"`
+	AssetCode  string    `json:"assetCode"`
+	ModelName  string    `json:"modelName"`
+	BorrowerID string    `json:"borrowerId"`
+	LoanType   string    `json:"loanType"`
+	DueAt      time.Time `json:"dueAt"`
+	IsOverdue  bool      `json:"isOverdue"`
+}
+
+// FindOpenLoan หาการยืมที่ยังไม่คืนของอุปกรณ์ assetCode (FR-RET-01(ก), CON-DATA-03 รหัสครุภัณฑ์ไม่ซ้ำ จึงได้ไม่เกิน 1 รายการ)
+// isOverdue = now() > due_at คำนวณที่ฐานข้อมูล ใช้ due_at ที่ 005 บันทึก ไม่คำนวณ 16:00 เอง (ASM-01)
+// ไม่พบ หรือสถานะไม่ใช่ "ถูกยืม" -> ErrNoOpenLoan / การกรองภาควิชาทำใน T-23
+func (r *Repository) FindOpenLoan(ctx context.Context, assetCode string) (OpenLoan, error) {
+	var ol OpenLoan
+	err := r.pool.QueryRow(ctx, `
+		SELECT l.id, i.asset_code, m.name, l.borrower_id, l.loan_type, l.due_at, now() > l.due_at
+		FROM loan l
+		JOIN equipment_item i ON i.id = l.item_id
+		JOIN equipment_model m ON m.id = i.model_id
+		WHERE i.asset_code = $1 AND l.returned_at IS NULL AND i.status = 'borrowed'`, assetCode).
+		Scan(&ol.LoanID, &ol.AssetCode, &ol.ModelName, &ol.BorrowerID, &ol.LoanType, &ol.DueAt, &ol.IsOverdue)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return OpenLoan{}, ErrNoOpenLoan
+	}
+	return ol, err
+}
