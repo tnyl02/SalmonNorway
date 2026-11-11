@@ -154,3 +154,58 @@ test('AC_CXL_04 approved while dialog open', async () => {
   expect(screen.getByRole('listitem').textContent).not.toContain('CS-NB-0001')
 })
 
+// AC-CXL-13 (FR-CXL-01, ASM-06) ฝั่งหน้าจอ T-24
+//   Given นักศึกษามีคำขอที่รออนุมัติ และระบบไม่ตอบสนองตอนบันทึกการยกเลิก (client จำลองตอบ 503 ครั้งแรก)
+//   When  กดยกเลิก พิมพ์เหตุผล แล้วกดยืนยัน
+//   Then  แสดง "ยกเลิกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" ในกล่อง ปุ่มเปลี่ยนเป็น "ลองใหม่" แถวยังอยู่ ไม่มีข้อความสำเร็จ
+//   When  กดลองใหม่ (ระบบกลับมาแล้ว)
+//   Then  เรียก API ซ้ำด้วยเหตุผลเดิม ยกเลิกสำเร็จ แถวหาย
+test('AC_CXL_13 shows error with retry', async () => {
+  // Given
+  const client = fakeClient([REQ_A1, REQ_A2])
+  client.cancelRequest.mockRejectedValueOnce(new ApiError(503, 'UPSTREAM_UNAVAILABLE'))
+  render(<MyPendingRequests client={client} />)
+  const rows = await screen.findAllByRole('listitem')
+
+  // When
+  fireEvent.click(within(rows[0]).getByRole('button', { name: 'ยกเลิก' }))
+  const dialog = await screen.findByRole('dialog')
+  fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'ไม่ต้องใช้อุปกรณ์แล้ว' } })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'ยืนยัน' }))
+
+  // Then
+  expect((await within(dialog).findByRole('alert')).textContent).toBe('ยกเลิกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง')
+  expect(screen.getAllByRole('listitem')).toHaveLength(2)
+  expect(within(dialog).getByRole('textbox').value).toBe('ไม่ต้องใช้อุปกรณ์แล้ว')
+  expect(screen.queryByRole('status')).toBeNull()
+  expect(client.listMyPendingRequests).toHaveBeenCalledTimes(1) // ไม่โหลดรายการใหม่
+
+  // When กดลองใหม่
+  fireEvent.click(within(dialog).getByRole('button', { name: 'ลองใหม่' }))
+
+  // Then
+  await waitFor(() => expect(client.cancelRequest).toHaveBeenCalledTimes(2))
+  expect(client.cancelRequest).toHaveBeenLastCalledWith(101, 'ไม่ต้องใช้อุปกรณ์แล้ว')
+  expect((await screen.findByRole('status')).textContent).toBe('ยกเลิกคำขอยืม Notebook ตัวอย่างรุ่น A (CS-NB-0001) เรียบร้อยแล้ว')
+  expect(screen.queryByRole('dialog')).toBeNull()
+  expect(screen.getAllByRole('listitem')).toHaveLength(1)
+})
+
+// ระบบมีปัญหาแล้วกดไม่ยืนยัน เปิดกล่องใหม่ต้องไม่มีข้อความผิดพลาดค้าง
+test('dialog error clears when reopened', async () => {
+  const client = fakeClient([REQ_A1])
+  client.cancelRequest.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+  render(<MyPendingRequests client={client} />)
+  fireEvent.click(within(await screen.findByRole('listitem')).getByRole('button', { name: 'ยกเลิก' }))
+  let dialog = await screen.findByRole('dialog')
+  fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'เหตุผล' } })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'ยืนยัน' }))
+  await within(dialog).findByRole('alert')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'ไม่ยืนยัน' }))
+
+  fireEvent.click(within(screen.getByRole('listitem')).getByRole('button', { name: 'ยกเลิก' }))
+  dialog = await screen.findByRole('dialog')
+  expect(within(dialog).queryByRole('alert')).toBeNull()
+  expect(within(dialog).getByRole('button', { name: 'ยืนยัน' })).toBeTruthy()
+})
+

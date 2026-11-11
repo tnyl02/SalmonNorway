@@ -9,6 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"salmonnorway/backend/internal/auth"
 	"salmonnorway/backend/internal/config"
 )
 
@@ -368,5 +372,67 @@ func TestAC_CXL_07_ExpiredSessionNoCancel(t *testing.T) {
 	if r.Status != "requested" || r.CancelReason != nil {
 		t.Errorf("แถว = %+v ต้องยังเป็น requested", r)
 	}
+}
+
+// downServer ประกอบ handler แบบเดียวกับ tcServer แต่ใช้ฐานข้อมูลที่ให้มา (จำลองฐานข้อมูลล่ม)
+func downServer(t *testing.T, db Querier, timeout time.Duration) http.Handler {
+	t.Helper()
+	svc := NewService(NewRepository(db))
+	svc.dbTimeout = timeout
+	mux := http.NewServeMux()
+	mux.Handle(PathPrefixRequests, auth.Middleware(auth.NewMockProvider(), NewHandler(svc).Routes()))
+	return mux
+}
+
+// hangingDB จำลองฐานข้อมูลที่ไม่ตอบ: รอจน context หมดเวลาแล้วคืน error
+type hangingDB struct{}
+
+func (hangingDB) Query(ctx context.Context, _ string, _ ...any) (pgx.Rows, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+func (hangingDB) QueryRow(ctx context.Context, _ string, _ ...any) pgx.Row { return nil }
+func (hangingDB) Begin(ctx context.Context) (pgx.Tx, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+// AC-CXL-13 (FR-CXL-01, ASM-06) T-23
+//
+//	Given A มีคำขอ requested และฐานข้อมูลไม่ตอบสนองตอนบันทึกการยกเลิก
+//	      (จำลอง 2 แบบ: ต่อฐานข้อมูลไม่ได้ และฐานข้อมูลค้างจนเกินเวลารอ แทนการหยุด container ที่ test อื่นใช้ร่วม)
+//	When  A ยกเลิกคำขอนั้น
+//	Then  ได้ 503 UPSTREAM_UNAVAILABLE retryable ไม่ส่งรายละเอียดภายใน และเมื่อฐานข้อมูลใช้ได้ สถานะยังเป็น requested
+func TestAC_CXL_13_DBDownReturns503(t *testing.T) {
+	tcServer(t) // ล้างคำขอเดิม
+	id := tcInsert(t, tcUserA, tcItemAvailable, "normal", "requested", time.Now())
+
+	unreachable, err := pgxpool.New(context.Background(), "postgres://salmon:salmon@127.0.0.1:1/salmon?sslmode=disable&connect_timeout=2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unreachable.Close()
+
+	cases := map[string]http.Handler{
+		"ต่อฐานข้อมูลไม่ได้":    downServer(t, unreachable, config.CancelDBTimeout),
+		"ฐานข้อมูลค้างเกินเวลา": downServer(t, hangingDB{}, 50*time.Millisecond),
+	}
+	for name, srv := range cases {
+		start := time.Now()
+		rec := tcCancel(t, srv, id, "ไม่ต้องใช้อุปกรณ์แล้ว", tcTokenA)
+		if time.Since(start) > config.CancelDBTimeout+time.Second {
+			t.Errorf("%s: ใช้เวลา %v เกิน CancelDBTimeout", name, time.Since(start))
+		}
+		tcWantStatus(t, rec, http.StatusServiceUnavailable)
+		if got := rec.Body.String(); got != "{\"code\":\"UPSTREAM_UNAVAILABLE\",\"retryable\":true}\n" {
+			t.Errorf("%s: body = %q ต้องเป็น UPSTREAM_UNAVAILABLE retryable", name, got)
+		}
+	}
+
+	// ฐานข้อมูลจริงยังใช้ได้: สถานะคงเดิม และยกเลิกใหม่ได้
+	if r := tcRow(t, id); r.Status != "requested" || r.CancelReason != nil {
+		t.Errorf("แถว = %+v ต้องยังเป็น requested", r)
+	}
+	tcWantStatus(t, tcCancel(t, downServer(t, tcPool(t), config.CancelDBTimeout), id, "ไม่ต้องใช้อุปกรณ์แล้ว", tcTokenA), http.StatusOK)
 }
 

@@ -399,16 +399,16 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06, T-03
 - เสร็จเมื่อ: `TestAC_CXL_13_DBDownReturns503` ผ่าน (หยุด container ก่อน POST -> 503 `UPSTREAM_UNAVAILABLE` retryable, ใช้ `CancelDBTimeout`, เปิดฐานข้อมูลกลับมาแล้วสถานะยัง requested)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 ### T-24 แสดงข้อผิดพลาดพร้อมปุ่มลองใหม่
 - รองรับ: FR-CXL-01, ASM-06
 - ตรวจด้วย: AC-CXL-13
-- ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/CancelDialog.jsx`, `frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/CancelDialog.test.jsx`
+- ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/CancelDialog.jsx`, `frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/CancelDialog.test.jsx`, `frontend/src/config.js` (เพิ่ม 2569-11-12: MSG_CANCEL_FAILED ทีมเลือกคำ)
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
 - ต้องทำหลัง: T-07 (เดิม T-07, T-23 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
 - เสร็จเมื่อ: vitest `AC_CXL_13 shows error with retry` ผ่าน (503 -> ข้อความผิดพลาด ปุ่มลองใหม่ แถวยังอยู่ กดลองใหม่แล้วเรียก API ซ้ำ)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 12
 - test ที่ต้องผ่านทั้งหมด: `TestAC_CXL_13_DBDownReturns503`, vitest `AC_CXL_13 ...` และ test ของเฟส 0-11

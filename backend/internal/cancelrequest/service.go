@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"salmonnorway/backend/internal/auth"
@@ -47,12 +48,13 @@ const statusApproved = "approved"
 
 // Service คือกฎของฟีเจอร์ 003
 type Service struct {
-	repo *Repository
+	repo      *Repository
+	dbTimeout time.Duration // เวลารอฐานข้อมูลตอนยกเลิก (ASM-06) test เปลี่ยนเป็นค่าสั้นได้
 }
 
-// NewService สร้าง Service
+// NewService สร้าง Service ใช้เวลารอฐานข้อมูลจาก config.CancelDBTimeout (ASM-06)
 func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+	return &Service{repo: repo, dbTimeout: config.CancelDBTimeout}
 }
 
 // ListMyPending คืนคำขอที่ยังยกเลิกได้ของนักศึกษาที่เข้าสู่ระบบ (FR-CXL-06, FR-CXL-03, CON-CXL-02)
@@ -87,6 +89,9 @@ func (s *Service) Cancel(ctx context.Context, p auth.Principal, requestID int, r
 	if err := ValidateReason(reason); err != nil {
 		return CancelResultDTO{}, err
 	}
+	// ฐานข้อมูลไม่ตอบภายใน dbTimeout -> error -> handler ตอบ 503 และ rollback สถานะคงเดิม (FR-CXL-01, ASM-06)
+	ctx, cancel := context.WithTimeout(ctx, s.dbTimeout)
+	defer cancel()
 	tx, err := s.repo.db.Begin(ctx)
 	if err != nil {
 		return CancelResultDTO{}, err

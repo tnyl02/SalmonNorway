@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CANCEL_REASON_MAX_LEN } from '../../config.js'
+import { CANCEL_REASON_MAX_LEN, LABEL_RETRY } from '../../config.js'
 
 // countReason นับความยาวเหตุผลตาม code point แบบเดียวกับหลังบ้าน เช่น "ที่" = 3 (FR-CXL-08, ASM-13)
 export function countReason(text) {
@@ -18,7 +18,8 @@ export function reasonProblem(text) {
 // ช่องเหตุผลเก็บใน state ของกล่อง ปิดแล้วเปิดใหม่จึงว่างเสมอ (FR-CXL-07, ASM-13)
 // ปุ่มยืนยันกดไม่ได้เมื่อเหตุผลว่างหรือเกิน และแสดงตัวนับ "x/200" ใต้ช่องเหตุผล (FR-CXL-08, ASM-13)
 // หน้าจอกันไว้เพื่อความสะดวก กฎจริงอยู่ที่หลังบ้าน (T-09 ตอบ 400)
-export default function CancelDialog({ request, onConfirm, onCancel, busy = false }) {
+// error = ข้อความเมื่อยกเลิกไม่สำเร็จเพราะระบบมีปัญหา แสดงในกล่อง เหตุผลที่พิมพ์ยังอยู่ ปุ่มยืนยันเปลี่ยนเป็น "ลองใหม่" (FR-CXL-01, ASM-06)
+export default function CancelDialog({ request, onConfirm, onCancel, busy = false, error = null }) {
   const [reason, setReason] = useState('')
   const count = countReason(reason)
   const invalid = reasonProblem(reason) != null
@@ -52,6 +53,11 @@ export default function CancelDialog({ request, onConfirm, onCancel, busy = fals
         >
           {`${count}/${CANCEL_REASON_MAX_LEN}`}
         </p>
+        {error && (
+          <p role="alert" className="rounded border border-red-300 bg-red-50 p-2 text-sm text-red-800">
+            {error}
+          </p>
+        )}
         <div className="flex justify-end gap-2">
           {/* ไม่ยืนยัน: ปิดกล่องโดยไม่ยกเลิกและไม่เรียก API (FR-CXL-07) */}
           <button
@@ -68,7 +74,7 @@ export default function CancelDialog({ request, onConfirm, onCancel, busy = fals
             onClick={() => onConfirm(reason)}
             className="rounded bg-red-700 px-3 py-1 text-sm text-white disabled:opacity-50"
           >
-            ยืนยัน
+            {error ? LABEL_RETRY : 'ยืนยัน'}
           </button>
         </div>
       </div>

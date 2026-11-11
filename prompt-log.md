@@ -1973,3 +1973,47 @@
 - สิ่งที่เกือบต้องเดา: ไม่มี
 - สถานะใน tasks.md: T-22 เสร็จ รอทีมตรวจ
 
+---
+
+## 2569-11-12 /implement T-23, T-24 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request (แก้ของกลาง frontend/src/config.js เพราะ 003)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: ทำ T-23 และ T-24 ในรอบเดียว
+- T-23 (หลังบ้าน):
+  - service.go: Service มี dbTimeout = config.CancelDBTimeout, Cancel ใช้ context.WithTimeout ฐานข้อมูลไม่ตอบ -> error -> 503 และ rollback
+  - handler.go: คอมเมนต์ writeUpstreamError (503 UPSTREAM_UNAVAILABLE retryable มีอยู่แล้วตั้งแต่ T-04)
+  - handler_test.go: TestAC_CXL_13_DBDownReturns503
+  - ต่างจากช่อง "เสร็จเมื่อ": ไม่หยุด container เพราะ test ทั้งแพ็กเกจใช้ฐานข้อมูลร่วมกัน (หยุดแล้วเปิดใหม่พอร์ตเปลี่ยน)
+    จำลองด้วย pool ที่ต่อไม่ได้ (127.0.0.1:1) และฐานข้อมูลที่ค้างเกินเวลา (dbTimeout 50ms) แล้วตรวจกับฐานข้อมูลจริงว่าสถานะยัง requested และยกเลิกใหม่ได้
+- T-24 (หน้าเว็บ):
+  - config.js: MSG_CANCEL_FAILED = "ยกเลิกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" (ไฟล์นอกช่องไฟล์ที่แตะ เพิ่มในช่องของ T-24 แล้ว)
+  - CancelDialog.jsx: prop error แสดงข้อความในกล่อง (role=alert) ปุ่มยืนยันเปลี่ยนชื่อเป็น "ลองใหม่" เหตุผลที่พิมพ์ยังอยู่
+  - MyPendingRequests.jsx: error ที่ไม่อยู่ใน CANCEL_REJECTED (503, ส่งไม่ถึง) -> dialogError ไม่ปิดกล่อง ไม่โหลดรายการใหม่ แถวยังอยู่
+  - CancelDialog.test.jsx: AC_CXL_13 shows error with retry, dialog error clears when reopened
+- สิ่งที่เกือบต้องเดาแต่ถามแทน:
+  1. ข้อความเมื่อ 503 -> ทีม: "ยกเลิกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง"
+  2. ปุ่มลองใหม่อยู่ที่ไหน -> ทีม: ในกล่องยืนยัน ส่งเหตุผลเดิม
+- ผล test: go test ./internal/cancelrequest/ ผ่านทั้งหมด, npx vitest run ผ่าน 41/41, npm run build ผ่าน
+- สถานะใน tasks.md: T-23, T-24 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-12 ทีมตรวจ T-23, T-24 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ: go test ./... ผ่านทุก package, npm test ผ่าน 41/41 และลองบนจอจริงตามวิธีที่ AI ให้ (หยุด salmon-db ระหว่างกล่องยืนยันเปิด -> ข้อความแดงในกล่องและปุ่มลองใหม่ -> เปิดฐานข้อมูลกลับแล้วลองใหม่สำเร็จ)
+- ทีมยอมรับวิธีทดสอบ T-23 ที่จำลองฐานข้อมูลล่มแทนการหยุด container ของ test
+- ข้อจำกัดที่รู้: session หมดอายุ (401) ตอนนี้ขึ้นข้อความ "ยกเลิกไม่สำเร็จ" ด้วย จนกว่า T-26 จะพาไปหน้าเข้าสู่ระบบ
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-23, T-24 เป็น "เสร็จ"
+
+---
+
+## 2569-11-12 ทีมตรวจ T-22 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ทีมเปลี่ยนสถานะ T-22 ใน tasks.md เป็น "เสร็จ" เอง (บันทึกย้อนหลังโดย Claude Code ตามที่ทีมแจ้ง)
+- วิธีตรวจ: npm test ผ่าน (รวม AC_CXL_04 approved while dialog open) ลำดับเหตุการณ์ AC-CXL-04 บนจอจริงทดสอบไปแล้วตอนตรวจ T-16
+

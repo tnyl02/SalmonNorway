@@ -25,6 +25,10 @@ export const LABEL_RETRY = 'ลองใหม่'
 // ข้อความเมื่อยกเลิกสำเร็จ (FR-CXL-01, ASM-13)
 export const MSG_CANCEL_SUCCESS = (modelName, assetCode) => `ยกเลิกคำขอยืม ${modelName} (${assetCode}) เรียบร้อยแล้ว`
 
+// ข้อความเมื่อยกเลิกไม่สำเร็จเพราะระบบไม่ตอบสนอง (503) ลองใหม่ได้ (FR-CXL-01, ASM-06, AC-CXL-13)
+// คำทีมเลือก 2569-11-12 ตอนทำ T-24 รูปแบบเดียวกับ MSG_LOAD_FAILED
+export const MSG_CANCEL_FAILED = 'ยกเลิกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง'
+
 // ข้อความเมื่อคำขอได้รับการอนุมัติแล้ว (FR-CXL-02 คำตามที่เขียนใน spec ทีมยืนยัน 2569-11-11)
 export const MSG_ALREADY_APPROVED = 'ยกเลิกไม่ได้ เพราะคำขอได้รับการอนุมัติแล้ว'
 

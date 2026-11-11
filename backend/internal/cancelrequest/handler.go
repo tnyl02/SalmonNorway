@@ -91,7 +91,8 @@ func (h *Handler) cancel(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// writeUpstreamError ตอบเมื่อฐานข้อมูลไม่ตอบสนอง ไม่ส่งรายละเอียดภายในกลับไป (plan.md ข้อ 4, ASM-06)
+// writeUpstreamError ตอบเมื่อฐานข้อมูลไม่ตอบสนองหรือเกิน CancelDBTimeout ไม่ส่งรายละเอียดภายในกลับไป (plan.md ข้อ 4, ASM-06, AC-CXL-13)
+// retryable = true บอกหน้าจอว่าลองใหม่ได้ (FR-CXL-01)
 func writeUpstreamError(w http.ResponseWriter, err error) {
 	log.Printf("cancelrequest: database error: %v", err)
 	writeJSON(w, http.StatusServiceUnavailable, ErrorDTO{Code: "UPSTREAM_UNAVAILABLE", Retryable: true})

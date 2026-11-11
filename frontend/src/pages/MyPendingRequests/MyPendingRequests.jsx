@@ -3,6 +3,7 @@ import { api } from '../../api/client.js'
 import {
   LABEL_RETRY,
   MSG_ALREADY_APPROVED,
+  MSG_CANCEL_FAILED,
   MSG_CANCEL_SUCCESS,
   MSG_LOAD_FAILED,
   MSG_NO_PENDING,
@@ -21,7 +22,7 @@ const formatSubmittedAt = formatDueAt
 // กดยกเลิกแล้วต้องยืนยันพร้อมเหตุผลก่อน ยกเลิกสำเร็จแล้วแถวหายจากหน้า (FR-CXL-07, FR-CXL-01)
 // ไม่มีคำขอแสดง MSG_NO_PENDING โหลดไม่สำเร็จแสดง MSG_LOAD_FAILED พร้อมปุ่มลองใหม่ ไม่แสดงรายการเก่า (FR-CXL-06, ASM-13)
 // ยกเลิกไม่ได้ตามตาราง error ใน plan.md ข้อ 4: แสดงข้อความแล้วโหลดรายการใหม่ (FR-CXL-02) ดู CANCEL_REJECTED
-// ข้อความของกรณีระบบล่มอยู่ใน T-24
+// ระบบไม่ตอบสนอง (503) หรือส่งไม่ถึง: กล่องยังเปิด แสดง MSG_CANCEL_FAILED ในกล่อง ลองใหม่ด้วยเหตุผลเดิม แถวยังอยู่ (FR-CXL-01, ASM-06)
 
 // CANCEL_REJECTED คือรหัส error จากหลังบ้านที่แปลว่ายกเลิกไม่ได้ จับคู่กับข้อความใน config.js (plan.md ข้อ 4)
 // ได้รหัสเหล่านี้แล้ว ปิดกล่อง แสดงข้อความ และโหลดรายการใหม่ให้ตรงกับฐานข้อมูล
@@ -39,6 +40,7 @@ export default function MyPendingRequests({ client = api }) {
   const [busy, setBusy] = useState(false)
   const [success, setSuccess] = useState(null) // ข้อความยกเลิกสำเร็จ ค้างจนเริ่มยกเลิกรายการถัดไป (ทีมตัดสิน 2569-11-11 T-07)
   const [cancelError, setCancelError] = useState(null) // ข้อความเมื่อยกเลิกไม่ได้ ค้างจนเริ่มยกเลิกรายการถัดไป แบบเดียวกับ success
+  const [dialogError, setDialogError] = useState(null) // ข้อความในกล่องเมื่อระบบมีปัญหา (T-24)
 
   useEffect(() => {
     let active = true
@@ -60,6 +62,7 @@ export default function MyPendingRequests({ client = api }) {
   function openDialog(request) {
     setSuccess(null)
     setCancelError(null)
+    setDialogError(null)
     setTarget(request)
   }
 
@@ -67,6 +70,7 @@ export default function MyPendingRequests({ client = api }) {
   async function confirmCancel(reason) {
     const request = target
     setBusy(true)
+    setDialogError(null)
     try {
       await client.cancelRequest(request.requestId, reason)
       setItems((current) => current.filter((r) => r.requestId !== request.requestId))
@@ -79,8 +83,10 @@ export default function MyPendingRequests({ client = api }) {
         setTarget(null)
         setCancelError(message)
         setReloadKey((k) => k + 1)
+      } else {
+        // FR-CXL-01, ASM-06: ระบบไม่ตอบสนอง สถานะคงเดิม คงแถวและกล่องไว้ให้ลองใหม่
+        setDialogError(MSG_CANCEL_FAILED)
       }
-      // กรณีอื่น (เช่น 503): คงแถวและกล่องไว้ ข้อความอยู่ใน T-24
     } finally {
       setBusy(false)
     }
@@ -146,6 +152,7 @@ export default function MyPendingRequests({ client = api }) {
           onConfirm={confirmCancel}
           onCancel={() => setTarget(null)} // ไม่ยืนยัน: ปิดกล่อง แถวยังอยู่ (FR-CXL-07, T-08)
           busy={busy}
+          error={dialogError}
         />
       )}
     </section>
