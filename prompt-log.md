@@ -2035,3 +2035,27 @@
   data-model.md v10 มีแถว notify อยู่แล้วตั้งแต่ merge main ไม่ต้องแก้
 - สถานะใน tasks.md: T-30 เสร็จ รอทีมตรวจ
 
+---
+
+## 2569-11-12 ทีมตัดสินวิธีล้างข้อมูลใน test และ audit writer (003-cancel-request)
+
+- ผู้ตัดสิน: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (อธิบายทางเลือกและผลกระทบ)
+- เรื่องที่ 1 ล้างข้อมูลระหว่าง test เมื่อ audit_log (append-only) มี FK ไป borrow_request: เลือก (ข)
+  ปิด trigger และ FK ชั่วคราวด้วย SET LOCAL session_replication_role = replica ใน transaction ของการล้างเท่านั้น
+  ข้อระวังที่ AI แจ้ง: ห้ามใช้ SET ธรรมดาเพราะค้างใน connection ของ pool, ใช้ได้เพราะผู้ใช้ test เป็น superuser,
+  ต้องเขียนคอมเมนต์ว่าใช้กับฐานข้อมูล test เท่านั้น กฎ append-only ยังตรวจด้วย test ของ 001
+- เรื่องที่ 2 audit writer: รอ 001 ทำ writer.go (T-19 ของ 001) ก่อน ยังไม่ใช้แผนสำรอง T-31, T-32 จึงยังไม่เริ่ม
+- ไฟล์ที่แก้: specs/003-cancel-request/plan.md หัวข้อ 8 (บันทึกการตัดสิน) ยังไม่ได้แก้โค้ด
+
+---
+
+## 2569-11-12 ทีมตรวจ T-30 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ)
+- วิธีตรวจ: go test (TestMigration_AuditLogAcceptsNotify และทุก package) ผ่าน
+  ฐานข้อมูลในเครื่อง: schema_migrations version 5, audit_log_action_check มี 6 ค่า, ใส่ notify ได้ (ใน transaction ที่ rollback),
+  ใส่ cancel_notify_failed ถูกปฏิเสธด้วย check constraint ไม่มีข้อมูลทดสอบค้างใน audit_log
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-30 เป็น "เสร็จ"
+

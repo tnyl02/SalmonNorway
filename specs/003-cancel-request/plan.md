@@ -229,5 +229,8 @@ frontend: vitest ใน `frontend/src/pages/MyPendingRequests/__tests__/` ใช
   และ audit_log เป็น append-only (trigger ใน 0002 ห้าม DELETE, UPDATE, TRUNCATE) ลบคำขอที่มีแถว audit อ้างอยู่ไม่ได้ และลบแถว audit ก็ไม่ได้
   ทางเลือก: (ก) ไม่ลบข้อมูลระหว่าง test ให้แต่ละ test ใช้คำขอที่สร้างใหม่และตรวจด้วย requestId ของตัวเอง
   (ข) ตอนล้างใน test ตั้ง `SET session_replication_role = replica` ปิด trigger และ FK ชั่วคราว (ทำได้เพราะ testcontainers ใช้ superuser)
-  (ค) สร้างฐานข้อมูลใหม่ต่อ test (ช้า) ต้องตัดสินก่อนทำ T-31
+  (ค) สร้างฐานข้อมูลใหม่ต่อ test (ช้า)
+  **ทีมเลือก (ข) 2569-11-12** ใช้ `SET LOCAL session_replication_role = replica` ใน transaction ของการล้างเท่านั้น
+  กฎกลับมาเองเมื่อ transaction จบ (ห้ามใช้ SET ธรรมดาเพราะค้างใน connection ของ pool) ใช้กับฐานข้อมูล test ของ testcontainers เท่านั้น
+- writer.go ของ 001: ทีมเลือกรอ 001 ทำก่อน (2569-11-12) T-31, T-32 ยังไม่เริ่ม
 - 004 ต้องใช้เงื่อนไขสถานะตอนอนุมัติ เพื่อไม่ให้อนุมัติคำขอที่ถูกยกเลิกแล้ว (ASM-05) เจ้าของ 004 รับกฎแล้ว 2569-11-11 และหน้าอนุมัติซ่อนคำขอ cancelled
