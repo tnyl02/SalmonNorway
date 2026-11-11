@@ -222,3 +222,121 @@ func TestValidation_ReportsAllMissingFields(t *testing.T) {
 		t.Errorf("ไม่กรอกอะไรเลยต้องบอกครบทั้ง 5 ช่อง แต่ได้ %v", e.Fields)
 	}
 }
+
+// bodyWithPurpose สร้าง JSON ของฟอร์มที่ครบทุกช่อง โดยกำหนดค่าวัตถุประสงค์และข้อความระบุเพิ่มเอง
+func bodyWithPurpose(assetCode, purpose, purposeOther string) string {
+	start := time.Now().Format(time.RFC3339)
+	end := time.Now().Add(2 * time.Hour).Format(time.RFC3339)
+	return `{"assetCode":"` + assetCode + `","requesterName":"ธัญลักษณ์ ทดสอบ","studentCode":"660710715",` +
+		`"loanType":"normal","purpose":"` + purpose + `","purposeOther":"` + purposeOther + `",` +
+		`"startAt":"` + start + `","endAt":"` + end + `"}`
+}
+
+// decodeCreated อ่านคำตอบตอนสร้างสำเร็จ แล้วสั่งลบแถวทิ้งหลัง test
+func decodeCreated(t *testing.T, w *httptest.ResponseRecorder) CreatedDTO {
+	t.Helper()
+	var got CreatedDTO
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatalf("อ่าน JSON ไม่ได้: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = testPool(t).Exec(context.Background(), `DELETE FROM borrow_request WHERE id = $1`, got.RequestID)
+	})
+	return got
+}
+
+// AC-BRQ-02 (FR-BRQ-02)
+// Given นักศึกษาเปิดแบบฟอร์มคำขอของอุปกรณ์ที่ว่าง
+// When  เลือกวัตถุประสงค์ "เพื่อการเรียน" กรอกข้อมูลครบ แล้วส่งคำขอสำเร็จ
+// Then  คำขอที่บันทึกต้องมีวัตถุประสงค์ตรงกับค่าที่เลือก
+// และ   เมื่อยังไม่ได้เลือกวัตถุประสงค์ ต้องไม่สร้างคำขอ และระบุว่าต้องเลือก
+func TestAC_BRQ_02(t *testing.T) {
+	pool := testPool(t)
+	srv := newTestServer(t)
+
+	// When: เลือก study (เพื่อการเรียน) แล้วส่ง
+	w := postRequest(t, srv, tokenStudentDept1, bodyWithPurpose("CS-NB-0001", "study", ""))
+	if w.Code != http.StatusCreated {
+		t.Fatalf("เลือกวัตถุประสงค์ที่ถูกต้องต้องได้ 201 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	got := decodeCreated(t, w)
+
+	// Then: ค่าที่บันทึกต้องตรงกับที่เลือก และช่องพิมพ์ระบุต้องว่าง (FR-BRQ-02 ข้อ ข)
+	var purpose string
+	var purposeOther *string
+	if err := pool.QueryRow(context.Background(),
+		`SELECT purpose, purpose_other FROM borrow_request WHERE id = $1`, got.RequestID,
+	).Scan(&purpose, &purposeOther); err != nil {
+		t.Fatal(err)
+	}
+	if purpose != "study" {
+		t.Errorf("วัตถุประสงค์ที่บันทึกต้องเป็น study แต่ได้ %q", purpose)
+	}
+	if purposeOther != nil {
+		t.Errorf("ไม่ได้เลือก \"อื่น ๆ\" ช่องพิมพ์ระบุต้องว่าง แต่ได้ %q", *purposeOther)
+	}
+
+	// และ: ไม่เลือกวัตถุประสงค์ หรือเลือกค่าที่ไม่มีในรายการ ต้องถูกปฏิเสธทั้งคู่
+	for _, bad := range []string{"", "exam", "เพื่อการเรียน"} {
+		w := postRequest(t, srv, tokenStudentDept1, bodyWithPurpose("CS-NB-0002", bad, ""))
+		if w.Code != http.StatusUnprocessableEntity {
+			t.Errorf("วัตถุประสงค์ %q ต้องได้ 422 แต่ได้ %d", bad, w.Code)
+			continue
+		}
+		var e struct {
+			Fields []string `json:"fields"`
+		}
+		_ = json.Unmarshal(w.Body.Bytes(), &e)
+		if len(e.Fields) != 1 || e.Fields[0] != "purpose" {
+			t.Errorf("วัตถุประสงค์ %q ต้องชี้ช่อง purpose แต่ได้ %v", bad, e.Fields)
+		}
+	}
+}
+
+// AC-BRQ-14 (FR-BRQ-02 ก)
+// Given นักศึกษาเลือกวัตถุประสงค์ "อื่น ๆ"
+// When  ไม่พิมพ์ข้อความระบุ แล้วกดส่งคำขอ
+// Then  ระบบต้องไม่สร้างคำขอ และระบุว่าต้องพิมพ์ระบุวัตถุประสงค์
+// และ   เมื่อพิมพ์ข้อความระบุแล้วส่งสำเร็จ ต้องเก็บทั้งค่า "อื่น ๆ" และข้อความที่พิมพ์
+func TestAC_BRQ_14(t *testing.T) {
+	pool := testPool(t)
+	srv := newTestServer(t)
+
+	// When: เลือก other แต่ไม่พิมพ์ระบุ
+	w := postRequest(t, srv, tokenStudentDept1, bodyWithPurpose("CS-NB-0001", "other", ""))
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("เลือก \"อื่น ๆ\" โดยไม่พิมพ์ระบุต้องได้ 422 แต่ได้ %d", w.Code)
+	}
+	var e struct {
+		Fields []string `json:"fields"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &e)
+	if len(e.Fields) != 1 || e.Fields[0] != "purposeOther" {
+		t.Errorf("ต้องชี้ช่อง purposeOther แต่ได้ %v", e.Fields)
+	}
+	// ช่องว่างล้วนก็ถือว่ายังไม่ได้พิมพ์
+	if w := postRequest(t, srv, tokenStudentDept1, bodyWithPurpose("CS-NB-0001", "other", "   ")); w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("พิมพ์แต่ช่องว่างต้องได้ 422 แต่ได้ %d", w.Code)
+	}
+
+	// และ: พิมพ์ระบุแล้วต้องส่งได้ และเก็บทั้งสองค่า
+	w = postRequest(t, srv, tokenStudentDept1, bodyWithPurpose("CS-NB-0001", "other", "ใช้ถ่ายทำวิดีโอส่งอาจารย์"))
+	if w.Code != http.StatusCreated {
+		t.Fatalf("เลือก \"อื่น ๆ\" พร้อมพิมพ์ระบุต้องได้ 201 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	got := decodeCreated(t, w)
+
+	var purpose string
+	var purposeOther *string
+	if err := pool.QueryRow(context.Background(),
+		`SELECT purpose, purpose_other FROM borrow_request WHERE id = $1`, got.RequestID,
+	).Scan(&purpose, &purposeOther); err != nil {
+		t.Fatal(err)
+	}
+	if purpose != "other" {
+		t.Errorf("วัตถุประสงค์ต้องเป็น other แต่ได้ %q", purpose)
+	}
+	if purposeOther == nil || *purposeOther != "ใช้ถ่ายทำวิดีโอส่งอาจารย์" {
+		t.Errorf("ข้อความที่พิมพ์ระบุต้องถูกเก็บไว้ แต่ได้ %v", purposeOther)
+	}
+}

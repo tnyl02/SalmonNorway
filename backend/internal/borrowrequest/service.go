@@ -2,6 +2,7 @@ package borrowrequest
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"salmonnorway/backend/internal/auth"
@@ -34,7 +35,7 @@ func (s *Service) Create(ctx context.Context, in NewRequest) (Request, error) {
 		return Request{}, ErrNoPrincipal
 	}
 
-	req, err := s.repo.Create(ctx, p.UserID, in, config.StatusRequested)
+	req, err := s.repo.Create(ctx, p.UserID, normalizePurpose(in), config.StatusRequested)
 	if err != nil {
 		return Request{}, err
 	}
@@ -42,6 +43,18 @@ func (s *Service) Create(ctx context.Context, in NewRequest) (Request, error) {
 	// เวลาที่ส่งเทียบด้วยเขตเวลา Asia/Bangkok ตาม glossary (FR-BRQ-04)
 	req.SubmittedAt = req.SubmittedAt.In(s.loc)
 	return req, nil
+}
+
+// normalizePurpose จัดค่าวัตถุประสงค์ก่อนบันทึก (FR-BRQ-02)
+// ถ้าไม่ได้เลือก "อื่น ๆ" ข้อความที่พิมพ์ระบุจะไม่ถูกเก็บ ตาม FR-BRQ-02 ข้อ ข ที่ว่าไม่ต้องพิมพ์อะไรเพิ่ม
+// กันไม่ให้มีข้อความค้างในฐานข้อมูลจากการที่ผู้ขอพิมพ์ไว้แล้วเปลี่ยนใจไปเลือกค่าอื่น
+func normalizePurpose(in NewRequest) NewRequest {
+	in.Purpose = strings.TrimSpace(in.Purpose)
+	in.PurposeOther = strings.TrimSpace(in.PurposeOther)
+	if in.Purpose != config.PurposeOther {
+		in.PurposeOther = ""
+	}
+	return in
 }
 
 // ItemStatus คืนสถานะล่าสุดของอุปกรณ์ ใช้บอกผู้ขอเมื่อส่งคำขอไม่ได้ (FR-BRQ-01)
