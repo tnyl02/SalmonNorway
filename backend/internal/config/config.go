@@ -68,3 +68,9 @@ func HandoverPhotoTypes() []string {
 func PhotoDir() string {
 	return getenv("PHOTO_DIR", "/data/photos")
 }
+
+// HandoverReadyStatuses คือสถานะของคำขอยืมที่ส่งมอบได้ = `approved` (FR-HND-01, data-model.md v9, Q-HND-05 ปิดแล้ว)
+// คืน slice ใหม่ทุกครั้ง กันโค้ดที่เรียกใช้เผลอแก้ค่ากลาง
+func HandoverReadyStatuses() []string {
+	return []string{"approved"}
+}

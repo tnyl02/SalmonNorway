@@ -1411,3 +1411,22 @@
   ข้อมูลลองระบบเพิ่มรุ่นและอุปกรณ์ชุดใหม่ (HO-TEST-*) ไม่แตะอุปกรณ์ของ seed.sql ของ 001
 - ต้องแจ้งทีม: เลข 0006 มาก่อน 0004, 0005 ของ 003 ที่ยังไม่ merge ฐานข้อมูลในเครื่องที่รัน 0006 ไปแล้ว golang-migrate จะไม่รัน 0004, 0005 ย้อนหลัง
   ต้องล้างฐานข้อมูลในเครื่อง (docker compose down -v) หลัง 003 merge
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-06
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover (แก้ของกลาง `config.go` เพิ่ม `HandoverReadyStatuses()` ในบล็อกของ 005 ตามกติกา /implement ที่ให้เพิ่มค่าที่ตั้งได้ได้)
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ทำ T-06 ต่อได้เลย และอันที่กระทบคนอื่นสำคัญ ๆ รายงานด้วย"
+- ไฟล์ที่สร้าง/แก้: `backend/internal/handover/repository.go` (`CreateHandover` transaction เดียว), `backend/internal/handover/repository_test.go`,
+  `backend/internal/config/config.go` (`HandoverReadyStatuses()` = approved ซึ่ง T-04 ระบุไว้ ย้ายมาเพิ่มตอนนี้เพราะ T-06 ใช้ก่อน)
+- ผล test: `TestRepository_CreateHandover` ผ่าน 4 กรณี (สำเร็จ / อุปกรณ์ไม่ว่าง / คำขอไม่พร้อม / ไม่มีคำขอ) `go test ./...` ทุก package ผ่าน
+- สิ่งที่ AI ตัดสินในขอบเขตที่ plan ให้: ลำดับล็อกตาม plan ข้อ 4 (อุปกรณ์ FOR UPDATE ก่อน แล้วคำขอ FOR UPDATE),
+  `loan.loan_type` เอาจากคำขอ, `loan.borrower_id` = รหัสผู้ใช้ที่ยืนยันแล้ว, รูปยังไม่บันทึก (T-15)
+  error ของ repository (`ErrItemNotAvailable`, `ErrRequestNotReady`) ยังไม่ผูกรหัส HTTP (T-10, T-16, T-17)
+- ผลกระทบต่อฟีเจอร์อื่นที่ต้องแจ้ง (เปลี่ยนข้อมูล ไม่ได้แก้ไฟล์ของใคร):
+  001 เห็นอุปกรณ์เป็น "ถูกยืม" และกำหนดคืนจาก Loan ที่ 005 สร้าง / 002 คำขอ `handed_over` หลุดจาก unique index ผู้ขอส่งคำขอชิ้นเดิมได้อีก
+  003 คำขอ `handed_over` ยกเลิกไม่ได้ / 004 ต้องล็อกแถวอุปกรณ์หรือคำขอลำดับเดียวกันถ้ามี transaction ที่แตะ 2 ตารางนี้ (กัน deadlock)
+  006 ปิด Loan ที่ 005 สร้าง ต้องรู้ว่ามีแถว `handover` ผูก (FK จาก handover ไป loan ทำให้ลบ Loan ไม่ได้)
