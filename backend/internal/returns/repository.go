@@ -138,3 +138,29 @@ func (r *Repository) GetLoan(ctx context.Context, loanID int) (LoanDetail, error
 	}
 	return d, err
 }
+
+// ListOpenLoans คืนการยืมที่ยังไม่คืนทั้งหมดของภาควิชา departmentID เรียงตามกำหนดคืน (FR-RET-01(ข), ASM-03)
+// กรองภาควิชาที่ชั้น repository ทุก query (plan.md ข้อ 4) / ไม่แบ่งหน้า (plan.md Q-P1)
+// isOverdue = now() > due_at ใช้ due_at ที่ 005 บันทึก (FR-RET-06, ASM-01)
+func (r *Repository) ListOpenLoans(ctx context.Context, departmentID int) ([]OpenLoan, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT l.id, i.asset_code, m.name, l.borrower_id, l.loan_type, l.due_at, now() > l.due_at
+		FROM loan l
+		JOIN equipment_item i ON i.id = l.item_id
+		JOIN equipment_model m ON m.id = i.model_id
+		WHERE l.returned_at IS NULL AND i.status = 'borrowed' AND m.department_id = $1
+		ORDER BY l.due_at, l.id`, departmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	loans := []OpenLoan{}
+	for rows.Next() {
+		var ol OpenLoan
+		if err := rows.Scan(&ol.LoanID, &ol.AssetCode, &ol.ModelName, &ol.BorrowerID, &ol.LoanType, &ol.DueAt, &ol.IsOverdue); err != nil {
+			return nil, err
+		}
+		loans = append(loans, ol)
+	}
+	return loans, rows.Err()
+}

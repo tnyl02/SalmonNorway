@@ -100,13 +100,11 @@ func call(router http.Handler, method, path, token string) *httptest.ResponseRec
 	return rec
 }
 
-// T-03 เสร็จเมื่อ: เรียก open-loans ด้วย token เจ้าหน้าที่ได้ 501 (ยังไม่ทำ) และไม่มี token ได้ 401 (IF-IDP-01)
+// T-03 เสร็จเมื่อ: ทุก endpoint ของ 006 ผ่าน auth ก่อน ไม่มี token ได้ 401 (IF-IDP-01)
+// (เดิมตรวจว่า open-loans ตอบ 501 ตอนยังไม่ทำ ตอนนี้ T-14 ทำแล้ว จึงเหลือเฉพาะส่วน auth)
 func TestReturns_Skeleton_RoutedThroughAuth(t *testing.T) {
-	router := newTestRouter(nil) // T-03 ยังไม่แตะฐานข้อมูล
+	router := newTestRouter(nil) // ไม่ต้องใช้ฐานข้อมูล: middleware ปฏิเสธก่อนถึง handler
 
-	if rec := call(router, http.MethodGet, "/api/v1/returns/open-loans", "mock-staff-001"); rec.Code != http.StatusNotImplemented {
-		t.Errorf("token เจ้าหน้าที่: status = %d, want 501", rec.Code)
-	}
 	if rec := call(router, http.MethodGet, "/api/v1/returns/open-loans", ""); rec.Code != http.StatusUnauthorized {
 		t.Errorf("ไม่มี token: status = %d, want 401 (IF-IDP-01)", rec.Code)
 	}
@@ -604,5 +602,117 @@ func TestAC_RET_06_LateReturnFlagged(t *testing.T) {
 	}
 	if !stillLate {
 		t.Error("returned_late ต้องคงค่าที่บันทึกตอนรับคืน")
+	}
+}
+
+// fixedProvider คือระบบยืนยันตัวตนจำลองที่ test กำหนดผู้ใช้เอง (ใช้ auth.Provider ของ IF-IDP-01 ไม่แก้ mock ของกลาง)
+type fixedProvider map[string]auth.Principal
+
+func (f fixedProvider) Authenticate(_ context.Context, token string) (auth.Principal, error) {
+	p, ok := f[token]
+	if !ok {
+		return auth.Principal{}, auth.ErrInvalidToken
+	}
+	return p, nil
+}
+
+// insertDepartment สร้างภาควิชาใหม่ 1 ภาควิชา พร้อมรุ่น 1 รุ่น คืนรหัสภาควิชาและรหัสรุ่น
+func insertDepartment(t *testing.T, pool *pgxpool.Pool, name string) (deptID, modelID int) {
+	t.Helper()
+	ctx := context.Background()
+	if err := pool.QueryRow(ctx, `INSERT INTO department (name) VALUES ($1) RETURNING id`, name).Scan(&deptID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx,
+		`INSERT INTO equipment_model (name, category_id, department_id) VALUES ($1, 1, $2) RETURNING id`,
+		name+" รุ่นทดสอบ", deptID).Scan(&modelID); err != nil {
+		t.Fatal(err)
+	}
+	return deptID, modelID
+}
+
+// insertLoanOfModel สร้างอุปกรณ์ของรุ่น modelID พร้อมการยืม ถ้า returned = true การยืมนั้นคืนแล้วและอุปกรณ์ "ว่าง"
+func insertLoanOfModel(t *testing.T, pool *pgxpool.Pool, modelID int, assetCode string, dueIn time.Duration, returned bool) {
+	t.Helper()
+	ctx := context.Background()
+	status := "borrowed"
+	if returned {
+		status = "available"
+	}
+	var itemID int
+	if err := pool.QueryRow(ctx,
+		`INSERT INTO equipment_item (asset_code, model_id, status) VALUES ($1, $2, $3) RETURNING id`,
+		assetCode, modelID, status).Scan(&itemID); err != nil {
+		t.Fatal(err)
+	}
+	if returned {
+		_, err := pool.Exec(ctx, `INSERT INTO loan (item_id, borrower_id, loan_type, due_at, returned_at, return_condition, returned_late)
+			VALUES ($1, 'student-201', 'normal', now() + $2::interval, now(), 'normal', false)`, itemID, dueIn.String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	if _, err := pool.Exec(ctx, `INSERT INTO loan (item_id, borrower_id, loan_type, due_at)
+		VALUES ($1, 'student-201', 'normal', now() + $2::interval)`, itemID, dueIn.String()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// AC-RET-10 (FR-RET-01 หน้ารายการ)
+//
+//	Given ภาควิชาของเจ้าหน้าที่มีการยืมที่ยังไม่คืน 3 รายการ คืนแล้ว 2 รายการ และภาควิชาอื่นมีการยืมที่ยังไม่คืน 1 รายการ
+//	When  เจ้าหน้าที่เปิดหน้ารายการที่ยังไม่คืน
+//	Then  เห็นเฉพาะ 3 รายการของภาควิชาตนเอง (ส่วนเลือกรายการเพื่อบันทึกคืนอยู่ในหน้าจอ T-15)
+//
+// ฐานข้อมูลทดสอบใช้ร่วมกันทุก test จึงสร้างภาควิชาใหม่ 2 ภาควิชาเฉพาะ test นี้ ให้นับได้ตรงตาม AC
+func TestAC_RET_10_OpenLoansOwnDepartment(t *testing.T) {
+	pool := testPool(t)
+
+	// Given
+	ownDept, ownModel := insertDepartment(t, pool, "T14 ภาควิชาของเจ้าหน้าที่")
+	_, otherModel := insertDepartment(t, pool, "T14 ภาควิชาอื่น")
+	insertLoanOfModel(t, pool, ownModel, "T14-OPEN-3", 3*time.Hour, false)
+	insertLoanOfModel(t, pool, ownModel, "T14-OPEN-1", -1*time.Hour, false) // เลยกำหนดแล้ว
+	insertLoanOfModel(t, pool, ownModel, "T14-OPEN-2", 1*time.Hour, false)
+	insertLoanOfModel(t, pool, ownModel, "T14-DONE-1", -2*time.Hour, true)
+	insertLoanOfModel(t, pool, ownModel, "T14-DONE-2", -3*time.Hour, true)
+	insertLoanOfModel(t, pool, otherModel, "T14-OTHER", 1*time.Hour, false)
+
+	provider := fixedProvider{"staff-t14": {UserID: "staff-t14", Role: auth.RoleStaff, DepartmentID: ownDept}}
+	h := NewHandler(NewRepository(pool))
+	router := platform.NewRouter(pool, platform.Routes(h.Routes(provider)))
+
+	// When
+	rec := call(router, http.MethodGet, "/api/v1/returns/open-loans", "staff-t14")
+
+	// Then
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+	var got []OpenLoan
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	var codes []string
+	for _, l := range got {
+		codes = append(codes, l.AssetCode)
+	}
+	want := []string{"T14-OPEN-1", "T14-OPEN-2", "T14-OPEN-3"} // เรียงตามกำหนดคืน
+	if strings.Join(codes, ",") != strings.Join(want, ",") {
+		t.Errorf("รายการ = %v, want %v (เฉพาะที่ยังไม่คืนของภาควิชาตนเอง เรียงตามกำหนดคืน)", codes, want)
+	}
+	if len(got) == 3 && (!got[0].IsOverdue || got[1].IsOverdue) {
+		t.Errorf("isOverdue = %v, %v want true, false", got[0].IsOverdue, got[1].IsOverdue)
+	}
+	if rec.Header().Get("Cache-Control") != "no-store" {
+		t.Error("ต้องมี Cache-Control: no-store")
+	}
+
+	// ภาควิชาที่ไม่มีการยืมค้างได้รายการว่าง [] ไม่ใช่ null
+	emptyDept, _ := insertDepartment(t, pool, "T14 ภาควิชาว่าง")
+	provider["staff-empty"] = auth.Principal{UserID: "staff-empty", Role: auth.RoleStaff, DepartmentID: emptyDept}
+	if rec := call(router, http.MethodGet, "/api/v1/returns/open-loans", "staff-empty"); strings.TrimSpace(rec.Body.String()) != "[]" {
+		t.Errorf("ภาควิชาที่ไม่มีการยืมค้าง: body = %s, want []", rec.Body.String())
 	}
 }

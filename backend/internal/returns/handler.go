@@ -26,7 +26,7 @@ func NewHandler(repo *Repository) *Handler {
 func (h *Handler) Routes(provider auth.Provider) func(*http.ServeMux) {
 	return func(mux *http.ServeMux) {
 		for pattern, handle := range map[string]http.HandlerFunc{
-			"GET /api/v1/returns/open-loans":     notImplemented, // FR-RET-01(ข), FR-RET-06 ทำใน T-14
+			"GET /api/v1/returns/open-loans":     h.openLoans,    // FR-RET-01(ข), FR-RET-06
 			"GET /api/v1/returns/lookup":         h.lookup,       // FR-RET-01(ก)
 			"POST /api/v1/returns":               h.recordReturn, // FR-RET-02, 03, 04, 06, 07
 			"GET /api/v1/returns/loans/{loanId}": h.loanDetail,   // FR-RET-06
@@ -98,9 +98,21 @@ func (h *Handler) loanDetail(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// notImplemented ตอบ 501 ให้ endpoint ที่ยังไม่ถึง task ของมัน
-func notImplemented(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusNotImplemented, map[string]string{"code": "NOT_IMPLEMENTED"})
+// openLoans แสดงรายการการยืมที่ยังไม่คืนของภาควิชาเดียวกับเจ้าหน้าที่ (FR-RET-01(ข), ASM-03)
+// ภาควิชามาจากผู้ใช้ที่ยืนยันตัวตนแล้ว (IF-IDP-01) ไม่รับจาก query string
+func (h *Handler) openLoans(w http.ResponseWriter, r *http.Request) {
+	p, ok := auth.FromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"code": "UNAUTHENTICATED"})
+		return
+	}
+	loans, err := h.svc.repo.ListOpenLoans(r.Context(), p.DepartmentID)
+	if err != nil {
+		log.Printf("returns: open loans: %v", err)
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"code": "UPSTREAM_UNAVAILABLE", "retryable": true})
+		return
+	}
+	writeJSON(w, http.StatusOK, loans)
 }
 
 // writeJSON ตอบ JSON และตั้ง Cache-Control: no-store ทุก response ของ 006 (plan.md ข้อ 4, NFR-DATA-01)

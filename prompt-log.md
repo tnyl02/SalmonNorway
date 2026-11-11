@@ -719,3 +719,28 @@
 
 ### สิ่งที่เกือบต้องเดา
 - AC ใช้เวลา 17:00 / 15:00 ตายตัว แต่เวลาคืนมาจาก now() ของฐานข้อมูล จึงใช้กำหนดคืนสัมพัทธ์ +/- 1 ชั่วโมงแทน ตาม plan.md ข้อ 6
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-14 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 7)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "เอาเลย" -> `/implement T-14 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- `backend/internal/returns/repository.go`: `ListOpenLoans(departmentID)` กรองภาควิชาที่ชั้น repository เรียงตาม due_at คืน `[]` เมื่อไม่มี
+- `backend/internal/returns/handler.go`: `GET /api/v1/returns/open-loans` ใช้ภาควิชาจาก `auth.FromContext` (IF-IDP-01) ไม่รับจาก query
+  ลบ `notImplemented` เพราะทุก endpoint ทำแล้ว
+- `backend/internal/returns/handler_test.go`: `TestAC_RET_10_OpenLoansOwnDepartment`, ตัวช่วย `fixedProvider`, `insertDepartment`, `insertLoanOfModel`
+  แก้ `TestReturns_Skeleton_RoutedThroughAuth` (test ของ T-03 ที่ AI เขียนเอง ไม่ใช่ TestTC_) ให้เลิกคาด 501 เหลือเฉพาะการตรวจ auth
+
+### ผล test (`cd backend && go test ./internal/returns -v`)
+- TestAC_RET_10_OpenLoansOwnDepartment PASS (ได้ 3 รายการของภาควิชาตนเองพอดี เรียงตามกำหนดคืน ไม่มีที่คืนแล้วหรือของภาควิชาอื่น,
+  isOverdue ถูก, ภาควิชาที่ไม่มีการยืมค้างได้ `[]`)
+- test เดิมของ returns ยัง PASS (10 tests)
+
+### สิ่งที่เกือบต้องเดา
+- ฐานข้อมูลทดสอบใช้ร่วมกันทุก test นับ "3 รายการพอดี" ในภาควิชา 1 ไม่ได้ จึงสร้างภาควิชาใหม่และเจ้าหน้าที่จำลองเฉพาะ test (ผ่าน `auth.Provider` ไม่แก้ mock ของกลาง)
+- ไม่แบ่งหน้า ตาม plan.md Q-P1 ที่ยังรอทีมยืนยัน
