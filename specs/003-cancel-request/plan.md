@@ -1,5 +1,5 @@
 # Implementation Plan: ยกเลิกคำขอยืม (Cancel Borrow Request)
-Spec: SPEC-CXL-003 (specs/003-cancel-request/spec.md, Draft v3.2) | Plan status: Draft v1.1 | Updated: 2569-11-11 (ปิด Q-13)
+Spec: SPEC-CXL-003 (specs/003-cancel-request/spec.md, Draft v3.2) | Plan status: Draft v1.2 | Updated: 2569-11-11 (ปิด Q-13, ASM-13 จาก /testcases)
 Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
 
 ## 1. สรุปแนวทาง
@@ -82,7 +82,7 @@ staff_contact(department_id INT REFERENCES department(id), email TEXT NOT NULL)
 
 | Method / path | รองรับ | input / output หลัก |
 |---|---|---|
-| `GET /api/v1/my/pending-requests` | FR-CXL-06, FR-CXL-03 | out: `{items:[{requestId, modelName, assetCode, submittedAt}]}` เฉพาะ `requester_id = UserID` และสถานะที่ยกเลิกได้ เรียง `submitted_at DESC` ไม่มีรายการ = `items: []` |
+| `GET /api/v1/my/pending-requests` | FR-CXL-06, FR-CXL-03 | out: `{items:[{requestId, modelName, assetCode, submittedAt}]}` เฉพาะ `requester_id = UserID` และสถานะที่ยกเลิกได้ เรียง `submitted_at DESC, id DESC` (ASM-13) ไม่มีรายการ = `items: []` เจ้าหน้าที่ -> 403 `STUDENT_ONLY` (ASM-13) |
 | `POST /api/v1/borrow-requests/{id}/cancel` | FR-CXL-01..05, 08, 09 | in: `{reason}` / out 200: `{requestId, status:"cancelled"}` |
 
 ตาราง error ของ `POST .../cancel`
@@ -95,6 +95,7 @@ staff_contact(department_id INT REFERENCES department(id), email TEXT NOT NULL)
 | คำขอเป็น `approved` | 409 | `{code:"ALREADY_APPROVED"}` หน้าจอแจ้งว่าได้รับการอนุมัติแล้ว | FR-CXL-02, FR-CXL-04, AC-CXL-02, 04 |
 | `rejected`, `handed_over`, `returned`, `cancelled` | 409 | `{code:"NOT_CANCELLABLE"}` หน้าจอแสดง "คำขอนี้ยกเลิกไม่ได้" | FR-CXL-02, AC-CXL-11 |
 | session หมดอายุ / ไม่มี token | 401 | `{code:"UNAUTHENTICATED"}` (จาก middleware กลาง) | AC-CXL-07 |
+| ผู้ใช้บทบาทเจ้าหน้าที่ | 403 | `{code:"STUDENT_ONLY"}` ใช้ทั้ง GET และ POST | FR-CXL-03, ASM-13 |
 | ฐานข้อมูลไม่ตอบสนอง | 503 | `{code:"UPSTREAM_UNAVAILABLE", retryable:true}` | FR-CXL-01, ASM-06, AC-CXL-13 |
 | Email ส่งไม่สำเร็จ | 200 | ยกเลิกสำเร็จตามปกติ | FR-CXL-09, AC-CXL-16 |
 
@@ -116,9 +117,10 @@ staff_contact(department_id INT REFERENCES department(id), email TEXT NOT NULL)
 | หน้าจอ | รองรับ | แบบ |
 |---|---|---|
 | `MyPendingRequests` หน้า "คำขอที่รออนุมัติของฉัน" แต่ละแถวแสดงชื่อรุ่น รหัสครุภัณฑ์ เวลาที่ส่ง (Asia/Bangkok) และปุ่มยกเลิก ไม่มีรายการแสดง "ไม่มีคำขอที่รออนุมัติ" | FR-CXL-06 | ไม่มี mockup ทีมออกแบบเอง |
-| `CancelDialog` กล่องยืนยันพร้อมช่องเหตุผล นับตัวอักษร ปุ่มยืนยันกดไม่ได้เมื่อว่างหรือเกิน 200 ปุ่มไม่ยืนยันปิดกล่องโดยไม่เรียก API | FR-CXL-07, FR-CXL-08 | ไม่มี mockup ทีมออกแบบเอง |
+| `CancelDialog` กล่องยืนยันพร้อมช่องเหตุผล ตัวนับ "x/200" ใต้ช่อง (นับตาม code point เช่น `[...text].length`) ปุ่มยืนยันกดไม่ได้เมื่อว่างหรือเกิน 200 ปุ่มไม่ยืนยันปิดกล่องโดยไม่เรียก API และล้างช่องเหตุผล | FR-CXL-07, FR-CXL-08 | ไม่มี mockup ทีมออกแบบเอง |
 
-- ยกเลิกสำเร็จ: แสดงข้อความสำเร็จ แล้วเอาแถวออกจากรายการ (FR-CXL-01, FR-CXL-07)
+- ยกเลิกสำเร็จ: แสดง "ยกเลิกคำขอยืม {ชื่อรุ่น} ({รหัสครุภัณฑ์}) เรียบร้อยแล้ว" แล้วเอาแถวออกจากรายการ (FR-CXL-01, FR-CXL-07)
+- โหลดรายการไม่สำเร็จ: แสดง "โหลดรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" พร้อมปุ่ม "ลองใหม่" ไม่แสดงข้อความว่าไม่มีคำขอ (FR-CXL-06)
 - 409 / 404: แสดงข้อความตามตาราง error แล้วโหลดรายการใหม่ (FR-CXL-02, FR-CXL-03)
 - 503: แสดงข้อผิดพลาดพร้อมปุ่มลองใหม่ แถวยังอยู่ (ASM-06, AC-CXL-13)
 - 401: ไปหน้าเข้าสู่ระบบพร้อม `returnTo=/my/pending-requests` กลับมาแล้วไม่ยกเลิกให้อัตโนมัติ (AC-CXL-07) ตรวจ `returnTo` เป็น path ภายในเท่านั้น (แบบ plan 6.5 ของ 001)
@@ -151,6 +153,9 @@ Quality Requirements: NFR-SEC-01 (middleware กลาง + HTTPS), NFR-AVAIL-01
 | ข้อความ "ไม่มีคำขอที่รออนุมัติ" | FR-CXL-06 | `MSG_NO_PENDING` ใน config.js |
 | ข้อความ "คำขอนี้ยกเลิกไม่ได้" | FR-CXL-02 | `MSG_NOT_CANCELLABLE` ใน config.js |
 | ข้อความ "ไม่พบคำขอ" | FR-CXL-03 | `MSG_REQUEST_NOT_FOUND` ใน config.js |
+| ข้อความ "ยกเลิกคำขอยืม {ชื่อรุ่น} ({รหัสครุภัณฑ์}) เรียบร้อยแล้ว" | FR-CXL-01, ASM-13 | `MSG_CANCEL_SUCCESS` (แม่แบบ) ใน config.js |
+| ข้อความ "โหลดรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" และปุ่ม "ลองใหม่" | FR-CXL-06, ASM-13 | `MSG_LOAD_FAILED`, `LABEL_RETRY` ใน config.js |
+| ข้อความว่าอนุมัติแล้ว | FR-CXL-02 | `MSG_ALREADY_APPROVED` ใน config.js |
 | timeout ของคำสั่งฐานข้อมูลตอนยกเลิก | ASM-06 (ตัวเลขทีมเลือกเอง ไม่ได้มาจาก spec) | `CancelDBTimeout` ใน config.go ต้องน้อยกว่า 15 วินาที (NFR-PERF-CXL-01) |
 
 ## 6. แผนทดสอบจาก Acceptance Criteria

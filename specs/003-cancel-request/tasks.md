@@ -49,7 +49,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 ### T-03 เพิ่มค่าที่ตั้งได้ของ 003 ใน config
 - รองรับ: CON-CXL-02, FR-CXL-02, FR-CXL-03, FR-CXL-06, FR-CXL-08, NFR-PERF-CXL-01, ASM-06
 - ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นงานพื้นฐานของ T-04 ขึ้นไป
-- ไฟล์ที่แตะ: `backend/internal/config/config.go` (`CancellableStatuses`, `CancelReasonMaxLen`, `CancelPerfP95`, `CancelDBTimeout`, `DisplayTimezone` ถ้า 001 ยังไม่เพิ่ม), `frontend/src/config.js` (`CANCEL_REASON_MAX_LEN`, `DISPLAY_TIMEZONE`, `MSG_NO_PENDING`, `MSG_NOT_CANCELLABLE`, `MSG_REQUEST_NOT_FOUND`, `MSG_ALREADY_APPROVED`), `backend/internal/config/config_test.go`
+- ไฟล์ที่แตะ: `backend/internal/config/config.go` (`CancellableStatuses`, `CancelReasonMaxLen`, `CancelPerfP95`, `CancelDBTimeout`, `DisplayTimezone` ถ้า 001 ยังไม่เพิ่ม), `frontend/src/config.js` (`CANCEL_REASON_MAX_LEN`, `DISPLAY_TIMEZONE`, `MSG_NO_PENDING`, `MSG_NOT_CANCELLABLE`, `MSG_REQUEST_NOT_FOUND`, `MSG_ALREADY_APPROVED`, `MSG_CANCEL_SUCCESS`, `MSG_LOAD_FAILED`, `LABEL_RETRY` ตาม ASM-13), `backend/internal/config/config_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: `TestConfig_CancellableStatuses` ผ่าน (มี 3 ค่า requested, approved_by_officer, pending_advisor_approval) และ `CancelDBTimeout` น้อยกว่า 15 วินาที (ตัวเลขทีมเลือกเอง จดใน prompt-log)
@@ -74,7 +74,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ไฟล์ที่แตะ: `backend/internal/cancelrequest/repository.go`, `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/handler.go`, `backend/internal/cancelrequest/dto.go`, `backend/internal/cancelrequest/handler_test.go`, `backend/internal/platform/http.go` (ของกลาง ลงทะเบียน route หลัง `auth.Middleware`)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01, T-03
-- เสร็จเมื่อ: `TestAC_CXL_08_ListOwnPendingSorted` ผ่าน (`GET /api/v1/my/pending-requests` คืนเฉพาะคำขอของผู้เรียกที่ยกเลิกได้ เรียงใหม่ไปเก่า มี requestId, modelName, assetCode, submittedAt)
+- เสร็จเมื่อ: `TestAC_CXL_08_ListOwnPendingSorted` ผ่าน (`GET /api/v1/my/pending-requests` คืนเฉพาะคำขอของผู้เรียกที่ยกเลิกได้ เรียงใหม่ไปเก่า เวลาเท่ากันเรียง requestId มากไปน้อย มี requestId, modelName, assetCode, submittedAt เจ้าหน้าที่ได้ 403 `STUDENT_ONLY`)
 - สถานะ: พร้อมทำ
 
 ### T-05 สร้างหน้า "คำขอที่รออนุมัติของฉัน" แสดงรายการ
@@ -114,7 +114,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/CancelDialog.jsx`, `frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/CancelDialog.test.jsx`, `frontend/src/api/client.js` (ของกลาง เพิ่ม `cancelRequest`)
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
 - ต้องทำหลัง: T-05, T-06
-- เสร็จเมื่อ: vitest `AC_CXL_01 cancels with reason and shows success` ผ่าน (พิมพ์เหตุผล กดยืนยัน เห็นข้อความยกเลิกสำเร็จ และแถวหายจากรายการ)
+- เสร็จเมื่อ: vitest `AC_CXL_01 cancels with reason and shows success` ผ่าน (พิมพ์เหตุผล กดยืนยัน เห็น "ยกเลิกคำขอยืม {ชื่อรุ่น} ({รหัสครุภัณฑ์}) เรียบร้อยแล้ว" และแถวหายจากรายการ)
 - สถานะ: พร้อมทำ
 
 #### จุดตรวจเฟส 2
@@ -136,7 +136,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/CancelDialog.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/CancelDialog.test.jsx`
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
 - ต้องทำหลัง: T-07
-- เสร็จเมื่อ: vitest `AC_CXL_09 confirm dialog cancel then confirm` ผ่าน (ไม่ยืนยันแล้ว client จำลองไม่ถูกเรียก แถวยังอยู่ ยืนยันรอบสองแล้วแถวหาย)
+- เสร็จเมื่อ: vitest `AC_CXL_09 confirm dialog cancel then confirm` ผ่าน (ไม่ยืนยันแล้ว client จำลองไม่ถูกเรียก แถวยังอยู่ เปิดกล่องใหม่ช่องเหตุผลว่าง ยืนยันรอบสองแล้วแถวหาย)
 - สถานะ: พร้อมทำ
 
 #### จุดตรวจเฟส 3
@@ -167,7 +167,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/CancelDialog.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/CancelDialog.test.jsx`
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
 - ต้องทำหลัง: T-08, T-09
-- เสร็จเมื่อ: vitest `AC_CXL_14 confirm disabled when reason empty or too long` ผ่าน
+- เสร็จเมื่อ: vitest `AC_CXL_14 confirm disabled when reason empty or too long` ผ่าน (ตัวนับ "x/200" นับตาม code point เท่ากับหลังบ้าน)
 - สถานะ: พร้อมทำ
 
 #### จุดตรวจเฟส 4
@@ -198,7 +198,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/MyPendingRequests.test.jsx`
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
 - ต้องทำหลัง: T-05, T-11
-- เสร็จเมื่อ: vitest `AC_CXL_12 shows empty message` ผ่าน (แสดง `MSG_NO_PENDING` "ไม่มีคำขอที่รออนุมัติ" และไม่มีแถว)
+- เสร็จเมื่อ: vitest `AC_CXL_12 shows empty message` ผ่าน (แสดง `MSG_NO_PENDING` "ไม่มีคำขอที่รออนุมัติ" และไม่มีแถว ส่วนโหลดไม่สำเร็จแสดง `MSG_LOAD_FAILED` พร้อมปุ่ม "ลองใหม่" แทน)
 - สถานะ: พร้อมทำ
 
 #### จุดตรวจเฟส 5
