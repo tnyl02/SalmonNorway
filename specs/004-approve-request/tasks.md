@@ -13,6 +13,8 @@ Updated: 2569-11-12
 
 วิธีเปิดระบบที่ใช้ทุกจุดตรวจ:
 - หลังบ้าน: `docker compose -f deploy/docker-compose.yml up -d db` แล้ว `cd backend && go run ./cmd/server` (port 8000)
+- ข้อมูลตัวอย่างของ 004 (โหลดเองหลังหลังบ้านรัน migration และ seed.sql แล้ว แบบเดียวกับ `handover_dev.sql` ของ 005):
+  `docker compose -f deploy/docker-compose.yml exec -T db psql -U salmon -d salmon < backend/db/seed/approve_dev.sql`
 - หน้าจอ (ในฐานะเจ้าหน้าที่ภาควิชา 1): `cd frontend && VITE_MOCK_TOKEN=mock-staff-001 npm run dev`
 - test: `cd backend && go test ./... -v` และ `cd frontend && npm test`
 
@@ -35,23 +37,23 @@ Updated: 2569-11-12
 - ไฟล์ที่แตะ: `backend/internal/config/config.go`, `frontend/src/config.js`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
-- เสร็จเมื่อ: ค่าครบทุกแถวในตาราง "ค่าที่ตั้งได้" ของ plan ข้อ 5 (รวมข้อความ error 9 ข้อความ และ `ApprovalEmailRetryCount` = 3 นับเฉพาะครั้งที่ส่งซ้ำ) อยู่ที่เดียวพร้อมคอมเมนต์อ้าง ID และค้นในโค้ดแล้วไม่เจอค่าเหล่านี้ที่อื่น
+- เสร็จเมื่อ: ค่าครบทุกแถวในตาราง "ค่าที่ตั้งได้" ของ plan ข้อ 5 (รวมข้อความ error 9 ข้อความ และ `ApprovalEmailRetryCount` = 3 นับเฉพาะครั้งที่ส่งซ้ำ) อยู่ที่เดียวพร้อมคอมเมนต์อ้าง ID และค้นในโค้ดแล้วไม่เจอค่าเหล่านี้ที่อื่น / ค่าที่ 002 ประกาศไว้แล้วใช้ร่วม ไม่ประกาศซ้ำ: เวลาตัด 16:00 น. ใช้ `LoanNormalReturnHour` (DOM-LOAN-01) และค่าสถานะของคำขอใช้ `RequestStatuses` / `StatusRequested`
 - สถานะ: พร้อมทำ
 
 ### T-03 เพิ่มข้อมูลตัวอย่างสำหรับลองระบบของ 004
 - รองรับ: FR-APV-01 (ก)(ข)(จ)
 - ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นข้อมูลที่จุดตรวจของทุกเฟสใช้
-- ไฟล์ที่แตะ: `backend/db/seed/seed.sql` (ต่อท้ายส่วนของ 004 ไม่แก้แถวของ 001 / 002)
+- ไฟล์ที่แตะ: `backend/db/seed/approve_dev.sql` (ไฟล์ใหม่ โหลดเองด้วย psql ไม่แตะ `seed.sql` เพราะ `TestSeed_BorrowRequestScenarios` ของ 002 บังคับว่า seed.sql ต้องไม่มีคำขอยืม ทำแบบเดียวกับ `handover_dev.sql` ของ 005)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
-- เสร็จเมื่อ: seed มีคำขอ `requested` ยืมปกติของภาควิชา 1 อย่างน้อย 3 ใบ (2 ใบอยู่บนอุปกรณ์ชิ้นเดียวกัน), คำขอค้างคืน 1 ใบบนชิ้นเดียวกันนั้น, คำขอของอุปกรณ์ภาควิชา 2 อย่างน้อย 1 ใบ, คำขอ 1 ใบบนอุปกรณ์ที่ `borrowed` และคำขอ `cancelled` 1 ใบ
+- เสร็จเมื่อ: โหลด `approve_dev.sql` หลัง seed.sql ได้โดยไม่ error (โหลดร่วมกับ `handover_dev.sql` ได้) เพิ่มรุ่นและอุปกรณ์ชุดของตัวเอง (รหัสครุภัณฑ์ขึ้นต้น `AP-TEST-` ไม่แตะอุปกรณ์ของ seed.sql) และมีคำขอ `requested` ยืมปกติของภาควิชา 1 อย่างน้อย 3 ใบ (2 ใบอยู่บนอุปกรณ์ชิ้นเดียวกัน), คำขอค้างคืน 1 ใบบนชิ้นเดียวกันนั้น, คำขอของอุปกรณ์ภาควิชา 2 อย่างน้อย 1 ใบ, คำขอ 1 ใบบนอุปกรณ์ที่ `borrowed` และคำขอ `cancelled` 1 ใบ / seed.sql ไม่เปลี่ยน และ `TestSeed_BorrowRequestScenarios` ยังผ่าน
 - สถานะ: พร้อมทำ
 
 #### จุดตรวจเฟส 0
-- test ที่ต้องผ่านทั้งหมด: `TestMigration_ApprovalTables`, `TestMigration_ApprovalAuditActions` และ test เดิมของ 001 / 002 ทั้งหมดต้องยังผ่าน
-- เปิดระบบ: `docker compose -f deploy/docker-compose.yml up -d db` แล้ว `cd backend && go test ./... -v`
+- test ที่ต้องผ่านทั้งหมด: `TestMigration_ApprovalTables`, `TestMigration_ApprovalAuditActions` และ test เดิมของ 001 / 002 / 005 ทั้งหมดต้องยังผ่าน (รวม `TestSeed_BorrowRequestScenarios`)
+- เปิดระบบ: `docker compose -f deploy/docker-compose.yml up -d db` แล้ว `cd backend && go test ./... -v` และโหลด `approve_dev.sql` ตามหัวไฟล์
 - คนลองเองตาม AC: ยังไม่มี AC ในเฟสนี้ ให้ลองว่า
-  Given รัน migration ครบทุกไฟล์และ seed แล้ว
+  Given รัน migration ครบทุกไฟล์ seed.sql และ approve_dev.sql แล้ว
   When ใช้ psql `INSERT` แถว `approval_decision` ซ้ำ request_id เดิม 2 แถว
   Then ฐานข้อมูลต้องปฏิเสธแถวที่ 2 ด้วย UNIQUE constraint
 - ยังขาด: ไม่มี
@@ -91,7 +93,7 @@ Updated: 2569-11-12
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_11` (repository + HTTP), vitest `AC-APV-11` และ test ของเฟส 0
 - เปิดระบบ: หลังบ้านและหน้าจอตามหัวไฟล์ (`VITE_MOCK_TOKEN=mock-staff-001`)
 - คนลองเองตาม AC-APV-11:
-  Given ใช้ seed จาก T-03 และเปิดหน้าจอในฐานะ `mock-staff-001` (ภาควิชา 1)
+  Given โหลด approve_dev.sql จาก T-03 และเปิดหน้าจอในฐานะ `mock-staff-001` (ภาควิชา 1)
   When เปิดหน้ารายการคำขอ
   Then เห็นเฉพาะคำขอยืมปกติ `requested` ของภาควิชา 1 เรียงจากเก่าไปใหม่ ไม่เห็นคำขอของภาควิชา 2 คำขอค้างคืน และคำขอ `cancelled`
 - ยังขาด: ไม่มี
@@ -131,7 +133,7 @@ Updated: 2569-11-12
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_01` (service + HTTP), vitest `AC-APV-01` และ test ของเฟส 0 ถึง 1
 - เปิดระบบ: หลังบ้านและหน้าจอตามหัวไฟล์
 - คนลองเองตาม AC-APV-01:
-  Given seed มีคำขอแรกของอุปกรณ์ที่ "ว่าง" ในภาควิชา 1
+  Given approve_dev.sql มีคำขอแรกของอุปกรณ์ที่ "ว่าง" ในภาควิชา 1
   When กด "อนุมัติ" ที่คำขอนั้น
   Then คำขอหายจากรายการ เปิด psql เห็น `borrow_request.status = 'approved'` และ `equipment_item.status` ยังเป็น `available`
 - ยังขาด: ไม่มี
@@ -162,7 +164,7 @@ Updated: 2569-11-12
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_02`, vitest `AC-APV-02` และ test ของเฟส 0 ถึง 2
 - เปิดระบบ: หลังบ้านและหน้าจอตามหัวไฟล์
 - คนลองเองตาม AC-APV-02:
-  Given seed มีคำขอ `requested` ของภาควิชา 1
+  Given approve_dev.sql มีคำขอ `requested` ของภาควิชา 1
   When กด "ปฏิเสธ" พิมพ์เหตุผล "อุปกรณ์ต้องใช้สอบ" แล้วยืนยัน
   Then คำขอหายจากรายการ psql เห็น `rejected` และเหตุผลตรงกับที่พิมพ์ สถานะอุปกรณ์ไม่เปลี่ยน
 - ยังขาด: ไม่มี
@@ -193,7 +195,7 @@ Updated: 2569-11-12
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_06`, vitest `AC-APV-06` และ test ของเฟส 0 ถึง 3
 - เปิดระบบ: หลังบ้านและหน้าจอตามหัวไฟล์
 - คนลองเองตาม AC-APV-06:
-  Given seed มีคำขอ `requested`
+  Given approve_dev.sql มีคำขอ `requested`
   When กด "ปฏิเสธ" เว้นช่องเหตุผลว่าง (หรือพิมพ์แต่ช่องว่าง) แล้วยืนยัน
   Then เห็น "กรุณาระบุเหตุผลในการปฏิเสธ" และคำขอยังอยู่ในรายการ
 - ยังขาด: ไม่มี
@@ -224,7 +226,7 @@ Updated: 2569-11-12
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_04`, test ของ `email_test.go` และ test ของเฟส 0 ถึง 4
 - เปิดระบบ: หลังบ้านและหน้าจอตามหัวไฟล์ (ตัวส่งจำลองเขียน Email ลง log ของหลังบ้าน)
 - คนลองเองตาม AC-APV-04:
-  Given seed มีคำขอ `requested`
+  Given approve_dev.sql มีคำขอ `requested`
   When อนุมัติคำขอหนึ่ง และปฏิเสธอีกคำขอพร้อมเหตุผล
   Then ภายใน 60 วินาที log ของหลังบ้านมี Email 2 ฉบับ หัวข้อ "แจ้งผลการอนุมัติการยืมอุปกรณ์ภาคคอมพิวเตอร์" และ "แจ้งผลการปฏิเสธการยืมอุปกรณ์ภาคคอมพิวเตอร์" ข้อมูลครบตาม FR-APV-02
 - ยังขาด: ส่งถึง Email จริงของผู้ขอ (รอ Q-APV-04 ดู T-37) และชื่อผู้อนุมัติใน Email (Principal ยังไม่มีชื่อ ดู T-38)
@@ -246,7 +248,7 @@ Updated: 2569-11-12
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_03` และ test ของเฟส 0 ถึง 5
 - เปิดระบบ: หลังบ้านและหน้าจอตามหัวไฟล์
 - คนลองเองตาม AC-APV-03:
-  Given seed มีคำขอ A (ส่งก่อน) และ B บนอุปกรณ์ชิ้นเดียวกัน
+  Given approve_dev.sql มีคำขอ A (ส่งก่อน) และ B บนอุปกรณ์ชิ้นเดียวกัน
   When อนุมัติ A
   Then ทั้ง A และ B หายจากรายการ psql เห็น B เป็น `rejected` ด้วยเหตุผล "อุปกรณ์ชิ้นนี้ได้รับการอนุมัติให้คำขออื่นแล้ว" และ log มี Email ผลปฏิเสธของ B
 - ยังขาด: ไม่มี
@@ -277,7 +279,7 @@ Updated: 2569-11-12
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_07`, vitest `AC-APV-07` และ test ของเฟส 0 ถึง 6
 - เปิดระบบ: หลังบ้านและหน้าจอตามหัวไฟล์
 - คนลองเองตาม AC-APV-07:
-  Given seed มีคำขอ A และ B บนอุปกรณ์ชิ้นเดียวกัน (ถ้าเฟส 6 ใช้ไปแล้ว ให้รัน seed ใหม่)
+  Given approve_dev.sql มีคำขอ A และ B บนอุปกรณ์ชิ้นเดียวกัน (ถ้าเฟส 6 ใช้ไปแล้ว ให้ล้างฐานข้อมูลแล้วโหลด approve_dev.sql ใหม่)
   When ดูแถวของ B แล้วยิง `curl -X POST localhost:8000/v1/approvals/requests/<id ของ B>/approve -H "Authorization: Bearer mock-staff-001" -d '{"loaded_at":"..."}'`
   Then บนหน้าจอแถว B ไม่มีปุ่มอนุมัติ และ curl ได้ 409 `NOT_FIRST_IN_QUEUE`
 - ยังขาด: ไม่มี
@@ -308,7 +310,7 @@ Updated: 2569-11-12
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_08`, vitest `AC-APV-08` และ test ของเฟส 0 ถึง 7
 - เปิดระบบ: หลังบ้านและหน้าจอตามหัวไฟล์
 - คนลองเองตาม AC-APV-08:
-  Given seed มีคำขอแรกของอุปกรณ์ที่ `borrowed`
+  Given approve_dev.sql มีคำขอแรกของอุปกรณ์ที่ `borrowed`
   When กด "อนุมัติ" ที่คำขอนั้น
   Then เห็น "อุปกรณ์ชิ้นนี้ไม่ได้อยู่ในสถานะว่างแล้ว อนุมัติไม่ได้" และคำขอยังเป็น `requested`
 - ยังขาด: ไม่มี
@@ -323,7 +325,7 @@ Updated: 2569-11-12
 - ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/service_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-07
-- เสร็จเมื่อ: `TestAC_APV_16` ผ่านด้วยนาฬิกาจำลอง: เลย `ApprovalApproveCutoff` ของวันที่เริ่มยืม (Asia/Bangkok) ได้ 409 `APPROVAL_CUTOFF_PASSED` สถานะคงเดิม คำขอนั้นยังเป็นคำขอแรก (คำขอถัดไปยังได้ `NOT_FIRST_IN_QUEUE`) และปฏิเสธเองได้ (ID ของ AC-APV-16 รอ Q-APV-13 ถ้าทีมเปลี่ยน ID ให้เปลี่ยนชื่อ test ตาม)
+- เสร็จเมื่อ: `TestAC_APV_16` ผ่านด้วยนาฬิกาจำลอง: เลย `LoanNormalReturnHour` (16:00 น.) ของวันที่เริ่มยืม (Asia/Bangkok) ได้ 409 `APPROVAL_CUTOFF_PASSED` สถานะคงเดิม คำขอนั้นยังเป็นคำขอแรก (คำขอถัดไปยังได้ `NOT_FIRST_IN_QUEUE`) และปฏิเสธเองได้ (ID ของ AC-APV-16 รอ Q-APV-13 ถ้าทีมเปลี่ยน ID ให้เปลี่ยนชื่อ test ตาม)
 - สถานะ: พร้อมทำ
 
 ### T-22 แสดงข้อความ APPROVAL_CUTOFF_PASSED บนหน้าจอ
@@ -401,7 +403,7 @@ Updated: 2569-11-12
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_12`, vitest `AC-APV-12` และ test ของเฟส 0 ถึง 10
 - เปิดระบบ: หลังบ้านตามหัวไฟล์ (หน้าจอไม่แสดงคำขอภาควิชาอื่นอยู่แล้ว จึงลองด้วย curl)
 - คนลองเองตาม AC-APV-12:
-  Given seed มีคำขอของอุปกรณ์ภาควิชา 2
+  Given approve_dev.sql มีคำขอของอุปกรณ์ภาควิชา 2
   When ยิง `curl -X POST localhost:8000/v1/approvals/requests/<id>/approve -H "Authorization: Bearer mock-staff-001" -d '{"loaded_at":"..."}'`
   Then ได้ 403 `{"code":"FORBIDDEN_DEPARTMENT","message":"คำขอนี้เป็นของอุปกรณ์ภาควิชาอื่น คุณไม่มีสิทธิ์พิจารณา"}` และคำขอยังเป็น `requested`
 - ยังขาด: ไม่มี
@@ -423,7 +425,7 @@ Updated: 2569-11-12
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_05` และ test ของเฟส 0 ถึง 11
 - เปิดระบบ: หลังบ้านตามหัวไฟล์
 - คนลองเองตาม AC-APV-05:
-  Given seed มีคำขอ `requested`
+  Given approve_dev.sql มีคำขอ `requested`
   When ยิง curl approve ครั้งแรกไม่ใส่ `Authorization` และครั้งที่สองใส่ `Bearer mock-student-001`
   Then ได้ 401 `UNAUTHENTICATED` และ 403 `FORBIDDEN_ROLE` ตามลำดับ และคำขอยังเป็น `requested`
 - ยังขาด: ไม่มี
@@ -511,7 +513,7 @@ Updated: 2569-11-12
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_17` และ test ของเฟส 0 ถึง 15
 - เปิดระบบ: หลังบ้านและหน้าจอตามหัวไฟล์
 - คนลองเองตาม AC-APV-17:
-  Given seed มีคำขอยืมปกติ A และคำขอค้างคืน C บนอุปกรณ์ชิ้นเดียวกัน (C ไม่ขึ้นในหน้ารายการ)
+  Given approve_dev.sql มีคำขอยืมปกติ A และคำขอค้างคืน C บนอุปกรณ์ชิ้นเดียวกัน (C ไม่ขึ้นในหน้ารายการ)
   When อนุมัติ A บนหน้าจอ
   Then psql เห็น C เป็น `rejected` ด้วยเหตุผล "อุปกรณ์ชิ้นนี้ได้รับการอนุมัติให้คำขออื่นแล้ว" และ log มี Email ผลปฏิเสธของ C
 - ยังขาด: ทีมยังไม่อนุมัติ ID ของ AC-APV-17 (Q-APV-22)

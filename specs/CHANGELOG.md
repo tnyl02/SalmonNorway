@@ -2,6 +2,13 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [tasks 004 v1.1 + plan 004] - 2569-11-12
+ปรับตามโค้ดของ 002 และ 005 ที่ merge จาก main ไม่ทำ CR เพราะไม่ได้เปลี่ยน spec หรือ constraint
+
+### Changed
+- `specs/004-approve-request/tasks.md` T-03: ข้อมูลตัวอย่างย้ายไป `backend/db/seed/approve_dev.sql` (seed.sql ต้องไม่มีคำขอยืม ตาม `TestSeed_BorrowRequestScenarios` ของ 002) จุดตรวจทุกเฟสอ้างไฟล์นี้
+- tasks.md T-02, T-21 และ plan.md ข้อ 5: ใช้ `LoanNormalReturnHour` และ `RequestStatuses` ของ 002 ร่วม ไม่ประกาศค่าซ้ำ
+
 ## [tasks 004 v1] - 2569-11-12
 ไม่ทำ CR เพราะไม่ได้เปลี่ยน spec หรือ constraint
 

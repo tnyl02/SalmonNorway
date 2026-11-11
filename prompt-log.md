@@ -2211,3 +2211,15 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - สิ่งที่พบจากไฟล์ที่ merge มา (ยังไม่แก้ รอสั่ง):
   - `TestSeed_BorrowRequestScenarios` ของ 002 บังคับให้ seed.sql ไม่มีคำขอยืม -> T-03 ของ 004 ต้องย้ายไปไฟล์ seed แยกแบบ `handover_dev.sql` ของ 005
   - config.go มี `LoanNormalReturnHour` (DOM-LOAN-01) และ `RequestStatuses` ของ 002 แล้ว -> T-02 ของ 004 ควรใช้ร่วม ไม่ประกาศซ้ำ
+
+---
+
+## 2569-11-12 คำสั่ง: ปรับ T-02 และ T-03 ของ 004 ตามโค้ดที่ merge จาก main
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "แก้เลย"
+- สิ่งที่แก้:
+  - tasks.md T-03: ไฟล์ที่แตะเปลี่ยนจาก `seed.sql` เป็นไฟล์ใหม่ `backend/db/seed/approve_dev.sql` โหลดเองด้วย psql (แบบ `handover_dev.sql` ของ 005) เพราะ `TestSeed_BorrowRequestScenarios` ของ 002 บังคับว่า seed.sql ไม่มีคำขอยืม; อุปกรณ์ของ 004 ใช้รหัส `AP-TEST-`; เพิ่มคำสั่งโหลดในหัวไฟล์; จุดตรวจทุกเฟสอ้าง approve_dev.sql แทน seed
+  - tasks.md T-02, T-21 และ plan.md ข้อ 5: เวลาตัด 16:00 น. ใช้ `LoanNormalReturnHour` ที่ 002 ประกาศไว้ ไม่สร้าง `ApprovalApproveCutoff` ใหม่ (AGENTS.md กฎข้อ 9) และใช้ `RequestStatuses` / `StatusRequested` ของ 002
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): ชื่อไฟล์ `approve_dev.sql` และคำนำหน้ารหัสครุภัณฑ์ `AP-TEST-`

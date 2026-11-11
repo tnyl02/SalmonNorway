@@ -100,7 +100,7 @@ error (CON-TECH-03) ข้อความตาม FR-APV-01 (ซ) อยู่�
 | ส่ง Email ภายใน 60 วินาทีหลังบันทึกผล | FR-APV-02 | `ApprovalEmailDeadline` (config.go) |
 | ส่งซ้ำอัตโนมัติอีก 3 ครั้งหลังครั้งแรก (รวม 4 ครั้ง) | FR-APV-02 ง, Q-APV-17 | `ApprovalEmailRetryCount` = 3 นับเฉพาะครั้งที่ส่งซ้ำ (config.go) |
 | ห่างกันครั้งละ 1 นาที | FR-APV-02 ง | `ApprovalEmailRetryInterval` (config.go) |
-| อนุมัติไม่ได้หลัง 16:00 น. ของวันที่เริ่มยืม | FR-APV-01 ค, Q-APV-11, DOM-LOAN-01 | `ApprovalApproveCutoff` (config.go) |
+| อนุมัติไม่ได้หลัง 16:00 น. ของวันที่เริ่มยืม | FR-APV-01 ค, Q-APV-11, DOM-LOAN-01 | ใช้ `LoanNormalReturnHour` ที่ 002 ประกาศไว้แล้ว (config.go) ไม่ประกาศซ้ำ (AGENTS.md กฎข้อ 9) |
 | ปฏิเสธอัตโนมัติ 00:00 น. หลังวันที่ส่ง | FR-APV-01 ฉ, ASM-05 | `ApprovalAutoRejectAt` (config.go) |
 | เขตเวลา Asia/Bangkok | glossary | `TimeZone` (config.go มีอยู่แล้ว) |
 | สถานที่รับ "คณะวิทยาศาสตร์ ตึก 1 ชั้น 2 ห้องอุปกรณ์ภาควิชาคอมพิวเตอร์" | FR-APV-02 ก | `ApprovalPickupLocation` (config.go) |
