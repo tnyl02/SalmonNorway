@@ -1,5 +1,5 @@
 # Implementation Plan: ตรวจสอบสถานะอุปกรณ์ (Equipment Status)
-Spec: SPEC-EQS-001 (specs/001-equipment-status/spec.md, Draft v4.1) | Plan status: Draft v1.4 | Updated: 2569-11-10 (audit_log ใช้ร่วม แยกเป็น T-31)
+Spec: SPEC-EQS-001 (specs/001-equipment-status/spec.md, Draft v4.2) | Plan status: Draft v1.5 | Updated: 2569-11-10 (ตามผลจาก T-02, T-03, T-31)
 
 ## 1. Summary
 ฟีเจอร์ read-only ให้ผู้ใช้ที่ยืนยันตัวตนแล้วดูรายการอุปกรณ์แบบ "1 แถว = 1 รุ่น/ชนิด"
@@ -89,7 +89,8 @@ audit_log(id, actor_id, actor_role, occurred_at, action CHECK IN ('list','search
           query JSONB, asset_code NULL, request_id NULL, outcome CHECK IN ('ok','forbidden','error'))
 ```
 `cancel` และ `request_id` เพิ่มตามคำขอของ 003 (2569-11-10) ฟีเจอร์นี้ใช้แค่ `list`, `search`, `detail`
-ตารางเป็น append-only (ไม่ให้ app user ทำ UPDATE/DELETE)
+ตารางเป็น append-only: บังคับด้วย trigger ที่ปฏิเสธ UPDATE, DELETE และ TRUNCATE (T-31)
+ใช้ trigger แทนการจำกัดสิทธิ์ผู้ใช้ฐานข้อมูล เพราะบังคับได้ทุกผู้ใช้ รวมถึงเครื่องพัฒนาที่ใช้ผู้ใช้คนเดียว
 
 ## 5. API Contract (REST, JSON, HTTPS เท่านั้น, ทุก endpoint ต้องมี auth)
 
@@ -102,7 +103,7 @@ audit_log(id, actor_id, actor_role, occurred_at, action CHECK IN ('list','search
 
 Response (ตัวอย่างแถวรุ่น): `{modelId, name, category, availableCount, totalCount}`
 - `availableCount` นับเฉพาะ `status='available'` (สถานะ "ว่าง") อุปกรณ์ที่มีคำขอค้างยังนับเป็นว่าง (DOM-REQ-01)
-- `availableCount/totalCount` คำนวณจากทั้งรุ่นเสมอ ไม่ถูกลดตามตัวกรอง (ดู Q-P2)
+- availableCount/totalCount นับเฉพาะชิ้นที่ตรงตัวกรอง (Q-15) รูปแบบตัวเลขบนหน้าจอเมื่อกรองตามที่ตกลงใน AC-EQS-15
 
 Response (รายชิ้น): `{assetCode, status, dueAt?, isOverdue?, canRequestLoan, borrowerName?}`
 - `canRequestLoan = (status == 'available')` คำนวณที่ server ตาม FR-04/05/06
@@ -115,6 +116,7 @@ Error contract:
 | กรณี | HTTP | body | อ้างอิง |
 |---|---|---|---|
 | ไม่มี/หมดอายุ session | 401 | `{code:"UNAUTHENTICATED"}` | AC-09 |
+| ยืนยันตัวตนได้ แต่ไม่มีภาควิชาหรือบทบาทไม่รู้จัก | 403 | `{code:"PRINCIPAL_INCOMPLETE"}` (ทีมเลือก 403 เมื่อ 2569-11-09 กันการวนกลับหน้าล็อกอิน) | IF-IDP-01, plan 6.1 (T-03) |
 | ต่างภาควิชา | 403 | `{code:"FORBIDDEN_DEPARTMENT", message}` และ **ไม่มีข้อมูลอุปกรณ์** | FR-10, AC-13 |
 | DB ล่ม/timeout | 503 | `{code:"UPSTREAM_UNAVAILABLE", retryable:true}` | FR-08, AC-08 |
 | ไม่พบผลค้นหา | 200 | `{items:[], total:0}` (ไม่ใช่ error) UI แสดง empty state | FR-03 |
@@ -208,7 +210,10 @@ UC-02 ต้องตรวจสถานะซ้ำที่ฝั่งต�
 ## 10. Open Points ที่ต้องยืนยัน (นอกเหนือจาก Q-04 ใน spec)
 - **Q-P1** auth service ใช้โปรโตคอลอะไร (OIDC / SAML / token ภายใน) และส่ง role + department มาในรูปแบบใด
   (ย้ายไปเป็น Q-SH-03 ใน specs/000-shared/constraints.md เพราะกระทบทุกฟีเจอร์)
-- **Q-P2** ตัวเลข "ว่าง/ทั้งหมด" ควรคงที่ทั้งรุ่น (ที่เสนอ) หรือเปลี่ยนตามตัวกรอง
+- **Q-P2** [ย้ายไปเป็น Q-15 ใน spec v4.2] ตัวเลข "ว่าง/ทั้งหมด" ควรคงที่ทั้งรุ่น (ที่เสนอ) หรือเปลี่ยนตามตัวกรอง
 - **Q-P3** เจ้าหน้าที่เห็นทุกภาควิชา หรือเฉพาะภาควิชาของตน (spec ระบุเฉพาะนักศึกษา)
 - **Q-P4** เขียน audit ไม่สำเร็จ ควรบล็อกการแสดงข้อมูล (fail closed ที่เสนอ) หรือปล่อยผ่านแล้วแจ้งเตือน
+- **การผูกระบบใน `cmd/server/main.go`** (พบตอนทำ T-02, T-03): ยังไม่มี task ไหนเรียก `platform.Migrate`, `platform.Seed`
+  และผูก `auth.Middleware` กับ router ให้ task แรกที่สร้าง endpoint (T-04) แตะ main.go ด้วย
+- **ชื่อผู้ยืม** (`borrowerName` ใน DTO ของเจ้าหน้าที่ FR-07): ตาราง loan เก็บแค่ borrower_id ที่มาของชื่อรอ Q-20
 - **Q-P5** [ปิดแล้ว CR-002: กำหนดคืนบันทึกตอนส่งมอบ ยืมปกติ 16:00 ตาม DOM-LOAN-01] "กำหนดคืนโดยประมาณ" มาจากไหน (ฟิลด์ใน loan ที่ UC-08 กำหนด หรือคำนวณจากนโยบายจำนวนวันยืม)

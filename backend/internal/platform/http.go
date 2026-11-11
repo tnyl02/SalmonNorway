@@ -24,6 +24,16 @@ func healthz(db Pinger) http.HandlerFunc {
 	}
 }
 
+// NoStore บอกเบราว์เซอร์และ proxy ไม่ให้เก็บ response ไว้ใช้ซ้ำ (NFR-DATA-01, plan.md ข้อ 6.2)
+// สถานะอุปกรณ์ต้องคลาดเคลื่อนจากฐานข้อมูลไม่เกิน 30 วินาที หลังบ้านไม่ cache และไม่ให้ใคร cache ต่อ
+// กดรีเฟรชแล้วจึงได้ข้อมูลล่าสุดจากฐานข้อมูลเสมอ ใช้ห่อ router ทั้งหมดใน cmd/server/main.go
+func NoStore(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		next.ServeHTTP(w, r)
+	})
+}
+
 func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
