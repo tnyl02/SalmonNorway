@@ -144,7 +144,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06, T-07, T-09
 - เสร็จเมื่อ: `TestAC_HND_07_HandoverCreatesLoan` และ `TestAC_HND_02_AuthApiVerifiedAndCardChecked` ผ่าน (201 พร้อมชื่อ นามสกุล รหัสนักศึกษา เวลาที่ส่งมอบใน Loan / `cardChecked=false` ได้ 422 `VALIDATION_FAILED` ระบุช่อง `cardChecked` ไม่มี Loan)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 ### T-11 สร้างหน้า HandoverForm ส่วนตรวจบัตร แนบรูป และบันทึก
 - รองรับ: FR-HND-03, FR-HND-06, FR-HND-07
