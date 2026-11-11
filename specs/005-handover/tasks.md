@@ -108,7 +108,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-02
 - เสร็จเมื่อ: `TestRepository_CreateHandover` ผ่าน (`SELECT ... FOR UPDATE` อุปกรณ์ สร้าง Loan ด้วยคอลัมน์เดิมของ 001 ที่ `returned_at` ว่าง และแถว `handover` คู่กัน อุปกรณ์เป็น `borrowed` คำขอเป็น `handed_over` ทั้งหมดใน transaction เดียว ไม่แตะคำขออื่น)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 ### T-07 สร้างที่เก็บไฟล์รูปบน Docker volume
 - รองรับ: FR-HND-06, CON-TECH-02
