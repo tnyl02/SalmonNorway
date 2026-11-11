@@ -1626,3 +1626,14 @@
 - เครื่องมือ: Claude Code
 - ไฟล์ที่แก้: `backend/internal/handover/handler_test.go`
 - ผล test: `TestAC_HND_09_StudentForbidden` ผ่าน (`mock-student-001` เรียก POST handover ของคำขออนุมัติแล้ว ได้ 403 FORBIDDEN_ROLE ไม่มี Loan อุปกรณ์ available คำขอยัง approved)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-24
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: `backend/internal/handover/handler_test.go`
+- ผล test: `TestAC_HND_11_HandoverAfter1600` ผ่าน (นาฬิกา 16:30 ได้ 201 เวลาส่งมอบ 16:30 อุปกรณ์ borrowed) ไม่ตรวจ `due_at` ตามที่ spec สั่ง (รอ Q-HND-03, T-25)
+- ข้อสังเกต: ตอนนี้โค้ดตั้งกำหนดคืนเป็น 16:00 ของวันเดียวกันแม้ส่งมอบหลัง 16:00 (เลยกำหนดทันที) จนกว่าทีมตอบ Q-HND-03

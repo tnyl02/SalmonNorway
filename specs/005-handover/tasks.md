@@ -401,7 +401,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-14
 - เสร็จเมื่อ: `TestAC_HND_11_HandoverAfter1600` ผ่าน (clock 16:30 ได้ 201 `handed_over_at` 16:30 อุปกรณ์ `borrowed` **ไม่ตรวจ `due_at`**)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 #### จุดตรวจเฟส 12
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_11_HandoverAfter1600 และ test ของเฟส 0-11

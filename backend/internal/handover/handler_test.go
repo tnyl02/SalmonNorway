@@ -703,3 +703,31 @@ func TestAC_HND_09_StudentForbidden(t *testing.T) {
 		t.Errorf("สถานะคำขอ = %q ต้องเป็น approved", s)
 	}
 }
+
+// AC-HND-11 (FR-HND-05, DOM-LOAN-01)
+// Given คำขอยืมแบบปกติที่ได้รับอนุมัติแล้ว
+// When  เจ้าหน้าที่บันทึกการส่งมอบเมื่อ 2569-11-12 เวลา 16:30 น. (Asia/Bangkok)
+// Then  ระบบบันทึกการส่งมอบ การยืมนั้นมีเวลาที่ส่งมอบ 2569-11-12 16:30 น. และอุปกรณ์มีสถานะ "ถูกยืม"
+// ไม่ตรวจกำหนดคืน จนกว่าจะตอบ Q-HND-03 (spec สั่งห้ามเขียน test ส่วนนี้)
+func TestAC_HND_11_HandoverAfter1600(t *testing.T) {
+	pool := testPool(t)
+	itemID := createItem(t, pool, "T11-AF-0001", "available")
+	requestID := createRequest(t, pool, "student-001", itemID, "approved")
+	at := bangkok(t, 2026, time.November, 12, 16, 30)
+
+	rec := postHandover(t, routesAt(pool, at), tokenStaff, requestID, validForm(tokenStudentA), twoJPEGs())
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
+	}
+	var handedOverAt time.Time
+	if err := pool.QueryRow(context.Background(),
+		`SELECT handed_over_at FROM handover WHERE request_id = $1`, requestID).Scan(&handedOverAt); err != nil {
+		t.Fatal(err)
+	}
+	if !handedOverAt.Equal(at) {
+		t.Errorf("เวลาที่ส่งมอบ = %v ต้องเป็น %v", handedOverAt.In(at.Location()), at)
+	}
+	if s := statusOf(t, pool, "equipment_item", itemID); s != "borrowed" {
+		t.Errorf("สถานะอุปกรณ์ = %q ต้องเป็น borrowed", s)
+	}
+}
