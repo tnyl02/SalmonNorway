@@ -716,3 +716,51 @@ func TestAC_RET_10_OpenLoansOwnDepartment(t *testing.T) {
 		t.Errorf("ภาควิชาที่ไม่มีการยืมค้าง: body = %s, want []", rec.Body.String())
 	}
 }
+
+// AC-RET-13 (FR-RET-06 การแสดงผล) ฝั่งหลังบ้าน (ป้ายบนหน้าจออยู่ใน T-17)
+//
+//	Given การยืมรายการหนึ่งคืนเกินกำหนดแล้ว และอีกรายการยังไม่คืนแต่เลยกำหนดคืนแล้ว
+//	When  เจ้าหน้าที่เปิดหน้ารายละเอียดการยืมรายการแรก และเปิดหน้ารายการที่ยังไม่คืน
+//	Then  หน้ารายละเอียดแสดงว่าคืนเกินกำหนด และหน้ารายการที่ยังไม่คืนแสดงว่ารายการที่สองเลยกำหนดคืน
+//
+// ใช้ภาควิชาใหม่เฉพาะ test นี้ เพื่อให้รายการที่ยังไม่คืนมีเฉพาะข้อมูลของ test
+func TestAC_RET_13_OverdueShownToStaff(t *testing.T) {
+	pool := testPool(t)
+	dept, model := insertDepartment(t, pool, "T16 ภาควิชา")
+	provider := fixedProvider{"staff-t16": {UserID: "staff-t16", Role: auth.RoleStaff, DepartmentID: dept}}
+	router := platform.NewRouter(pool, platform.Routes(NewHandler(NewRepository(pool)).Routes(provider)))
+
+	// Given รายการแรก: เลยกำหนดแล้วบันทึกคืน -> คืนเกินกำหนด / รายการที่สอง: เลยกำหนดแล้วยังไม่คืน
+	insertLoanOfModel(t, pool, model, "T16-RETURNED-LATE", -2*time.Hour, false)
+	insertLoanOfModel(t, pool, model, "T16-STILL-OUT", -1*time.Hour, false)
+	rec := postReturn(t, router, "staff-t16", map[string]string{"assetCode": "T16-RETURNED-LATE", "condition": "normal"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("เตรียมข้อมูล: status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	var created struct {
+		LoanID int `json:"loanId"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	// When + Then: หน้ารายละเอียดของรายการแรก
+	rec = call(router, http.MethodGet, fmt.Sprintf("/api/v1/returns/loans/%d", created.LoanID), "staff-t16")
+	var detail LoanDetail
+	if err := json.Unmarshal(rec.Body.Bytes(), &detail); err != nil {
+		t.Fatal(err)
+	}
+	if rec.Code != http.StatusOK || detail.ReturnedLate == nil || !*detail.ReturnedLate {
+		t.Errorf("รายละเอียดรายการแรก: status=%d returnedLate=%v, want 200 และ true", rec.Code, detail.ReturnedLate)
+	}
+
+	// When + Then: หน้ารายการที่ยังไม่คืน มีเฉพาะรายการที่สอง และเลยกำหนดคืน
+	rec = call(router, http.MethodGet, "/api/v1/returns/open-loans", "staff-t16")
+	var open []OpenLoan
+	if err := json.Unmarshal(rec.Body.Bytes(), &open); err != nil {
+		t.Fatal(err)
+	}
+	if len(open) != 1 || open[0].AssetCode != "T16-STILL-OUT" || !open[0].IsOverdue {
+		t.Errorf("รายการที่ยังไม่คืน = %+v, want [T16-STILL-OUT isOverdue=true]", open)
+	}
+}

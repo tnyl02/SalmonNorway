@@ -769,3 +769,23 @@
 ### สิ่งที่เกือบต้องเดา
 - ไม่มี router "เปิด ReturnPage ที่กรอกรหัสไว้" จึงทำด้วย state ใน App.jsx แทนการเปลี่ยนหน้า
 - รายการไม่รีเฟรชเองหลังบันทึกคืน (spec ไม่ได้กำหนด) ต้องโหลดหน้าใหม่ ป้าย "เลยกำหนดคืน" อยู่ใน T-17
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-16 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 8)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำเลย" -> `/implement T-16 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/returns/handler_test.go`: `TestAC_RET_13_OverdueShownToStaff`
+- `backend/internal/returns/repository.go`: ไม่ต้องแก้ (`isOverdue` มีใน `ListOpenLoans` จาก T-14 และ `returnedLate` มีใน `GetLoan` จาก T-11)
+
+### ผล test (`cd backend && go test ./internal/returns -v`)
+- TestAC_RET_13_OverdueShownToStaff PASS (รายละเอียดการยืมที่คืนเกินกำหนดได้ returnedLate true, รายการที่ยังไม่คืนมีเฉพาะรายการที่เลยกำหนดพร้อม isOverdue true)
+- test เดิมของ returns ยัง PASS (11 tests)
+
+### สิ่งที่เกือบต้องเดา
+- ไม่มี (ใช้ภาควิชาใหม่เฉพาะ test เหมือน T-14 เพื่อให้รายการที่ยังไม่คืนนับได้แน่นอน)
