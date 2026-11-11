@@ -294,3 +294,21 @@
   - ตาราง staff_contact (จำลอง) และ `CancelDBTimeout` (ตัวเลขทีมเลือกเอง)
   - ส่ง Email หลัง commit และไม่เก็บเหตุผลใน audit_log
 - สิ่งที่อยากเดาแต่ไม่ได้เดา: รูปแบบช่องรหัสคำขอใน audit_log (Q-13)
+
+---
+
+## 2569-11-10 /tasks ของ 003 (tasks v1)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /tasks ไม่ได้โหลดใน session AI อ่าน .claude/commands/tasks.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: ทำ /tasks
+- ผลลัพธ์: specs/003-cancel-request/tasks.md 18 เฟส (ฐานราก + 16 เฟสตาม AC + รอคำตอบ) 32 task รอ Q-13 3 task (T-30 ถึง T-32)
+  ตาราง AC 17/17, Constraint 8/8, FR 10 ตัว (FR-CXL-10 ไม่มี AC และไม่มี task เพราะไม่ทำใน prototype)
+  แก้ specs/README.md สถานะเป็น tasks v1
+- สิ่งที่ AI เลือกเอง ทีมต้องตรวจ:
+  - ใช้ไฟล์ seed แยก `seed_003_cancel_request.sql` ไม่แก้ seed.sql ของ 001
+  - เพิ่มค่า `MSG_ALREADY_APPROVED` ใน config.js (T-03) ซึ่ง plan หัวข้อ 5 ไม่ได้ระบุ แต่ FR-CXL-02 ต้องใช้ข้อความนี้
+  - เรื่องที่รอ 002 (schema) และรอ 001 merge ไม่ใช่ Q ใน spec จึงเขียนไว้ในส่วนหัว ไม่ได้ใส่เป็นสถานะของ task
+  - จุดตรวจเฟส 8-11 ให้ลองด้วย curl และ psql เพราะหน้าจอไปถึงกรณีเหล่านี้ไม่ได้ และ 004 ยังไม่มี
+  - AC-CXL-17 ต้องมีผู้ใช้จำลอง 50 คน แต่ auth จำลองของกลางมี 4 คน ทีมต้องตัดสินวิธีทดสอบ
