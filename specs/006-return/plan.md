@@ -1,13 +1,13 @@
 # Implementation Plan: บันทึกการรับคืนอุปกรณ์ (Return)
-Spec: SPEC-RET-006 (specs/006-return/spec.md, Draft v2) | Plan status: Draft v1 | Updated: 2569-11-10
-ทีมตัดสิน 2569-11-10: **ไม่ทำ CR-003** ให้ทำ plan ต่อเลย จึงรวม FR-RET-04, FR-RET-05 (ที่ spec เขียนว่า "รอ CR-003") ไว้ใน plan นี้
-ส่วนที่เป็น FR ใหม่ใน CR-003 (ปิดการยืมแบบสูญหาย Q-01, ระงับคำขอค้าง Q-08, ขยาย DOM-AUDIT-01 Q-09) **ไม่อยู่ใน plan** (ดูข้อ 8)
+Spec: SPEC-RET-006 (specs/006-return/spec.md, Draft v2.1) | Plan status: Draft v1.1 | Updated: 2569-11-11
+ทีมตัดสิน 2569-11-11: **ไม่ทำ CR-003** และถอดส่วนที่ต้องทำ CR ออก: FR-RET-05 (รูปตอนรับคืน) ยกเลิก, UC-04 ไม่ทำ
+FR-RET-04 อยู่ใน plan (data-model.md ให้ 006 ยืนยันลำดับกับ UC-07 เอง) / ปิดการยืมแบบสูญหาย Q-01, ระงับคำขอค้าง Q-08, ขยาย DOM-AUDIT-01 Q-09 **ไม่อยู่ใน plan** (ดูข้อ 8)
 
 ## 1. สรุปแนวทาง
 - เจ้าหน้าที่ (เท่านั้น) บันทึกการรับคืนอุปกรณ์ของภาควิชาตนเอง: หาการยืมจากรหัสครุภัณฑ์หรือหน้ารายการที่ยังไม่คืน (FR-RET-01)
-- บันทึก 1 ครั้ง = 1 transaction: ปิดการยืม (เวลาคืนจากระบบ สภาพ เครื่องหมายคืนเกินกำหนด) + เปลี่ยนสถานะอุปกรณ์ + เก็บรูป + audit (FR-RET-02 ถึง 07)
+- บันทึก 1 ครั้ง = 1 transaction: ปิดการยืม (เวลาคืนจากระบบ สภาพ เครื่องหมายคืนเกินกำหนด) + เปลี่ยนสถานะอุปกรณ์ + audit (FR-RET-02, 03, 04, 06, 07)
 - สภาพกำหนดสถานะหลังคืน: ปกติเป็น `available`, ชำรุดเป็น `unavailable` ตรงไปเลยไม่ผ่าน `available` (FR-RET-03, FR-RET-04)
-- ทุกกฎตรวจที่ฝั่ง server (บทบาท ภาควิชา เงื่อนไขรูป เวลา) หน้าจอตรวจซ้ำเพื่อความสะดวกเท่านั้น
+- ทุกกฎตรวจที่ฝั่ง server (บทบาท ภาควิชา สภาพ เวลา) หน้าจอตรวจซ้ำเพื่อความสะดวกเท่านั้น
 - เขียน DB ทันทีไม่มี cache/queue เพื่อให้ 001 เห็นผลภายใน 30 วินาที (NFR-DATA-01)
 
 ## 2. เทคโนโลยีที่ใช้
@@ -17,7 +17,6 @@ Spec: SPEC-RET-006 (specs/006-return/spec.md, Draft v2) | Plan status: Draft v1 
 | HTTPS ผ่าน reverse proxy, deploy ด้วย Docker Compose | CON-TECH-02, NFR-SEC-01 | ใช้ `deploy/docker-compose.yml` ที่มีอยู่ ไม่ตั้งค่าใหม่ |
 | Go (net/http + pgx v5) | ทีมเลือกเอง ไม่ได้มาจาก spec (AGENTS.md, plan.md ข้อ 2 ของ 001) | package `backend/internal/returns/` |
 | golang-migrate (SQL ล้วน) | ทีมเลือกเอง ไม่ได้มาจาก spec | migration ใหม่ ห้ามแก้ 0001, 0002 |
-| เก็บรูปเป็น `BYTEA` ใน PostgreSQL | ทีมเลือกเอง ไม่ได้มาจาก spec | ไม่ต้องมีที่เก็บไฟล์แยก (backlog BL-16) ขนาดสูงสุด 25 MB ต่อการคืนพอรับได้ใน prototype ดู Q-P3 |
 | React + Vite, vitest | ทีมเลือกเอง ไม่ได้มาจาก spec (template รายวิชา) | `frontend/src/pages/Return/` |
 | go test + testcontainers | ทีมเลือกเอง ไม่ได้มาจาก spec | มีใน go.mod แล้ว (ใช้กับ 001) |
 | Auth จำลอง `Authorization: Bearer mock-<รหัสผู้ใช้>` | ASM-02 (รอ Q-SH-03) | ใช้ `auth.Principal{UserID, Role, DepartmentID}` ของ 001 T-03 |
@@ -33,16 +32,6 @@ Spec: SPEC-RET-006 (specs/006-return/spec.md, Draft v2) | Plan status: Draft v1 
 | `returned_late` | `BOOLEAN NULL` | FR-RET-06 = `returned_at > due_at` คำนวณและบันทึกตอนคืน ไม่คำนวณใหม่ภายหลัง |
 | CHECK เพิ่ม | `(returned_at IS NULL) = (return_condition IS NULL) AND (returned_at IS NULL) = (returned_late IS NULL)` | คืนแล้วต้องมีครบทั้ง 3 ค่า |
 
-**`loan_return_photo` (ตารางใหม่ เฉพาะ 006):**
-| คอลัมน์ | ชนิด | รองรับ |
-|---|---|---|
-| `id` | `BIGSERIAL PK` | |
-| `loan_id` | `INT NOT NULL REFERENCES loan(id)` | FR-RET-05 รูปผูกกับการรับคืนครั้งนั้น (AC-RET-05) |
-| `content_type` | `TEXT NOT NULL CHECK (content_type IN ('image/jpeg','image/png'))` | FR-RET-05 |
-| `size_bytes` | `INT NOT NULL` | FR-RET-05 (ตรวจเพดานที่ app ค่าจาก config) |
-| `data` | `BYTEA NOT NULL` | FR-RET-05 |
-| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
-
 **`equipment_item` (DM-04 ใช้ร่วม):** ไม่เพิ่มคอลัมน์ แก้เฉพาะ `status` และ `updated_at` (FR-RET-03, FR-RET-04, CON-DATA-01)
 ไม่มีคอลัมน์ "เหตุ" (ส่งซ่อม/สูญหาย) เพราะ spec ไม่มี FR รองรับ (Q-01, Q-08)
 
@@ -51,7 +40,7 @@ Spec: SPEC-RET-006 (specs/006-return/spec.md, Draft v2) | Plan status: Draft v1 
 |---|---|
 | `return_list` | เปิดหน้ารายการที่ยังไม่คืน |
 | `return_lookup` | ค้นการยืมจากรหัสครุภัณฑ์ (`query = {"assetCode": ...}`) |
-| `return_detail` | เปิดรายละเอียดการยืม/รูป |
+| `return_detail` | เปิดรายละเอียดการยืม |
 | `return` | บันทึกการรับคืน (`asset_code`, `outcome`) |
 
 ใช้แค่คอลัมน์ที่ DM-07 มีอยู่ ไม่กำหนดฟิลด์ audit เพิ่มเอง (FR-RET-07 ตามคำตอบทีม การขยายไปการเขียนรอ Q-09)
@@ -66,21 +55,20 @@ Spec: SPEC-RET-006 (specs/006-return/spec.md, Draft v2) | Plan status: Draft v1 
 | Method / path | รองรับ | input | output หลัก |
 |---|---|---|---|
 | `GET /api/v1/returns/open-loans` | FR-RET-01(ข), FR-RET-06 | - | `[{loanId, assetCode, modelName, borrowerId, loanType, dueAt, isOverdue}]` เรียงตาม `dueAt` |
-| `GET /api/v1/returns/lookup?assetCode=` | FR-RET-01(ก) | รหัสครุภัณฑ์ | การยืมที่ยังไม่คืน 1 รายการ (รูปเดียวกับแถวด้านบน) |
-| `POST /api/v1/returns` | FR-RET-02 ถึง 07 | `multipart/form-data`: `assetCode`, `condition` (`normal`/`damaged`), `photos[]` | `{loanId, assetCode, returnedAt, condition, returnedLate, itemStatus}` |
-| `GET /api/v1/returns/loans/{loanId}` | FR-RET-06 | - | `{loanId, assetCode, borrowerId, dueAt, returnedAt, condition, returnedLate, photos:[{photoId, contentType}]}` |
-| `GET /api/v1/returns/loans/{loanId}/photos/{photoId}` | FR-RET-05 (AC-RET-05 "เปิดดูภายหลังได้") | - | ไฟล์รูป `Content-Type` ตามที่เก็บ |
+| `GET /api/v1/returns/lookup?assetCode=` | FR-RET-01(ก) | รหัสครุภัณฑ์ | การยืมที่ยังไม่คืน 1 รายการ (รูปแบบเดียวกับแถวด้านบน) |
+| `POST /api/v1/returns` | FR-RET-02, 03, 04, 06, 07 | form (urlencoded หรือ multipart): `assetCode`, `condition` (`normal`/`damaged`) | `{loanId, assetCode, returnedAt, condition, returnedLate, itemStatus}` |
+| `GET /api/v1/returns/loans/{loanId}` | FR-RET-06 | - | `{loanId, assetCode, borrowerId, dueAt, returnedAt, condition, returnedLate}` |
 
 `isOverdue` ของรายการที่ยังไม่คืน = `now() > due_at` คำนวณที่ server (FR-RET-06 ส่วน "เห็นการยืมที่เลยกำหนดคืนแล้ว")
 ไม่รับเวลาจาก client: ถ้า form มีฟิลด์เวลาใดๆ ให้ไม่สนใจ (AC-RET-09)
 
 **ลำดับใน `POST /api/v1/returns` (1 transaction):**
-1. ตรวจ `condition` และรูปทั้งหมดก่อนแตะ DB (จำนวน ชนิดจาก magic bytes ด้วย `http.DetectContentType` ไม่เชื่อนามสกุล ขนาด)
+1. ตรวจ `condition` ก่อนแตะ DB
 2. `SELECT ... FROM loan JOIN equipment_item ... WHERE asset_code = $1 AND returned_at IS NULL FOR UPDATE`
    ไม่พบ: 409 `NO_OPEN_LOAN` (AC-RET-03) / ต่างภาควิชา: 403 `FORBIDDEN_DEPARTMENT` (AC-RET-11) / สถานะไม่ใช่ `borrowed`: 409 `NO_OPEN_LOAN`
 3. `UPDATE loan SET returned_at = now(), return_condition = $c, returned_late = (now() > due_at)`
 4. `UPDATE equipment_item SET status = <ตาม config>, updated_at = now()` ครั้งเดียว (ไม่ผ่าน `available` FR-RET-04)
-5. `INSERT loan_return_photo` ทุกรูป, `INSERT audit_log (action='return', outcome='ok')`
+5. `INSERT audit_log (action='return', outcome='ok')`
 6. commit ถ้าขั้นไหนพลาดให้ rollback ทั้งหมด และเขียน audit `outcome='error'`/`'forbidden'` นอก transaction
 บันทึกพร้อมกัน 2 คน: `FOR UPDATE` ทำให้คนที่สองเห็น `returned_at` แล้ว ได้ 409 `NO_OPEN_LOAN`
 
@@ -92,20 +80,19 @@ Spec: SPEC-RET-006 (specs/006-return/spec.md, Draft v2) | Plan status: Draft v1 
 | อุปกรณ์ภาควิชาอื่น | 403 | `FORBIDDEN_DEPARTMENT` | AC-RET-11 |
 | ไม่มีการยืมที่ยังไม่คืน | 409 | `NO_OPEN_LOAN` | AC-RET-03 |
 | ไม่ระบุสภาพ / ค่าไม่รู้จัก (รวม `lost`) | 422 | `CONDITION_REQUIRED` | AC-RET-04 |
-| ไม่มีรูป / เกิน 5 รูป / ชนิดผิด / เกินขนาด | 422 | `PHOTO_REQUIRED` / `PHOTO_TOO_MANY` / `PHOTO_TYPE` / `PHOTO_TOO_LARGE` | AC-RET-12 |
 | DB ล่ม | 503 | `UPSTREAM_UNAVAILABLE` (ของ 001) | - |
 
 **หน้าจอ** (spec ไม่มีหมวด UI และไม่มี UI ID ไม่มี mockup ทีมออกแบบเอง):
 | หน้าจอ | รองรับ | หมายเหตุ |
 |---|---|---|
-| `ReturnPage` (`frontend/src/pages/Return/ReturnPage.jsx`) ไม่มี mockup ทีมออกแบบเอง | FR-RET-01(ก), 02, 05 | ช่องรหัสครุภัณฑ์ แสดงการยืมที่พบ เลือกสภาพ ปกติ/ชำรุด (ไม่มีตัวเลือกสูญหาย) แนบรูป ปุ่มบันทึก แสดงข้อความ error ตาม code |
+| `ReturnPage` (`frontend/src/pages/Return/ReturnPage.jsx`) ไม่มี mockup ทีมออกแบบเอง | FR-RET-01(ก), 02 | ช่องรหัสครุภัณฑ์ แสดงการยืมที่พบ เลือกสภาพ ปกติ/ชำรุด (ไม่มีตัวเลือกสูญหาย) ปุ่มบันทึก แสดงข้อความ error ตาม code |
 | `OpenLoansPage` (`frontend/src/pages/Return/OpenLoansPage.jsx`) ไม่มี mockup ทีมออกแบบเอง | FR-RET-01(ข), 06 | ตารางการยืมที่ยังไม่คืน ป้าย "เลยกำหนดคืน" เลือกแถวแล้วไป `ReturnPage` พร้อม `assetCode` |
-| `LoanDetailPage` (`frontend/src/pages/Return/LoanDetailPage.jsx`) ไม่มี mockup ทีมออกแบบเอง | FR-RET-05, 06 | แสดงเวลาคืน สภาพ เครื่องหมาย "คืนเกินกำหนด" และรูป |
+| `LoanDetailPage` (`frontend/src/pages/Return/LoanDetailPage.jsx`) ไม่มี mockup ทีมออกแบบเอง | FR-RET-06 | แสดงเวลาคืน สภาพ และเครื่องหมาย "คืนเกินกำหนด" |
 
 ## 5. ตารางตรวจ Constraints
 | Constraint ID | ถูกนำไปใช้ที่ไหนใน plan | สถานะ |
 |---|---|---|
-| CON-TECH-01 | ข้อ 2, 3: ใช้ PostgreSQL ตารางร่วม + migration ใหม่, รูปเก็บใน DB | ใช้แล้ว |
+| CON-TECH-01 | ข้อ 2, 3: ใช้ PostgreSQL ตารางร่วม + migration ใหม่ | ใช้แล้ว |
 | CON-TECH-02 | ข้อ 2: ผ่าน reverse proxy HTTPS และ Docker Compose ที่มีอยู่ | ใช้แล้ว |
 | CON-DATA-01 | ข้อ 3, 4: เขียนได้เฉพาะ `available` / `unavailable` จาก `borrowed` CHECK เดิมของ 0001 กันค่าอื่น | ใช้แล้ว |
 | CON-DATA-03 | ข้อ 4: หาการยืมด้วย `asset_code` (UNIQUE) ใน lookup และ POST | ใช้แล้ว |
@@ -117,11 +104,6 @@ Spec: SPEC-RET-006 (specs/006-return/spec.md, Draft v2) | Plan status: Draft v1 
 **ค่าที่ตั้งได้** (อยู่ใน `backend/internal/config/config.go` และ `frontend/src/config.js` เท่านั้น พร้อมคอมเมนต์อ้าง ID):
 | ค่า | มาจาก ID | ชื่อตัวแปรและไฟล์ |
 |---|---|---|
-| รูปอย่างน้อย 1 รูป | FR-RET-05, ASM-06 | `ReturnPhotoMin` ใน config.go / `RETURN_PHOTO_MIN` ใน config.js |
-| รูปสูงสุด 5 รูป | FR-RET-05, ASM-06 | `ReturnPhotoMax` / `RETURN_PHOTO_MAX` |
-| ไม่เกิน 5 MB ต่อรูป (= 5 × 1024 × 1024 ไบต์ ทีมเลือกเอง ดู Q-P2) | FR-RET-05, ASM-06 | `ReturnPhotoMaxBytes` / `RETURN_PHOTO_MAX_BYTES` |
-| ชนิดรูป `image/jpeg`, `image/png` | FR-RET-05, ASM-06 | `ReturnPhotoTypes` / `RETURN_PHOTO_TYPES` |
-| เพดานขนาด request = `ReturnPhotoMax × ReturnPhotoMaxBytes` + 1 MB สำหรับฟิลด์อื่น | FR-RET-05 (ทีมเลือกเอง ส่วน +1 MB) | `ReturnRequestMaxBytes` (คำนวณจากค่าข้างบน) ใน config.go |
 | สภาพ 2 ค่า `normal`, `damaged` และสถานะหลังคืน `normal` เป็น `available`, `damaged` เป็น `unavailable` | FR-RET-02, FR-RET-03, FR-RET-04 | `ReturnConditionStatus` (map) ใน config.go / `RETURN_CONDITIONS` ใน config.js |
 | เขตเวลาแสดงผล Asia/Bangkok | glossary.md (วันที่/เวลาปัจจุบัน) | `Timezone` ใน config.go (ถ้า 001 เพิ่มก่อนให้ใช้ตัวเดียวกัน) |
 
@@ -135,41 +117,39 @@ Spec: SPEC-RET-006 (specs/006-return/spec.md, Draft v2) | Plan status: Draft v1 
 | AC-RET-02 | `TestAC_RET_02_DamagedReturnBecomesUnavailable` | POST `damaged` -> item `unavailable`; ตรวจว่ามี UPDATE สถานะครั้งเดียวด้วย trigger นับ/เก็บประวัติสถานะใน test schema ว่าไม่เคยเป็น `available` |
 | AC-RET-03 | `TestAC_RET_03_NoOpenLoanRejected` | item `available` และ `unavailable` -> lookup/POST ได้ 409 `NO_OPEN_LOAN`, สถานะไม่เปลี่ยน |
 | AC-RET-04 | `TestAC_RET_04_ConditionRequired` | ไม่ส่ง `condition` และส่ง `lost` -> 422 `CONDITION_REQUIRED`, loan ไม่เปลี่ยน; frontend test: ตัวเลือกมีแค่ ปกติ/ชำรุด |
-| AC-RET-05 | `TestAC_RET_05_PhotosStoredAndViewable` | 1 JPG + 4 PNG (< 5 MB) -> 200, มี 5 แถวใน `loan_return_photo`, GET photo ได้ bytes เดิมและ Content-Type ถูก |
+| AC-RET-05 | - | ยกเลิก 2569-11-11 พร้อม FR-RET-05 |
 | AC-RET-06 | `TestAC_RET_06_LateReturnFlagged` | `due_at` = 1 ชั่วโมงก่อน now -> `returned_late = true`; `due_at` = 1 ชั่วโมงหลัง now -> `false` (แทนเวลา 17:00/15:00 ของ AC ด้วยเวลาสัมพัทธ์) |
 | AC-RET-07 | `TestAC_RET_07_ReturnAudited` | หลัง POST สำเร็จมีแถว `audit_log` `action='return'`, `actor_id`, `actor_role='staff'`, `asset_code`, `outcome='ok'` |
 | AC-RET-08 | `TestAC_RET_08_StudentForbidden` | token นักศึกษาเรียกทุก endpoint -> 403 `FORBIDDEN_ROLE`, body ไม่มีข้อมูลการยืม, DB ไม่เปลี่ยน |
 | AC-RET-09 | `TestAC_RET_09_ReturnTimeFromServer` | ส่งฟิลด์ `returnedAt=2569-10-10T09:00` มาด้วย -> `returned_at` ใกล้ `now()` ของ DB (ต่างไม่เกินไม่กี่วินาที) ไม่ใช่ค่าที่ส่ง |
 | AC-RET-10 | `TestAC_RET_10_OpenLoansOwnDepartment` | seed ภาควิชาตน 3 เปิด + 2 คืนแล้ว, ภาควิชาอื่น 1 เปิด -> GET open-loans ได้ 3 รายการพอดี |
 | AC-RET-11 | `TestAC_RET_11_OtherDepartmentForbidden` | lookup/POST อุปกรณ์ภาควิชาอื่น -> 403 `FORBIDDEN_DEPARTMENT`, DB ไม่เปลี่ยน |
-| AC-RET-12 | `TestAC_RET_12_PhotoRulesEnforced` | 4 กรณีย่อย (ไม่มีรูป, 6 รูป, GIF, JPG > 5 MB สร้างในหน่วยความจำ) -> 422 code ตรงกรณี, DB ไม่เปลี่ยน |
+| AC-RET-12 | - | ยกเลิก 2569-11-11 พร้อม FR-RET-05 |
 | AC-RET-13 | `TestAC_RET_13_OverdueShownToStaff` | loan คืนเกินกำหนด -> GET detail `returnedLate=true`; loan เปิดเลยกำหนด -> open-loans `isOverdue=true`; frontend test แสดงป้าย |
 
-ทดสอบเพิ่ม: บันทึกพร้อมกัน 2 request ได้ 200 หนึ่งครั้งและ 409 หนึ่งครั้ง, ไฟล์ PNG ที่ตั้งชื่อ `.jpg` ยังรับได้ แต่ GIF ที่ตั้งชื่อ `.png` ถูกปฏิเสธ
+ทดสอบเพิ่ม: บันทึกพร้อมกัน 2 request ได้ 200 หนึ่งครั้งและ 409 หนึ่งครั้ง
 NFR-DATA-01 ตรวจโดย AC-EQS-05 ของ 001 (ไม่ทำ test ซ้ำใน 006)
 
 ## 7. ลำดับงาน
-1. Migration `0006_return.up.sql` (คอลัมน์ `loan`, ตาราง `loan_return_photo`, ค่า action ใหม่ของ `audit_log`) + แถวใหม่ใน data-model.md (FR-RET-02, 05, 06, 07)
-2. ค่าใน `config.go` / `config.js` ตามตารางข้อ 5 (FR-RET-02 ถึง 05)
+1. Migration `0006_return.up.sql` (คอลัมน์ `loan`, ค่า action ใหม่ของ `audit_log`) + แถวใหม่ใน data-model.md (FR-RET-02, 06, 07)
+2. ค่าใน `config.go` / `config.js` ตามตารางข้อ 5 (FR-RET-02 ถึง 04)
 3. Repository + สิทธิ์ (staff + ภาควิชา) และ `GET /returns/lookup` (FR-RET-01(ก), AC-RET-03, 08, 11)
 4. `POST /returns` สภาพปกติ: transaction ปิดการยืม + `available` + audit (FR-RET-02, 03, 07, AC-RET-01, 04, 07, 09)
 5. สภาพชำรุด เป็น `unavailable` (FR-RET-04, AC-RET-02)
-6. รูป: ตรวจเงื่อนไข เก็บ และ GET รูป (FR-RET-05, AC-RET-05, 12)
 7. คืนเกินกำหนด + `GET /returns/open-loans` + `GET /returns/loans/{id}` (FR-RET-01(ข), 06, AC-RET-06, 10, 13)
-8. หน้าจอ `ReturnPage`, `OpenLoansPage`, `LoanDetailPage` + vitest (FR-RET-01, 02, 05, 06)
+8. หน้าจอ `ReturnPage`, `OpenLoansPage`, `LoanDetailPage` + vitest (FR-RET-01, 02, 06)
 9. ผูก route เข้ากับ router ใน `main.go` / `platform` และทดสอบรวมกับ AC-EQS-05 ของ 001 (NFR-DATA-01)
 
 ## 8. สิ่งที่ยังไม่ทำ
 Open Questions จาก spec (ทุกข้อ) **ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ**
 - Q-01 อุปกรณ์สูญหาย: ทีมเสนอให้เจ้าหน้าที่ปิดการยืมแบบ "สูญหาย" ต้องระบุหมายเหตุ ระบบบันทึกเวลาปิด และสถานะเป็น "ไม่พร้อมใช้งาน" (เหตุ: สูญหาย)
-  เป็น FR ใหม่ ต้องผ่าน CR-003 -> ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (และทีมตัดสินไม่ทำ CR-003 จึงไม่มีทางเข้า spec ตอนนี้)
-- Q-02 [ปิดแล้ว] ดู ASM-06, FR-RET-05
+  เป็น FR ใหม่ ต้องทำ CR -> ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (ทีมตัดสินไม่ทำใน prototype)
+- Q-02 [ไม่ใช้แล้ว 2569-11-11 เพราะ FR-RET-05 ยกเลิก]
 - Q-03 ผู้ยืมเห็นเครื่องหมายคืนเกินกำหนดของตนเองที่หน้าไหน -> ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (plan มีแค่หน้าของเจ้าหน้าที่)
 - Q-04 สภาพ "ชำรุด" ต้องเขียนรายละเอียดความเสียหายไหม -> ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (ไม่มีช่องหมายเหตุ)
 - Q-05 [ปิดแล้ว] ดู ASM-01
 - Q-06 [ปิดแล้ว] ดู ASM-03
-- Q-07 spec เขียนว่าต้องทำ CR-003 ก่อน /plan แต่ทีมตัดสิน 2569-11-10 ให้ไม่ทำ CR-003 -> plan นี้รวม FR-RET-04, FR-RET-05 ตามคำสั่งทีม
-  แต่ SRS 3.1.7, SRS 4.3, specs/README.md ยังเขียนว่า UC-07 ไม่ทำและ UC-04 Won't ทีมต้องตัดสินว่าจะแก้เอกสารเหล่านั้นอย่างไร
+- Q-07 [ปิดแล้ว 2569-11-11] ไม่ทำ CR-003 ถอด FR-RET-05 และ UC-04 ออก plan ตรงกับ SRS 3.1.7, 4.3 และ specs/README.md แล้ว
 - Q-08 คืนมาชำรุดแต่มีคำขอค้าง (DOM-REQ-01): ระงับคำขอและแจ้งผู้ขอ -> ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (006 ไม่แตะ `borrow_request`)
 - Q-09 ขยาย DOM-AUDIT-01 ให้ครอบการเขียน -> ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ
   (plan ใช้คอลัมน์ DM-07 เดิม ไม่เพิ่มฟิลด์ เช่น สถานะก่อน/หลัง)
@@ -177,7 +157,7 @@ Open Questions จาก spec (ทุกข้อ) **ส่วนที่เก
 
 Open points ของ plan (ไม่ใช่ข้อกำหนด ทีมยืนยัน):
 - Q-P1 หน้ารายการที่ยังไม่คืนต้องแบ่งหน้าไหม spec ไม่บอก plan คืนทั้งหมดของภาควิชา (ขนาดข้อมูล prototype เล็ก)
-- Q-P2 "5 MB" = 5 × 1024 × 1024 ไบต์ (ที่ plan เลือก) หรือ 5,000,000 ไบต์
-- Q-P3 เก็บรูปเป็น BYTEA ใน DB (ที่ plan เลือก) หรือ volume ของ Docker
+- Q-P2 [ไม่ใช้แล้ว 2569-11-11 เพราะ FR-RET-05 ยกเลิก]
+- Q-P3 [ไม่ใช้แล้ว 2569-11-11 เพราะ FR-RET-05 ยกเลิก]
 - Q-P4 [ปิดแล้ว 2569-11-10] ใช้ `0006_return.up.sql` เจ้าของ 006 จองเอง
 - Q-P5 หน้าจอแสดง `borrowerId` แทนชื่อ เพราะยังไม่มีที่มาของชื่อผู้ยืม (ประเด็นเดียวกับ 001 จาก T-02)

@@ -3,7 +3,7 @@
 // หลังบ้านเป็นผู้ตรวจทุกกฎ หน้านี้แค่ส่งข้อมูลและแสดงผล ข้อความ error แยกตามกรณีอยู่ใน T-10, T-13, T-22, T-24
 import { useState } from 'react'
 import { api } from '../../api/client.js'
-import { RETURN_CONDITIONS, RETURN_PHOTO_TYPES, STATUS_LABELS, TIMEZONE } from '../../config.js'
+import { RETURN_CONDITIONS, STATUS_LABELS, TIMEZONE } from '../../config.js'
 
 // formatDateTime แสดงวันที่และเวลาตามเขตเวลา Asia/Bangkok (glossary)
 function formatDateTime(iso) {
@@ -13,12 +13,11 @@ function formatDateTime(iso) {
 // conditionRequiredMessage แจ้งให้เลือกสภาพ ใช้ชื่อสภาพจาก config.js (AC-RET-04, FR-RET-02)
 export const conditionRequiredMessage = `กรุณาเลือกสภาพ ${RETURN_CONDITIONS.map((c) => c.label).join(' หรือ ')}`
 
-// ReturnPage: กรอกรหัสครุภัณฑ์ (FR-RET-01(ก)) เลือกสภาพ (FR-RET-02) แนบรูป (FR-RET-05) แล้วบันทึก (FR-RET-03)
+// ReturnPage: กรอกรหัสครุภัณฑ์ (FR-RET-01(ก)) เลือกสภาพ (FR-RET-02) แล้วบันทึก (FR-RET-03, FR-RET-04)
 export default function ReturnPage({ client = api }) {
   const [assetCode, setAssetCode] = useState('')
   const [loan, setLoan] = useState(null) // การยืมที่ยังไม่คืนที่หาเจอ
   const [condition, setCondition] = useState('')
-  const [photos, setPhotos] = useState([])
   const [result, setResult] = useState(null) // ผลการบันทึกที่สำเร็จ
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -35,7 +34,6 @@ export default function ReturnPage({ client = api }) {
     if (res.ok) {
       setLoan(res.data)
       setCondition('')
-      setPhotos([])
     } else {
       setError(`ค้นหาไม่สำเร็จ (${res.data?.code ?? res.status})`)
     }
@@ -51,7 +49,7 @@ export default function ReturnPage({ client = api }) {
     }
     setBusy(true)
     setError('')
-    const res = await client.returns.record({ assetCode: loan.assetCode, condition, photos })
+    const res = await client.returns.record({ assetCode: loan.assetCode, condition })
     setBusy(false)
     if (res.ok) {
       setResult(res.data)
@@ -111,16 +109,6 @@ export default function ReturnPage({ client = api }) {
               </label>
             ))}
           </fieldset>
-
-          <label className="flex flex-col">
-            <span>รูปสภาพอุปกรณ์</span>
-            <input
-              type="file"
-              multiple
-              accept={RETURN_PHOTO_TYPES.join(',')}
-              onChange={(e) => setPhotos(Array.from(e.target.files ?? []))}
-            />
-          </label>
 
           <button type="submit" disabled={busy} className="rounded bg-teal-700 px-3 py-1 text-white">
             บันทึกการรับคืน

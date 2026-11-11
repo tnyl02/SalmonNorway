@@ -42,12 +42,11 @@ export const api = {
     lookup: (assetCode) =>
       request(`/v1/returns/lookup?assetCode=${encodeURIComponent(assetCode)}`),
 
-    // record บันทึกการรับคืน: รหัสครุภัณฑ์ สภาพ และรูป (FR-RET-02, FR-RET-05) ไม่ส่งเวลา (เวลาคืนมาจากระบบ ASM-04)
-    record: ({ assetCode, condition, photos }) => {
+    // record บันทึกการรับคืน: รหัสครุภัณฑ์ และสภาพ (FR-RET-02) ไม่ส่งเวลา (เวลาคืนมาจากระบบ ASM-04)
+    record: ({ assetCode, condition }) => {
       const form = new FormData()
       form.append('assetCode', assetCode)
       form.append('condition', condition)
-      for (const p of photos) form.append('photos', p)
       return request('/v1/returns', { method: 'POST', body: form })
     },
   },

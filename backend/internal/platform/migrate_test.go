@@ -2,7 +2,6 @@ package platform
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"sync"
 	"testing"
@@ -229,28 +228,5 @@ func TestMigration006_LoanReturnColumns(t *testing.T) {
 		if err := execInTx(t, conn, stmt); err == nil {
 			t.Errorf("%s ต้องถูกปฏิเสธ", name)
 		}
-	}
-}
-
-// 006 T-01 เสร็จเมื่อ: มีตาราง loan_return_photo รับเฉพาะ JPG/PNG (FR-RET-05)
-func TestMigration006_LoanReturnPhoto(t *testing.T) {
-	conn := testDB(t)
-
-	const insert = `INSERT INTO loan_return_photo (loan_id, content_type, size_bytes, data)
-		VALUES ((SELECT id FROM loan WHERE item_id = 4), '%s', 3, '\x010203')`
-	for _, ct := range []string{"image/jpeg", "image/png"} {
-		if err := execInTx(t, conn, fmt.Sprintf(insert, ct)); err != nil {
-			t.Errorf("ชนิด %q ต้องบันทึกได้: %v", ct, err)
-		}
-	}
-	for _, ct := range []string{"image/gif", "application/pdf", ""} {
-		if err := execInTx(t, conn, fmt.Sprintf(insert, ct)); err == nil {
-			t.Errorf("ชนิด %q ต้องถูกปฏิเสธ (FR-RET-05 JPG หรือ PNG)", ct)
-		}
-	}
-	if err := execInTx(t, conn,
-		`INSERT INTO loan_return_photo (loan_id, content_type, size_bytes, data) VALUES (999999, 'image/png', 3, '\x010203')`,
-	); err == nil {
-		t.Error("รูปของการยืมที่ไม่มีอยู่ต้องถูกปฏิเสธ (foreign key)")
 	}
 }

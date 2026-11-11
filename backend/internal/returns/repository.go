@@ -14,7 +14,7 @@ import (
 // ErrNoOpenLoan หมายถึงอุปกรณ์นี้ไม่มีการยืมที่ยังไม่คืน หรือสถานะไม่ใช่ "ถูกยืม" (FR-RET-01)
 var ErrNoOpenLoan = errors.New("no open loan for this asset")
 
-// Repository คือจุดเดียวที่ฟีเจอร์นี้อ่านเขียนตาราง loan, equipment_item, loan_return_photo, audit_log (CON-TECH-01)
+// Repository คือจุดเดียวที่ฟีเจอร์นี้อ่านเขียนตาราง loan, equipment_item, audit_log (CON-TECH-01)
 type Repository struct {
 	pool *pgxpool.Pool
 }
@@ -22,12 +22,6 @@ type Repository struct {
 // NewRepository สร้าง Repository จาก connection pool ของ PostgreSQL (CON-TECH-01)
 func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
-}
-
-// Photo คือรูปสภาพอุปกรณ์ 1 รูปที่แนบตอนรับคืน (FR-RET-05)
-type Photo struct {
-	ContentType string
-	Data        []byte
 }
 
 // ReturnRecord คือผลของการบันทึกรับคืน 1 ครั้ง (FR-RET-02, FR-RET-03)
@@ -40,13 +34,13 @@ type ReturnRecord struct {
 	ItemStatus   string
 }
 
-// RecordReturn ปิดการยืม เปลี่ยนสถานะอุปกรณ์ และเก็บรูป ใน transaction เดียว (plan.md ข้อ 4 ขั้น 2-6)
+// RecordReturn ปิดการยืม และเปลี่ยนสถานะอุปกรณ์ ใน transaction เดียว (plan.md ข้อ 4)
 //   - เวลาคืน = now() ของฐานข้อมูลตอนบันทึก ไม่รับจาก client (FR-RET-02, ASM-04)
 //   - สถานะเปลี่ยนครั้งเดียวจาก "ถูกยืม" ไปเป็น newStatus (FR-RET-03, CON-DATA-01)
 //   - returned_late = now() > due_at ต้องใส่พร้อมกันเพราะ CHECK loan_return_fields_complete (FR-RET-06, test ใน T-16)
 //
 // ล็อกแถวด้วย FOR UPDATE: ถ้าบันทึกพร้อมกัน คนที่สองจะไม่พบการยืมที่ยังไม่คืน ได้ ErrNoOpenLoan
-func (r *Repository) RecordReturn(ctx context.Context, assetCode, condition, newStatus string, photos []Photo) (ReturnRecord, error) {
+func (r *Repository) RecordReturn(ctx context.Context, assetCode, condition, newStatus string) (ReturnRecord, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return ReturnRecord{}, err
@@ -80,14 +74,6 @@ func (r *Repository) RecordReturn(ctx context.Context, assetCode, condition, new
 	if _, err = tx.Exec(ctx,
 		`UPDATE equipment_item SET status = $2, updated_at = now() WHERE id = $1`, itemID, newStatus); err != nil {
 		return ReturnRecord{}, err
-	}
-
-	for _, p := range photos {
-		if _, err = tx.Exec(ctx,
-			`INSERT INTO loan_return_photo (loan_id, content_type, size_bytes, data) VALUES ($1, $2, $3, $4)`,
-			rec.LoanID, p.ContentType, len(p.Data), p.Data); err != nil {
-			return ReturnRecord{}, err
-		}
 	}
 
 	return rec, tx.Commit(ctx)

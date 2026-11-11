@@ -21,12 +21,12 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-// RecordReturn บันทึกการรับคืนของอุปกรณ์ assetCode (FR-RET-02, FR-RET-03, FR-RET-05)
+// RecordReturn บันทึกการรับคืนของอุปกรณ์ assetCode (FR-RET-02, FR-RET-03, FR-RET-04)
 // สถานะหลังคืนมาจาก config.ReturnConditionStatus ที่เดียว ไม่ฝังในโค้ด (AGENTS.md กฎข้อ 9)
-func (s *Service) RecordReturn(ctx context.Context, assetCode, condition string, photos []Photo) (ReturnRecord, error) {
+func (s *Service) RecordReturn(ctx context.Context, assetCode, condition string) (ReturnRecord, error) {
 	newStatus, ok := config.ReturnConditionStatus[condition]
 	if !ok {
 		return ReturnRecord{}, ErrUnknownCondition
 	}
-	return s.repo.RecordReturn(ctx, assetCode, condition, newStatus, photos)
+	return s.repo.RecordReturn(ctx, assetCode, condition, newStatus)
 }

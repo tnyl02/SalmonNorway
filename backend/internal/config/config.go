@@ -22,24 +22,6 @@ type Config struct {
 // Timezone คือเขตเวลาที่ใช้เทียบ "วันที่ปัจจุบัน / เวลาปัจจุบัน / วันเดียวกัน" (specs/000-shared/glossary.md)
 const Timezone = "Asia/Bangkok"
 
-const (
-	// ReturnPhotoMin คือจำนวนรูปน้อยสุดที่ต้องแนบทุกครั้งที่บันทึกการรับคืน (FR-RET-05, ASM-06)
-	ReturnPhotoMin = 1
-	// ReturnPhotoMax คือจำนวนรูปมากสุดต่อการรับคืน 1 ครั้ง (FR-RET-05, ASM-06)
-	ReturnPhotoMax = 5
-	// ReturnPhotoMaxBytes คือขนาดสูงสุดต่อรูป "5 MB" (FR-RET-05, ASM-06)
-	// ตีความเป็น 5 × 1024 × 1024 ไบต์ ทีมเลือกเอง ไม่ได้มาจาก spec (plan.md Q-P2)
-	ReturnPhotoMaxBytes = 5 * 1024 * 1024
-	// returnFormOverheadBytes คือที่เผื่อให้ฟิลด์อื่นของ form (assetCode, condition, หัว multipart)
-	// 1 MB ทีมเลือกเอง ไม่ได้มาจาก spec (plan.md ข้อ 5)
-	returnFormOverheadBytes = 1 * 1024 * 1024
-	// ReturnRequestMaxBytes คือเพดานขนาด request ของการบันทึกรับคืน = รูปครบจำนวนสูงสุด + ที่เผื่อ (FR-RET-05)
-	ReturnRequestMaxBytes = ReturnPhotoMax*ReturnPhotoMaxBytes + returnFormOverheadBytes
-)
-
-// ReturnPhotoTypes คือชนิดรูปที่รับ JPG หรือ PNG (FR-RET-05, ASM-06) ตรงกับ CHECK ใน 0006_return.up.sql
-var ReturnPhotoTypes = []string{"image/jpeg", "image/png"}
-
 // ReturnConditionStatus คือสภาพตอนรับคืน 2 ค่า และสถานะอุปกรณ์หลังบันทึกการรับคืนสำเร็จ
 // ปกติ -> ว่าง (FR-RET-03, RQ-13) / ชำรุด -> ไม่พร้อมใช้งาน ไม่ผ่าน "ว่าง" (FR-RET-04, ASM-05)
 // สูญหายไม่ใช่สภาพ (FR-RET-02) ค่าสถานะตาม CON-DATA-01 ใน specs/000-shared/data-model.md

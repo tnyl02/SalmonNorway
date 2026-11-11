@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -114,7 +113,6 @@ func TestReturns_Skeleton_RoutedThroughAuth(t *testing.T) {
 		{http.MethodGet, "/api/v1/returns/lookup?assetCode=CS-NB-0004"},
 		{http.MethodPost, "/api/v1/returns"},
 		{http.MethodGet, "/api/v1/returns/loans/1"},
-		{http.MethodGet, "/api/v1/returns/loans/1/photos/1"},
 	} {
 		if rec := call(router, ep.method, ep.path, ""); rec.Code != http.StatusUnauthorized {
 			t.Errorf("%s %s ไม่มี token: status = %d, want 401", ep.method, ep.path, rec.Code)
@@ -159,12 +157,6 @@ func TestReturns_Seed006Loaded(t *testing.T) {
 
 // ---- ตัวช่วยสำหรับ test ของการบันทึกรับคืน ----
 
-// ไฟล์รูปขนาดเล็กที่ http.DetectContentType รู้จักจาก magic bytes
-var (
-	tinyJPEG = []byte("\xFF\xD8\xFF\xE0\x00\x10JFIF\x00test-jpeg")
-	tinyPNG  = []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDRtest-png")
-)
-
 // insertBorrowedItem สร้างอุปกรณ์ "ถูกยืม" ของภาควิชา 1 (รุ่น 1) พร้อมการยืมที่ยังไม่คืน กำหนดคืนตาม dueIn นับจากตอนนี้
 // ใช้รหัสครุภัณฑ์ใหม่ทุก test ข้อมูลจึงไม่ชนกันข้าม test (CON-DATA-03)
 func insertBorrowedItem(t *testing.T, pool *pgxpool.Pool, assetCode string, dueIn time.Duration) {
@@ -184,21 +176,12 @@ func insertBorrowedItem(t *testing.T, pool *pgxpool.Pool, assetCode string, dueI
 }
 
 // postReturn ส่ง multipart ไปที่ POST /api/v1/returns ด้วย token ที่ระบุ
-func postReturn(t *testing.T, router http.Handler, token string, fields map[string]string, photos ...[]byte) *httptest.ResponseRecorder {
+func postReturn(t *testing.T, router http.Handler, token string, fields map[string]string) *httptest.ResponseRecorder {
 	t.Helper()
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	for k, v := range fields {
 		if err := mw.WriteField(k, v); err != nil {
-			t.Fatal(err)
-		}
-	}
-	for i, p := range photos {
-		fw, err := mw.CreateFormFile("photos", fmt.Sprintf("photo-%d", i))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := fw.Write(p); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -216,7 +199,7 @@ func postReturn(t *testing.T, router http.Handler, token string, fields map[stri
 // AC-RET-01 (FR-RET-03)
 //
 //	Given อุปกรณ์ชิ้นหนึ่งสถานะ "ถูกยืม" มีการยืมที่ยังไม่คืน
-//	When  เจ้าหน้าที่บันทึกการรับคืน สภาพ "ปกติ" พร้อมรูป 1 รูป
+//	When  เจ้าหน้าที่บันทึกการรับคืน สภาพ "ปกติ"
 //	Then  การยืมนั้นมีเวลาคืน และสถานะอุปกรณ์เป็น "ว่าง"
 func TestAC_RET_01_NormalReturnBecomesAvailable(t *testing.T) {
 	pool := testPool(t)
@@ -228,7 +211,7 @@ func TestAC_RET_01_NormalReturnBecomesAvailable(t *testing.T) {
 
 	// When
 	rec := postReturn(t, router, "mock-staff-001",
-		map[string]string{"assetCode": "T04-AC01", "condition": "normal"}, tinyJPEG)
+		map[string]string{"assetCode": "T04-AC01", "condition": "normal"})
 
 	// Then
 	if rec.Code != http.StatusOK {
@@ -252,12 +235,10 @@ func TestAC_RET_01_NormalReturnBecomesAvailable(t *testing.T) {
 
 	var returnedAt *time.Time
 	var status string
-	var photoCount int
 	if err := pool.QueryRow(ctx, `
-		SELECT l.returned_at, i.status,
-		       (SELECT count(*) FROM loan_return_photo p WHERE p.loan_id = l.id)
+		SELECT l.returned_at, i.status
 		FROM loan l JOIN equipment_item i ON i.id = l.item_id
-		WHERE i.asset_code = 'T04-AC01'`).Scan(&returnedAt, &status, &photoCount); err != nil {
+		WHERE i.asset_code = 'T04-AC01'`).Scan(&returnedAt, &status); err != nil {
 		t.Fatal(err)
 	}
 	if returnedAt == nil {
@@ -265,9 +246,6 @@ func TestAC_RET_01_NormalReturnBecomesAvailable(t *testing.T) {
 	}
 	if status != "available" {
 		t.Errorf("สถานะ = %q, want available (FR-RET-03)", status)
-	}
-	if photoCount != 1 {
-		t.Errorf("รูปที่เก็บ = %d, want 1 (FR-RET-05)", photoCount)
 	}
 }
 
@@ -337,7 +315,7 @@ func TestAC_RET_09_ReturnTimeFromServer(t *testing.T) {
 		"condition":   "normal",
 		"returnedAt":  fake,
 		"returned_at": fake,
-	}, tinyJPEG)
+	})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200 body=%s", rec.Code, rec.Body.String())
 	}
@@ -365,7 +343,7 @@ func TestAC_RET_09_ReturnTimeFromServer(t *testing.T) {
 // AC-RET-02 (FR-RET-04)
 //
 //	Given อุปกรณ์ชิ้นหนึ่งสถานะ "ถูกยืม" มีการยืมที่ยังไม่คืน
-//	When  เจ้าหน้าที่บันทึกการรับคืน สภาพ "ชำรุด" พร้อมรูป 1 รูป
+//	When  เจ้าหน้าที่บันทึกการรับคืน สภาพ "ชำรุด"
 //	Then  การยืมนั้นมีเวลาคืน และสถานะอุปกรณ์เป็น "ไม่พร้อมใช้งาน" ไม่เคยเป็น "ว่าง" ระหว่างทาง
 //
 // "ไม่เคยเป็นว่างระหว่างทาง" ตรวจด้วย trigger ที่สร้างเฉพาะใน test เก็บทุกค่าสถานะที่ถูกเขียน (plan.md ข้อ 6)
@@ -399,7 +377,7 @@ func TestAC_RET_02_DamagedReturnBecomesUnavailable(t *testing.T) {
 
 	// When
 	rec := postReturn(t, router, "mock-staff-001",
-		map[string]string{"assetCode": "T08-AC02", "condition": "damaged"}, tinyJPEG)
+		map[string]string{"assetCode": "T08-AC02", "condition": "damaged"})
 
 	// Then
 	if rec.Code != http.StatusOK {
@@ -473,7 +451,7 @@ func TestAC_RET_04_ConditionRequired(t *testing.T) {
 	}
 	for name, fields := range cases {
 		// When
-		rec := postReturn(t, router, "mock-staff-001", fields, tinyJPEG)
+		rec := postReturn(t, router, "mock-staff-001", fields)
 
 		// Then
 		if rec.Code != http.StatusUnprocessableEntity {
@@ -490,14 +468,13 @@ func TestAC_RET_04_ConditionRequired(t *testing.T) {
 
 	var returnedAt *time.Time
 	var status string
-	var photos int
 	if err := pool.QueryRow(ctx, `
-		SELECT l.returned_at, i.status, (SELECT count(*) FROM loan_return_photo p WHERE p.loan_id = l.id)
+		SELECT l.returned_at, i.status
 		FROM loan l JOIN equipment_item i ON i.id = l.item_id
-		WHERE i.asset_code = 'T09-AC04'`).Scan(&returnedAt, &status, &photos); err != nil {
+		WHERE i.asset_code = 'T09-AC04'`).Scan(&returnedAt, &status); err != nil {
 		t.Fatal(err)
 	}
-	if returnedAt != nil || status != "borrowed" || photos != 0 {
-		t.Errorf("ต้องไม่บันทึกอะไรเลย: returned_at=%v status=%q photos=%d", returnedAt, status, photos)
+	if returnedAt != nil || status != "borrowed" {
+		t.Errorf("ต้องไม่บันทึกอะไรเลย: returned_at=%v status=%q", returnedAt, status)
 	}
 }

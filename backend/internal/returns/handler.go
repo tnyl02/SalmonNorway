@@ -3,13 +3,11 @@ package returns
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"log"
 	"net/http"
 	"time"
 
 	"salmonnorway/backend/internal/auth"
-	"salmonnorway/backend/internal/config"
 )
 
 // Handler รวม endpoint ของการรับคืนตาม plan.md ข้อ 4 (FR-RET-01 ถึง FR-RET-07)
@@ -27,11 +25,10 @@ func NewHandler(repo *Repository) *Handler {
 func (h *Handler) Routes(provider auth.Provider) func(*http.ServeMux) {
 	return func(mux *http.ServeMux) {
 		for pattern, handle := range map[string]http.HandlerFunc{
-			"GET /api/v1/returns/open-loans":                      notImplemented, // FR-RET-01(ข), FR-RET-06 ทำใน T-17
-			"GET /api/v1/returns/lookup":                          h.lookup,       // FR-RET-01(ก)
-			"POST /api/v1/returns":                                h.recordReturn, // FR-RET-02 ถึง 07
-			"GET /api/v1/returns/loans/{loanId}":                  notImplemented, // FR-RET-06 ทำใน T-14
-			"GET /api/v1/returns/loans/{loanId}/photos/{photoId}": notImplemented, // FR-RET-05 ทำใน T-14
+			"GET /api/v1/returns/open-loans":     notImplemented, // FR-RET-01(ข), FR-RET-06 ทำใน T-17
+			"GET /api/v1/returns/lookup":         h.lookup,       // FR-RET-01(ก)
+			"POST /api/v1/returns":               h.recordReturn, // FR-RET-02, 03, 04, 06, 07
+			"GET /api/v1/returns/loans/{loanId}": notImplemented, // FR-RET-06 ทำใน T-14
 		} {
 			mux.Handle(pattern, auth.Middleware(provider, handle))
 		}
@@ -48,26 +45,10 @@ type returnResponse struct {
 	ItemStatus   string    `json:"itemStatus"`
 }
 
-// recordReturn รับ multipart: assetCode, condition, photos[] แล้วบันทึกการรับคืน (FR-RET-02, FR-RET-03, FR-RET-05)
+// recordReturn รับ assetCode, condition (form แบบ urlencoded หรือ multipart) แล้วบันทึกการรับคืน (FR-RET-02, FR-RET-03, FR-RET-04)
 // ไม่อ่านฟิลด์เวลาใด ๆ จาก client เวลาคืนมาจากฐานข้อมูลเท่านั้น (FR-RET-02, ASM-04)
 func (h *Handler) recordReturn(w http.ResponseWriter, r *http.Request) {
-	// เก็บในหน่วยความจำไม่เกินขนาดรูป 1 รูป ส่วนเกินพักลงไฟล์ชั่วคราว (ค่าจาก config.go)
-	// การจำกัดขนาด request ทั้งก้อนทำใน T-12
-	if err := r.ParseMultipartForm(config.ReturnPhotoMaxBytes); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"code": "BAD_REQUEST"})
-		return
-	}
-	if r.MultipartForm != nil {
-		defer r.MultipartForm.RemoveAll() //nolint:errcheck
-	}
-
-	photos, err := readPhotos(r)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"code": "BAD_REQUEST"})
-		return
-	}
-
-	rec, err := h.svc.RecordReturn(r.Context(), r.FormValue("assetCode"), r.FormValue("condition"), photos)
+	rec, err := h.svc.RecordReturn(r.Context(), r.FormValue("assetCode"), r.FormValue("condition"))
 	switch {
 	case errors.Is(err, ErrUnknownCondition):
 		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"code": "CONDITION_REQUIRED"})
@@ -79,29 +60,6 @@ func (h *Handler) recordReturn(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeJSON(w, http.StatusOK, returnResponse(rec))
 	}
-}
-
-// readPhotos อ่านไฟล์ทุกไฟล์ในฟิลด์ photos (FR-RET-05)
-// ชนิดไฟล์ดูจาก magic bytes ไม่เชื่อนามสกุลหรือ header ของ client (plan.md ข้อ 4)
-// การตรวจจำนวน ชนิด และขนาดให้ตรง FR-RET-05 ทำใน T-11
-func readPhotos(r *http.Request) ([]Photo, error) {
-	if r.MultipartForm == nil {
-		return nil, nil
-	}
-	var photos []Photo
-	for _, fh := range r.MultipartForm.File["photos"] {
-		f, err := fh.Open()
-		if err != nil {
-			return nil, err
-		}
-		data, err := io.ReadAll(f)
-		f.Close()
-		if err != nil {
-			return nil, err
-		}
-		photos = append(photos, Photo{ContentType: http.DetectContentType(data), Data: data})
-	}
-	return photos, nil
 }
 
 // lookup หาการยืมที่ยังไม่คืนจากรหัสครุภัณฑ์ ก่อนบันทึกการรับคืน (FR-RET-01(ก))

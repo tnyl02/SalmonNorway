@@ -15,25 +15,12 @@ ALTER TABLE loan
         AND (returned_at IS NULL) = (returned_late IS NULL)
     );
 
--- FR-RET-05 รูปภาพสภาพอุปกรณ์ตอนรับคืน ผูกกับการยืมที่ปิดครั้งนั้น
--- เก็บเป็น BYTEA ใน PostgreSQL (CON-TECH-01, plan.md ข้อ 2 ทีมเลือกเอง Q-P3)
--- จำนวนรูปและขนาดสูงสุดตรวจที่ app ด้วยค่าใน config.go (AGENTS.md กฎข้อ 9) ไม่ฝังตัวเลขที่นี่
-CREATE TABLE loan_return_photo (
-    id           BIGSERIAL PRIMARY KEY,
-    loan_id      INT         NOT NULL REFERENCES loan (id),
-    content_type TEXT        NOT NULL
-        CHECK (content_type IN ('image/jpeg', 'image/png')), -- FR-RET-05 JPG หรือ PNG
-    size_bytes   INT         NOT NULL CHECK (size_bytes > 0),
-    data         BYTEA       NOT NULL,
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_loan_return_photo_loan ON loan_return_photo (loan_id);
+-- ไม่มีตารางรูปตอนรับคืน: FR-RET-05 ยกเลิก 2569-11-11 (RQ-04 ฝั่งรับคืนอยู่ใน BL-16 Could ไม่อยู่ใน prototype)
 
 -- DM-07 audit_log: เพิ่มค่า action ของ 006 (DOM-AUDIT-01, FR-RET-07) ตามตาราง action ใน data-model.md
 --   return_list   เปิดหน้ารายการที่ยังไม่คืน
 --   return_lookup ค้นการยืมจากรหัสครุภัณฑ์
---   return_detail เปิดรายละเอียดการยืม / รูป
+--   return_detail เปิดรายละเอียดการยืม
 --   return        บันทึกการรับคืน
 ALTER TABLE audit_log DROP CONSTRAINT audit_log_action_check;
 ALTER TABLE audit_log ADD CONSTRAINT audit_log_action_check

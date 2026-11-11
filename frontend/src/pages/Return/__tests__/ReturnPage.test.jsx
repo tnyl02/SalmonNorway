@@ -27,9 +27,9 @@ function fakeClient() {
 
 // AC-RET-01 (FR-RET-03) บนหน้าจอ
 //   Given อุปกรณ์ "ถูกยืม" มีการยืมที่ยังไม่คืน
-//   When  เจ้าหน้าที่กรอกรหัส เห็นการยืม เลือก "ปกติ" แนบ 1 รูป กดบันทึก
+//   When  เจ้าหน้าที่กรอกรหัส เห็นการยืม เลือก "ปกติ" กดบันทึก
 //   Then  เห็น "บันทึกการรับคืนแล้ว สถานะ: ว่าง"
-test('AC-RET-01: กรอกรหัส เลือกสภาพปกติ แนบรูป บันทึก แล้วเห็นสถานะว่าง', async () => {
+test('AC-RET-01: กรอกรหัส เลือกสภาพปกติ บันทึก แล้วเห็นสถานะว่าง', async () => {
   const client = fakeClient()
   render(<ReturnPage client={client} />)
 
@@ -41,16 +41,14 @@ test('AC-RET-01: กรอกรหัส เลือกสภาพปกต�
   expect(screen.getByText('student-001')).toBeTruthy()
 
   fireEvent.click(screen.getByLabelText('ปกติ'))
-  const photo = new File(['jpeg'], 'photo.jpg', { type: 'image/jpeg' })
-  fireEvent.change(screen.getByLabelText('รูปสภาพอุปกรณ์'), { target: { files: [photo] } })
   fireEvent.click(screen.getByRole('button', { name: 'บันทึกการรับคืน' }))
 
   await waitFor(() => expect(screen.getByRole('status').textContent).toBe('บันทึกการรับคืนแล้ว สถานะ: ว่าง'))
-  expect(client.returns.record).toHaveBeenCalledWith({ assetCode: 'CS-NB-0004', condition: 'normal', photos: [photo] })
+  expect(client.returns.record).toHaveBeenCalledWith({ assetCode: 'CS-NB-0004', condition: 'normal' })
 })
 
-// FR-RET-02: ตัวเลือกสภาพมาจาก config.js และหน้าจอไม่มีช่องกรอกเวลาคืน (ASM-04)
-test('ตัวเลือกสภาพมีแค่ ปกติ และ ชำรุด และไม่มีช่องเวลาคืน', async () => {
+// FR-RET-02: ตัวเลือกสภาพมาจาก config.js หน้าจอไม่มีช่องกรอกเวลาคืน (ASM-04) และไม่มีช่องแนบรูป (FR-RET-05 ยกเลิก)
+test('ตัวเลือกสภาพมีแค่ ปกติ และ ชำรุด ไม่มีช่องเวลาคืน และไม่มีช่องแนบรูป', async () => {
   render(<ReturnPage client={fakeClient()} />)
   fireEvent.change(screen.getByLabelText('รหัสครุภัณฑ์'), { target: { value: 'CS-NB-0004' } })
   fireEvent.click(screen.getByRole('button', { name: 'ค้นหา' }))
@@ -58,6 +56,7 @@ test('ตัวเลือกสภาพมีแค่ ปกติ และ
 
   expect(screen.getAllByRole('radio').map((r) => r.value)).toEqual(['normal', 'damaged'])
   expect(document.querySelector('input[type="datetime-local"], input[type="time"], input[type="date"]')).toBeNull()
+  expect(document.querySelector('input[type="file"]')).toBeNull()
 })
 
 // เปิดหน้าแล้วหาการยืมให้เจอ (ขั้นก่อนกรอกสภาพ)
@@ -79,8 +78,6 @@ test('AC-RET-04: กดบันทึกโดยไม่เลือกสภ
   expect(screen.getAllByRole('radio').map((r) => r.value)).toEqual(['normal', 'damaged'])
   expect(screen.queryByLabelText('สูญหาย')).toBeNull()
 
-  const photo = new File(['jpeg'], 'photo.jpg', { type: 'image/jpeg' })
-  fireEvent.change(screen.getByLabelText('รูปสภาพอุปกรณ์'), { target: { files: [photo] } })
   fireEvent.click(screen.getByRole('button', { name: 'บันทึกการรับคืน' }))
 
   expect(screen.getByRole('alert').textContent).toBe('กรุณาเลือกสภาพ ปกติ หรือ ชำรุด')
