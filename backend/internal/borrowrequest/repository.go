@@ -5,7 +5,14 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
+
+	"salmonnorway/backend/internal/auth"
 )
+
+// ErrForbiddenDepartment เกิดเมื่อผู้ขอพยายามส่งคำขอของอุปกรณ์ต่างภาควิชา (DOM-ACCESS-01, FR-BRQ-07)
+// ตอบโดยไม่ส่งข้อมูลอุปกรณ์กลับไปเลย
+// (ประกาศไว้ที่นี่เพราะ model.go ไม่อยู่ในช่องไฟล์ที่แตะของ T-10 ย้ายไปรวมกับ error ตัวอื่นได้ภายหลัง)
+var ErrForbiddenDepartment = errors.New("อุปกรณ์ชิ้นนี้ไม่ใช่ของภาควิชาผู้ขอ")
 
 // Querier คือส่วนของ pgxpool.Pool ที่ repository นี้ใช้
 type Querier interface {
@@ -37,8 +44,16 @@ WHERE i.asset_code = $10 AND i.status = 'available'
 RETURNING id, submitted_at`
 
 // Create บันทึกคำขอยืมใบใหม่ด้วยสถานะเริ่มต้นที่ service ส่งมา (FR-BRQ-04)
+// คืน ErrForbiddenDepartment เมื่ออุปกรณ์เป็นของภาควิชาอื่น (DOM-ACCESS-01, FR-BRQ-07)
 // คืน ErrItemNotAvailable เมื่อไม่มีอุปกรณ์รหัสนั้น หรือสถานะไม่ใช่ "ว่าง" แล้ว (CON-DATA-01)
 func (r *Repository) Create(ctx context.Context, requesterID string, in NewRequest, status string) (Request, error) {
+	// ตรวจขอบเขตภาควิชาก่อนทุกอย่าง เพื่อไม่ให้ผู้ขอต่างภาควิชารู้แม้แต่สถานะของอุปกรณ์ (FR-BRQ-07)
+	// **ลำดับการตรวจเมื่อข้ามภาควิชาและอุปกรณ์ไม่ว่างพร้อมกัน ยังรอ Q-BRQ-15 (ดู T-21)**
+	// ระหว่างรอคำตอบเลือกทางที่ปลอดภัยกว่าคือไม่เปิดเผยอะไรเลย
+	if err := r.checkDepartment(ctx, in.AssetCode); err != nil {
+		return Request{}, err
+	}
+
 	out := Request{
 		RequesterID: requesterID,
 		AssetCode:   in.AssetCode,
@@ -74,6 +89,36 @@ func nullIfEmpty(s string) any {
 		return nil
 	}
 	return s
+}
+
+// departmentSQL อ่านภาควิชาเจ้าของอุปกรณ์จากรุ่นของอุปกรณ์ชิ้นนั้น (DM-03, DM-04)
+const departmentSQL = `
+SELECT m.department_id
+FROM equipment_item i
+JOIN equipment_model m ON m.id = i.model_id
+WHERE i.asset_code = $1`
+
+// checkDepartment ปฏิเสธคำขอของอุปกรณ์ต่างภาควิชา (FR-BRQ-07, DOM-ACCESS-01)
+// ภาควิชาของผู้ขอมาจากผลยืนยันตัวตนเท่านั้น (IF-IDP-01, DM-08) ไม่ใช่ค่าที่ส่งมาใน request
+// รหัสครุภัณฑ์ที่ไม่มีอยู่จริงตอบเป็น ErrItemNotAvailable เหมือนกรณีไม่ว่าง เพื่อไม่เปิดเผยว่ามีรหัสนั้นไหม
+func (r *Repository) checkDepartment(ctx context.Context, assetCode string) error {
+	p, ok := auth.FromContext(ctx)
+	if !ok || !p.Complete() {
+		return ErrNoPrincipal // ไม่รู้ว่าผู้ขออยู่ภาควิชาไหน ปฏิเสธ ไม่เดา (plan.md ข้อ 6.1 ของ 001)
+	}
+
+	var departmentID int
+	err := r.db.QueryRow(ctx, departmentSQL, assetCode).Scan(&departmentID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrItemNotAvailable
+	}
+	if err != nil {
+		return err
+	}
+	if departmentID != p.DepartmentID {
+		return ErrForbiddenDepartment
+	}
+	return nil
 }
 
 // statusSQL อ่านสถานะล่าสุดของอุปกรณ์ตามรหัสครุภัณฑ์ (CON-DATA-01, CON-DATA-03)

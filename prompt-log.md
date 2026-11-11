@@ -1402,3 +1402,41 @@ AC-BRQ-13 เขียนว่าต้อง "แจ้งว่าการ�
 ### ผล test
 - `go test ./internal/borrowrequest/ -run "TestAC_BRQ_01|TestCreate_Unknown" -v`: PASS
 - `go test ./...` รอบแรก FAIL (ตามด้านบน) รอบที่สองหลังแก้: **ทุกแพ็กเกจ ok**
+
+---
+
+## 2569-11-12 /implement T-10 (002-borrow-request) — ปิดเฟส 6
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 6 AC-BRQ-07 ขอบเขตภาควิชา)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-10`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/repository.go` (ตรงกับช่องไฟล์ที่แตะ) เพิ่ม checkDepartment และ ErrForbiddenDepartment
+- `backend/internal/borrowrequest/handler.go` (ตรงกับช่องไฟล์ที่แตะ) แปลงเป็น 403 FORBIDDEN_DEPARTMENT
+- `backend/internal/borrowrequest/handler_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** ต่อ test ท้ายไฟล์เดิม
+
+### การตัดสินใจ
+- ภาควิชาของผู้ขออ่านจาก auth.FromContext เท่านั้น ไม่ใช่ค่าที่ส่งมาใน request
+  ถ้าเชื่อค่าจาก request ผู้ขอจะปลอมภาควิชาได้ทันที (IF-IDP-01, DM-08)
+- repository อ่าน principal จาก context เอง แทนการเพิ่มพารามิเตอร์ที่ service ส่งมา
+  เพราะ service.go ไม่อยู่ในช่องไฟล์ที่แตะของ T-10
+- รหัสครุภัณฑ์ที่ไม่มีอยู่จริงตอบเป็น ItemNotAvailable เหมือนเดิม ไม่เปิดเผยว่ามีรหัสนั้นไหม
+
+### สิ่งที่ AI เลือกไปก่อน เพราะคำถามยังไม่มีคำตอบ (ทีมต้องตรวจ)
+**Q-BRQ-15 ยังเปิดอยู่** ว่าถ้าคนต่างภาควิชาขอยืมอุปกรณ์ที่ไม่ว่าง จะตอบ 403 หรือ 409 ก่อน
+AI วางให้ **ตรวจภาควิชาก่อนเสมอ** พร้อมคอมเมนต์กำกับในโค้ดว่ารอ Q-BRQ-15 (ดู T-21)
+เหตุผล: ถ้าตรวจสถานะก่อน คนต่างภาควิชาจะได้ 409 พร้อม "status":"borrowed"
+ซึ่งรั่วข้อมูลอุปกรณ์ที่เขาไม่มีสิทธิ์เห็น ขัด FR-BRQ-07 ตรง ๆ
+ทางที่เลือกแย่ที่สุดคือบอกน้อยเกินไป ซึ่งแก้ทีหลังได้ถ้าทีมตอบเป็นอย่างอื่น
+
+### งานค้างที่ยังทำไม่ได้
+AI เคยบอกว่า T-10 จะได้เปลี่ยนชื่อ missingFields เป็น invalidFields **ซึ่งผิด**
+การเปลี่ยนชื่อต้องแก้ทั้ง validate.go (ที่ประกาศ) และ handler.go (ที่เรียก)
+แต่ T-10 มีแค่ handler.go ในรายการ ต้องรอ task ที่มีทั้งสองไฟล์
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run "TestAC_BRQ_07|TestDepartmentScope" -v`: PASS ทั้ง 2 ตัว
+  (TestAC_BRQ_07 ไล่หาคำว่า available / borrowed / unavailable / Notebook / CS-NB-0001 ใน body ต้องไม่เจอสักคำ)
+- `go test ./...`: ทุกแพ็กเกจ ok

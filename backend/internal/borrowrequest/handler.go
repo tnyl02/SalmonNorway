@@ -56,6 +56,10 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 			Status:      req.Status,
 			SubmittedAt: req.SubmittedAt,
 		})
+	case errors.Is(err, ErrForbiddenDepartment):
+		// ไม่ส่งข้อมูลอุปกรณ์ใด ๆ กลับไป แม้แต่สถานะ (FR-BRQ-07, DOM-ACCESS-01, AC-BRQ-07)
+		writeError(w, http.StatusForbidden, "FORBIDDEN_DEPARTMENT",
+			"ส่งคำขอยืมได้เฉพาะอุปกรณ์ของภาควิชาตนเอง")
 	case errors.Is(err, ErrItemNotAvailable):
 		writeItemNotAvailable(w, err)
 	case errors.Is(err, ErrNoPrincipal):

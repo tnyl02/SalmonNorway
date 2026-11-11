@@ -531,3 +531,70 @@ func TestCreate_UnknownAssetCodeLooksTheSame(t *testing.T) {
 		t.Errorf("รหัสที่ไม่มีอยู่ต้องไม่มีสถานะใน response แต่ได้ %q", e.Status)
 	}
 }
+
+// ผู้ใช้จำลองของภาควิชาที่ 2 (ดู backend/internal/auth/mock_provider.go)
+const tokenStudentDept2 = "mock-student-101"
+
+// AC-BRQ-07 (FR-BRQ-07)
+// Given นักศึกษาสังกัดภาควิชาที่ 2 และอุปกรณ์ชิ้นเป้าหมายเป็นของภาควิชาที่ 1
+// When  ส่งคำขอยืมอุปกรณ์ชิ้นนั้น
+// Then  ระบบต้องปฏิเสธ ไม่สร้างคำขอ และไม่ส่งข้อมูลอุปกรณ์กลับไป
+func TestAC_BRQ_07(t *testing.T) {
+	pool := testPool(t)
+	srv := newTestServer(t)
+
+	// When: student-101 (ภาควิชา 2) ขอยืม CS-NB-0001 ซึ่งเป็นของภาควิชา 1
+	w := postRequest(t, srv, tokenStudentDept2, bodyFor("CS-NB-0001"))
+
+	// Then: 403 FORBIDDEN_DEPARTMENT ตามรหัสกลางของ CON-TECH-03
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("คำขอข้ามภาควิชาต้องได้ 403 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	var e struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+		Status  string `json:"status"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &e); err != nil {
+		t.Fatal(err)
+	}
+	if e.Code != "FORBIDDEN_DEPARTMENT" {
+		t.Errorf("รหัสต้องเป็น FORBIDDEN_DEPARTMENT แต่ได้ %q", e.Code)
+	}
+
+	// Then: body ต้องไม่มีข้อมูลอุปกรณ์เลย ทั้งสถานะ ชื่อรุ่น และรหัสครุภัณฑ์
+	if e.Status != "" {
+		t.Errorf("ต้องไม่บอกสถานะอุปกรณ์ให้คนต่างภาควิชารู้ แต่ได้ %q", e.Status)
+	}
+	for _, leak := range []string{"available", "borrowed", "unavailable", "Notebook", "CS-NB-0001"} {
+		if strings.Contains(w.Body.String(), leak) {
+			t.Errorf("body ต้องไม่มีข้อมูลอุปกรณ์ แต่พบคำว่า %q", leak)
+		}
+	}
+
+	// Then: ต้องไม่มีคำขอเกิดขึ้น
+	var count int
+	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM borrow_request`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Errorf("คำขอข้ามภาควิชาต้องไม่ถูกสร้าง แต่พบ %d ใบ", count)
+	}
+}
+
+// T-10 เสร็จเมื่อ: กฎนี้กันเฉพาะข้ามภาควิชา ผู้ขอยังส่งคำขอของภาควิชาตนเองได้ตามปกติ (DOM-ACCESS-01)
+func TestDepartmentScope_OwnDepartmentStillWorks(t *testing.T) {
+	srv := newTestServer(t)
+
+	// student-101 อยู่ภาควิชา 2 ขอยืม XX-NB-0001 ซึ่งเป็นของภาควิชา 2 ต้องผ่าน
+	w := postRequest(t, srv, tokenStudentDept2, bodyFor("XX-NB-0001"))
+	if w.Code != http.StatusCreated {
+		t.Fatalf("ขอยืมอุปกรณ์ของภาควิชาตนเองต้องได้ 201 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	decodeCreated(t, w)
+
+	// และคนภาควิชา 1 ขอยืมของภาควิชา 2 ก็ต้องถูกปฏิเสธเช่นกัน (กันทั้งสองทาง)
+	if w := postRequest(t, srv, tokenStudentDept1, bodyFor("XX-NB-0001")); w.Code != http.StatusForbidden {
+		t.Errorf("คนภาควิชา 1 ขอยืมของภาควิชา 2 ต้องได้ 403 แต่ได้ %d", w.Code)
+	}
+}
