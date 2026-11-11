@@ -30,6 +30,7 @@ var (
 	dbPool      *pgxpool.Pool
 	dbErr       error
 	dbContainer *tcpostgres.PostgresContainer
+	dbConnURL   string
 )
 
 func TestMain(m *testing.M) {
@@ -64,6 +65,7 @@ func pool(t *testing.T) *pgxpool.Pool {
 		if url, dbErr = dbContainer.ConnectionString(ctx, "sslmode=disable"); dbErr != nil {
 			return
 		}
+		dbConnURL = url
 		if dbErr = platform.Migrate(url, migrationsDir); dbErr != nil {
 			return
 		}
@@ -78,8 +80,15 @@ func pool(t *testing.T) *pgxpool.Pool {
 	return dbPool
 }
 
+// dbURL คืนที่อยู่ฐานข้อมูล test ใช้กับ platform.Seed
+func dbURL(t *testing.T) string {
+	t.Helper()
+	pool(t)
+	return dbConnURL
+}
+
 // insertRequest ใส่คำขอ 1 แถวใน transaction ที่ rollback ทิ้ง เพื่อไม่ทิ้งข้อมูลไว้ (audit_log เป็น append-only)
-// คอลัมน์ที่ 003 ไม่ใช้ใส่ค่าทดสอบตายตัว ไม่ได้มาจาก spec ของ 003
+// คอลัมน์ที่ 003 ไม่ใช้ใส่ค่าทดสอบตายตัว ไม่ได้มาจาก spec ของ 003 ผู้ขอเป็น student-test ไม่ชนกับ seed ของ 003 (T-02)
 func insertRequest(t *testing.T, status string, cancelReason *string) error {
 	t.Helper()
 	ctx := context.Background()
@@ -91,7 +100,7 @@ func insertRequest(t *testing.T, status string, cancelReason *string) error {
 	_, err = tx.Exec(ctx,
 		`INSERT INTO borrow_request (requester_id, requester_name, student_code, item_id, loan_type, purpose,
 		                             start_at, end_at, status, cancel_reason)
-		 VALUES ('student-001', 'ผู้ทดสอบ', 'TEST-000', $1, 'normal', 'study',
+		 VALUES ('student-test', 'ผู้ทดสอบ', 'TEST-000', $1, 'normal', 'study',
 		         now() + interval '1 day', now() + interval '1 day 6 hours', $2, $3)`,
 		itemAvailable, status, cancelReason)
 	return err

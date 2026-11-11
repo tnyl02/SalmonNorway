@@ -1671,3 +1671,40 @@
   (หลังบ้านยังตอบ 404 เพราะ T-04 ยังไม่ทำ) ข้อความ "ไม่มีคำขอที่รออนุมัติ" ตรวจผ่าน test (TC-CXL-12-2) ยังลองบนจอจริงไม่ได้จนกว่า T-04 เสร็จ
 - ผล: เปลี่ยนสถานะใน tasks.md ของ T-01, T-12 เป็น "เสร็จ"
 
+---
+
+## 2569-11-11 /implement T-02 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md แล้วทำตามเอง)
+- สิ่งที่สั่ง: /implement T-02 ข้อมูลตั้งต้นคำขอทุกสถานะและ Email เจ้าหน้าที่จำลอง
+- ค่าที่ทีมเลือก (ไม่ได้มาจาก spec): student-001 = "ใจดี สวยมาก" 660710755, student-002 = "มีสุข ใจเย็น" 660710756 (AI เสนอ ทีมรับ),
+  Email เจ้าหน้าที่ภาควิชา 1 = staff-it@example.test
+- ไฟล์ที่แก้หรือสร้าง:
+  - backend/db/seed/seed_003_cancel_request.sql (ใหม่): คำขอ id 3001-3008 ตามช่อง "เสร็จเมื่อ" และ staff_contact ภาควิชา 1 โหลดซ้ำได้
+  - backend/internal/cancelrequest/migrationtest/seed_test.go (ใหม่ ทีมอนุญาตเพิ่มในช่องไฟล์ที่แตะ): TestSeed003_RequestsAndStaffContact
+  - backend/internal/cancelrequest/migrationtest/migration_test.go: เพิ่ม dbURL, ผู้ขอใน test ของ T-01 เปลี่ยนเป็น student-test ไม่ชนกับ seed
+- ผล test: `go test -count=1 -v ./internal/cancelrequest/migrationtest/` ผ่าน 5/5
+- สิ่งที่ AI เลือกเองในขอบเขต task:
+  - ตาราง 0003 มี unique index ห้ามผู้ขอคนเดิมมีคำขอที่ยังไม่จบบนชิ้นเดียวกันเกิน 1 ใบ คำขอที่ยังไม่จบของ student-001 จึงอยู่คนละชิ้น
+    (CS-NB-0001, CS-PJ-0001, CS-NB-0002, CS-NB-0003, XX-NB-0001) ใช้เฉพาะชิ้นที่ว่าง คำขอ approved อยู่บน XX-NB-0001 ของภาควิชา 2 เพราะชิ้นว่างของภาควิชา 1 ไม่พอ
+  - approved_by_officer และ pending_advisor_approval เป็นยืมค้างคืน (ASM-04), เวลาที่ส่งเป็นวันที่ตายตัว 2569-11-04 ถึง 11-10 วัตถุประสงค์และเวลายืมเป็นค่าทดสอบ
+- สถานะใน tasks.md: T-02 เสร็จ รอทีมตรวจ
+
+---
+
+## 2569-11-11 ทีมตรวจ T-02 ผ่าน (003-cancel-request)
+
+- ผู้ตรวจ: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (ช่วยอธิบายวิธีตรวจ และโหลด seed ใหม่ในฐานข้อมูลของเครื่องพัฒนา)
+- วิธีตรวจ:
+  - A: `go test -count=1 -v ./internal/cancelrequest/migrationtest/` ผ่าน 5/5 (รวม TestSeed003_RequestsAndStaffContact)
+  - B: ฐานข้อมูลในเครื่อง (salmon-db) schema_migrations version 4, โหลด seed ได้ INSERT 0 8 และ INSERT 0 1, โหลดซ้ำได้ INSERT 0 0,
+    จำนวนคำขอแต่ละสถานะตรงช่อง "เสร็จเมื่อ", ชื่อภาษาไทยและเหตุผลของ 3007 ถูกต้อง, staff_contact = staff-it@example.test, สถานะอุปกรณ์ไม่เปลี่ยน
+  - C: อ่าน seed_003_cancel_request.sql แล้วค่าตรงกับที่ตกลง
+- ปัญหาที่พบตอนตรวจ: โหลด seed ด้วย `Get-Content ... | docker exec -i ... psql` ใน PowerShell 5.1 ทำให้ภาษาไทยกลายเป็น ? ในฐานข้อมูล (ไฟล์ seed ไม่ผิด)
+  แก้โดยลบแถว 3001-3008 และ staff_contact (ไม่มี audit_log อ้างถึง) แล้วโหลดใหม่ด้วย `docker cp` + `psql -f`
+  ถ้าดูผลใน PowerShell ให้ตั้ง [Console]::OutputEncoding เป็น UTF8 ก่อน ไม่อย่างนั้นหน้าจอแสดงภาษาไทยเป็น ?
+- ผล: เปลี่ยนสถานะใน tasks.md ของ T-02 เป็น "เสร็จ"
+

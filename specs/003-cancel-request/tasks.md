@@ -50,11 +50,11 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 ### T-02 เพิ่มข้อมูลตั้งต้นคำขอทุกสถานะและ Email เจ้าหน้าที่จำลอง
 - รองรับ: ASM-01, ASM-04 (คำขอค้างคืนจาก seed), ASM-10, CON-CXL-02
 - ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นงานพื้นฐานของจุดตรวจทุกเฟส
-- ไฟล์ที่แตะ: `backend/db/seed/seed_003_cancel_request.sql` (ไฟล์แยก ไม่แก้ seed.sql ของ 001)
+- ไฟล์ที่แตะ: `backend/db/seed/seed_003_cancel_request.sql` (ไฟล์แยก ไม่แก้ seed.sql ของ 001), `backend/internal/cancelrequest/migrationtest/seed_test.go` (เพิ่ม 2569-11-11 ทีมอนุญาต: test ยืนยันช่องเสร็จเมื่อ), `backend/internal/cancelrequest/migrationtest/migration_test.go` (เพิ่ม dbURL และเปลี่ยนผู้ขอใน test เป็น student-test ไม่ชนกับ seed)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
 - เสร็จเมื่อ: โหลด seed แล้ว student-001 มีคำขอ `requested` 2 รายการ (คนละเวลา หนึ่งในนั้นเป็นอุปกรณ์ CS-NB-0001), `approved_by_officer` 1, `pending_advisor_approval` 1, `approved` 1, `rejected` 1, `cancelled` 1, student-002 มีคำขอ `requested` บน CS-NB-0001 1 รายการ, student-101 ไม่มีคำขอ และภาควิชา 1 มี Email เจ้าหน้าที่จำลอง 1 รายการ
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 ### T-03 เพิ่มค่าที่ตั้งได้ของ 003 ใน config
 - รองรับ: CON-CXL-02, FR-CXL-02, FR-CXL-03, FR-CXL-06, FR-CXL-08, NFR-PERF-CXL-01, ASM-06
