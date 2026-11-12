@@ -259,11 +259,14 @@ Updated: 2569-11-11
 ### T-14 รับไฟล์แนบของการยืมค้างคืน พร้อมตรวจชนิดและขนาด
 - รองรับ: FR-BRQ-10, CON-TECH-03
 - ตรวจด้วย: AC-BRQ-10
-- ไฟล์ที่แตะ: `backend/internal/borrowrequest/attachment.go`, `backend/internal/borrowrequest/handler.go`, `backend/internal/borrowrequest/validate.go`
+- ไฟล์ที่แตะ: `backend/internal/borrowrequest/attachment.go`, `backend/internal/borrowrequest/handler.go`,
+  `backend/internal/borrowrequest/validate.go`, `backend/internal/borrowrequest/service.go`,
+  `backend/internal/borrowrequest/repository.go` (2 ไฟล์หลังเพิ่มเมื่อ 2569-11-12 ทีมตัดสิน เพราะช่อง "เสร็จเมื่อ"
+  บังคับให้บันทึก path ลงคอลัมน์ `attachment_path` ซึ่งต้องผ่าน service และ repository)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-07
 - เสร็จเมื่อ: `TestAC_BRQ_10` ผ่าน — `loanType=overnight` ที่ไม่แนบไฟล์ได้ 422, ไฟล์เกิน 10MB หรือชนิดนอก 3 ชนิดได้ 422, และไฟล์ที่ผ่านถูกเก็บลงโฟลเดอร์ตาม config พร้อมบันทึก path ในตาราง
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 ### T-15 สร้าง endpoint เปิดดูไฟล์แนบ จำกัดสิทธิ์
 - รองรับ: FR-BRQ-10, DOM-PRIV-01, IF-IDP-01

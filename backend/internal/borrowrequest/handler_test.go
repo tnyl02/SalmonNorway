@@ -1,11 +1,18 @@
 package borrowrequest
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -399,6 +406,7 @@ func TestAC_BRQ_13(t *testing.T) {
 
 // T-08 เสร็จเมื่อ: กฎนี้ใช้กับการยืมปกติเท่านั้น และคืนพอดี 16:00 ต้องผ่าน (DOM-LOAN-01)
 func TestLoanWindow_NormalBoundaryAndOvernight(t *testing.T) {
+	t.Setenv("ATTACHMENT_DIR", t.TempDir()) // ยืมค้างคืนต้องแนบไฟล์ตั้งแต่ T-14 (FR-BRQ-10 ข้อ ก)
 	srv := newTestServer(t)
 
 	// คืนพอดี 16:00 ของวันเดียวกัน ต้องส่งได้ (ข้อกำหนดคือ "ภายใน 16:00 น.")
@@ -417,8 +425,10 @@ func TestLoanWindow_NormalBoundaryAndOvernight(t *testing.T) {
 	}
 
 	// ยืมค้างคืนข้ามวันต้องไม่ติดกฎนี้ (DOM-LOAN-01 ใช้กับยืมปกติเท่านั้น)
-	w = postRequest(t, srv, tokenStudentDept1,
-		bodyWithWindow("CS-NB-0003", "overnight", bangkokToday(9, 0), bangkokToday(9, 0).AddDate(0, 0, 2)))
+	// ตั้งแต่ T-14 การยืมค้างคืนต้องแนบใบบันทึกข้อความมาด้วย จึงส่งแบบ multipart (FR-BRQ-10 ข้อ ก)
+	ct, body := multipartForm(t, "CS-NB-0003", config.LoanTypeOvernight,
+		&testFile{name: "memo.pdf", contentType: "application/pdf", content: []byte("%PDF-1.4 ตัวอย่าง")})
+	w = postMultipart(t, srv, tokenStudentDept1, ct, body)
 	if w.Code != http.StatusCreated {
 		t.Errorf("ยืมค้างคืนข้ามวันต้องส่งได้ แต่ได้ %d body=%s", w.Code, w.Body.String())
 	} else {
@@ -658,5 +668,179 @@ func TestAC_BRQ_06_HTTP(t *testing.T) {
 	}
 	if got.Message == "" {
 		t.Error("ต้องมีข้อความแจ้งเหตุผลว่ามีของค้างเกินกำหนด (FR-BRQ-06)")
+	}
+}
+
+// testFile คือไฟล์ที่ใช้ทดสอบการแนบใบบันทึกข้อความ
+type testFile struct {
+	name        string
+	contentType string
+	content     []byte
+}
+
+// multipartForm สร้าง body แบบ multipart/form-data ของฟอร์มคำขอ (plan.md ข้อ 4)
+// file เป็น nil แปลว่าไม่ได้แนบไฟล์มา
+func multipartForm(t *testing.T, assetCode, loanType string, file *testFile) (string, *bytes.Buffer) {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+
+	end := bangkokToday(15, 0)
+	if loanType == config.LoanTypeOvernight {
+		end = end.AddDate(0, 0, 2) // ค้างคืนไม่ติดกฎคืนภายใน 16:00 วันเดียวกัน (DOM-LOAN-01)
+	}
+	for field, value := range map[string]string{
+		"assetCode":     assetCode,
+		"requesterName": "ธัญลักษณ์ ทดสอบ",
+		"studentCode":   "660710715",
+		"loanType":      loanType,
+		"purpose":       "study",
+		"startAt":       bangkokToday(9, 0).Format(time.RFC3339),
+		"endAt":         end.Format(time.RFC3339),
+	} {
+		if err := w.WriteField(field, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if file != nil {
+		// ใช้ CreatePart เพื่อกำหนด Content-Type ของไฟล์เอง แทน CreateFormFile ที่ตั้งเป็น octet-stream เสมอ
+		h := make(textproto.MIMEHeader)
+		h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="attachment"; filename=%q`, file.name))
+		h.Set("Content-Type", file.contentType)
+		part, err := w.CreatePart(h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := part.Write(file.content); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return w.FormDataContentType(), &buf
+}
+
+// postMultipart ยิง POST /v1/loan-requests แบบ multipart
+func postMultipart(t *testing.T, srv http.Handler, token, contentType string, body *bytes.Buffer) *httptest.ResponseRecorder {
+	t.Helper()
+	r := httptest.NewRequest(http.MethodPost, PathPrefix, body)
+	r.Header.Set("Content-Type", contentType)
+	r.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, r)
+	return w
+}
+
+// expectAttachmentRejected ยืนยันว่าได้ 422 พร้อมชี้ช่อง attachment และไม่มีคำขอเกิดขึ้น
+func expectAttachmentRejected(t *testing.T, w *httptest.ResponseRecorder) {
+	t.Helper()
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("ต้องได้ 422 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	var got validationErrorDTO
+	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+		t.Fatalf("อ่าน JSON ไม่ได้: %v", err)
+	}
+	if got.Code != "VALIDATION_FAILED" {
+		t.Errorf("รหัสต้องเป็น VALIDATION_FAILED ตาม CON-TECH-03 แต่ได้ %q", got.Code)
+	}
+	if !slices.Contains(got.Fields, "attachment") {
+		t.Errorf("ต้องระบุว่าช่อง attachment คือสิ่งที่ยังขาดหรือผิด แต่ได้ %v", got.Fields)
+	}
+}
+
+// AC-BRQ-10 (FR-BRQ-10)
+// Given นักศึกษาเลือกประเภทการยืมเป็น "ค้างคืน"
+// When  ยังไม่แนบไฟล์ใบบันทึกข้อความ แล้วกดส่งคำขอ
+// Then  ระบบต้องไม่สร้างคำขอ และระบุสิ่งที่ยังขาด
+// และ
+// Given แนบไฟล์ที่ไม่ใช่ PDF หรือรูปถ่าย หรือไฟล์ขนาดเกิน 10MB
+// When  กดส่งคำขอ
+// Then  ระบบต้องไม่สร้างคำขอ และแจ้งชนิดกับขนาดไฟล์ที่รับได้
+//
+// ส่วน "ยังไม่เลือกวัตถุประสงค์" ของ AC ข้อนี้ถูกบังคับไว้แล้วตั้งแต่ T-07 (TestAC_BRQ_02)
+// และส่วนที่ให้ "แสดงเงื่อนไขการยืมปกติ" เป็นงานหน้าจอ ซึ่งรอ Q-BRQ-14 (T-19, T-20)
+func TestAC_BRQ_10(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("ATTACHMENT_DIR", dir) // ต้องตั้งก่อนสร้าง service เพราะอ่าน config ตอนสร้าง
+	pool := testPool(t)
+	srv := newTestServer(t)
+
+	t.Run("ค้างคืนแต่ไม่แนบไฟล์", func(t *testing.T) {
+		ct, body := multipartForm(t, "CS-NB-0003", config.LoanTypeOvernight, nil)
+		expectAttachmentRejected(t, postMultipart(t, srv, tokenStudentDept1, ct, body))
+	})
+
+	t.Run("ไฟล์ชนิดที่ไม่รับ", func(t *testing.T) {
+		ct, body := multipartForm(t, "CS-NB-0003", config.LoanTypeOvernight,
+			&testFile{name: "memo.txt", contentType: "text/plain", content: []byte("ไม่ใช่ PDF หรือรูปถ่าย")})
+		expectAttachmentRejected(t, postMultipart(t, srv, tokenStudentDept1, ct, body))
+	})
+
+	t.Run("ไฟล์ใหญ่เกินเพดาน", func(t *testing.T) {
+		big := make([]byte, config.AttachmentMaxBytes+1)
+		copy(big, []byte("%PDF-1.4"))
+		ct, body := multipartForm(t, "CS-NB-0003", config.LoanTypeOvernight,
+			&testFile{name: "big.pdf", contentType: "application/pdf", content: big})
+		expectAttachmentRejected(t, postMultipart(t, srv, tokenStudentDept1, ct, body))
+	})
+
+	// ถึงตรงนี้ยังต้องไม่มีคำขอของผู้ขอคนนี้เกิดขึ้นเลย (AC-BRQ-10 "ต้องไม่สร้างคำขอ")
+	if n := countRequests(t, pool, "student-001"); n != 0 {
+		t.Fatalf("คำขอที่ถูกปฏิเสธต้องไม่ถูกสร้าง แต่พบ %d ใบ", n)
+	}
+
+	t.Run("แนบ PDF ที่ถูกต้อง", func(t *testing.T) {
+		content := []byte("%PDF-1.4 ใบบันทึกข้อความตัวอย่าง")
+		ct, body := multipartForm(t, "CS-NB-0003", config.LoanTypeOvernight,
+			&testFile{name: "ใบบันทึก ข้อความ.pdf", contentType: "application/pdf", content: content})
+
+		w := postMultipart(t, srv, tokenStudentDept1, ct, body)
+		if w.Code != http.StatusCreated {
+			t.Fatalf("แนบไฟล์ถูกต้องต้องได้ 201 แต่ได้ %d body=%s", w.Code, w.Body.String())
+		}
+		got := decodeCreated(t, w)
+
+		// Then: บันทึก path ไว้ในตาราง (FR-BRQ-10 ข้อ ก)
+		var path *string
+		if err := pool.QueryRow(context.Background(),
+			`SELECT attachment_path FROM borrow_request WHERE id = $1`, got.RequestID).Scan(&path); err != nil {
+			t.Fatal(err)
+		}
+		if path == nil {
+			t.Fatal("คำขอค้างคืนที่แนบไฟล์แล้ว ต้องมี attachment_path ในตาราง")
+		}
+
+		// Then: ไฟล์อยู่ในโฟลเดอร์ตาม config และชื่อขึ้นต้นด้วยรหัสคำขอ (plan.md ข้อ 3, ASM-BRQ-07)
+		if gotDir := filepath.Dir(*path); gotDir != dir {
+			t.Errorf("ไฟล์ต้องอยู่ในโฟลเดอร์จาก config (%s) แต่อยู่ที่ %s", dir, gotDir)
+		}
+		if prefix := fmt.Sprintf("%d-", got.RequestID); !strings.HasPrefix(filepath.Base(*path), prefix) {
+			t.Errorf("ชื่อไฟล์ต้องขึ้นต้นด้วย %q แต่ได้ %q", prefix, filepath.Base(*path))
+		}
+		saved, err := os.ReadFile(*path)
+		if err != nil {
+			t.Fatalf("ต้องเก็บไฟล์ไว้จริงบนเครื่อง: %v", err)
+		}
+		if !bytes.Equal(saved, content) {
+			t.Error("เนื้อไฟล์ที่เก็บต้องตรงกับไฟล์ที่ผู้ขอแนบมา")
+		}
+	})
+}
+
+// T-14 เสร็จเมื่อ (ส่วนเสริม): ชื่อไฟล์จากผู้ขอต้องพาไฟล์ออกนอกโฟลเดอร์ที่กำหนดไม่ได้ (ASM-BRQ-07)
+func TestSafeFileName(t *testing.T) {
+	for _, c := range []struct{ in, want string }{
+		{"memo.pdf", "memo.pdf"},
+		{"../../etc/passwd", "passwd"},
+		{`C:\Users\USER\memo.pdf`, "memo.pdf"},
+		{"ใบบันทึก ข้อความ.pdf", "_.pdf"}, // อักษรไทยกลายเป็นตัวคั่น แต่ต้องไม่ทำให้นามสกุลหาย
+		{"...", "attachment"},
+	} {
+		if got := safeFileName(c.in); got != c.want {
+			t.Errorf("safeFileName(%q) = %q ต้องเป็น %q", c.in, got, c.want)
+		}
 	}
 }

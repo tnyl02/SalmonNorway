@@ -13,9 +13,10 @@ import (
 // Service คือกฎของฟีเจอร์ที่อยู่ระหว่าง handler กับ repository
 // ทุกกฎบังคับที่ฝั่ง server ไม่พึ่งการซ่อนปุ่มที่หน้าจอ (plan.md ข้อ 1)
 type Service struct {
-	repo  *Repository
-	clock Clock          // นาฬิกาที่ฉีดได้ ใช้เทียบกฎคืนเกินกำหนด (FR-BRQ-06, T-12)
-	loc   *time.Location // เขตเวลา Asia/Bangkok (config.TimeZone, glossary)
+	repo        *Repository
+	clock       Clock            // นาฬิกาที่ฉีดได้ ใช้เทียบกฎคืนเกินกำหนด (FR-BRQ-06, T-12)
+	loc         *time.Location   // เขตเวลา Asia/Bangkok (config.TimeZone, glossary)
+	attachments *AttachmentStore // ที่เก็บไฟล์ใบบันทึกข้อความ (FR-BRQ-10 ข้อ ก, ASM-BRQ-07)
 }
 
 // NewService สร้าง Service ใช้นาฬิกาจริงและเขตเวลาจาก config
@@ -29,7 +30,9 @@ func NewServiceWithClock(repo *Repository, clock Clock) *Service {
 	if err != nil {
 		panic("load time zone " + config.TimeZone + ": " + err.Error()) // ฝัง tzdata ไว้แล้ว ไม่ควรเกิด
 	}
-	return &Service{repo: repo, clock: clock, loc: loc}
+	// โฟลเดอร์ไฟล์แนบอ่านจาก config ที่เดียว เปลี่ยนด้วย ATTACHMENT_DIR ได้ (ASM-BRQ-07, plan.md ข้อ 5)
+	return &Service{repo: repo, clock: clock, loc: loc,
+		attachments: NewAttachmentStore(config.Load().AttachmentDir)}
 }
 
 // ErrHasOverdueLoan เกิดเมื่อผู้ขอมีอุปกรณ์ที่คืนเกินกำหนดค้างอยู่ จึงส่งคำขอใหม่ไม่ได้
@@ -67,6 +70,30 @@ func (s *Service) Create(ctx context.Context, in NewRequest) (Request, error) {
 
 	// เวลาที่ส่งเทียบด้วยเขตเวลา Asia/Bangkok ตาม glossary (FR-BRQ-04)
 	req.SubmittedAt = req.SubmittedAt.In(s.loc)
+	return req, nil
+}
+
+// CreateWithAttachment สร้างคำขอแล้วเก็บไฟล์ใบบันทึกข้อความของการยืมค้างคืน (FR-BRQ-10 ข้อ ก)
+// up เป็น nil ได้ กรณีนั้นเท่ากับเรียก Create ตรง ๆ เช่นการยืมปกติที่ไม่ได้แนบไฟล์
+//
+// ชื่อไฟล์ต้องมีรหัสคำขออยู่ด้วยตาม plan.md ข้อ 3 จึงต้องสร้างคำขอก่อนแล้วค่อยเก็บไฟล์
+// ถ้าเก็บไฟล์หรือบันทึก path ไม่สำเร็จ จะลบคำขอใบนั้นทิ้ง ไม่ปล่อยให้มีคำขอค้างที่ไม่มีไฟล์แนบ (FR-BRQ-09)
+func (s *Service) CreateWithAttachment(ctx context.Context, in NewRequest, up *Upload) (Request, error) {
+	req, err := s.Create(ctx, in)
+	if err != nil || up == nil {
+		return req, err
+	}
+
+	path, err := s.attachments.Save(req.ID, *up)
+	if err != nil {
+		_ = s.repo.Delete(ctx, req.ID)
+		return Request{}, err
+	}
+	if err := s.repo.SetAttachmentPath(ctx, req.ID, path); err != nil {
+		_ = s.attachments.Remove(path)
+		_ = s.repo.Delete(ctx, req.ID)
+		return Request{}, err
+	}
 	return req, nil
 }
 

@@ -27,6 +27,8 @@ type Querier interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 	// Query ใช้กับคำสั่งที่คืนได้หลายแถว เช่น รายการยืมที่คืนแล้ว (FR-BRQ-06 ข้อ ข, T-13)
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	// Exec ใช้กับคำสั่งที่ไม่คืนแถว เช่น บันทึก path ของไฟล์แนบ (FR-BRQ-10 ข้อ ก, T-14)
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 }
 
 // Repository เขียนตาราง borrow_request (DM-06) และอ่าน equipment_item เพื่อตรวจสถานะ
@@ -218,6 +220,27 @@ func (r *Repository) ReturnedSince(ctx context.Context, borrowerID string, depar
 		out = append(out, l)
 	}
 	return out, rows.Err()
+}
+
+// setAttachmentPathSQL บันทึกที่อยู่ของไฟล์ใบบันทึกข้อความลงคำขอใบนั้น (FR-BRQ-10 ข้อ ก)
+// เก็บเฉพาะ path ตัวไฟล์อยู่บนเครื่องที่รันระบบ ไม่ได้อยู่ในฐานข้อมูล (ASM-BRQ-07)
+const setAttachmentPathSQL = `UPDATE borrow_request SET attachment_path = $2 WHERE id = $1`
+
+// SetAttachmentPath ผูกไฟล์ที่เก็บแล้วเข้ากับคำขอ (FR-BRQ-10 ข้อ ก)
+func (r *Repository) SetAttachmentPath(ctx context.Context, requestID int, path string) error {
+	_, err := r.db.Exec(ctx, setAttachmentPathSQL, requestID, path)
+	return err
+}
+
+// deleteRequestSQL ลบคำขอที่สร้างไว้แล้วแต่เก็บไฟล์แนบไม่สำเร็จ
+// การยืมค้างคืนต้องมีไฟล์แนบตั้งแต่ตอนส่ง การทิ้งคำขอที่ไม่มีไฟล์ไว้จึงเป็นคำขอค้างที่ไม่ควรมี (FR-BRQ-09)
+const deleteRequestSQL = `DELETE FROM borrow_request WHERE id = $1`
+
+// Delete ลบคำขอใบที่ระบุ ใช้เฉพาะตอนย้อนกลับภายใน request เดียวกัน
+// ไม่ใช่การยกเลิกคำขอตามความต้องการของผู้ใช้ ซึ่งเป็นของ 003 (UC-15)
+func (r *Repository) Delete(ctx context.Context, requestID int) error {
+	_, err := r.db.Exec(ctx, deleteRequestSQL, requestID)
+	return err
 }
 
 // statusSQL อ่านสถานะล่าสุดของอุปกรณ์ตามรหัสครุภัณฑ์ (CON-DATA-01, CON-DATA-03)

@@ -27,6 +27,7 @@ const (
 	fieldEndAt         = "endAt"
 	fieldPurpose       = "purpose"
 	fieldPurposeOther  = "purposeOther"
+	fieldAttachment    = "attachment"
 )
 
 // missingFields คืนรายชื่อช่องที่ยังกรอกไม่ถูกต้อง ให้หน้าจอชี้จุดที่ต้องแก้ (FR-BRQ-03, RQ-22)
@@ -90,4 +91,34 @@ func purposeProblems(in NewRequest) []string {
 		return []string{fieldPurposeOther}
 	}
 	return nil
+}
+
+// attachmentProblems ตรวจไฟล์ใบบันทึกข้อความของการยืมค้างคืน (FR-BRQ-10 ข้อ ก, AC-BRQ-10)
+//   - เลือก "ค้างคืน" ต้องแนบไฟล์ตั้งแต่ตอนส่งคำขอ ไม่แนบมาก็ส่งไม่ได้
+//   - ไฟล์ที่แนบต้องเป็นชนิดใน config.AttachmentAllowedTypes และไม่เกิน config.AttachmentMaxBytes
+//
+// การยืมแบบปกติไม่บังคับให้แนบ เพราะ FR-BRQ-10 ข้อ ก พูดถึงเฉพาะค้างคืน
+// แต่ถ้าแนบมาด้วย ก็ตรวจชนิดและขนาดด้วยกฎเดียวกัน
+func attachmentProblems(loanType string, up *Upload) []string {
+	if up == nil {
+		if strings.TrimSpace(loanType) == config.LoanTypeOvernight {
+			return []string{fieldAttachment}
+		}
+		return nil
+	}
+	if up.Size > config.AttachmentMaxBytes {
+		return []string{fieldAttachment}
+	}
+	if !slices.Contains(config.AttachmentAllowedTypes, mediaType(up.ContentType)) {
+		return []string{fieldAttachment}
+	}
+	return nil
+}
+
+// mediaType ตัดพารามิเตอร์ท้าย Content-Type ออก เช่น "image/jpeg; charset=binary" เหลือ "image/jpeg"
+func mediaType(contentType string) string {
+	if i := strings.IndexByte(contentType, ';'); i >= 0 {
+		contentType = contentType[:i]
+	}
+	return strings.ToLower(strings.TrimSpace(contentType))
 }

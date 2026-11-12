@@ -2293,3 +2293,52 @@ T-13 มีแค่ `service.go` ในช่องไฟล์ที่แต�
 - หมายเหตุ: ทดสอบด้วยการขยับ `returned_at` แทนการรอข้ามวันจริง ซึ่งเป็นวิธีเดียวที่ทำได้ในเวลาจำกัด
   ส่วน test อัตโนมัติไม่ต้องใช้วิธีนี้เพราะตั้งนาฬิกาเองได้
 - เฟส 8 ผ่านครบทั้ง AC-BRQ-06 และ AC-BRQ-12
+
+---
+
+## 2569-11-12 /implement T-14 (002-borrow-request) — เฟส 9 ครึ่งแรก
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 9 AC-BRQ-10 ไฟล์แนบใบบันทึกข้อความของการยืมค้างคืน)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-14`
+
+### คำถามที่ AI ถามก่อนเริ่ม และคำตอบของทีม
+ช่อง "เสร็จเมื่อ" บังคับให้ "บันทึก path ในตาราง" แต่ช่องไฟล์ที่แตะมีแค่ attachment.go, handler.go, validate.go
+การเขียนคอลัมน์ `attachment_path` ต้องผ่าน repository และต้องมีทางเรียกจาก service
+→ **ทีมตอบ: ทางเลือก ก** เพิ่ม `service.go` กับ `repository.go` ในช่องไฟล์ที่แตะ (ครั้งที่ 5 ต่อจาก T-09 T-11 T-12 T-13)
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/attachment.go` **ไฟล์ใหม่** — `Upload`, `parseCreateForm`, `AttachmentStore`, `safeFileName`
+- `backend/internal/borrowrequest/validate.go` — `attachmentProblems`, `mediaType`, ช่อง `fieldAttachment`
+- `backend/internal/borrowrequest/handler.go` — รับ multipart, จำกัดขนาด request, รวมกฎไฟล์แนบเข้ากับรายการช่องที่ผิด
+- `backend/internal/borrowrequest/service.go` (เพิ่มในช่องวันนี้) — `CreateWithAttachment` และฟิลด์ `attachments`
+- `backend/internal/borrowrequest/repository.go` (เพิ่มในช่องวันนี้) — `SetAttachmentPath`, `Delete`, เพิ่ม `Exec` ใน `Querier`
+- `backend/internal/borrowrequest/handler_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** — test ใหม่ และแก้ test เดิม 1 ตัว (ดูด้านล่าง)
+
+### การตัดสินใจ
+- ลำดับการทำงานเป็น สร้างคำขอ -> ได้ id -> เขียนไฟล์ `<id>-<ชื่อที่ปลอดภัย>` -> อัปเดต `attachment_path`
+  เพราะ plan.md ข้อ 3 กำหนดให้ชื่อไฟล์มีรหัสคำขออยู่ด้วย จึงต้องรู้ id ก่อน
+  ถ้าเขียนไฟล์หรืออัปเดตไม่สำเร็จ จะลบคำขอใบนั้นทิ้ง ไม่ทิ้งคำขอค้างที่ไม่มีไฟล์แนบ (FR-BRQ-09)
+- ตรวจชนิดไฟล์จาก Content-Type ที่ผู้ส่งแจ้งมา เทียบกับ `config.AttachmentAllowedTypes`
+  **ยังไม่ได้ตรวจเนื้อไฟล์จริง (content sniffing)** spec ไม่ได้สั่ง จึงไม่เพิ่มเอง แต่ทีมควรรู้ว่าเป็นช่องโหว่
+- `safeFileName` ตัดชื่อไฟล์จากผู้ขอให้เหลือเฉพาะอักษรปลอดภัย ชื่ออย่าง `../../etc/passwd` จึงพาไฟล์ออกนอกโฟลเดอร์ไม่ได้
+- การยืมปกติไม่บังคับให้แนบไฟล์ (FR-BRQ-10 ข้อ ก พูดถึงเฉพาะค้างคืน) แต่ถ้าแนบมาก็ตรวจชนิดและขนาดด้วยกฎเดียวกัน
+- โฟลเดอร์ไฟล์แนบอ่านจาก `config.Load().AttachmentDir` ที่เดียว test ใช้ `t.Setenv("ATTACHMENT_DIR", t.TempDir())`
+
+### ข้อผิดพลาดระหว่างทำ และการแก้
+1. `TestSafeFileName` จับได้ว่าชื่อไฟล์ภาษาไทยถูกแปลงเป็น `_` ทุกตัวแล้วถูกตัดจนเหลือ `pdf`
+   คือ **นามสกุลไฟล์หาย** แก้ที่โค้ด (ยุบตัวคั่นซ้ำ และไม่ตัดจุดนำหน้านามสกุลทิ้ง) ไม่ได้แก้ test ให้ผ่าน
+2. `TestLoanWindow_NormalBoundaryAndOvernight` (ของ T-08) ไม่ผ่านหลังเพิ่มกฎ
+   เพราะมันยิงยืมค้างคืนโดยไม่แนบไฟล์ ซึ่งกฎใหม่ปฏิเสธถูกต้องแล้ว
+   แก้ที่ test ให้ส่งแบบ multipart พร้อมไฟล์ PDF เจตนาเดิมของ test (กฎเวลาคืน) ยังอยู่ครบ
+
+### สิ่งที่ยังไม่ได้ทำใน task นี้
+- AC-BRQ-10 ท่อนที่ว่า "ยืมปกติต้องแสดงเงื่อนไขคืนภายใน 16:00 และใช้ในพื้นที่มหาวิทยาลัย" เป็นงานหน้าจอ รอ Q-BRQ-14 (T-19, T-20)
+- endpoint เปิดดูไฟล์แนบเป็นของ T-15
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run "TestAC_BRQ_10|TestSafeFileName"`: PASS
+  (`TestAC_BRQ_10` มี 4 กรณีย่อย: ไม่แนบไฟล์ / ชนิดที่ไม่รับ / ใหญ่เกิน 10MB / แนบ PDF ถูกต้อง)
+- `go test ./... -count=1`: ทุกแพ็กเกจ ok
+- `go vet ./internal/borrowrequest/`: ไม่มีข้อความเตือน

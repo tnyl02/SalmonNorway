@@ -34,21 +34,34 @@ func (h *Handler) Routes() http.Handler {
 // create: POST /v1/loan-requests สร้างคำขอยืมใบใหม่ (FR-BRQ-04, AC-BRQ-04)
 // ผู้ขอมาจาก context ที่ auth.Middleware ใส่ไว้ ไม่ได้มาจาก body (ASM-BRQ-06)
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
+	// จำกัดขนาด request ทั้งก้อนตามเพดานไฟล์แนบ กันไฟล์ใหญ่เกินถูกอ่านเข้าเครื่องทั้งหมด (FR-BRQ-10 ข้อ ก)
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBytes)
+
 	var in CreateRequestDTO
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	var up *Upload
+	if isMultipart(r) {
+		// ส่งมาพร้อมไฟล์แนบ (plan.md ข้อ 4) ใช้กับการยืมค้างคืนเป็นหลัก
+		var err error
+		if in, up, err = parseCreateForm(r); err != nil {
+			writeError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "รูปแบบข้อมูลที่ส่งมาไม่ถูกต้อง")
+			return
+		}
+	} else if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		// body ที่อ่านไม่ออก ไม่ใช่ข้อมูลที่ส่งมาไม่ครบ (การตรวจความครบถ้วนรายช่องเป็นงานของ T-06)
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "รูปแบบข้อมูลที่ส่งมาไม่ถูกต้อง")
 		return
 	}
 
 	// ตรวจความครบถ้วนของข้อมูลก่อนอนุญาตให้ส่ง ถ้าไม่ครบ ต้องไม่สร้างคำขอ (FR-BRQ-03, AC-BRQ-03)
+	// รวมกฎไฟล์แนบของการยืมค้างคืนไว้ในรายการเดียวกัน ผู้ขอจะได้เห็นทุกช่องที่ต้องแก้พร้อมกัน (FR-BRQ-10, AC-BRQ-10)
 	newReq := in.toNewRequest()
-	if missing := missingFields(newReq); len(missing) > 0 {
-		writeValidationError(w, missing)
+	problems := append(missingFields(newReq), attachmentProblems(newReq.LoanType, up)...)
+	if len(problems) > 0 {
+		writeValidationError(w, problems)
 		return
 	}
 
-	req, err := h.svc.Create(r.Context(), newReq)
+	req, err := h.svc.CreateWithAttachment(r.Context(), newReq, up)
 	switch {
 	case err == nil:
 		writeJSON(w, http.StatusCreated, CreatedDTO{
