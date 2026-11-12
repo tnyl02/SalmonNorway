@@ -80,7 +80,7 @@ FR-RET-04 อยู่ใน plan (data-model.md ให้ 006 ยืนยั�
 | อุปกรณ์ภาควิชาอื่น | 403 | `FORBIDDEN_DEPARTMENT` | AC-RET-11 |
 | ไม่มีการยืมที่ยังไม่คืน | 409 | `NO_OPEN_LOAN` | AC-RET-03 |
 | ไม่ระบุสภาพ / ค่าไม่รู้จัก (รวม `lost`) | 422 | `CONDITION_REQUIRED` | AC-RET-04 |
-| ไม่พบการยืม (รายละเอียด) | 404 | `LOAN_NOT_FOUND` (เพิ่มใน T-11 ยังไม่ลงทะเบียนในรายการกลาง Q-10) | - |
+| ไม่พบการยืม (รายละเอียด) | 404 | `LOAN_NOT_FOUND` (เพิ่มใน T-11 ลงทะเบียนแล้ว Q-10) | - |
 | DB ล่ม | 503 | `UPSTREAM_UNAVAILABLE` (ของ 001) | - |
 
 **หน้าจอ** (spec ไม่มีหมวด UI และไม่มี UI ID ไม่มี mockup ทีมออกแบบเอง):
@@ -95,7 +95,7 @@ FR-RET-04 อยู่ใน plan (data-model.md ให้ 006 ยืนยั�
 |---|---|---|
 | CON-TECH-01 | ข้อ 2, 3: ใช้ PostgreSQL ตารางร่วม + migration ใหม่ | ใช้แล้ว |
 | CON-TECH-02 | ข้อ 2: ผ่าน reverse proxy HTTPS และ Docker Compose ที่มีอยู่ | ใช้แล้ว |
-| CON-TECH-03 | ข้อ 4: error ทุกตัว `{code, message}` (`errorBody` ใน handler.go) | ใช้แล้ว (รหัส NO_OPEN_LOAN, CONDITION_REQUIRED, LOAN_NOT_FOUND ยังไม่ลงทะเบียน รอ Q-10) |
+| CON-TECH-03 | ข้อ 4: error ทุกตัว `{code, message}` (`errorBody` ใน handler.go) | ใช้แล้ว (ลงทะเบียน NO_OPEN_LOAN, CONDITION_REQUIRED, LOAN_NOT_FOUND ใน constraints.md v5.4 ปิด Q-10) |
 | CON-DATA-01 | ข้อ 3, 4: เขียนได้เฉพาะ `available` / `unavailable` จาก `borrowed` CHECK เดิมของ 0001 กันค่าอื่น | ใช้แล้ว |
 | CON-DATA-03 | ข้อ 4: หาการยืมด้วย `asset_code` (UNIQUE) ใน lookup และ POST | ใช้แล้ว |
 | DOM-AUDIT-01 | ข้อ 3: action `return_list`, `return_lookup`, `return_detail` (อ่าน) และ `return` (เขียน) ด้วยคอลัมน์ DM-07 เดิม | ใช้แล้ว (ส่วนขยายไปการเขียนตาม Q-09 ไม่มี CR ใช้เท่าที่ DM-07 มี) |

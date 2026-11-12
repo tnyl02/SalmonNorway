@@ -491,7 +491,7 @@ task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้�
   Given หลังบ้านรันอยู่
   When `curl -H "Authorization: Bearer mock-student-001" http://localhost:8000/v1/returns/open-loans`
   Then ได้ 403 body `{"code":"FORBIDDEN_ROLE","message":"เฉพาะเจ้าหน้าที่เท่านั้นที่บันทึกการรับคืนได้"}`
-- ยังขาด: Q-10 ลงทะเบียนรหัส error
+- ยังขาด: ไม่มี (Q-10 ปิดแล้ว 2569-11-12 ลงทะเบียนรหัสใน constraints.md v5.4)
 
 ---
 
@@ -519,7 +519,7 @@ task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้�
 |---|---|
 | CON-TECH-01 | T-01 |
 | CON-TECH-02 | T-03 (ใช้ deploy ของ 001) |
-| CON-TECH-03 | T-29 (รหัสที่ยังไม่ลงทะเบียนรอ Q-10) |
+| CON-TECH-03 | T-29 (ลงทะเบียนรหัสแล้ว Q-10 ปิด) |
 | CON-DATA-01 | T-01, T-04, T-08, T-18 |
 | CON-DATA-03 | T-04, T-05 |
 | DOM-AUDIT-01 | T-01, T-23 (T-26 รอ Q-09) |

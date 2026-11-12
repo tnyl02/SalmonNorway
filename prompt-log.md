@@ -5882,7 +5882,6 @@ main
 
 ---
 
-<<<<<<< HEAD
 ## 2569-11-10 อ่านของกลางและ SRS ก่อนเริ่ม 006 แล้วตอบคำถามที่ยังไม่ชัด
 
 - ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
@@ -6609,7 +6608,6 @@ main
 - F-02 เดา: fail closed 503 เมื่อเขียน audit ไม่ได้ ใช้แนว Q-P4 ของ 001 ที่ยังไม่มีคำตอบ
 - F-03 test อ่อน: การต่อ OpenLoansPage -> ReturnPage ใน App.jsx ไม่มี test (AC-RET-10)
 - F-04 FR ไม่มี AC: NFR-AVAIL-01
-=======
 
 ---
 
@@ -6653,4 +6651,25 @@ main
 - เครื่องมือ: Claude Code
 - ไฟล์ที่แก้: specs/003-cancel-request/plan.md บรรทัด 185 (ข้อ 6 แถว AC-CXL-13) ชื่อ vitest AC_CXL_13 shows error with retry, 503 UPSTREAM_UNAVAILABLE {code, message} ไม่มี retryable
   specs/003-cancel-request/rtm.md ช่องทีมตัดสินของ F-11 เขียนตามคำสั่งของเจ้าของ (จะย้ายไปหัวข้อแก้แล้วตอน /verify รอบหน้า)
->>>>>>> 1a46da5fb8d67dfffdacd7cca631b5c8da611892
+
+---
+
+## 2569-11-12 ย้อนข้อ ข ค ง และเก็บ T-29 CON-TECH-03 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน (@660710737) สั่ง "อะไรที่ไม่จำเป็นไม่ต้องทำเพิ่ม"
+- เครื่องมือ: Claude Code
+- เก็บไว้: T-29 error ทุกตัวตอบ {code, message} ตาม CON-TECH-03 (handler.go errorBody, config.go ReturnMessages, TestReturns_ErrorBodyFollowsConTech03)
+- ย้อนออก: FR-RET-08 / AC-RET-14 / ASM-08 (คำขอเป็น returned), การใช้ package audit กลาง, หน้าจอแสดง message จากหลังบ้าน, ReturnsHome.test.jsx และ T-28, T-30, T-31 ใน tasks.md
+- ผล test: go test ./... ผ่านทุก package, npm test ผ่าน 126 (53 ไฟล์), vite build ผ่าน
+
+---
+
+## 2569-11-12 ปิด Q-10 ลงทะเบียนรหัส error ของ 006 (006-return แก้ไฟล์กลาง)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน (@660710737) ถาม "ถ้าใช้รหัสกลางจะมีปัญหาอะไรมั้ย" แล้วเลือกลงทะเบียน สั่ง "ทำเลย"
+- เครื่องมือ: Claude Code
+- AI ตอบ: ใช้รหัสกลางได้แค่ CONDITION_REQUIRED -> VALIDATION_FAILED ส่วน NO_OPEN_LOAN, LOAN_NOT_FOUND ไม่มีรหัสกลางที่ความหมายตรง ต้องลงทะเบียนอยู่ดี
+- ไฟล์กลางที่แก้ (เพราะ 006): specs/000-shared/constraints.md v5.4 เพิ่มแถว NO_OPEN_LOAN (409), CONDITION_REQUIRED (422), LOAN_NOT_FOUND (404)
+  เติม 006 ในช่อง "ใครใช้แล้ว" ของ UNAUTHENTICATED, FORBIDDEN_DEPARTMENT, UPSTREAM_UNAVAILABLE, FORBIDDEN_ROLE และในตาราง "ใครอ้างใช้" แถว CON-TECH-03 ไม่แก้แถวของฟีเจอร์อื่น
+- ไฟล์ของ 006: spec.md (Q-10 ปิด, Clarifications), plan.md, tasks.md, config.go (คอมเมนต์)
+- แก้เพิ่ม: ลบ conflict marker 3 บรรทัดที่ค้างใน prompt-log.md จาก merge 2531bd2 (<<<<<<< HEAD, =======, >>>>>>> 1a46da5) เก็บเนื้อหาทั้งสองฝั่ง ไม่ลบบันทึกใด

@@ -33,7 +33,7 @@ Backlog: BL-10 (specs/backlog.md)
 ใช้ร่วม (ข้อความเต็มอยู่ที่ specs/000-shared/constraints.md ห้าม copy มาไว้ที่นี่):
 - CON-TECH-01
 - CON-TECH-02
-- CON-TECH-03 (รูปแบบ error ที่ฟีเจอร์อื่นเพิ่มใน CR-004 ระหว่างที่ 006 ทำงาน รหัส NO_OPEN_LOAN, CONDITION_REQUIRED, LOAN_NOT_FOUND ยังไม่ได้ลงทะเบียน ดู Q-10)
+- CON-TECH-03 (รูปแบบ error ที่ฟีเจอร์อื่นเพิ่มใน CR-004 ระหว่างที่ 006 ทำงาน 006 ลงทะเบียน NO_OPEN_LOAN, CONDITION_REQUIRED, LOAN_NOT_FOUND แล้ว ดู Q-10)
 - CON-DATA-01
 - CON-DATA-03
 - DOM-AUDIT-01 (การขยายให้ครอบการเขียนเป็นการแก้ของกลาง ต้องทำ CR ดู Q-09)
@@ -144,7 +144,7 @@ Backlog: BL-10 (specs/backlog.md)
 - Q-09 ขยาย DOM-AUDIT-01 ให้ครอบทั้งการอ่านและการเขียน (ทีมตัดสิน 2569-11-10) เป็นการแก้ของกลาง ต้องทำ CR (ยังไม่ทำ ใช้ DM-07 เดิม)
   กระทบ 001 (AC-EQS-11, Q-11 ของ 001) -> ทีม
 - Q-SH-08 [ของกลาง ดู specs/000-shared/constraints.md] ระบบยืนยันตัวตนเชื่อมต่อไม่ได้ ระบบต้องทำอย่างไร (กระทบ AC-RET-08)
-- Q-10 รหัส error ของ 006 ที่ยังไม่อยู่ในรายการกลางของ CON-TECH-03 (NO_OPEN_LOAN, CONDITION_REQUIRED, LOAN_NOT_FOUND) จะลงทะเบียน
+- Q-10 [ปิดแล้ว 2569-11-12: ลงทะเบียนทั้ง 3 รหัสใน constraints.md v5.4 ไม่เปลี่ยนไปใช้รหัสกลาง] รหัส error ของ 006 ที่ยังไม่อยู่ในรายการกลางของ CON-TECH-03 (NO_OPEN_LOAN, CONDITION_REQUIRED, LOAN_NOT_FOUND) จะลงทะเบียน
   หรือเปลี่ยนไปใช้รหัสกลาง (เช่น VALIDATION_FAILED แทน CONDITION_REQUIRED) ต้องแก้ constraints.md ซึ่งเป็นไฟล์กลาง -> ทีม
 
 ## Clarifications
@@ -176,6 +176,7 @@ Backlog: BL-10 (specs/backlog.md)
 - Q: data-model กำหนดให้ UC-09 (006) ตั้งสถานะคำขอยืมเป็น Returned แต่ spec ไม่มี FR -> A: ทีมตัดสินไม่ทำ (ไม่จำเป็นสำหรับ prototype ไม่เพิ่ม FR)
 - Q: CON-TECH-03 (CR-004) เพิ่มระหว่างทาง error ของ 006 ไม่มี message -> A: เพิ่ม CON-TECH-03 ในใช้ร่วม และใส่ message ทุก error
   รหัสที่ยังไม่ลงทะเบียนในรายการกลางเป็น Q-10
+- Q: Q-10 ลงทะเบียนรหัสใหม่ หรือใช้รหัสกลาง -> A: ลงทะเบียนทั้ง 3 รหัส (NO_OPEN_LOAN, LOAN_NOT_FOUND ไม่มีรหัสกลางที่ความหมายตรง CONDITION_REQUIRED คงไว้เพื่อไม่ต้องแก้โค้ด)
 
 ### Session 2569-11-11 (ถอดส่วนที่ต้องทำ CR-003)
 - Q: มีอะไรที่ต้องเขียน CR-003 ไหม -> A: (AI ตรวจ) รูปตอนรับคืน (ดึง BL-16 Could เข้า prototype) และการรวม UC-04

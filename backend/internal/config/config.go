@@ -270,7 +270,7 @@ var ReturnConditionStatus = map[string]string{
 
 // ReturnMessages คือข้อความภาษาไทยในช่อง message ของ error ทุกตัวของ 006 ตามรูปแบบ CON-TECH-03
 // หน้าจอตัดสินใจจาก code ไม่ใช่จากข้อความ ข้อความทีมออกแบบเอง ไม่ได้มาจาก spec (ยกเว้น NO_OPEN_LOAN ตาม AC-RET-03)
-// NO_OPEN_LOAN, CONDITION_REQUIRED, LOAN_NOT_FOUND ยังไม่ได้ลงทะเบียนในรายการกลางของ CON-TECH-03 (รอทีม)
+// NO_OPEN_LOAN, CONDITION_REQUIRED, LOAN_NOT_FOUND ลงทะเบียนในรายการกลางของ CON-TECH-03 แล้ว (constraints.md v5.4, Q-10)
 var ReturnMessages = map[string]string{
 	"UNAUTHENTICATED":      "กรุณาเข้าสู่ระบบก่อนใช้งาน",
 	"FORBIDDEN_ROLE":       "เฉพาะเจ้าหน้าที่เท่านั้นที่บันทึกการรับคืนได้", // AC-RET-08
