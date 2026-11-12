@@ -2,6 +2,13 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [SPEC-APV-004 Draft v2.1 Q-APV-26 อนุมัติตอน 16:00:00 น. ตรงไม่ได้] - 2569-11-12
+ทีมตอบคำถามที่พบตอน /testcases AC-APV-01 (แถว TC-APV-01-5) เป็นการขยายความ "เลย 16:00 น." ใน FR-APV-01 (ค) ไม่เปลี่ยน ID และไม่เปลี่ยน AC
+### Changed
+- `specs/004-approve-request/spec.md`: FR-APV-01 (ค) "เลย 16:00 น." นับตั้งแต่ 16:00:00 น. ตรง / เพิ่ม Q-APV-26 (ปิดแล้ว) และ Clarifications / Traceability แถว DOM-LOAN-01
+- `specs/004-approve-request/test-cases.md`: Then ของ TC-APV-01-5 = 409 `APPROVAL_CUTOFF_PASSED` สถานะคงเดิม
+- `backend/internal/approve/service.go`: เงื่อนไขเวลาตัดเปลี่ยนจาก `After` เป็น `!Before` (16:00:00 น. ตรงอนุมัติไม่ได้) / tasks.md T-21 บันทึกการแก้
+
 ## [SPEC-APV-004 Draft v2.1 ทีมอนุมัติ ID AC-APV-16, 17, 18] - 2569-11-12
 ทีมอนุมัติ ID ของ AC ที่ AI เสนอไว้ ปิด Q-APV-13 และ Q-APV-22 ไม่เปลี่ยนเนื้อหา AC ไม่ทำ CR
 ### Changed

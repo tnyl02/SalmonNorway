@@ -124,8 +124,9 @@ func (s *Service) Approve(ctx context.Context, requestID int, loadedAt time.Time
 			return ErrItemNotAvailable
 		}
 		// FR-APV-01 (ค), Q-APV-11, DOM-LOAN-01: อนุมัติไม่ได้เมื่อเลย 16:00 น. ของวันที่เริ่มยืม (AC-APV-16, T-21)
+		// "เลย 16:00 น." นับตั้งแต่ 16:00:00 น. ตรง อนุมัติได้ถึง 15:59:59 น. (Q-APV-26, TC-APV-01-5)
 		// คำขอนั้นยังเป็นคำขอแรก เจ้าหน้าที่ปฏิเสธเองหรือรอเที่ยงคืน (Q-APV-16)
-		if s.now().After(approvalCutoff(target.StartAt)) {
+		if !s.now().Before(approvalCutoff(target.StartAt)) {
 			return ErrApprovalCutoff
 		}
 		if err := tx.setStatus(ctx, target.ID, config.StatusApproved); err != nil {

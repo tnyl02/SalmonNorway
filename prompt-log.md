@@ -5345,3 +5345,60 @@ main
   `specs/004-approve-request/tasks.md` (สถานะ T-21, T-22, T-30, T-31, หัวเฟส 15 16, ตารางตรวจความครบ, ตารางสิ่งที่ยังไม่ทำ), `specs/CHANGELOG.md`,
   คอมเมนต์ใน `backend/internal/approve/service_test.go`, `backend/internal/approve/autoreject_test.go`, `frontend/src/pages/ApproveRequest/ApproveRequests.test.jsx`
 - ไม่เปลี่ยนเนื้อหา AC ชื่อ test และพฤติกรรมของโค้ด จึงไม่ต้องรัน test ใหม่
+
+---
+
+## 2569-11-12 /testcases AC-APV-01 (โหมดร่าง)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcase AC-APV-01`
+- โหมด: ร่าง (ยังไม่มี test-cases.md จึงสร้างใหม่ตามแบบในภาคผนวกของคำสั่ง และใช้หัวไฟล์แบบเดียวกับ 003)
+- TC ที่เสนอ: TC-APV-01-1 ถึง TC-APV-01-12 สถานะ "ร่าง" ทุกแถว (ปกติ 3: go test, vitest, คน / ขอบ 4 / ผิด 5) ยังไม่เขียนโค้ด test
+- ส่วนของ Then ที่ spec ไม่ได้บอก: TC-APV-01-5 อนุมัติตอน 16:00:00 ตรงได้หรือไม่ ("เลย 16:00 น." ใน FR-APV-01 ค) เสนอเป็นคำถามให้ทีม
+- ไฟล์ที่สร้าง: `specs/004-approve-request/test-cases.md`
+
+---
+
+## 2569-11-12 /testcases AC-APV-01 (โหมดเขียน test)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcase AC-APV-01`
+- โหมด: เขียน test (ทีมเปลี่ยนสถานะ TC-APV-01-1 ถึง 12 เป็น "ใช้ได้" แล้ว)
+- ไฟล์ที่สร้าง: `backend/internal/approve/tc_ac_apv_01_test.go` (11 test: TC-APV-01-1, 4 ถึง 12), `frontend/src/__tests__/TC-APV-01-2.test.jsx` (1 test)
+  ไม่แก้โค้ดของระบบ ไม่แก้ test เดิม
+- TC-APV-01-3 ช่อง "ตรวจด้วย" เป็น "คน" ไม่เขียนโค้ด ให้คนลองตามขั้นตอนในแถว
+- TC-APV-01-5 ช่อง Then ยังเป็น "spec ไม่ได้บอก" (16:00:00 ตรง) แม้สถานะ "ใช้ได้" จึงเขียน test เป็น t.Skip ไม่มี assert รอทีมเขียน Then
+- ผล test: `go vet ./internal/approve/` ผ่าน / vitest `TC-APV-01-2.test.jsx` ผ่าน 1 test / go test ของ TestTC_APV_01 รอผู้สั่งรันเอง (ใช้ testcontainers)
+
+---
+
+## 2569-11-12 ทีมตอบ TC-APV-01-5: อนุมัติตอน 16:00:00 น. ตรงไม่ได้ (Q-APV-26)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "TC-APV-01-5 อนุมัติตอน 16:00:00 ตรงไม่ได้"
+- คำถามที่ AI ถาม (ตอน /testcases AC-APV-01): "เลย 16:00 น." ใน FR-APV-01 (ค) นับ 16:00:00 ตรงเป็นเลยหรือยัง -> ทีมตอบ: อนุมัติไม่ได้
+  AI ตั้งเป็น Q-APV-26 (ข้อถัดจาก Q-APV-25) และปิดทันทีพร้อมคำตอบ
+- ไฟล์ที่แก้: `specs/004-approve-request/spec.md` (FR-APV-01 ค, Q-APV-26, Clarifications, Traceability), `specs/004-approve-request/test-cases.md` (Then ของ TC-APV-01-5),
+  `backend/internal/approve/tc_ac_apv_01_test.go` (TestTC_APV_01_5 จาก t.Skip เป็น assert ตามแถว), `specs/CHANGELOG.md`
+- ไม่แก้โค้ดของระบบตามกติกาของ /testcases: `service.go` บรรทัด 128 ใช้ `s.now().After(approvalCutoff(...))` ที่ 16:00:00 ตรงยังอนุมัติได้
+  TestTC_APV_01_5 จึงคาดว่าไม่ผ่าน (เป็นบั๊กของโค้ดเทียบกับ Q-APV-26 ไม่ใช่ test ผิด) รอทีมสั่งแก้แยก
+- ผล test: `go vet ./internal/approve/` ผ่าน / go test ยังไม่ได้รัน (Docker ไม่ได้เปิด)
+
+---
+
+## 2569-11-12 แก้โค้ดเวลาตัด 16:00 น. ตาม Q-APV-26 (T-21)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "แก้" (ตอบข้อเสนอให้แก้ service.go ตาม Q-APV-26 ภายใต้ T-21)
+- ไฟล์ที่แก้: `backend/internal/approve/service.go` (`s.now().After(cutoff)` -> `!s.now().Before(cutoff)` และคอมเมนต์อ้าง Q-APV-26),
+  `specs/004-approve-request/tasks.md` (T-21 รองรับ Q-APV-26 และบรรทัดบันทึกการแก้), `specs/CHANGELOG.md` (แก้บรรทัดในหัวข้อ Q-APV-26 ของวันนี้ที่ยังไม่ได้ commit)
+- ไม่แก้ test: TestTC_APV_01_5 เขียนตามแถวไว้แล้ว / TestAC_APV_16 (เลย 1 นาที) และ TestApprove_BeforeCutoffAllowed (ก่อน 1 นาที) ไม่กระทบ
+- ผล test: `go vet ./internal/approve/` ผ่าน / go test รอผู้สั่งรัน (ต้องเปิด Docker)
