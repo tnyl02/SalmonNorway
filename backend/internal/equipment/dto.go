@@ -28,23 +28,31 @@ type ModelRowDTO struct {
 // ฟิลด์ที่บทบาทนั้นไม่มีสิทธิ์เห็นต้องไม่อยู่ใน struct เลย กันข้อมูลหลุดโดยไม่ตั้งใจ
 //   - dueAt (กำหนดคืน วันที่และเวลา) มีเฉพาะสถานะ "ถูกยืม" (CR-002, DOM-LOAN-01)
 //   - isOverdue = ถูกยืมและเวลาปัจจุบันเลยกำหนดคืนแล้ว เป็นป้าย ไม่ใช่สถานะที่ 4 สถานะยังเป็น borrowed (CON-DATA-01)
-//   - ปุ่มส่งคำขอยืม (T-34 รอ Q-16) และชื่อผู้ยืมของเจ้าหน้าที่ (T-36 รอ Q-20) ยังไม่มี
+//   - canRequestLoan = สถานะ "ว่าง" เท่านั้น หน้าจอใช้ตัดสินว่าแสดงปุ่มส่งคำขอยืมไหม (FR-EQS-04, 05, 06, T-34)
+//   - ชื่อผู้ยืมของเจ้าหน้าที่ (T-36 รอ Q-20) ยังไม่มี
 
 // StudentItemDTO คือสิ่งที่นักศึกษาได้ เมื่อเลยกำหนดคืนแล้วไม่ส่ง dueAt ส่งแค่ป้าย (FR-EQS-04 ข้อ ข, CR-001)
 type StudentItemDTO struct {
-	AssetCode string     `json:"assetCode"`
-	Status    Status     `json:"status"`
-	DueAt     *time.Time `json:"dueAt,omitempty"`
-	IsOverdue bool       `json:"isOverdue,omitempty"`
+	AssetCode      string     `json:"assetCode"`
+	Status         Status     `json:"status"`
+	DueAt          *time.Time `json:"dueAt,omitempty"`
+	IsOverdue      bool       `json:"isOverdue,omitempty"`
+	CanRequestLoan bool       `json:"canRequestLoan"`
 }
 
 // StaffItemDTO คือสิ่งที่เจ้าหน้าที่ได้ เห็นทั้งกำหนดคืนและป้ายเลยกำหนดคืน (FR-EQS-04 ข้อ ข)
 type StaffItemDTO struct {
-	AssetCode string     `json:"assetCode"`
-	Status    Status     `json:"status"`
-	DueAt     *time.Time `json:"dueAt,omitempty"`
-	IsOverdue bool       `json:"isOverdue,omitempty"`
+	AssetCode      string     `json:"assetCode"`
+	Status         Status     `json:"status"`
+	DueAt          *time.Time `json:"dueAt,omitempty"`
+	IsOverdue      bool       `json:"isOverdue,omitempty"`
+	CanRequestLoan bool       `json:"canRequestLoan"`
 }
+
+// canRequestLoan บอกว่าส่งคำขอยืมชิ้นนี้ได้ไหม คำนวณที่ server จากสถานะอย่างเดียว (plan.md ข้อ 5, T-34)
+//   - ว่าง = ได้ (FR-EQS-06) ชิ้นที่มีคำขอค้างยังเป็น "ว่าง" จึงยังได้ (DOM-REQ-01)
+//   - ถูกยืม (รวมเลยกำหนดคืน) = ไม่ได้ (FR-EQS-04) / ไม่พร้อมใช้งาน = ไม่ได้ (FR-EQS-05)
+func canRequestLoan(s Status) bool { return s == StatusAvailable }
 
 // ItemDetailDTO คือชื่อเดิมของรายละเอียดจาก T-10 ใช้อ่าน JSON ใน test (มีฟิลด์ครบทุกตัวที่ส่งได้)
 type ItemDetailDTO = StaffItemDTO

@@ -3,7 +3,9 @@
 //   When  เปิดหน้า "คำขอที่รออนุมัติของฉัน"
 //   Then  เห็น 2 แถว ส่งล่าสุดอยู่บนสุด แต่ละแถวมีชื่อรุ่น รหัสครุภัณฑ์ เวลาที่ส่งแบบ Asia/Bangkok และปุ่มยกเลิก
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { ApiError } from '../../../api/client.js'
+import { afterEach, vi } from 'vitest'
+import App from '../../../App.jsx'
+import { ApiError, setToken } from '../../../api/client.js'
 import MyPendingRequests from '../MyPendingRequests.jsx'
 import { REQ_A1, REQ_A2, fakeClient } from '../../../__tests__/helpers/cxlFakeClient.js'
 
@@ -170,3 +172,86 @@ test('AC_CXL_03 shows request not found message', async () => {
   expect(screen.queryByRole('status')).toBeNull()
 })
 
+// AC-CXL-07 (IF-IDP-01, NFR-SEC-01) ใช้ App และ api/client.js ของจริง fetch จำลองแทนหลังบ้าน (T-26)
+//   Given session ของนักศึกษา A หมดอายุ
+//   When  นักศึกษา A ส่งคำสั่งยกเลิกคำขอ
+//   Then  ระบบไม่ยกเลิก ส่งกลับหน้าเข้าสู่ระบบพร้อมข้อความแจ้ง
+//         และหลังล็อกอินสำเร็จกลับมาหน้า "คำขอที่รออนุมัติของฉัน" โดยคำขอยังไม่ถูกยกเลิก (ต้องกดยกเลิกใหม่)
+// กลไก 401 เป็นของ 001 T-21 (จำชื่อแท็บ + safePageKey แทน returnTo แบบ path, plan.md ข้อ 4)
+// ส่วน "ไม่มีบันทึกใน audit_log" เป็นของหลังบ้าน ตรวจใน T-31
+const EXPIRED_MESSAGE = 'กรุณาเข้าสู่ระบบก่อนใช้งาน'
+
+function jsonResponse(body, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+}
+
+// stubBackend จำลองหลังบ้านของ 003: token ที่ไม่รู้จักได้ 401 แบบ auth.Middleware, staff ได้ 403 FORBIDDEN_ROLE
+function stubBackend() {
+  const calls = []
+  vi.stubGlobal('fetch', async (url, opts = {}) => {
+    const token = (opts.headers?.Authorization ?? '').replace('Bearer ', '')
+    const path = String(url)
+    calls.push({ path, method: opts.method ?? 'GET', token })
+    if (!['mock-student-001', 'mock-staff-001'].includes(token)) {
+      return jsonResponse({ code: 'UNAUTHENTICATED', message: EXPIRED_MESSAGE }, 401)
+    }
+    if (token === 'mock-staff-001') {
+      return jsonResponse({ code: 'FORBIDDEN_ROLE', message: 'เฉพาะนักศึกษาเท่านั้นที่ยกเลิกคำขอของตนเองได้' }, 403)
+    }
+    if (path.includes('/v1/my/pending-requests')) return jsonResponse({ items: [REQ_A1] })
+    if (path.includes('/cancel')) return jsonResponse({ requestId: REQ_A1.requestId, status: 'cancelled' })
+    return jsonResponse({ items: [], total: 0 }) // หน้าแรกของ 001
+  })
+  return calls
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  setToken('mock-student-001')
+})
+
+test('AC_CXL_07 redirects to login and back', async () => {
+  const calls = stubBackend()
+  setToken('mock-student-001')
+  render(<App />)
+  fireEvent.click(await screen.findByRole('button', { name: 'คำขอที่รออนุมัติของฉัน' }))
+  const row = await screen.findByRole('listitem')
+
+  // Given: session ของ A หมดอายุระหว่างเปิดหน้านี้
+  setToken(null)
+
+  // When: ส่งคำสั่งยกเลิก
+  fireEvent.click(within(row).getByRole('button', { name: 'ยกเลิก' }))
+  const dialog = await screen.findByRole('dialog')
+  fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'ไม่ต้องใช้อุปกรณ์แล้ว' } })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'ยืนยัน' }))
+
+  // Then: ไปหน้าเข้าสู่ระบบพร้อมข้อความแจ้ง
+  expect(await screen.findByText('เข้าสู่ระบบ (จำลอง)')).toBeTruthy()
+  expect(screen.getByRole('alert').textContent).toBe(EXPIRED_MESSAGE)
+  const cancels = () => calls.filter((c) => c.method === 'POST')
+  expect(cancels()).toHaveLength(1)
+  expect(cancels()[0].token).toBe('') // ส่งไปโดยไม่มี session หลังบ้านจึงไม่ยกเลิก
+
+  // Then: ล็อกอินแล้วกลับมาหน้า "คำขอที่รออนุมัติของฉัน" คำขอยังอยู่ ไม่ยกเลิกซ้ำอัตโนมัติ
+  fireEvent.click(screen.getByRole('button', { name: /student-001/ }))
+  const tab = await screen.findByRole('button', { name: 'คำขอที่รออนุมัติของฉัน' })
+  expect(tab.getAttribute('aria-current')).toBe('page')
+  expect((await screen.findByRole('listitem')).textContent).toContain(REQ_A1.assetCode)
+  expect(screen.queryByRole('dialog')).toBeNull() // ต้องกดยกเลิกใหม่เอง
+  expect(cancels()).toHaveLength(1)
+})
+
+// FR-CXL-03 (ASM-13) เจ้าหน้าที่เปิดหน้านี้ได้ 403 FORBIDDEN_ROLE (plan.md ข้อ 4, ทีมตัดสิน 2569-11-12 ทาง ก, T-26)
+//   Then แสดง message จากหลังบ้าน ไม่มีปุ่มลองใหม่ ไม่มีรายการ
+test('FR_CXL_03 staff sees forbidden message without retry', async () => {
+  stubBackend()
+  setToken('mock-staff-001')
+  render(<App />)
+  fireEvent.click(await screen.findByRole('button', { name: 'คำขอที่รออนุมัติของฉัน' }))
+
+  expect((await screen.findByRole('alert')).textContent).toBe('เฉพาะนักศึกษาเท่านั้นที่ยกเลิกคำขอของตนเองได้')
+  expect(screen.queryByRole('button', { name: 'ลองใหม่' })).toBeNull()
+  expect(screen.queryByRole('listitem')).toBeNull()
+  expect(screen.queryByText('ไม่มีคำขอที่รออนุมัติ')).toBeNull()
+})

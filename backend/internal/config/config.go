@@ -39,6 +39,10 @@ const CancelPerfP95 = 15 * time.Second
 // ตัวเลขทีมเลือกเอง ไม่ได้มาจาก spec (ตัดสิน 2569-11-11 ตอนทำ T-03) ต้องน้อยกว่า CancelPerfP95
 const CancelDBTimeout = 5 * time.Second
 
+// NotifyTimeout คือเวลารอส่ง Email แจ้งเจ้าหน้าที่หลังยกเลิก (FR-CXL-09, ASM-10, NFR-PERF-CXL-01 ไม่นับเวลาส่ง Email)
+// ส่งไม่ทันนับเป็นส่งไม่สำเร็จ การยกเลิกยังสำเร็จ ตัวเลขทีมเลือกเอง ไม่ได้มาจาก spec (rtm F-04 ตัดสิน 2569-11-12, T-34)
+const NotifyTimeout = 5 * time.Second
+
 // ---------- ค่าของฟีเจอร์ 002 ส่งคำขอยืม (plan.md ข้อ 5 ตาราง "ค่าที่ตั้งได้") ----------
 
 // LoanNormalReturnHour คือชั่วโมงที่การยืมแบบปกติต้องคืนภายในวันเดียวกัน (DOM-LOAN-01, FR-BRQ-03 ข้อ ค)

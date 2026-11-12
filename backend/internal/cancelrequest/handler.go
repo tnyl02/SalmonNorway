@@ -39,13 +39,13 @@ func (h *Handler) Routes() http.Handler {
 func (h *Handler) listPending(w http.ResponseWriter, r *http.Request) {
 	p, ok := auth.FromContext(r.Context())
 	if !ok {
-		writeJSON(w, http.StatusUnauthorized, ErrorDTO{Code: "UNAUTHENTICATED"}) // ไม่ควรเกิดถ้าอยู่หลัง middleware
+		writeError(w, http.StatusUnauthorized, errUnauthenticated()) // ไม่ควรเกิดถ้าอยู่หลัง middleware
 		return
 	}
 	items, err := h.svc.ListMyPending(r.Context(), p)
 	switch {
 	case errors.Is(err, ErrStudentOnly):
-		writeJSON(w, http.StatusForbidden, ErrorDTO{Code: "STUDENT_ONLY"})
+		writeError(w, http.StatusForbidden, errForbiddenRole()) // ASM-13, CR-006
 	case err != nil:
 		writeUpstreamError(w, err)
 	default:
@@ -57,33 +57,31 @@ func (h *Handler) listPending(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) cancel(w http.ResponseWriter, r *http.Request) {
 	p, ok := auth.FromContext(r.Context())
 	if !ok {
-		writeJSON(w, http.StatusUnauthorized, ErrorDTO{Code: "UNAUTHENTICATED"}) // ไม่ควรเกิดถ้าอยู่หลัง middleware
+		writeError(w, http.StatusUnauthorized, errUnauthenticated()) // ไม่ควรเกิดถ้าอยู่หลัง middleware
 		return
 	}
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil || id <= 0 {
-		writeJSON(w, http.StatusNotFound, ErrorDTO{Code: "REQUEST_NOT_FOUND"}) // รหัสที่ไม่ใช่ตัวเลข ถือว่าไม่มีคำขอนี้ (FR-CXL-03)
+		writeError(w, http.StatusNotFound, errRequestNotFound()) // รหัสที่ไม่ใช่ตัวเลข ถือว่าไม่มีคำขอนี้ (FR-CXL-03)
 		return
 	}
 	var in CancelRequestDTO
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		writeJSON(w, http.StatusBadRequest, ErrorDTO{Code: "REASON_REQUIRED"}) // body อ่านไม่ได้ = ไม่มีเหตุผล (FR-CXL-08)
+		writeError(w, http.StatusUnprocessableEntity, errValidationFailed()) // body อ่านไม่ได้ = เหตุผลผิด (FR-CXL-08, CR-006 ปิด F-06)
 		return
 	}
 	res, err := h.svc.Cancel(r.Context(), p, id, in.Reason)
 	switch {
 	case errors.Is(err, ErrStudentOnly):
-		writeJSON(w, http.StatusForbidden, ErrorDTO{Code: "STUDENT_ONLY"})
-	case errors.Is(err, ErrReasonRequired):
-		writeJSON(w, http.StatusBadRequest, ErrorDTO{Code: "REASON_REQUIRED"}) // FR-CXL-08
-	case errors.Is(err, ErrReasonTooLong):
-		writeJSON(w, http.StatusBadRequest, ErrorDTO{Code: "REASON_TOO_LONG"}) // FR-CXL-08
+		writeError(w, http.StatusForbidden, errForbiddenRole()) // ASM-13, CR-006
+	case errors.Is(err, ErrReasonRequired), errors.Is(err, ErrReasonTooLong):
+		writeError(w, http.StatusUnprocessableEntity, errValidationFailed()) // FR-CXL-08, CR-006
 	case errors.Is(err, ErrRequestNotFound):
-		writeJSON(w, http.StatusNotFound, ErrorDTO{Code: "REQUEST_NOT_FOUND"}) // FR-CXL-03
+		writeError(w, http.StatusNotFound, errRequestNotFound()) // FR-CXL-03
 	case errors.Is(err, ErrAlreadyApproved):
-		writeJSON(w, http.StatusConflict, ErrorDTO{Code: "ALREADY_APPROVED"}) // FR-CXL-02, FR-CXL-04
+		writeError(w, http.StatusConflict, ErrorDTO{Code: codeAlreadyApproved, Message: msgAlreadyApproved, Status: statusOf(err)}) // FR-CXL-02, FR-CXL-04
 	case errors.Is(err, ErrNotCancelled):
-		writeJSON(w, http.StatusConflict, ErrorDTO{Code: "NOT_CANCELLABLE"}) // FR-CXL-02 สถานะอื่นที่ยกเลิกไม่ได้
+		writeError(w, http.StatusConflict, ErrorDTO{Code: codeNotCancellable, Message: msgNotCancellable, Status: statusOf(err)}) // FR-CXL-02 สถานะอื่นที่ยกเลิกไม่ได้
 	case err != nil:
 		writeUpstreamError(w, err)
 	default:
@@ -91,11 +89,20 @@ func (h *Handler) cancel(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// statusOf คืนสถานะของคำขอที่แนบมากับ StatusError (CR-006) ไม่มีคืน ""
+func statusOf(err error) string {
+	var se *StatusError
+	if errors.As(err, &se) {
+		return se.Status
+	}
+	return ""
+}
+
 // writeUpstreamError ตอบเมื่อฐานข้อมูลไม่ตอบสนองหรือเกิน CancelDBTimeout ไม่ส่งรายละเอียดภายในกลับไป (plan.md ข้อ 4, ASM-06, AC-CXL-13)
-// retryable = true บอกหน้าจอว่าลองใหม่ได้ (FR-CXL-01)
+// 503 ลองใหม่ได้เสมอ ไม่แนบ retryable (CR-006)
 func writeUpstreamError(w http.ResponseWriter, err error) {
 	log.Printf("cancelrequest: database error: %v", err)
-	writeJSON(w, http.StatusServiceUnavailable, ErrorDTO{Code: "UPSTREAM_UNAVAILABLE", Retryable: true})
+	writeError(w, http.StatusServiceUnavailable, errUpstreamUnavailable())
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {

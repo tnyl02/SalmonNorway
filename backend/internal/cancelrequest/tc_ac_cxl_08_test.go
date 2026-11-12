@@ -143,10 +143,10 @@ func TestTC_CXL_08_6_StaffDoesNotSeeStudentRequests(t *testing.T) {
 	// When staff-001 เรียก GET /api/v1/my/pending-requests
 	rec := tcGet(t, srv, tcPathMine, tcTokenStaff)
 
-	// Then (1) ได้ 403 STUDENT_ONLY
+	// Then (1) ได้ 403 FORBIDDEN_ROLE (แก้ตาม CR-006)
 	tcWantStatus(t, rec, http.StatusForbidden)
-	if code := tcDecode[tcErrorBody](t, rec).Code; code != "STUDENT_ONLY" {
-		t.Errorf("code = %q ต้องเป็น STUDENT_ONLY", code)
+	if code := tcDecode[tcErrorBody](t, rec).Code; code != "FORBIDDEN_ROLE" {
+		t.Errorf("code = %q ต้องเป็น FORBIDDEN_ROLE", code)
 	}
 	// Then (2) body ไม่มีข้อมูลคำขอของ A
 	if strings.Contains(rec.Body.String(), "requestId") || strings.Contains(rec.Body.String(), strconv.Itoa(id)) {

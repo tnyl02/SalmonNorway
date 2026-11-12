@@ -4380,6 +4380,260 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
   - `prompt-log.md`: เก็บทั้งสองฝั่ง ของ main ก่อนแล้วตามด้วยของ 004
   - `specs/004-approve-request/plan.md` ข้อ 8: ปิดเรื่อง auth.Middleware ไม่มี message (001 แก้แล้ว)
 - ข้อสังเกตของ AI: FORBIDDEN_ROLE ข้อความของ 001 กับ 004 ต่างกัน (หน้าจอเลือกจากรหัส 004 ใช้ข้อความตาม FR-APV-01 ซ) ไม่ต้องแก้; TestAC_APV_05 (T-27) ตรวจข้อความของ 401 เพิ่มได้แล้ว ยังไม่แก้ รอสั่ง
+
+---
+
+## 2569-11-12 /verify specs/003-cancel-request/ (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /verify ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/verify.md แล้วทำตามเอง แก้เฉพาะ rtm.md และ prompt-log.md)
+- ผล test: go test -p 1 ./... ผ่าน 114 (ของ 003 47) ไม่ผ่าน 0, npm test ผ่าน 47 (ของ 003 23) ไม่ผ่าน 0, k6 AC-CXL-17 ผ่าน (รันด้วยมือ)
+- ตารางไปข้างหน้า 22 แถว: ครบ 12, ยังไม่ถึง 3 (FR-CXL-05, FR-CXL-09 ส่วน audit และมี F-04 ด้วย, IF-IDP-01), รอ Q-xx 0,
+  ช่องโหว่ 7 (FR-CXL-03, FR-CXL-10, NFR-SEC-01, NFR-AVAIL-01, NFR-PERF-CXL-01, CON-TECH-02, CON-TECH-03)
+- ข้อค้นพบใหม่: F-01 (CON-TECH-03 รูปแบบและรหัส error), F-02 (ไม่มี test เจ้าหน้าที่ POST cancel ได้ 403), F-03 (ไม่มี HTTPS),
+  F-04 (ส่ง Email แบบรอผลไม่มีเวลาจำกัด), F-05 (ตัวเลขฝังใน k6 script), F-06 (body อ่านไม่ได้ / id ไม่ใช่ตัวเลข AI เลือกเอง),
+  F-07 (FR-CXL-10 ไม่มี AC), F-08 (NFR-AVAIL-01 และ TLS ไม่มี AC)
+- หมายเหตุเอกสาร: Q-SH-05 ใน spec/plan ยังเป็นรอคำตอบ (001 ปิดแล้ว), Status ของ spec ยังเป็น v3.7
+
+---
+
+## 2569-11-12 แก้ข้อค้นพบ F-02 ของ rtm.md (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: F-02 เพิ่ม TestFR_CXL_03_StaffCancelForbidden ใน handler_test.go เจ้าหน้าที่ POST cancel ต้องได้ 403 STUDENT_ONLY และสถานะคำขอไม่เปลี่ยน ไม่ต้องแก้โค้ด
+- ไฟล์ที่แก้: backend/internal/cancelrequest/handler_test.go (เพิ่ม test), specs/003-cancel-request/rtm.md (ช่องทีมตัดสินของ F-02 และหัวข้อแก้แล้ว)
+- ผล test: test ใหม่ผ่าน package cancelrequest ผ่านทั้งหมด
+- ยืนยันว่า test จับปัญหาได้: ปิดบรรทัดตรวจบทบาทใน service.go: Cancel ชั่วคราว test ไม่ผ่าน (404 แทน 403) แล้ว git checkout คืนไฟล์ ไม่มีการแก้โค้ดค้าง
+
+
+---
+
+## 2569-11-12 แก้ข้อค้นพบ F-01 (และ F-06) ของ rtm.md ด้วย CR-006 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: แก้ F-01 ให้ 003 ใช้รูปแบบ error ตาม CON-TECH-03 ถามผลกระทบกับเพื่อนก่อนแก้ แล้วถามเจ้าของ CR-004 (ธัญลักษณ์ 002)
+- คำตอบของเจ้าของ CR-004: ใช้ VALIDATION_FAILED 422, ลงทะเบียน REQUEST_NOT_FOUND แถวเดียวร่วมกับ 004, FORBIDDEN_ROLE มีแล้ว, แนะนำแนบ status, ตัด retryable
+- เจ้าของ 003 ตัดสิน: แยก ALREADY_APPROVED กับ NOT_CANCELLABLE, แนบ status ใน 409, ข้อความ VALIDATION_FAILED ข้อความเดียว "กรุณาระบุเหตุผลการยกเลิกไม่เกิน 200 ตัวอักษร",
+  REQUEST_NOT_FOUND ข้อความ "ไม่พบคำขอ", อนุมัติแก้ 4 แถวใน test-cases.md (TC-CXL-08-6, 14-4, 14-5, 14-6)
+- ไฟล์ที่แก้ (เอกสาร): specs/changes/CR-006.md (ใหม่), specs/000-shared/constraints.md (v5.2 ของกลาง แก้เพราะ 003), specs/003-cancel-request/spec.md (Draft v3.8),
+  plan.md ข้อ 4, test-cases.md 4 แถว, tasks.md (T-33), rtm.md (F-01, F-06), specs/CHANGELOG.md
+- ไฟล์ที่แก้ (โค้ด): backend/internal/cancelrequest/errors.go (ใหม่), dto.go, handler.go, service.go, handler_test.go, notifier_test.go, tc_helpers_test.go,
+  tc_ac_cxl_08_test.go, tc_ac_cxl_14_test.go (TestTC_ แก้ตาม test-cases.md ที่เจ้าของอนุมัติ ไม่ได้แก้ให้ผ่าน)
+- สิ่งที่ AI เลือกเอง: ข้อความของ FORBIDDEN_ROLE, ALREADY_APPROVED, UPSTREAM_UNAVAILABLE, UNAUTHENTICATED (ไม่ได้มาจาก spec), ใช้ StatusError ห่อ error เพื่อแนบสถานะ
+- ผล test: go test -p 1 ./... ผ่านทุก package (ของ 003 48) npm test ผ่าน 47 หน้าจอไม่ต้องแก้
+- ยังต้องทำ: แจ้งเจ้าของ 004 ว่า REQUEST_NOT_FOUND ลงทะเบียนแถวร่วมแล้ว และ 003 ใช้ข้อความ "ไม่พบคำขอ", T-33 รอเจ้าของตรวจ
+
+---
+
+## 2569-11-12 ตรวจ T-33 (CR-006 รูปแบบ error) (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เจ้าของตรวจ: รัน go test และเปิดหน้าเว็บ ตรวจ response ใน Network (409 แนบ status มี message ไม่มี retryable, 403 FORBIDDEN_ROLE ของเจ้าหน้าที่) แจ้งว่า "ผ่าน"
+- เปลี่ยนสถานะ T-33 ใน tasks.md เป็น เสร็จ
+
+---
+
+## 2569-11-12 ตรวจรายงานของ 001 หลัง PR #14 และแก้ plan / T-26 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- ที่มา: 001 ส่งรายงานว่า PR #14 (mock login, 401 {code, message}) กระทบ 003 อย่างไร AI ตรวจเทียบกับโค้ดแล้ว ข้อ "003 ยังไม่ใช้ CON-TECH-03" ตกยุค (ทำแล้วใน CR-006 / T-33 เจ้าของแจ้ง 001 แล้ว)
+- ทีมตัดสิน: (1) แก้ plan ข้อ 4 ให้ตรงกับกลไกจริงของ 001 T-21 (จำชื่อแท็บ + safePageKey ไม่ใช่ returnTo แบบ path)
+  (2) เจ้าหน้าที่เปิดหน้า "คำขอที่รออนุมัติของฉัน" ได้ 403 FORBIDDEN_ROLE -> แสดง message ไม่มีปุ่มลองใหม่ (ทาง ก) รวมไว้ใน T-26
+- ไฟล์ที่แก้: specs/003-cancel-request/plan.md (Draft v1.6), tasks.md (T-26, จำนวน task ในสรุป), specs/CHANGELOG.md ยังไม่แก้โค้ด
+
+---
+
+## 2569-11-12 /implement T-26 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md เอง)
+- สิ่งที่ทำ: 401 ใช้กลไกของ 001 T-21 ที่มีแล้ว ไม่แก้ App.jsx / client.js, หน้า MyPendingRequests ได้ 403 FORBIDDEN_ROLE แสดง serverMessage ไม่มีปุ่มลองใหม่ (ทาง ก)
+- ไฟล์ที่แก้: frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx, __tests__/MyPendingRequests.test.jsx (เพิ่ม AC_CXL_07 redirects to login and back, FR_CXL_03 staff sees forbidden message without retry)
+- สิ่งที่ AI เลือกเอง: ถ้า 403 ไม่มี message ใช้ข้อความ "โหลดรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" แทน, test ของ AC-CXL-07 ทำให้ session หมดอายุระหว่างเปิดหน้าด้วยการลบ token
+- ผล test: npm test ผ่าน 57 (เพิ่ม 2) ลองเปลี่ยนรหัสที่ตรวจเป็นค่าอื่นชั่วคราว test ของเจ้าหน้าที่ไม่ผ่าน คืนโค้ดแล้วผ่าน
+- สถานะ: รอเจ้าของตรวจ
+
+---
+
+## 2569-11-12 ตรวจ T-26 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เจ้าของตรวจบนหน้าเว็บ: ลบ token ใน Session storage แล้วได้หน้าเข้าสู่ระบบจำลองพร้อมข้อความ, staff-001 เห็นข้อความเฉพาะนักศึกษาไม่มีปุ่มลองใหม่,
+  session หมดอายุระหว่างยืนยันยกเลิก ล็อกอินแล้วกลับแท็บเดิม คำขอยังอยู่ แจ้งว่า "ผ่าน"
+- เปลี่ยนสถานะ T-26 ใน tasks.md เป็น เสร็จ
+
+---
+
+## 2569-11-12 /implement T-31 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md เอง)
+- สิ่งที่ทำ: บันทึก audit_log ทุกครั้งที่นักศึกษาพยายามยกเลิก ตามตาราง FR-CXL-05 ใน transaction เดียวกับการยกเลิก ใช้ audit.Write ของ 001 (รับ pgx.Tx)
+  ไม่สำเร็จก็ commit เพื่อเก็บแถว audit, แยก not_found กับ not_owner ด้วย RequestState (แทน OwnStatus) หน้าจอยังได้ 404 เหมือนกัน (FR-CXL-03)
+  ล้างข้อมูลใน test ด้วย SET LOCAL session_replication_role = replica (ทีมเลือก ข)
+- ไฟล์ที่แก้: backend/internal/cancelrequest/service.go, repository.go, handler_test.go (TestAC_CXL_06_AuditLogAttempts ใหม่, TestFR_CXL_05_AuditLogOtherCauses ใหม่, TestAC_CXL_07 ตรวจไม่มีแถวใหม่), tc_helpers_test.go (วิธีล้าง, tcAuditMark, tcAuditSince)
+- สิ่งที่ AI เลือกเอง (ตาราง FR-CXL-05 ไม่ได้บอก):
+  - เหตุผลผิดกับคำขอที่ไม่มีอยู่ -> request_id ว่าง เก็บ id ใน query แบบ not_found (FK ไม่ยอมให้อ้างคำขอที่ไม่มี)
+  - เจ้าหน้าที่สั่งยกเลิก (403) ไม่บันทึก เพราะ FR-CXL-05 กำหนดเฉพาะนักศึกษา
+  - บันทึก audit ไม่สำเร็จ -> 503 และไม่ยกเลิก, เหตุผลผิดต้องเปิด transaction ก่อน (ฐานข้อมูลล่มตอนเหตุผลผิดได้ 503 แทน 422)
+  - id ที่ไม่ใช่ตัวเลข และ body ที่ไม่ใช่ JSON ไม่บันทึก (ตอบใน handler.go ซึ่งไม่อยู่ในไฟล์ที่แตะของ T-31)
+- ผล test: go test -p 1 ./... ผ่านทุก package (ของ 003 ผ่าน 50) ลองเปลี่ยน cause not_owner และลบ commit ของแถว forbidden ชั่วคราว test ไม่ผ่าน คืนโค้ดแล้วผ่าน
+- สถานะ: รอเจ้าของตรวจ
+
+---
+
+## 2569-11-12 ตรวจ T-31 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เจ้าของตรวจแล้วแจ้งว่า "ผ่าน" และรับ 4 เรื่องที่ AI เลือกเอง (เหตุผลผิดกับคำขอที่ไม่มี เก็บ id ใน query, เจ้าหน้าที่ไม่บันทึก,
+  บันทึก audit ไม่ได้ -> 503, id ไม่ใช่ตัวเลขและ body ไม่ใช่ JSON ไม่บันทึก)
+- เปลี่ยนสถานะ T-31 ใน tasks.md เป็น เสร็จ
+
+---
+
+## 2569-11-12 /implement T-32 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md เอง)
+- สิ่งที่ทำ: ยกเลิกสำเร็จแต่ส่ง Email ไม่สำเร็จ (รวมภาควิชาไม่มี Email เจ้าหน้าที่ ErrNoRecipients) บันทึก audit_log action notify outcome error
+  request_id ของคำขอ query {"for":"cancel"} ตามตาราง FR-CXL-05 เขียนหลัง commit นอก transaction รอไม่เกิน dbTimeout
+- ไฟล์ที่แก้: backend/internal/cancelrequest/service.go (auditNotifyFailed), notifier_test.go (TestAC_CXL_16, TestNotify_NoStaffEmailStillCancelled ตรวจแถว notify error)
+- AI ถามก่อนแตะไฟล์นอก task: TestAC_CXL_06 (T-31) นับได้ 4 แถวเพราะภาควิชา 1 ใน test ไม่มี Email จึงมีแถว notify error เพิ่ม
+  เจ้าของเลือกทาง ก: แก้ handler_test.go ให้ TestAC_CXL_06 นับเฉพาะ action cancel
+- สิ่งที่ AI เลือกเอง: บันทึกแถว notify ไม่สำเร็จ แค่ log ไว้ ยังตอบ 200 เพราะยกเลิกสำเร็จแล้ว (spec ไม่บอก)
+- ผล test: go test -p 1 ./... ผ่านทุก package (ของ 003 ผ่าน 50) ลองปิดการบันทึก notify ชั่วคราว 2 test ไม่ผ่าน คืนโค้ดแล้วผ่าน
+- สถานะ: รอเจ้าของตรวจ
+
+---
+
+## 2569-11-12 ตรวจ T-32 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เจ้าของตรวจกับฐานข้อมูลจริง: ลบ Email เจ้าหน้าที่ภาควิชา 1 ชั่วคราว ยกเลิกคำขอบนหน้าเว็บ เห็นแถว notify error ต่อจาก cancel ok แล้วใส่ Email กลับ แจ้งว่า "ผ่าน"
+  (คำสั่งแรกที่ AI ให้ เปลี่ยน department_id เป็น 99 ไม่ผ่าน FK ของ staff_contact จึงเปลี่ยนเป็นลบแล้วใส่กลับ)
+- เปลี่ยนสถานะ T-32 ใน tasks.md เป็น เสร็จ (ครบ 33 task ของ 003)
+
+---
+
+## 2569-11-12 /verify specs/003-cancel-request/ รอบที่ 2 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (พิมพ์ /verify แล้วเรียก skill ตรวจของ Claude Code ไม่ใช่ของรายวิชา AI อ่าน .claude/commands/verify.md แล้วทำตามเอง)
+- ผล test: go test -count=1 -p 1 ./... ผ่าน 129 (ของ 003 50) ไม่ผ่าน 0, npm test ผ่าน 57 (ของ 003 26) ไม่ผ่าน 0 รวม 186
+- ยิงหลังบ้านที่เปิดอยู่ด้วยรหัสคำขอที่ไม่มี (ไม่แตะข้อมูลจริง): body ไม่ใช่ JSON -> 422, id "abc" -> 404, เจ้าหน้าที่ -> 403 FORBIDDEN_ROLE
+- ตารางไปข้างหน้า 22 แถว: ครบ 13, ยังไม่ถึง 0, รอ 0, ช่องโหว่ 9 (FR-CXL-05, FR-CXL-09, FR-CXL-10, NFR-SEC-01, NFR-AVAIL-01, NFR-PERF-CXL-01, CON-TECH-02, CON-TECH-03)
+- แก้แล้ว: F-01, F-02, F-06 (ย้ายไปหัวข้อ 4 คงข้อความทีมตัดสินเดิม) ยังเปิด: F-03, F-04, F-05, F-07, F-08
+- ข้อค้นพบใหม่: F-09 (FR-CXL-05 ไม่บันทึก audit 2 กรณีใน handler และเหตุผลผิดกับคำขอที่ไม่มี), F-10 (คอมเมนต์ client.js ยังเขียน 400 REASON_*)
+- แก้รูปแบบตารางของ rtm.md: ช่องทีมตัดสินของ F-01, F-06 จาก /verify รอบแรกมี "||" เกิน (AI ใส่ผิดตอนบันทึกการตัดสิน) ข้อความทีมตัดสินคงไว้ทุกตัวอักษรในหัวข้อ 4
+- แก้ไขบรรทัดก่อนหน้า (AI นับผิด): ตารางไปข้างหน้า 22 แถว ที่ถูกคือ ครบ 14, ช่องโหว่ 8 (รายการ ID ช่องโหว่ 8 ตัวที่จดไว้ถูกแล้ว)
+
+---
+
+## 2569-11-12 ตัดสินข้อค้นพบ F-05, F-07, F-10 ของ rtm.md (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เจ้าของสั่งให้ทำตามที่ AI แนะนำ: F-05 ไม่ใช่ปัญหา (k6 อ่าน config.go ไม่ได้), F-07 ไม่ใช่ปัญหา (FR-CXL-10 ไม่ทำใน prototype รอ Q-16), F-10 แก้โค้ด
+- F-10: เจ้าของแก้เองแล้วก่อนสั่ง (frontend/src/api/client.js บรรทัด 136 คอมเมนต์สัญญา API, backend/internal/cancelrequest/errors.go msgUnauthenticated = "กรุณาเข้าสู่ระบบก่อนใช้งาน" ตรงของกลาง) AI ไม่ได้แก้โค้ด
+- ไฟล์ที่แก้: specs/003-cancel-request/rtm.md (ช่องทีมตัดสินของ F-05, F-07, F-10 เขียนตามคำสั่งของเจ้าของ)
+
+---
+
+## 2569-11-12 ตัดสิน F-09 (แก้ spec) และ F-04 (แก้โค้ด) และ /implement T-34 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- F-09 ทาง ก (เจ้าของสั่ง "แก้เลย"): spec Draft v3.9 ตาราง FR-CXL-05 เพิ่ม "เหตุผลผิด และไม่มีคำขอนี้" และ "id / ข้อมูลที่ส่งมาอ่านไม่ได้ ไม่บันทึก" ไม่แก้โค้ด
+- F-04 ทาง ข (เจ้าของเลือก): spec ASM-10 รอส่ง Email ไม่เกิน 5 วินาที (AI แนะนำตัวเลข เจ้าของรับ ทีมเลือกเอง ไม่ได้มาจาก spec), plan v1.7 ข้อ 5 เพิ่ม NotifyTimeout, tasks เฟส 19 T-34
+- T-34 ไฟล์ที่แก้: backend/internal/config/config.go (NotifyTimeout), backend/internal/cancelrequest/service.go (notifyTimeout, notify หยุดรอเมื่อหมดเวลาแม้ตัวส่งไม่สนใจ context),
+  notifier_test.go (TestAC_CXL_16_NotifyHangsStillCancelled ตัวส่งค้าง -> 200 สถานะ cancelled มีแถว notify error)
+- สิ่งที่ AI เลือกเอง: ตัวส่งที่ค้างยังทำงานต่อเบื้องหลังจนจบเอง (ไม่มีทางหยุดตัวที่ไม่สนใจ context), test ใช้ notifyTimeout 200 ms
+- ข้อสังเกต: กรณีแย่ที่สุด ฐานข้อมูลช้า 5 วินาที + Email 5 วินาที + บันทึก notify error 5 วินาที = 15 วินาที เท่ากับ CancelPerfP95 พอดี
+- ผล test: go test -p 1 ./... ผ่านทุก package ลองเอาการหยุดรอออกชั่วคราว test ค้างจนหมดเวลา (ไม่ผ่าน) คืนโค้ดแล้วผ่าน
+- ไฟล์เอกสาร: spec.md, plan.md, tasks.md, rtm.md (ทีมตัดสิน F-09, F-04 เขียนตามคำสั่งเจ้าของ), specs/CHANGELOG.md
+- สถานะ T-34: รอเจ้าของตรวจ
+
+---
+
+## 2569-11-12 ใช้แถว REQUEST_NOT_FOUND ของ 004 แทนลงแถวใหม่ (003-cancel-request, แก้ของกลาง constraints.md)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- ที่มา: เจ้าของ 002 ฝากมาว่า "อย่าลงแถว REQUEST_NOT_FOUND ใหม่ มีแล้วในตาราง ให้เติมชื่อฟีเจอร์ในคอลัมน์ใครใช้แล้วของแถวเดิม และระบุใน CR ว่าใช้ร่วมกับ 002 และ 004"
+- สิ่งที่ AI ตรวจ: origin/main ยังไม่มีแถวนี้, origin/004-approve-request ลงทะเบียนไว้แล้ว ("004 (ลงทะเบียน 2569-11-12)"),
+  origin/002-borrow-request ไม่ใช้ REQUEST_NOT_FOUND ทั้งใน spec และโค้ด และไม่มีไฟล์ไหนอ้าง CR-006, รหัสอื่นของ 003 ไม่ซ้ำกับ 002
+- เจ้าของ 003 ตัดสิน: ใช้แถวของ 004 แล้วเติม 003, CR-006 เขียนว่าใช้ร่วมกับ 004 เท่านั้น (ไม่ใส่ 002 เพราะ 002 ไม่ได้ใช้)
+- ไฟล์ที่แก้:
+  - specs/000-shared/constraints.md (ของกลาง แก้เพราะ 003): แถว REQUEST_NOT_FOUND ใช้ข้อความของ 004 ทุกตัวอักษร ช่องใครใช้แล้ว "004 (ลงทะเบียน 2569-11-12), 003 (คำขอของผู้อื่นตอบเหมือนไม่มี CR-006)", บรรทัด Status และตาราง "ใครอ้างใช้บ้าง" แถว CON-TECH-03 (ไม่ขึ้นเวอร์ชัน คงเป็น v5.2)
+  - specs/changes/CR-006.md: เพิ่มบรรทัด "แก้ไข 2569-11-12 (หลังอนุมัติ)", ข้อ 5, รายการรหัส, ผลกระทบ (constraints.md และ 004), ยังต้องแจ้ง
+  - specs/CHANGELOG.md: เพิ่มรายการใหม่ด้านบน ไม่แก้รายการ v5.2 เดิม
+- ไม่ได้แก้: โค้ด test หน้าจอ spec.md plan.md test-cases.md rtm.md (อ้างแค่ v5.2 ซึ่งยังเป็นเวอร์ชันเดิม)
+- ข้อสังเกต: ตอน merge main แถวนี้จะ conflict กับ branch 004 บรรทัดเดียว ให้เก็บช่องใครใช้แล้วที่มีทั้ง 004 และ 003
+- ยังต้องทำ: ตอบเจ้าของ 002, แจ้งเจ้าของ 004
+
+---
+
+## 2569-11-12 ตรวจ T-34 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เจ้าของตรวจแล้วแจ้งว่า "ผ่าน" เปลี่ยนสถานะ T-34 ใน tasks.md เป็น เสร็จ (ครบ 34 task ของ 003)
+
+---
+
+## 2569-11-12 merge main (004 PR #17, 001) และแก้ seed_003 ให้ใช้ now() (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- merge: แก้ conflict 3 ไฟล์ เก็บทั้งสองฝั่ง (constraints.md: รวมรหัสใหม่ 5 ตัวของ 004 กับแถวของ 003 ผู้ใช้แต่ละแถวรวม 003 และ 004, CHANGELOG.md, prompt-log.md) go test ทุก package ผ่าน npm test 81 ผ่าน
+- ผลกระทบที่ AI พบ: approve.AutoRejecter ของ 004 (FR-APV-01 ฉ) ปฏิเสธคำขอ normal ที่ requested และส่งก่อนเที่ยงคืนวันนี้ทันทีที่เปิดเซิร์ฟเวอร์ seed_003 คำขอ 3001, 3002, 3008 (ส่ง 2026-11-10) จะถูกปฏิเสธ
+- เจ้าของสั่ง: seed ให้ใช้ now()
+- ไฟล์ที่แก้: backend/db/seed/seed_003_cancel_request.sql (คำขอ 3001-3004, 3008 ใช้เวลาส่งและเวลายืมเทียบกับ now() เรียงเหมือนเดิม คำขอที่จบแล้ว 3005-3007 คงวันที่เดิม ยังเป็น ON CONFLICT DO NOTHING)
+- สิ่งที่ AI เลือกเอง: เวลาส่งห่างกัน 5-30 นาที ไม่เปลี่ยนเป็น DO UPDATE เพราะโหลดซ้ำอาจชน uq_request_open_per_item ถ้ามีคำขอใหม่จากหน้าของ 002 ฐานข้อมูลเดิมต้องอัปเดตด้วยคำสั่งแยก
+- ผล test: TestSeed003_RequestsAndStaffContact ผ่าน
+- ลบข้อความหลง " 003-cancel-request" ที่ specs/CHANGELOG.md บรรทัด 5 (ค้างมาก่อน merge ไม่ใช่รายการเปลี่ยนแปลง) ตามที่เจ้าของสั่ง
+
+---
+
+## 2569-11-12 สร้างฐานข้อมูลในเครื่องใหม่ (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: ทำทุกขั้นตั้งแต่ข้อ 1 เพื่อให้ข้อมูลทุกตารางตรงกัน (หลัง AutoRejecter ของ 004 ปฏิเสธ 3002, 3008 ในเครื่อง)
+- AI ทำ: ปิด server.exe เดิม, ลบ container salmon-db และ volume salmon-pgdata, สร้างใหม่ (postgres:16 พอร์ต 5433), เปิดหลังบ้าน (migration + seed.sql อัตโนมัติ),
+  โหลด seed_003_cancel_request.sql, approve_dev.sql (004), handover_dev.sql (005) ตามลำดับ ไม่แตะไฟล์ใน repo
+- ผล: คำขอ 20 ใบ (003 8 ใบ เวลาส่งเป็นวันนี้ ไม่ถูกปฏิเสธ) audit_log ว่าง staff_contact 1 แถว GET /v1/my/pending-requests ของ student-001 ได้ 8 รายการ (ของ 003 4 รายการ ของ 004/005 4 รายการ)
+
+---
+
+## 2569-11-12 แก้หัวไฟล์ tasks.md (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: specs/003-cancel-request/tasks.md บรรทัด 2 อ้าง spec Draft v3.9 / plan Draft v1.7 (เดิม v3.2 / v1.1) วันที่แก้ 2569-11-12, บรรทัด 5 จำนวนเฟส 20 (เดิมเขียน 18 ไม่นับเฟส 18, 19 ที่เพิ่มทีหลัง) และเสร็จครบ 34 task
+- ไม่เปลี่ยนเนื้อหา task
+
+---
+
+## 2569-11-12 แก้เอกสารที่ยังอ้างรหัส error ก่อน CR-006 และสถานะเก่า (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- ที่มา: AI ตรวจซ้ำแล้วเจอ 3 จุดที่ตกหล่นตอนทำ CR-006 (AI แก้ plan ข้อ 4 แต่ลืมข้อ 6 และช่องเสร็จเมื่อของ task เก่า)
+- ไฟล์ที่แก้:
+  - specs/003-cancel-request/tasks.md บรรทัด 87 (T-04), 171 (T-09), 401 (T-23): ไม่เขียนทับข้อความเดิม เติมท้ายว่ารหัสเปลี่ยนตาม CR-006 ดู T-33
+  - specs/003-cancel-request/plan.md บรรทัด 186 (ข้อ 6 AC-CXL-14): 400 -> 422 VALIDATION_FAILED
+  - specs/README.md บรรทัด 10 แถว 003: spec v3.9, plan v1.7, tasks เสร็จ 34/34, test-cases, rtm (ไฟล์กลาง แก้เฉพาะแถวของ 003)
+
 ## 2569-11-12 /implement T-08 (002-borrow-request) — ปิดเฟส 4
 
 - ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
@@ -4814,6 +5068,270 @@ T-13 มีแค่ `service.go` ในช่องไฟล์ที่แต�
 
 ---
 
+## 2569-11-12 merge main (002 PR #18, CR-007) เข้า 003-cancel-request แก้ conflict ของกลาง (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- ที่มา: `git pull origin main` หยุดเพราะ prompt-log.md ยังไม่ commit เจ้าของสั่งให้ commit งานค้าง pull และแก้ conflict
+- commit ก่อน pull: "003: tasks/plan อ้างรหัส error ตาม CR-006, README อัปเดตสถานะ 003" (prompt-log.md, plan.md, tasks.md, specs/README.md)
+- conflict 3 ไฟล์ แก้โดยเก็บทั้งสองฝั่ง:
+  - specs/000-shared/constraints.md (ของกลาง แก้เพราะ 003): บรรทัด Status รวม CR-006 และ CR-007, `FORBIDDEN_ROLE` ใครใช้แล้วมีทั้ง 002 และ 003,
+    `REQUEST_NOT_FOUND` ใช้ความหมายฉบับขยายของ CR-007 ใครใช้แล้ว "004, 002, 003", เก็บแถว ALREADY_APPROVED และ NOT_CANCELLABLE, แถว CON-TECH-03 ใน "ใครอ้างใช้บ้าง" มีทั้ง 002 และ 003
+  - specs/CHANGELOG.md: เก็บรายการของทั้งสองฝั่ง เพิ่มรายการบนสุดอธิบายการรวม
+  - prompt-log.md: เก็บบันทึกของทั้งสองฝั่ง (ของ 003 ก่อน แล้วตามด้วยของ main) ไม่มีบรรทัดใดถูกลบ (ตรวจด้วย git diff --numstat เทียบทั้ง HEAD และ origin/main)
+- แก้เพิ่ม: specs/changes/CR-006.md เพิ่มบรรทัด "แก้ไขรอบที่ 2" ว่า 002 ใช้ REQUEST_NOT_FOUND ด้วยตาม CR-007 (ที่เขียนเดิมว่า 002 ไม่ได้ใช้ ถูกเฉพาะก่อน 002 ขึ้น main)
+- ผล test หลัง merge: go build/vet ผ่าน, go test -p 1 ./... ผ่านทุก package, vitest 31 ไฟล์ 81 test ผ่าน
+- ยังไม่ได้ push (รอเจ้าของตรวจ)
+- ค้างจากเรื่องก่อนหน้า: ALREADY_APPROVED กับ REQUEST_ALREADY_DECIDED ของ 004 ยังรอเจ้าของ 004 ตอบ
+
+---
+
+## 2569-11-12 ตัดสินคงไว้ทั้ง ALREADY_APPROVED (003) และ REQUEST_ALREADY_DECIDED (004) (003-cancel-request, แก้ของกลาง constraints.md)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- ที่มา: มีคนในทีมทักว่า 2 รหัสนี้ซ้ำกัน ให้บอก 003 และ 004 ก่อน merge
+- สิ่งที่ AI ตรวจ: ความหมายต่างกัน 003 = นักศึกษายกเลิกคำขอที่ approved เท่านั้น (rejected ได้ NOT_CANCELLABLE) แนบ status,
+  004 = เจ้าหน้าที่พิจารณาคำขอที่ถูกพิจารณาแล้ว (approved หรือ rejected) ก่อนหน้าจอโหลด ผูกกับ loadedAt, ไม่มี endpoint ใดตอบทั้ง 2 รหัส,
+  ถ้ารวมต้องแก้ความหมายแถวของ 004 และแก้ TestTC_CXL_01_6 ซึ่งห้ามแก้โดยไม่มีทีมอนุมัติ
+- เจ้าของ 003 ตัดสิน: คงไว้ทั้ง 2 รหัส
+- ไฟล์ที่แก้: specs/000-shared/constraints.md (ของกลาง แก้เพราะ 003: เติมวงเล็บความต่างในแถว ALREADY_APPROVED เท่านั้น ไม่แก้แถวของ 004),
+  specs/changes/CR-006.md (หัวข้อตัดสิน), specs/CHANGELOG.md
+- ไม่ได้แก้: โค้ด test หน้าจอ
+- ยังต้องทำ: แจ้งเจ้าของ 004 ว่าคงไว้ทั้ง 2 รหัส ถ้าต้องการเติมคำอธิบายในแถว REQUEST_ALREADY_DECIDED ให้ 004 แก้เอง
+
+---
+
+## 2569-11-12 รัน load test k6 ซ้ำ AC-CXL-17 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เหตุผล: ผลเดิม (list p95 106.63 ms, cancel p95 38.9 ms) วัดก่อนเพิ่ม audit (T-31, T-32) และ NotifyTimeout (T-34)
+- วิธี: ฐานข้อมูลแยก salmon_load ใน container salmon-db (ตามหัวไฟล์ seed_003_load.sql), หลังบ้านอีกตัวที่ :8001 (migration + seed.sql), โหลด seed_003_load.sql (คำขอ 50001-51000),
+  k6 ผ่าน Docker grafana/k6 BASE_URL=http://host.docker.internal:8001 ไม่แตะฐานข้อมูล salmon ที่ใช้ทดสอบหน้าเว็บ
+- ผล: 50 VU 1,000 iteration checks 100% (2000/2000) http_req_failed 0%
+  list p95 123.39 ms (เดิม 106.63), cancel p95 61.03 ms (เดิม 38.9) ทั้งคู่ต่ำกว่า 15000 ms (CancelPerfP95) มาก
+  audit_log ใน salmon_load: cancel ok 1000 แถว (T-31 ทำงานใต้โหลด) คำขอ 1000 ใบเป็น cancelled
+- ปิดหลังบ้าน :8001 แล้ว ไม่ได้แก้ไฟล์ใน repo (rtm.md จะอัปเดตตัวเลขตอน /verify รอบ 3)
+
+---
+
+004-approve-request
+## 2569-11-12 คำสั่ง: /implement T-35 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "เขียน title กับ description ให้หน่อยจะเอาขึ้น main" (AI ร่าง PR title/description และเตือนว่า test ยังไม่ได้รัน), "ต้องทำอะไรต่อ"
+- คำสั่ง: "/implement T-35"
+- ไฟล์ที่แก้: `backend/internal/approve/service_test.go` (`concurrencyDB` สร้างฐานข้อมูลแยกใน container เดิม รัน migration + seed.sql + approve_dev.sql แล้วลบทิ้งตอนจบ, `TestAC_APV_10` 3 กรณี อนุมัติ+อนุมัติ / อนุมัติ+ปฏิเสธ / ปฏิเสธ+ปฏิเสธ ด้วย 2 goroutine เริ่มพร้อมกัน ตรวจสำเร็จ 1 ได้ ErrDecidedConcurrently 1 และมี approval_decision 1 แถว Email 1 ฉบับ), `specs/004-approve-request/tasks.md`
+- ไม่แก้โค้ดหลัก เพราะการล็อกแถว (T-07) และการแยกกรณีกดพร้อมกัน (T-23) ทำไว้แล้ว
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน ตอนรันให้ใช้ `go test ./internal/approve/ -run TestAC_APV_10 -count=20`
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): ใช้ฐานข้อมูลแยกต่อการรัน เพราะ devTx (transaction เดียว) ไม่มีการแย่งกันจริง และข้อมูลที่ commit แล้วลบไม่ได้ (approval_decision / audit_log แก้หรือลบไม่ได้); loadedAt ย้อน 1 ชั่วโมงกันเวลาของ container กับเครื่องไม่ตรงกัน
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-35 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจสอบแล่วผ่าน"
+- สิ่งที่แก้: tasks.md T-35 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-36 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "ตรวจสอบแล่วผ่าน" (T-35 -> เสร็จ)
+- คำสั่ง: "/implement T-36"
+- ไฟล์ที่แก้: `frontend/src/pages/ApproveRequest/ApproveRequests.test.jsx` (2 test `AC-APV-10` ตอนอนุมัติและตอนปฏิเสธ), `specs/004-approve-request/tasks.md`
+- ไม่แก้ `ApproveRequests.jsx` เพราะแสดงข้อความตามรหัสจาก APPROVAL_MESSAGES อยู่แล้วตั้งแต่ T-09
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
+- หลัง T-36: task ที่ทำได้ครบแล้ว เหลือ T-37, T-38 (รอ Q-APV-04) และ T-39 (รอ Q-SH-03)
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-36 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจสอบแล่วผ่าน"
+- สิ่งที่แก้: tasks.md T-36 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+- สถานะรวม: T-01 ถึง T-36 เสร็จ (เฟส 0 ถึง 18) เหลือ T-37, T-38 รอ Q-APV-04 และ T-39 รอ Q-SH-03 / test ทั้งหมดยังไม่ได้รัน
+
+---
+
+## 2569-11-12 คำสั่ง: ติดตั้งเครื่องมือและรัน test รวมของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ติดตั้งอะไรยังไงบ้าง", "go mod download แล้วไม่มีอะไรเกิดขึ้น", ทีมรัน test เองในเทอร์มินัลแล้ววางผลในแชต (AI เริ่มรันให้แต่ทีมหยุดไว้ และรันเอง)
+- เครื่อง: Go 1.27.4 (ติดตั้งด้วย winget), Docker 29.9.2, Node v24
+- ผล test (รันครั้งแรกหลัง implement T-01 ถึง T-36 ตามลำดับการทดสอบที่ทีมตัดสิน):
+  - `go build ./...` ผ่าน
+  - `go test ./internal/config/ ./internal/platform/ ./internal/approve/` ok ทั้ง 3 package (platform / approve ใช้ ~498 วินาที รอบแรกเพราะ Docker โหลด postgres:16)
+  - `go test ./internal/approve/ -run TestAC_APV_10 -count=20` ok (8.2 วินาที)
+  - `go test ./...` ok ทุก package (approve, audit, auth, borrowrequest, cancelrequest, cancelrequest/migrationtest, config, equipment, handover, platform)
+  - `npm test` 31 ไฟล์ 81 test ผ่าน
+- ไม่มี test ไหนไม่ผ่าน จึงไม่ได้แก้โค้ด
+- สิ่งที่แก้: tasks.md สถานะ T-01 ถึง T-36 เปลี่ยนหมายเหตุ "ยังไม่ได้รัน" เป็น "test ผ่าน 2569-11-12" และเพิ่มผลรวมในหัวไฟล์
+- ยังไม่ได้ทำ: ลองจุดตรวจด้วยมือ (หน้าจอจริง, curl, โหลด approve_dev.sql ด้วย psql) / T-37, T-38 รอ Q-APV-04 / T-39 รอ Q-SH-03
+
+---
+
+## 2569-11-12 คำสั่ง: เปิดระบบจริงเพื่อลองหน้าจอของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ถ้าจะดูหน้าจริงของระบบที่เขียนใช้คำสั่งอะไร" แล้วแจ้งปัญหาระหว่างเปิดระบบ
+- ปัญหาที่พบและวิธีแก้:
+  1. `go run ./cmd/server` ได้ password authentication failed -> พอร์ต 5432 ถูก container ของโปรเจกต์อื่นในเครื่อง (grocery-store-backend-db-1) ใช้อยู่ ทีมหยุด container นั้นเอง
+  2. db ของ SalmonNorway ค้างสถานะ Created และไม่ได้เปิดพอร์ตออกมา (สร้างตอนพอร์ตชน) -> `docker compose ... up -d --force-recreate db`
+  3. ชื่อภาษาไทยในหน้าอนุมัติเป็น ???? -> ตรวจแล้วข้อมูลในฐานข้อมูลเป็น `?` จริง (hex 3f) เพราะคำสั่งที่ AI ให้ไป `Get-Content approve_dev.sql | docker ... psql` บน Windows PowerShell 5.1 แปลงอักษรไทยเป็น ? ก่อนส่ง -> ให้ล้างฐานข้อมูล (`down -v`) แล้วโหลดใหม่ด้วย `docker compose cp` + `psql -f`
+- สิ่งที่แก้: `specs/004-approve-request/tasks.md` (คำสั่งโหลด approve_dev.sql ในหัวไฟล์) และคอมเมนต์หัวไฟล์ `backend/db/seed/approve_dev.sql` ให้ใช้ cp + psql -f และเตือนเรื่อง PowerShell
+- ข้อสังเกต: `handover_dev.sql` ของ 005 เขียนคำสั่งโหลดแบบ `<` เหมือนกัน คนที่ใช้ Windows อาจเจอปัญหาเดียวกัน ควรแจ้ง 005
+
+---
+
+## 2569-11-12 คำสั่ง: merge main (PR #18 ของ 002, PR #19 ของ 003) เข้า 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่งก่อนหน้า: ถามวิธีแก้ข้อความ commit "done" -> AI อธิบายว่าแก้ history ไม่ได้เพราะ commit อยู่ใน main แล้ว (004 ขึ้น main ก่อนใน PR #17) ทีมเพิ่ม commit `004: T-01 ถึง T-36 done and reviewed` แทน
+- คำสั่ง: ทีมรัน `git pull origin main` แล้วได้ conflict ใน prompt-log.md
+- สิ่งที่แก้: `prompt-log.md` เก็บทั้งสองฝั่ง ของ main ก่อนแล้วตามด้วยของ 004 ไม่ลบบันทึกใด (ไฟล์อื่น git รวมให้เองไม่มี conflict)
+- สิ่งที่เข้ามาที่กระทบ 004: CR-006 (003 ใช้ `REQUEST_NOT_FOUND` ของ 004 และลงทะเบียน `ALREADY_APPROVED`, `NOT_CANCELLABLE` แยกจาก `REQUEST_ALREADY_DECIDED` = ปิดเรื่องที่ 002 ทักไว้), CR-007 (002 ใช้ `REQUEST_NOT_FOUND` ร่วม และขยายความหมายของแถว) -> 004 ไม่ต้องแก้โค้ด
+- ตรวจหลัง merge: `go build ./...` และ `go vet ./internal/approve/ ./internal/config/` ผ่าน (AI รัน) / test เต็มยังไม่ได้รัน
+
+---
+
+## 2569-11-12 คำสั่ง: รัน test หลัง merge main และทำหน้าสรุปสถานะ 004 ให้ทีม
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "รัน test หลัง merge แล้ว pass หมด ช่วยทำสรุปงานที่เสร็จแล้ว งานที่ยังทำไม่ได้เพราะอะไร และเหลืออะไรบ้าง ทำเป็น html ให้เพื่อนอ่าน"
+- ผล test (ทีมรันเองหลัง merge `99e80ae`): `go test ./...` และ `npm test` ผ่านหมด
+- ผลลัพธ์: หน้าเว็บสรุปสถานะ https://claude.ai/artifact/AnD8wzdrrdFFucUeagSjUr (งานที่เสร็จรายเฟส, ผลทดสอบ, T-37 ถึง T-39 และเรื่องที่รอทีมพร้อมเหตุผล, งานที่เหลือ, เรื่องที่ฟีเจอร์อื่นควรรู้, คำสั่งลองระบบ)
+
+---
+
+## 2569-11-12 คำสั่ง: ตัดสินใช้ Email จำลองใน prototype ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำถามของทีม: "ของเพื่อนได้ใช้ email จริงมั้ย", "ถ้าไม่ใช้ email จริงจะเป็นอะไรมั้ย", "แล้วจะกระทบใครมั้ย", "งั้นถ้าใช้ email จำลองแทนต้องแจ้งใครบ้าง"
+- สิ่งที่ AI ตรวจและตอบ: ไม่มีฟีเจอร์ไหนส่ง Email จริง (003 ใช้ LogNotifier + staff_contact ที่อยู่ example.test, 004 ใช้ LogMailer + example.com, 002 / 005 ไม่มี Email); ไม่มีฟีเจอร์อื่น import package approve หรืออ้างตาราง approval_email / approval_decision จึงไม่กระทบโค้ดใคร; ผลที่มีคือนักศึกษาไม่ได้รับ Email จริงตอน demo ต้องดู log; แนะนำแจ้งทีม, 003 (IF-NOT-01 ร่วม), 002 (Q-APV-04)
+- คำสั่ง: "แจ้ง 002 แล้วว่าใช้ email จำลองแทน"
+- สิ่งที่แก้: spec.md Q-APV-04 บันทึกว่าแจ้ง 002 แล้ว คำขอให้ 002 เก็บ Email พักไว้ คำถามยังเปิดสำหรับการส่งจริง
+- ยังไม่ได้ทำ: แจ้งทั้งทีมและ 003 / เพิ่ม Assumption เรื่อง Email จำลองใน spec (รอทีมไม่ค้าน)
+=======
+## 2569-11-12 ลงทะเบียน ITEM_NOT_FOUND และตัดสินเรื่อง 404 / 405 (plan v1.9, tasks v2.4)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `specs/000-shared/constraints.md` เพิ่มแถวรหัส error เพราะ 001)
+- เครื่องมือ: Claude Code
+- ที่มา: 002 ตอบในกลุ่มว่า 404 ใช้ `REQUEST_NOT_FOUND` ได้ และ 405 ยังไม่ตัดสินใน CR-007
+- คำถามและการตัดสินของผู้สั่ง:
+  1. ไม่ทำ 405 ได้ไหม -> AI ตอบว่าได้ ถ้าบันทึกเหตุผล (router ของ Go, ไม่มี FR/AC, ผู้ใช้ไม่เจอ, ยังปฏิเสธการเขียนตาม CON-DATA-02)
+     ผู้สั่งไม่ได้สั่งให้ทำ 405 ต่อ AI จึงบันทึกว่า "ไม่ทำ"
+  2. AI อธิบายขั้นตอนถ้าใช้ REQUEST_NOT_FOUND ตามที่ 002 บอก เทียบกับลงทะเบียน ITEM_NOT_FOUND -> ผู้สั่งเลือก ITEM_NOT_FOUND
+- สิ่งที่ AI พบเพิ่ม: CON-TECH-03 ให้ลงทะเบียนรหัสใหม่ด้วยการเพิ่มแถวได้เลย (004, 005 ทำแบบนี้) จึงไม่ต้องทำ CR ตามที่ AI บอกไว้ก่อนหน้า
+- สิ่งที่ AI แก้:
+  - constraints.md v5.3: แถว `ITEM_NOT_FOUND` (404) และแถว CON-TECH-03 ในตาราง "ใครอ้างใช้บ้าง"
+  - plan v1.9 (ต่อจาก v1.8 ที่ผู้สั่งแก้เรื่อง Q-08): ข้อ 5 แถว 404, ข้อ 10 ผลการตัดสิน 404 / 405
+  - tasks v2.4 (ต่อจาก v2.3): T-39 พร้อมทำ, ตาราง Constraint, ลบเรื่อง 404/405 ออกจาก "สิ่งที่ยังไม่ทำ", สรุปจำนวน task ใหม่ (39: เสร็จ 26, พร้อมทำ 2, รอ Q 9, ยกเลิก 2)
+  - CHANGELOG
+- สิ่งที่ AI ไม่ได้ทำ: ไม่แก้โค้ด (ทำใน `/implement T-39`) ไม่ commit
+- ข้อความ "ไม่พบอุปกรณ์รหัสนี้" ของ ITEM_NOT_FOUND AI เสนอเอง ไม่ได้มาจาก spec
+
+---
+
+## 2569-11-12 เปลี่ยนการตัดสิน: ทำ 405 ทั้งระบบ (ลงทะเบียน METHOD_NOT_ALLOWED, เพิ่ม T-40)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `specs/000-shared/constraints.md` และวางแผนแก้ `platform/`, `cmd/server/main.go` ที่ทุกฟีเจอร์ใช้)
+- เครื่องมือ: Claude Code
+- ที่มา: ผู้สั่งถามว่าถ้าจะทำ 405 ต้องทำอะไร AI เสนอ 2 ทาง (A ตัวครอบกลางแก้ทั้งระบบ / B ทำเฉพาะ 001) ผู้สั่งเลือก A
+- เปลี่ยนจากบันทึกก่อนหน้า (405 "ไม่ทำ") ซึ่งยังไม่ได้ commit จึงแก้รวมในเวอร์ชันเดิม ไม่ขึ้นเวอร์ชันใหม่:
+  - constraints.md v5.3: เพิ่มแถว `METHOD_NOT_ALLOWED` (405) ใช้ร่วมทุกฟีเจอร์ผ่าน platform
+  - plan v1.9: ข้อ 5 แถว 405 และวิธีทำ (platform.MethodNotAllowedJSON ครอบใน main.go) / ข้อ 10 405 ทำใน T-40
+  - tasks v2.4: เพิ่ม T-40 ในเฟส 12, ตาราง Constraint, สรุปจำนวน task (40: เสร็จ 26, พร้อมทำ 3, รอ Q 9, ยกเลิก 2)
+  - CHANGELOG: รายการเดิมของรอบนี้เปลี่ยนจาก "ไม่ทำ 405" เป็นทำทั้งระบบ
+- สิ่งที่ต้องทำก่อนเริ่ม T-40: แจ้งทีมในกลุ่ม เพราะ 405 ของทุกฟีเจอร์จะเปลี่ยน (test ที่มีอยู่ตรวจแค่ status ของ 001 และ 002 จึงไม่พัง)
+- ข้อความ "ไม่รองรับการเรียกแบบนี้" ของ METHOD_NOT_ALLOWED AI เสนอเอง ไม่ได้มาจาก spec
+- สิ่งที่ AI ไม่ได้ทำ: ไม่แก้โค้ด ไม่ commit
+
+---
+
+## 2569-11-12 /implement T-39 ตอบ 404 ด้วย {code, message} รหัส ITEM_NOT_FOUND (CON-TECH-03)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `backend/internal/platform/apierror.go` เพิ่มรหัส ITEM_NOT_FOUND ที่ 001 ลงทะเบียนใน constraints.md v5.3)
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement T-39`
+- ไฟล์ที่แก้: `backend/internal/platform/apierror.go` (CodeItemNotFound และข้อความ "ไม่พบอุปกรณ์รหัสนี้" ตาม plan ข้อ 5),
+  `backend/internal/platform/apierror_test.go` (เพิ่ม CodeItemNotFound ใน TestErrorMessage_AllCodesHaveMessage และ TestCON_TECH_03_ItemNotFoundBody),
+  `backend/internal/equipment/handler.go` (2 จุดที่เคยใช้ http.NotFound: รหัสรุ่นไม่ใช่ตัวเลข และไม่มีรหัสครุภัณฑ์),
+  `backend/internal/equipment/handler_test.go` (TestCON_TECH_03_ItemNotFound), `specs/001-equipment-status/tasks.md` (สถานะ T-39)
+- test: `TestCON_TECH_03_ItemNotFound` ผ่าน (รหัสครุภัณฑ์ที่ไม่มี และรหัสรุ่น "abc" ได้ 404 body มีแค่ code ITEM_NOT_FOUND กับ message /
+  รุ่น 9999 ได้ 200 items []) / `TestCON_TECH_03_ItemNotFoundBody` ผ่าน / test เดิม TestItems_UnknownModel, TestItemDetail_...Is404 ยังผ่าน
+  หลังบ้านทั้งระบบ `go test ./...` ผ่าน 10 package หน้าจอ 31 ไฟล์ 81 test ผ่าน
+- สิ่งที่ไม่ได้ทำ: 405 METHOD_NOT_ALLOWED เป็นของ T-40 / ไม่แก้หน้าจอ (ErrorState แสดง serverMessage ของ 404 ได้อยู่แล้ว)
+- ไม่มีเรื่องที่ต้องเดา: รหัส ข้อความ และกรณีรุ่นตัวเลขที่ไม่มีอยู่ (200 รายการว่าง) มีใน plan ข้อ 5 และช่อง "เสร็จเมื่อ" ครบ
+
+---
+
+## 2569-11-12 /implement T-40 ตอบ 405 ด้วย {code, message} ทั้งระบบ (CON-TECH-03)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `backend/cmd/server/main.go`, `backend/internal/platform/http.go`, `apierror.go`
+  เพราะ T-40 ของ 001: 405 ของทุกฟีเจอร์เปลี่ยน body เป็น {code: METHOD_NOT_ALLOWED, message})
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement T-40`
+- คำถามที่ AI ถามก่อนทำ และคำตอบของทีม (Pannathorn J):
+  1. ช่องสถานะของ T-40 บอกให้แจ้งทีมในกลุ่มก่อนแก้ main.go แจ้งแล้วหรือยัง -> ทีมตอบ: แจ้งแล้ว ทำได้เลย
+- ไฟล์ที่แก้: `backend/internal/platform/apierror.go` (CodeMethodNotAllowed และข้อความ "ไม่รองรับการเรียกแบบนี้" ตาม plan ข้อ 5),
+  `backend/internal/platform/http.go` (MethodNotAllowedJSON ครอบ router ดักเฉพาะ 405 ทิ้งข้อความเดิมของ ServeMux เขียน {code, message} แทน header Allow คงเดิม),
+  `backend/internal/platform/http_test.go` (TestCON_TECH_03_MethodNotAllowed), `backend/cmd/server/main.go` (NoStore(MethodNotAllowedJSON(mux))),
+  `backend/internal/equipment/handler_test.go` (newTestServer ครอบแบบเดียวกับ main.go, TestCON_DATA_02 ตรวจ body ของ 405),
+  `specs/001-equipment-status/tasks.md` (สถานะ T-40)
+- test: `TestCON_TECH_03_MethodNotAllowed` ผ่าน 5 กรณี (405 ได้ body 2 ช่อง Content-Type JSON header Allow มี GET ไม่มีข้อความ "Method Not Allowed" เหลือ /
+  200 JSON, 200 แบบ Write อย่างเดียว, 401 UNAUTHENTICATED, 503 UPSTREAM_UNAVAILABLE ไม่ถูกแตะ) / `TestCON_DATA_02_NoWriteEndpoints` ผ่าน (12 คู่ method x path ได้ 405 METHOD_NOT_ALLOWED)
+  / `TestRoutes_OnlyPost` ของ 002 ยังผ่าน / หลังบ้านทั้งระบบ `go test ./...` ผ่าน 10 package หน้าจอ 31 ไฟล์ 81 test ผ่าน
+- ลองกับหลังบ้านจริง (`go run ./cmd/server`): POST /v1/equipment/models -> 405 Allow: GET, HEAD body METHOD_NOT_ALLOWED /
+  GET /v1/loan-requests (002) -> 405 Allow: POST body เดียวกัน / GET models -> 200 / POST ไม่มี token -> 401 UNAUTHENTICATED เหมือนเดิม
+- ไม่มีเรื่องที่ต้องเดา: รหัส ข้อความ และวิธีครอบมีใน plan ข้อ 5 และข้อ 10
+
+---
+
+## 2569-11-12 /implement T-34 ปุ่มส่งคำขอยืม ทั้งตารางรายชิ้นและหน้ารายละเอียด (FR-EQS-04, 05, 06)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement T-34`
+- คำถามที่ AI ถามก่อนทำ และคำตอบของทีม (Pannathorn J):
+  1. ฟอร์มของ 002 ยังไม่มีใน main (ไม่มี pages/BorrowRequest และ Q-BRQ-14 ของ 002 ยังเปิด) และ App.jsx ไม่อยู่ในไฟล์ที่แตะ
+     กดปุ่มแล้วจะให้เกิดอะไร -> ทีมตอบ: ส่ง assetCode ออกไปก่อน (prop onRequestLoan) ไม่ต่อกับ App ในแอปจริงกดแล้วยังไม่ไปไหน
+- ไฟล์ที่แก้: `backend/internal/equipment/dto.go` (CanRequestLoan ใน StudentItemDTO / StaffItemDTO และฟังก์ชัน canRequestLoan = ว่างเท่านั้น),
+  `backend/internal/equipment/repository.go` (CanRequestLoan ใน ItemRow ของตารางรายชิ้น), `backend/internal/equipment/service.go` (ใส่ค่าในรายละเอียด),
+  `backend/internal/equipment/handler_test.go` (TestAC_EQS_04_06_14_CanRequestLoan และเติมช่อง canRequestLoan ใน want ของ TestAC_EQS_01_ItemsOfModel
+  ที่สร้าง ItemRow แบบตามตำแหน่ง ไม่งั้น compile ไม่ผ่าน), `frontend/src/components/ItemTable.jsx` (คอลัมน์ปุ่ม และ RequestLoanButton ใช้ร่วม 2 หน้า),
+  `frontend/src/pages/EquipmentList/EquipmentList.jsx` (รับ onRequestLoan ส่งต่อให้ตารางและรายละเอียด), `frontend/src/pages/EquipmentDetail/EquipmentDetail.jsx` (ปุ่มตาม canRequestLoan),
+  `specs/001-equipment-status/tasks.md` (สถานะ T-34)
+- ไฟล์ที่สร้าง: `frontend/src/__tests__/RequestButton.test.jsx`
+- test: `TestAC_EQS_04_06_14_CanRequestLoan` ผ่าน (นักศึกษาและเจ้าหน้าที่ ตารางรายชิ้นและรายละเอียด: CS-NB-0001 ว่าง = true /
+  CS-NB-0004 ถูกยืม, CS-NB-0005 เลยกำหนดคืน, CS-PJ-0002 ไม่พร้อมใช้งาน = false) / `RequestButton.test.jsx` 6 test ผ่าน
+  (ตาราง: ปุ่มเฉพาะชิ้นที่ว่าง กดแล้ว onRequestLoan('CS-NB-0001') / รายละเอียด: ว่างมีปุ่ม ถูกยืม เลยกำหนด ไม่พร้อมใช้งานไม่มีปุ่ม /
+  ไม่มี canRequestLoan จากหลังบ้าน = ไม่มีปุ่ม) หลังบ้านทั้งระบบผ่าน หน้าจอ 32 ไฟล์ 87 test ผ่าน `vite build` ผ่าน
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้):
+  - ข้อความบนปุ่ม "ส่งคำขอยืม" ใช้คำจาก FR-EQS-04 และ AC ไม่มี mockup หัวคอลัมน์ของปุ่มในตารางเว้นว่าง
+  - canRequestLoan ส่งเป็น false ชัด ๆ (ไม่ omitempty) และหน้าจอแสดงปุ่มเฉพาะเมื่อได้ true จากหลังบ้าน ไม่ดูสถานะเอง (plan ข้อ 6.7)
+- ยังขาด: ต่อ onRequestLoan กับฟอร์มของ 002 ใน App.jsx (รอ 002 สร้างฟอร์มและตกลงวิธีเปิด) / test-cases ชุด ค (AC-EQS-04, 05, 06, 14) ทำได้แล้ว
+main
 ## 2569-11-12 /implement T-16 (002-borrow-request) — ปิดเฟส 10
 
 - ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)

@@ -13,7 +13,8 @@ const NO_FILTER = { categories: [], statuses: [] }
 // แสดงรายการรุ่น 1 แถว = 1 รุ่น กรองตามประเภทและสถานะ แล้วเมื่อเลือกรุ่นแสดงอุปกรณ์รายชิ้นตามรหัสครุภัณฑ์
 // รายชิ้นใช้ตัวกรองเดียวกับรายการรุ่น (plan.md ข้อ 6.3)
 // client ส่งเข้ามาได้ ตอน test ใช้ client จำลองแทนหลังบ้านจริง
-export default function EquipmentList({ client = api }) {
+// onRequestLoan(assetCode) ส่งต่อให้ปุ่มส่งคำขอยืมทั้งตารางรายชิ้นและหน้ารายละเอียด (FR-EQS-06, T-34)
+export default function EquipmentList({ client = api, onRequestLoan }) {
   const [filter, setFilter] = useState(NO_FILTER)
   const [categories, setCategories] = useState([])
   const [models, setModels] = useState(null)
@@ -83,7 +84,14 @@ export default function EquipmentList({ client = api }) {
 
   // เปิดรายละเอียดแทนรายการ ไม่ล้างตัวกรองและรุ่นที่เลือก กดกลับแล้วเห็นรายการเดิม
   if (openAsset) {
-    return <EquipmentDetail assetCode={openAsset} client={client} onBack={() => setOpenAsset(null)} />
+    return (
+      <EquipmentDetail
+        assetCode={openAsset}
+        client={client}
+        onBack={() => setOpenAsset(null)}
+        onRequestLoan={onRequestLoan}
+      />
+    )
   }
 
   const selected = models?.find((m) => m.modelId === selectedId)
@@ -114,7 +122,9 @@ export default function EquipmentList({ client = api }) {
       {selected && (
         <div className="grid gap-2">
           <h3 className="font-medium text-slate-900">{selected.name}</h3>
-          {items == null ? <p className="text-slate-600">กำลังโหลด...</p> : <ItemTable items={items} onOpen={setOpenAsset} />}
+          {items == null ? <p className="text-slate-600">กำลังโหลด...</p> : (
+            <ItemTable items={items} onOpen={setOpenAsset} onRequestLoan={onRequestLoan} />
+          )}
         </div>
       )}
     </section>

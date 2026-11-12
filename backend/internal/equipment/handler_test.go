@@ -84,13 +84,14 @@ func testPool(t *testing.T) *pgxpool.Pool {
 	return dbPool
 }
 
-// newTestServer ประกอบ handler แบบเดียวกับ cmd/server/main.go (อยู่หลัง auth.Middleware และห่อด้วย platform.NoStore)
+// newTestServer ประกอบ handler แบบเดียวกับ cmd/server/main.go
+// (อยู่หลัง auth.Middleware และห่อด้วย platform.NoStore กับ platform.MethodNotAllowedJSON ของ T-40)
 func newTestServer(t *testing.T) http.Handler {
 	t.Helper()
 	h := NewHandler(NewService(NewRepository(testPool(t))))
 	mux := http.NewServeMux()
 	mux.Handle(PathPrefix, auth.Middleware(auth.NewMockProvider(), h.Routes()))
-	return platform.NoStore(mux)
+	return platform.NoStore(platform.MethodNotAllowedJSON(mux))
 }
 
 // get เรียก endpoint ด้วย token ที่กำหนด (ว่าง = ไม่ส่ง token)
@@ -184,12 +185,13 @@ func TestAC_EQS_01_ItemsOfModel(t *testing.T) {
 		t.Fatalf("status = %d, ต้องเป็น 200 (body: %s)", rec.Code, rec.Body.String())
 	}
 	body := decode[ListDTO[ItemRow]](t, rec)
+	// ช่องที่ 3 คือ canRequestLoan (T-34) true เฉพาะชิ้นที่ว่าง
 	want := []ItemRow{
-		{"CS-NB-0001", StatusAvailable},
-		{"CS-NB-0002", StatusAvailable},
-		{"CS-NB-0003", StatusAvailable},
-		{"CS-NB-0004", StatusBorrowed},
-		{"CS-NB-0005", StatusBorrowed},
+		{"CS-NB-0001", StatusAvailable, true},
+		{"CS-NB-0002", StatusAvailable, true},
+		{"CS-NB-0003", StatusAvailable, true},
+		{"CS-NB-0004", StatusBorrowed, false},
+		{"CS-NB-0005", StatusBorrowed, false},
 	}
 	if len(body.Items) != len(want) || body.Total != len(want) {
 		t.Fatalf("ต้องเห็น 5 ชิ้น แต่ได้ %d ชิ้น (total %d): %+v", len(body.Items), body.Total, body.Items)
@@ -460,6 +462,12 @@ func TestCON_DATA_02_NoWriteEndpoints(t *testing.T) {
 			srv.ServeHTTP(rec, req)
 			if rec.Code != http.StatusMethodNotAllowed {
 				t.Errorf("%s %s ได้ %d ต้องเป็น 405 (ไม่มี endpoint เขียนข้อมูล)", method, p, rec.Code)
+				continue
+			}
+			// CON-TECH-03 (T-40): body ของ 405 เป็น {code: METHOD_NOT_ALLOWED, message} ไม่มีช่องอื่น
+			body := decode[map[string]any](t, rec)
+			if len(body) != 2 || body["code"] != platform.CodeMethodNotAllowed {
+				t.Errorf("%s %s body = %v ต้องเป็น {code: %s, message}", method, p, body, platform.CodeMethodNotAllowed)
 			}
 		}
 	}
@@ -762,5 +770,94 @@ func TestAC_EQS_08_SlowDBTimeout(t *testing.T) {
 	}
 	if elapsed > config.EquipmentDBTimeout+2*time.Second {
 		t.Errorf("ตอบหลัง %v ค้างนานเกิน EquipmentDBTimeout %v", elapsed, config.EquipmentDBTimeout)
+	}
+}
+
+// T-39 เสร็จเมื่อ: 404 ของ 001 ตอบ body {code: ITEM_NOT_FOUND, message} ไม่มีช่องอื่น (CON-TECH-03)
+// และรุ่นที่เป็นตัวเลขแต่ไม่มีอยู่ ยังได้ 200 รายการว่าง (plan.md ข้อ 5)
+func TestCON_TECH_03_ItemNotFound(t *testing.T) {
+	srv := newTestServer(t)
+
+	for _, c := range []struct{ name, path string }{
+		{"รหัสครุภัณฑ์ที่ไม่มี (FR-EQS-04)", PathPrefix + "items/NO-SUCH-CODE"},
+		{"รหัสรุ่นที่ไม่ใช่ตัวเลข (FR-EQS-01)", PathPrefix + "models/abc/items"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			rec := get(t, srv, c.path, tokenStudentDept1)
+			if rec.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, ต้องเป็น 404", rec.Code)
+			}
+			body := decode[map[string]any](t, rec)
+			if len(body) != 2 {
+				t.Errorf("body ต้องมีแค่ code และ message ได้ %v", body)
+			}
+			if body["code"] != platform.CodeItemNotFound {
+				t.Errorf("code = %v, ต้องเป็น %s", body["code"], platform.CodeItemNotFound)
+			}
+			if msg, _ := body["message"].(string); msg == "" || msg == platform.CodeItemNotFound {
+				t.Errorf("message ต้องเป็นข้อความภาษาไทยที่ไม่ว่าง ได้ %q", msg)
+			}
+		})
+	}
+
+	t.Run("รุ่นที่เป็นตัวเลขแต่ไม่มีอยู่ ได้ 200 รายการว่าง", func(t *testing.T) {
+		rec := get(t, srv, PathPrefix+"models/9999/items", tokenStudentDept1)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, ต้องเป็น 200", rec.Code)
+		}
+		if body := decode[ListDTO[ItemRow]](t, rec); body.Items == nil || len(body.Items) != 0 {
+			t.Errorf("ต้องได้ items เป็น [] ได้ %+v", body.Items)
+		}
+	})
+}
+
+// T-34 เสร็จเมื่อ: canRequestLoan = true เฉพาะสถานะ "ว่าง" ทั้งตารางรายชิ้นและรายละเอียด (ส่วนปุ่มของ AC-EQS-04, 06, 14)
+//
+//	Given ข้อมูลตั้งต้น: CS-NB-0001 ว่าง / CS-NB-0004 ถูกยืม / CS-NB-0005 ถูกยืมและเลยกำหนดคืน / CS-PJ-0002 ไม่พร้อมใช้งาน
+//	When  นักศึกษาและเจ้าหน้าที่เปิดตารางรายชิ้นและรายละเอียด
+//	Then  ว่าง = canRequestLoan true (FR-EQS-06) / ถูกยืม เลยกำหนด (FR-EQS-04, AC-EQS-04, 14) และไม่พร้อมใช้งาน (FR-EQS-05, AC-EQS-06) = false
+func TestAC_EQS_04_06_14_CanRequestLoan(t *testing.T) {
+	srv := newTestServer(t)
+	want := map[string]bool{
+		"CS-NB-0001": true,  // ว่าง
+		"CS-NB-0004": false, // ถูกยืม
+		"CS-NB-0005": false, // ถูกยืม เลยกำหนดคืน
+		"CS-PJ-0002": false, // ไม่พร้อมใช้งาน
+	}
+
+	for _, token := range []string{tokenStudentDept1, "mock-staff-001"} {
+		t.Run(token+" ตารางรายชิ้น", func(t *testing.T) {
+			got := map[string]bool{}
+			for _, modelID := range []string{"1", "2"} {
+				rec := get(t, srv, PathPrefix+"models/"+modelID+"/items", token)
+				if rec.Code != http.StatusOK {
+					t.Fatalf("models/%s/items status = %d", modelID, rec.Code)
+				}
+				for _, it := range decode[ListDTO[ItemRow]](t, rec).Items {
+					got[it.AssetCode] = it.CanRequestLoan
+					if it.CanRequestLoan != (it.Status == StatusAvailable) {
+						t.Errorf("%s สถานะ %s แต่ canRequestLoan = %v", it.AssetCode, it.Status, it.CanRequestLoan)
+					}
+				}
+			}
+			for code, w := range want {
+				if g, ok := got[code]; !ok || g != w {
+					t.Errorf("%s canRequestLoan = %v (มี=%v), ต้องเป็น %v", code, g, ok, w)
+				}
+			}
+		})
+
+		t.Run(token+" รายละเอียด", func(t *testing.T) {
+			for code, w := range want {
+				rec := get(t, srv, PathPrefix+"items/"+code, token)
+				if rec.Code != http.StatusOK {
+					t.Fatalf("%s status = %d", code, rec.Code)
+				}
+				body := decode[map[string]any](t, rec)
+				if g, ok := body["canRequestLoan"].(bool); !ok || g != w {
+					t.Errorf("%s canRequestLoan = %v, ต้องเป็น %v (body: %v)", code, body["canRequestLoan"], w, body)
+				}
+			}
+		})
 	}
 }
