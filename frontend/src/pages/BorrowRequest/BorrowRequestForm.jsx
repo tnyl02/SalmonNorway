@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { api } from '../../api/client.js'
+import RequestErrorSummary from '../../components/RequestErrorSummary.jsx'
 import {
   ATTACHMENT_ALLOWED_TYPES,
   LABEL_SUBMIT_REQUEST,
   MSG_ATTACHMENT_HINT,
   MSG_LOAN_NORMAL_CONDITIONS,
-  MSG_SUBMIT_FAILED,
   MSG_SUBMIT_SUCCESS,
   PURPOSE_OPTIONS,
   PURPOSE_OTHER,
@@ -35,6 +35,9 @@ export default function BorrowRequestForm({ client = api, assetCode: initialAsse
 
   const overnight = loanType === 'overnight'
 
+  // invalid บอกว่าช่องนี้อยู่ในรายชื่อช่องที่หลังบ้านบอกว่าต้องแก้ (VALIDATION_FAILED + fields)
+  const invalid = (field) => (error?.fields?.includes(field) ? { 'aria-invalid': 'true' } : {})
+
   async function handleSubmit(event) {
     event.preventDefault()
     setSending(true)
@@ -57,7 +60,14 @@ export default function BorrowRequestForm({ client = api, assetCode: initialAsse
       )
       setCreated(result)
     } catch (err) {
-      setError(err?.serverMessage || MSG_SUBMIT_FAILED)
+      // เก็บรหัสไว้ให้ RequestErrorSummary เลือกข้อความ และเก็บ fields กับ status ที่หลังบ้านแนบมา
+      // (CON-TECH-03, FR-BRQ-03 ระบุช่องที่ยังขาด, FR-BRQ-01 แจ้งสถานะล่าสุด)
+      setError({
+        code: err?.code,
+        message: err?.serverMessage,
+        fields: err?.body?.fields,
+        status: err?.body?.status,
+      })
     } finally {
       setSending(false)
     }
@@ -72,11 +82,11 @@ export default function BorrowRequestForm({ client = api, assetCode: initialAsse
       </Field>
 
       <Field id="requesterName" label="ชื่อ-นามสกุล">
-        <input id="requesterName" value={requesterName} onChange={(e) => setRequesterName(e.target.value)} className={INPUT} />
+        <input {...invalid('requesterName')} id="requesterName" value={requesterName} onChange={(e) => setRequesterName(e.target.value)} className={INPUT} />
       </Field>
 
       <Field id="studentCode" label="รหัสนักศึกษา">
-        <input id="studentCode" value={studentCode} onChange={(e) => setStudentCode(e.target.value)} className={INPUT} />
+        <input {...invalid('studentCode')} id="studentCode" value={studentCode} onChange={(e) => setStudentCode(e.target.value)} className={INPUT} />
       </Field>
 
       <fieldset className="flex flex-col gap-1">
@@ -95,15 +105,15 @@ export default function BorrowRequestForm({ client = api, assetCode: initialAsse
       {!overnight && <p className="text-sm text-slate-600">{MSG_LOAN_NORMAL_CONDITIONS}</p>}
 
       <Field id="startAt" label="วันและเวลาที่เริ่มยืม">
-        <input id="startAt" type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} className={INPUT} />
+        <input {...invalid('startAt')} id="startAt" type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} className={INPUT} />
       </Field>
 
       <Field id="endAt" label="วันและเวลาที่คืน">
-        <input id="endAt" type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} className={INPUT} />
+        <input {...invalid('endAt')} id="endAt" type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} className={INPUT} />
       </Field>
 
       <Field id="purpose" label="วัตถุประสงค์การยืม">
-        <select id="purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} className={INPUT}>
+        <select {...invalid('purpose')} id="purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} className={INPUT}>
           <option value="">เลือกวัตถุประสงค์</option>
           {PURPOSE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -116,7 +126,7 @@ export default function BorrowRequestForm({ client = api, assetCode: initialAsse
       {/* เลือก "อื่น ๆ" ต้องพิมพ์ระบุเพิ่ม จึงจะส่งได้ (FR-BRQ-02 ข้อ ก, AC-BRQ-14) */}
       {purpose === PURPOSE_OTHER && (
         <Field id="purposeOther" label="ระบุวัตถุประสงค์">
-          <input id="purposeOther" value={purposeOther} onChange={(e) => setPurposeOther(e.target.value)} className={INPUT} />
+          <input {...invalid('purposeOther')} id="purposeOther" value={purposeOther} onChange={(e) => setPurposeOther(e.target.value)} className={INPUT} />
         </Field>
       )}
 
@@ -124,6 +134,7 @@ export default function BorrowRequestForm({ client = api, assetCode: initialAsse
       {overnight && (
         <Field id="attachment" label="ใบบันทึกข้อความ" hint={MSG_ATTACHMENT_HINT}>
           <input
+            {...invalid('attachment')}
             id="attachment"
             type="file"
             accept={ATTACHMENT_ALLOWED_TYPES.join(',')}
@@ -137,7 +148,7 @@ export default function BorrowRequestForm({ client = api, assetCode: initialAsse
       </button>
 
       {created && <p role="status">{MSG_SUBMIT_SUCCESS(created.requestId)}</p>}
-      {error && <p role="alert">{error}</p>}
+      <RequestErrorSummary error={error} />
     </form>
   )
 }

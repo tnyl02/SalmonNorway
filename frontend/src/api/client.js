@@ -9,12 +9,18 @@ export const BASE = import.meta.env.VITE_API_BASE ?? '/api'
 // ApiError บอกว่าหลังบ้านตอบไม่สำเร็จ status คือ HTTP status code ส่วน code มาจาก Error contract ใน plan.md
 // serverMessage คือข้อความภาษาไทยจากหลังบ้าน (CON-TECH-03) ใช้ชื่อเดียวกับ api/handover.js ของ 005
 // หน้าจอแสดง serverMessage ได้ แต่ตัดสินใจจาก code เท่านั้น
+//
+// body คือ body ทั้งก้อนที่หลังบ้านส่งมา เพิ่มโดย 002 T-20 (แก้ไฟล์กลางเพราะ 002)
+// CON-TECH-03 อนุญาตให้บางรหัสแนบช่องเพิ่มได้ เช่น VALIDATION_FAILED แนบ fields
+// และ ITEM_NOT_AVAILABLE แนบ status ของอุปกรณ์ ซึ่ง 002 ต้องใช้ตาม FR-BRQ-03 และ FR-BRQ-01
+// ฟีเจอร์อื่นไม่ต้องเปลี่ยนอะไร code กับ serverMessage ยังทำงานเหมือนเดิมทุกประการ
 export class ApiError extends Error {
-  constructor(status, code, serverMessage) {
+  constructor(status, code, serverMessage, body) {
     super(`API ${status} ${code ?? ''}`.trim())
     this.status = status
     this.code = code
     this.serverMessage = serverMessage
+    this.body = body
   }
 }
 
@@ -139,7 +145,7 @@ async function apiError(res) {
   } catch {
     body = undefined
   }
-  return new ApiError(res.status, body?.code, body?.message)
+  return new ApiError(res.status, body?.code, body?.message, body)
 }
 
 // 001 FR-EQS-02: แปลงตัวกรอง { categories: [...], statuses: [...] } เป็น query string

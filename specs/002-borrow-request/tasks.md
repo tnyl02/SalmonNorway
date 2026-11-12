@@ -384,11 +384,14 @@ Updated: 2569-11-11
 ### T-20 แสดงข้อความแจ้งผลและข้อผิดพลาดบนหน้าจอ
 - รองรับ: FR-BRQ-01, FR-BRQ-03, FR-BRQ-06, FR-BRQ-09, FR-BRQ-10, CON-TECH-03
 - ตรวจด้วย: AC-BRQ-01, AC-BRQ-03, AC-BRQ-06, AC-BRQ-09, AC-BRQ-13 (ส่วนข้อความที่ผู้ใช้เห็น)
-- ไฟล์ที่แตะ: `frontend/src/pages/BorrowRequest/BorrowRequestForm.jsx`, `frontend/src/components/`
+- ไฟล์ที่แตะ: `frontend/src/pages/BorrowRequest/BorrowRequestForm.jsx`, `frontend/src/components/`,
+  `frontend/src/config.js` และ `frontend/src/api/client.js` (เพิ่มเมื่อ 2569-11-12 ทีมตัดสิน
+  ข้อความของทุกฟีเจอร์อยู่ใน config.js ที่เดียว ส่วน client.js ต้องให้ ApiError เก็บ body ไว้
+  เพราะของเดิมทิ้งช่อง fields ของ 422 และ status ของอุปกรณ์ใน 409 ซึ่ง AC-BRQ-03 กับ AC-BRQ-01 ต้องใช้)
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง
 - ต้องทำหลัง: T-19
 - เสร็จเมื่อ: ทุกรหัส error ของ CON-TECH-03 ที่ฟีเจอร์นี้ใช้ มีข้อความแสดงบนหน้าจอที่ทีมตกลงไว้
-- สถานะ: พร้อมทำ (Q-BRQ-14 ปิดแล้ว 2569-11-12 เจ้าของฟีเจอร์ออกแบบหน้าจอเอง)
+- สถานะ: เสร็จ รอทีมตรวจ
 
 ### T-21 กำหนดลำดับการตรวจระหว่างข้ามภาควิชากับอุปกรณ์ไม่ว่าง
 - รองรับ: FR-BRQ-01, FR-BRQ-07

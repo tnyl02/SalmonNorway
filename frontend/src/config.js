@@ -126,3 +126,33 @@ export const MSG_SUBMIT_FAILED = 'ส่งคำขอไม่สำเร็�
 
 // ป้ายปุ่มส่งคำขอ ใช้คำเดียวกับปุ่มของ 001 ที่พาผู้ใช้มาหน้านี้ (FR-EQS-06, T-34 ของ 001)
 export const LABEL_SUBMIT_REQUEST = 'ส่งคำขอยืม'
+
+// ---- ข้อความของแต่ละรหัส error บนหน้าฟอร์มคำขอ (T-20) ----
+// หน้าจอตัดสินใจจาก "รหัส" ไม่ใช่จากข้อความที่หลังบ้านส่งมา (CON-TECH-03)
+// ครบทุกรหัสที่ฟีเจอร์นี้ใช้ตามตาราง Error contract ใน plan.md ข้อ 4
+// ข้อความตรงกับที่หลังบ้านตอบใน backend/internal/borrowrequest/handler.go เพื่อไม่ให้ผู้ใช้เห็นคนละคำกัน
+export const BORROW_REQUEST_MESSAGES = {
+  UNAUTHENTICATED: 'กรุณาเข้าสู่ระบบก่อนส่งคำขอ', // 401 IF-IDP-01
+  PRINCIPAL_INCOMPLETE: 'บัญชีของคุณยังไม่มีข้อมูลภาควิชา กรุณาติดต่อเจ้าหน้าที่', // 403 IF-IDP-01
+  FORBIDDEN_DEPARTMENT: 'ส่งคำขอยืมได้เฉพาะอุปกรณ์ของภาควิชาตนเอง', // 403 FR-BRQ-07
+  ITEM_NOT_AVAILABLE: 'อุปกรณ์ชิ้นนี้ไม่อยู่ในสถานะว่างแล้ว', // 409 FR-BRQ-01 (แสดงสถานะล่าสุดต่อท้าย)
+  DUPLICATE_REQUEST: 'คุณมีคำขอของอุปกรณ์ชิ้นนี้ค้างอยู่แล้ว', // 409 FR-BRQ-05 ข
+  HAS_OVERDUE_LOAN: 'คุณมีอุปกรณ์ที่คืนเกินกำหนดค้างอยู่ กรุณาคืนอุปกรณ์ก่อนส่งคำขอใหม่', // 409 FR-BRQ-06
+  VALIDATION_FAILED: 'กรุณาแก้ไขข้อมูลให้ครบถ้วนก่อนส่งคำขอ', // 422 FR-BRQ-03, FR-BRQ-10
+  UPSTREAM_UNAVAILABLE: MSG_SUBMIT_FAILED, // 503 FR-BRQ-09 ใช้ข้อความเดียวกับตอนส่งไม่สำเร็จ
+}
+
+// ชื่อช่องภาษาไทยของแต่ละค่าที่หลังบ้านส่งกลับมาใน fields ของ VALIDATION_FAILED (FR-BRQ-03, AC-BRQ-03)
+// ชื่อ key ตรงกับ CreateRequestDTO และ validate.go ของหลังบ้าน
+export const FIELD_LABELS = {
+  requesterName: 'ชื่อ-นามสกุล',
+  studentCode: 'รหัสนักศึกษา',
+  startAt: 'วันและเวลาที่เริ่มยืม',
+  endAt: 'วันและเวลาที่คืน',
+  purpose: 'วัตถุประสงค์การยืม',
+  purposeOther: 'ระบุวัตถุประสงค์',
+  attachment: 'ใบบันทึกข้อความ',
+}
+
+// นำหน้ารายชื่อช่องที่ต้องแก้ (FR-BRQ-03 "ระบุช่องที่ยังขาด", AC-BRQ-03, AC-BRQ-10)
+export const MSG_FIELDS_TO_FIX = 'ช่องที่ต้องแก้:'
