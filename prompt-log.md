@@ -3388,3 +3388,28 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - เจ้าของตรวจแล้วแจ้งว่า "ผ่าน" และรับ 4 เรื่องที่ AI เลือกเอง (เหตุผลผิดกับคำขอที่ไม่มี เก็บ id ใน query, เจ้าหน้าที่ไม่บันทึก,
   บันทึก audit ไม่ได้ -> 503, id ไม่ใช่ตัวเลขและ body ไม่ใช่ JSON ไม่บันทึก)
 - เปลี่ยนสถานะ T-31 ใน tasks.md เป็น เสร็จ
+
+---
+
+## 2569-11-12 /implement T-32 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md เอง)
+- สิ่งที่ทำ: ยกเลิกสำเร็จแต่ส่ง Email ไม่สำเร็จ (รวมภาควิชาไม่มี Email เจ้าหน้าที่ ErrNoRecipients) บันทึก audit_log action notify outcome error
+  request_id ของคำขอ query {"for":"cancel"} ตามตาราง FR-CXL-05 เขียนหลัง commit นอก transaction รอไม่เกิน dbTimeout
+- ไฟล์ที่แก้: backend/internal/cancelrequest/service.go (auditNotifyFailed), notifier_test.go (TestAC_CXL_16, TestNotify_NoStaffEmailStillCancelled ตรวจแถว notify error)
+- AI ถามก่อนแตะไฟล์นอก task: TestAC_CXL_06 (T-31) นับได้ 4 แถวเพราะภาควิชา 1 ใน test ไม่มี Email จึงมีแถว notify error เพิ่ม
+  เจ้าของเลือกทาง ก: แก้ handler_test.go ให้ TestAC_CXL_06 นับเฉพาะ action cancel
+- สิ่งที่ AI เลือกเอง: บันทึกแถว notify ไม่สำเร็จ แค่ log ไว้ ยังตอบ 200 เพราะยกเลิกสำเร็จแล้ว (spec ไม่บอก)
+- ผล test: go test -p 1 ./... ผ่านทุก package (ของ 003 ผ่าน 50) ลองปิดการบันทึก notify ชั่วคราว 2 test ไม่ผ่าน คืนโค้ดแล้วผ่าน
+- สถานะ: รอเจ้าของตรวจ
+
+---
+
+## 2569-11-12 ตรวจ T-32 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เจ้าของตรวจกับฐานข้อมูลจริง: ลบ Email เจ้าหน้าที่ภาควิชา 1 ชั่วคราว ยกเลิกคำขอบนหน้าเว็บ เห็นแถว notify error ต่อจาก cancel ok แล้วใส่ Email กลับ แจ้งว่า "ผ่าน"
+  (คำสั่งแรกที่ AI ให้ เปลี่ยน department_id เป็น 99 ไม่ผ่าน FK ของ staff_contact จึงเปลี่ยนเป็นลบแล้วใส่กลับ)
+- เปลี่ยนสถานะ T-32 ใน tasks.md เป็น เสร็จ (ครบ 33 task ของ 003)

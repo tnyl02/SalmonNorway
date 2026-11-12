@@ -548,7 +548,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ต้องทำหลัง: T-28, T-31
 - เสร็จเมื่อ: `TestAC_CXL_16_NotifyFailureStillCancelled` ตรวจเพิ่มว่ามีแถว action `notify` outcome `error` และ request_id ของคำขอนั้นใน audit_log
   และกรณีภาควิชาไม่มี Email เจ้าหน้าที่ (ErrNoRecipients) ก็ต้องบันทึกแถวเดียวกัน (ทีมตัดสิน 2569-11-12 ตอนทำ T-27)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 17
 - test ที่ต้องผ่านทั้งหมด: `TestMigration_AuditLogAcceptsNotify`, `TestAC_CXL_06_AuditLogAttempts`, `TestAC_CXL_07_ExpiredSessionNoCancel` (ส่วน audit), `TestAC_CXL_16_NotifyFailureStillCancelled` (ส่วน audit) และ test ของเฟส 0-16

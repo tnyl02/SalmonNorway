@@ -91,11 +91,12 @@ func TestNotify_NotSentWhenNotCancelled(t *testing.T) {
 }
 
 // ASM-10: อุปกรณ์ของภาควิชาที่ไม่มี Email เจ้าหน้าที่ ยกเลิกสำเร็จตามปกติ ไม่เรียก Notifier
-// และนับเป็นส่งไม่สำเร็จ (ErrNoRecipients ทีมตัดสิน 2569-11-12 การบันทึก audit อยู่ใน T-32)
+// และนับเป็นส่งไม่สำเร็จ บันทึก notify error เหมือน AC-CXL-16 (ErrNoRecipients ทีมตัดสิน 2569-11-12, T-32)
 func TestNotify_NoStaffEmailStillCancelled(t *testing.T) {
 	fake := &fakeNotifier{err: errors.New("ไม่ควรถูกเรียก")}
 	srv := notifyServer(t, fake)
 	id := tcInsert(t, tcUserA, 8, "normal", "requested", time.Now()) // XX-NB-0001 ภาควิชา 2
+	mark := tcAuditMark(t)
 
 	tcWantStatus(t, tcCancel(t, srv, id, "ไม่ต้องใช้อุปกรณ์แล้ว", tcTokenA), http.StatusOK)
 
@@ -104,6 +105,23 @@ func TestNotify_NoStaffEmailStillCancelled(t *testing.T) {
 	}
 	if s := tcRow(t, id).Status; s != "cancelled" {
 		t.Errorf("สถานะ = %s ต้องเป็น cancelled", s)
+	}
+	wantNotifyError(t, tcAuditSince(t, mark), id)
+}
+
+// wantNotifyError ตรวจว่า audit_log มีแถว cancel ok ตามด้วย notify error ของคำขอ id (FR-CXL-05 ตาราง, FR-CXL-09, T-32)
+func wantNotifyError(t *testing.T, rows []tcAuditRow, id int) {
+	t.Helper()
+	if len(rows) != 2 {
+		t.Fatalf("audit_log มี %d แถว ต้องมี 2 (cancel ok, notify error): %+v", len(rows), rows)
+	}
+	if r := rows[0]; r.Action != "cancel" || r.Outcome != "ok" {
+		t.Errorf("แถวแรก = %+v ต้องเป็น cancel ok", r)
+	}
+	r := rows[1]
+	if r.Action != "notify" || r.Outcome != "error" || r.RequestID == nil || *r.RequestID != id ||
+		r.Query["for"] != "cancel" || r.ActorID != tcUserA || !r.HasTime {
+		t.Errorf("แถวที่สอง = %+v ต้องเป็น notify error request_id %d query for=cancel ของ %s", r, id, tcUserA)
 	}
 }
 
@@ -141,16 +159,18 @@ func TestNotify_ReportsFailure(t *testing.T) {
 	}
 }
 
-// AC-CXL-16 (FR-CXL-09) T-28 ส่วนที่ไม่เกี่ยวกับ audit (ส่วนบันทึก audit_log notify error อยู่ใน T-32)
+// AC-CXL-16 (FR-CXL-09) T-28, ส่วนบันทึก audit_log notify error T-32
 //
 //	Given ระบบแจ้งเตือน Email ไม่ตอบสนอง (Notifier ปลอมคืน error)
 //	When  A ยกเลิกคำขอและยืนยัน
 //	Then  ได้ 200 {requestId, status:"cancelled"} สถานะในฐานข้อมูลเป็น cancelled พร้อมเหตุผล
 //	      Notifier ถูกเรียก 1 ครั้ง (ส่งหลัง commit) และคำขอหายจากรายการ
+//	      และ audit_log มีแถว notify outcome error พร้อม request_id ของคำขอนั้น
 func TestAC_CXL_16_NotifyFailureStillCancelled(t *testing.T) {
 	fake := &fakeNotifier{err: errors.New("smtp: connection refused")}
 	srv := notifyServer(t, fake)
 	id := tcInsert(t, tcUserA, tcItemAvailable, "normal", "requested", time.Now())
+	mark := tcAuditMark(t)
 
 	rec := tcCancel(t, srv, id, "ไม่ต้องใช้อุปกรณ์แล้ว", tcTokenA)
 
@@ -169,6 +189,7 @@ func TestAC_CXL_16_NotifyFailureStillCancelled(t *testing.T) {
 	if len(list.Items) != 0 {
 		t.Errorf("คำขอที่ยกเลิกแล้วต้องไม่อยู่ในรายการ ได้ %+v", list.Items)
 	}
+	wantNotifyError(t, tcAuditSince(t, mark), id)
 }
 
 // tcHandlerOnly ประกอบ handler แบบเดียวกับ tcServer แต่ไม่ล้างข้อมูล ใช้ตรวจผลหลังทำรายการ

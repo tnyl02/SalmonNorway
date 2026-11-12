@@ -94,6 +94,7 @@ func (s *Service) ListMyPending(ctx context.Context, p auth.Principal) ([]Pendin
 // ค่าใน audit_log ของการยกเลิก (FR-CXL-05 ตาราง, ASM-12, DM-07)
 const (
 	auditActionCancel    = "cancel"
+	auditActionNotify    = "notify" // ส่ง Email ไม่สำเร็จ (FR-CXL-09, migration 0005)
 	causeNotOwner        = "not_owner"
 	causeNotFound        = "not_found"
 	causeAlreadyApproved = "already_approved"
@@ -170,8 +171,26 @@ func (s *Service) Cancel(ctx context.Context, p auth.Principal, requestID int, r
 		return CancelResultDTO{}, err
 	}
 	notice.CancelledBy, notice.Reason = p.UserID, reason
-	_ = s.notify(context.WithoutCancel(ctx), notice) // ผลของการส่งใช้บันทึก audit ใน T-32 ไม่กระทบผลการยกเลิก
+	// ส่ง Email หลัง commit ส่งไม่สำเร็จไม่ย้อนการยกเลิก แต่บันทึก notify error (FR-CXL-09, FR-CXL-05, T-32)
+	if err := s.notify(context.WithoutCancel(ctx), notice); err != nil {
+		s.auditNotifyFailed(context.WithoutCancel(ctx), p, requestID)
+	}
 	return CancelResultDTO{RequestID: requestID, Status: "cancelled"}, nil
+}
+
+// auditNotifyFailed บันทึกการส่ง Email ไม่สำเร็จ ตามตาราง FR-CXL-05: action notify, outcome error, query {"for":"cancel"}
+// รวมกรณีภาควิชาไม่มี Email เจ้าหน้าที่ (ErrNoRecipients ทีมตัดสิน 2569-11-12)
+// การยกเลิก commit ไปแล้ว เขียนนอก transaction และรอไม่เกิน dbTimeout (ASM-06)
+// บันทึกไม่สำเร็จแค่ log ไว้ ไม่เปลี่ยนผลที่ตอบนักศึกษา เพราะยกเลิกสำเร็จแล้ว (FR-CXL-09 ทีมเลือกเอง)
+func (s *Service) auditNotifyFailed(ctx context.Context, p auth.Principal, requestID int) {
+	ctx, cancel := context.WithTimeout(ctx, s.dbTimeout)
+	defer cancel()
+	if _, err := audit.Write(ctx, s.repo.db, audit.Entry{
+		ActorID: p.UserID, ActorRole: string(p.Role), Action: auditActionNotify,
+		Query: map[string]any{"for": auditActionCancel}, RequestID: &requestID, Outcome: audit.OutcomeError,
+	}); err != nil {
+		log.Printf("cancelrequest: บันทึก audit notify error ของคำขอ %d ไม่สำเร็จ: %v", requestID, err)
+	}
 }
 
 // auditRejected บันทึกการยกเลิกที่ไม่สำเร็จ (outcome forbidden) แล้ว commit (FR-CXL-05 ตาราง)
@@ -204,7 +223,7 @@ func (s *Service) auditRejected(ctx context.Context, tx pgx.Tx, p auth.Principal
 }
 
 // notify ส่ง Email แจ้งเจ้าหน้าที่หลังยกเลิกสำเร็จ แบบรอผล (FR-CXL-09, ทีมตัดสิน 2569-11-12)
-// การยกเลิก commit ไปแล้ว ส่งไม่สำเร็จจึงไม่ย้อนการยกเลิก คืน error ให้ T-32 บันทึก audit notify error
+// การยกเลิก commit ไปแล้ว ส่งไม่สำเร็จจึงไม่ย้อนการยกเลิก คืน error ให้ Cancel บันทึก audit notify error (T-32)
 // ภาควิชาที่ไม่มี Email เจ้าหน้าที่นับเป็นส่งไม่สำเร็จ (ErrNoRecipients ทีมตัดสิน 2569-11-12) ไม่เรียก Notifier
 func (s *Service) notify(ctx context.Context, n CancelNotice) error {
 	err := ErrNoRecipients

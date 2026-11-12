@@ -398,9 +398,15 @@ func TestAC_CXL_06_AuditLogAttempts(t *testing.T) {
 	tcWantStatus(t, tcCancel(t, srv, approved, reason, tcTokenA), http.StatusConflict)
 	tcWantStatus(t, tcCancel(t, srv, others, reason, tcTokenA), http.StatusNotFound)
 
-	rows := tcAuditSince(t, mark)
+	// นับเฉพาะ action cancel: แถว notify error (ส่ง Email ไม่สำเร็จ) เป็นของ AC-CXL-16 ตรวจใน notifier_test.go (T-32, ทีมตัดสิน ทาง ก)
+	var rows []tcAuditRow
+	for _, r := range tcAuditSince(t, mark) {
+		if r.Action == "cancel" {
+			rows = append(rows, r)
+		}
+	}
 	if len(rows) != 3 {
-		t.Fatalf("audit_log มี %d แถว ต้องมี 3: %+v", len(rows), rows)
+		t.Fatalf("audit_log มีแถว cancel %d แถว ต้องมี 3: %+v", len(rows), rows)
 	}
 	want := []struct {
 		outcome string
