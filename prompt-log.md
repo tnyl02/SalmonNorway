@@ -5333,6 +5333,333 @@ T-13 มีแค่ `service.go` ในช่องไฟล์ที่แต�
 - ยังขาด: ต่อ onRequestLoan กับฟอร์มของ 002 ใน App.jsx (รอ 002 สร้างฟอร์มและตกลงวิธีเปิด) / test-cases ชุด ค (AC-EQS-04, 05, 06, 14) ทำได้แล้ว
 main
 
+004-approve-request
+---
+
+## 2569-11-12 ทีมอนุมัติ ID ของ AC-APV-16, 17, 18 (ปิด Q-APV-13, Q-APV-22)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ID ของ AC-APV-16, 17, 18 อนุมัติ"
+- ไฟล์ที่แก้: `specs/004-approve-request/spec.md` (เอา [เสนอ] ออก, ปิด Q-APV-13 และ Q-APV-22), `specs/004-approve-request/plan.md` (แผนทดสอบ, ข้อ 8),
+  `specs/004-approve-request/tasks.md` (สถานะ T-21, T-22, T-30, T-31, หัวเฟส 15 16, ตารางตรวจความครบ, ตารางสิ่งที่ยังไม่ทำ), `specs/CHANGELOG.md`,
+  คอมเมนต์ใน `backend/internal/approve/service_test.go`, `backend/internal/approve/autoreject_test.go`, `frontend/src/pages/ApproveRequest/ApproveRequests.test.jsx`
+- ไม่เปลี่ยนเนื้อหา AC ชื่อ test และพฤติกรรมของโค้ด จึงไม่ต้องรัน test ใหม่
+
+---
+
+## 2569-11-12 /testcases AC-APV-01 (โหมดร่าง)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcase AC-APV-01`
+- โหมด: ร่าง (ยังไม่มี test-cases.md จึงสร้างใหม่ตามแบบในภาคผนวกของคำสั่ง และใช้หัวไฟล์แบบเดียวกับ 003)
+- TC ที่เสนอ: TC-APV-01-1 ถึง TC-APV-01-12 สถานะ "ร่าง" ทุกแถว (ปกติ 3: go test, vitest, คน / ขอบ 4 / ผิด 5) ยังไม่เขียนโค้ด test
+- ส่วนของ Then ที่ spec ไม่ได้บอก: TC-APV-01-5 อนุมัติตอน 16:00:00 ตรงได้หรือไม่ ("เลย 16:00 น." ใน FR-APV-01 ค) เสนอเป็นคำถามให้ทีม
+- ไฟล์ที่สร้าง: `specs/004-approve-request/test-cases.md`
+
+---
+
+## 2569-11-12 /testcases AC-APV-01 (โหมดเขียน test)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcase AC-APV-01`
+- โหมด: เขียน test (ทีมเปลี่ยนสถานะ TC-APV-01-1 ถึง 12 เป็น "ใช้ได้" แล้ว)
+- ไฟล์ที่สร้าง: `backend/internal/approve/tc_ac_apv_01_test.go` (11 test: TC-APV-01-1, 4 ถึง 12), `frontend/src/__tests__/TC-APV-01-2.test.jsx` (1 test)
+  ไม่แก้โค้ดของระบบ ไม่แก้ test เดิม
+- TC-APV-01-3 ช่อง "ตรวจด้วย" เป็น "คน" ไม่เขียนโค้ด ให้คนลองตามขั้นตอนในแถว
+- TC-APV-01-5 ช่อง Then ยังเป็น "spec ไม่ได้บอก" (16:00:00 ตรง) แม้สถานะ "ใช้ได้" จึงเขียน test เป็น t.Skip ไม่มี assert รอทีมเขียน Then
+- ผล test: `go vet ./internal/approve/` ผ่าน / vitest `TC-APV-01-2.test.jsx` ผ่าน 1 test / go test ของ TestTC_APV_01 รอผู้สั่งรันเอง (ใช้ testcontainers)
+
+---
+
+## 2569-11-12 ทีมตอบ TC-APV-01-5: อนุมัติตอน 16:00:00 น. ตรงไม่ได้ (Q-APV-26)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "TC-APV-01-5 อนุมัติตอน 16:00:00 ตรงไม่ได้"
+- คำถามที่ AI ถาม (ตอน /testcases AC-APV-01): "เลย 16:00 น." ใน FR-APV-01 (ค) นับ 16:00:00 ตรงเป็นเลยหรือยัง -> ทีมตอบ: อนุมัติไม่ได้
+  AI ตั้งเป็น Q-APV-26 (ข้อถัดจาก Q-APV-25) และปิดทันทีพร้อมคำตอบ
+- ไฟล์ที่แก้: `specs/004-approve-request/spec.md` (FR-APV-01 ค, Q-APV-26, Clarifications, Traceability), `specs/004-approve-request/test-cases.md` (Then ของ TC-APV-01-5),
+  `backend/internal/approve/tc_ac_apv_01_test.go` (TestTC_APV_01_5 จาก t.Skip เป็น assert ตามแถว), `specs/CHANGELOG.md`
+- ไม่แก้โค้ดของระบบตามกติกาของ /testcases: `service.go` บรรทัด 128 ใช้ `s.now().After(approvalCutoff(...))` ที่ 16:00:00 ตรงยังอนุมัติได้
+  TestTC_APV_01_5 จึงคาดว่าไม่ผ่าน (เป็นบั๊กของโค้ดเทียบกับ Q-APV-26 ไม่ใช่ test ผิด) รอทีมสั่งแก้แยก
+- ผล test: `go vet ./internal/approve/` ผ่าน / go test ยังไม่ได้รัน (Docker ไม่ได้เปิด)
+
+---
+
+## 2569-11-12 แก้โค้ดเวลาตัด 16:00 น. ตาม Q-APV-26 (T-21)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "แก้" (ตอบข้อเสนอให้แก้ service.go ตาม Q-APV-26 ภายใต้ T-21)
+- ไฟล์ที่แก้: `backend/internal/approve/service.go` (`s.now().After(cutoff)` -> `!s.now().Before(cutoff)` และคอมเมนต์อ้าง Q-APV-26),
+  `specs/004-approve-request/tasks.md` (T-21 รองรับ Q-APV-26 และบรรทัดบันทึกการแก้), `specs/CHANGELOG.md` (แก้บรรทัดในหัวข้อ Q-APV-26 ของวันนี้ที่ยังไม่ได้ commit)
+- ไม่แก้ test: TestTC_APV_01_5 เขียนตามแถวไว้แล้ว / TestAC_APV_16 (เลย 1 นาที) และ TestApprove_BeforeCutoffAllowed (ก่อน 1 นาที) ไม่กระทบ
+- ผล test: `go vet ./internal/approve/` ผ่าน / go test รอผู้สั่งรัน (ต้องเปิด Docker)
+
+---
+
+## 2569-11-12 ผล test ของ TC AC-APV-01 หลังแก้เวลาตัด (Q-APV-26)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (รันเองแล้ววางผล)
+- ฟีเจอร์: 004-approve-request
+- คำสั่งที่รัน: `go test ./internal/approve/ -run "TestTC_APV_01|TestAC_APV_16|TestApprove_BeforeCutoffAllowed" -v`
+- ผล: ผ่านทั้ง 12 test (TestAC_APV_16, TestApprove_BeforeCutoffAllowed, TestTC_APV_01_1, 4 ถึง 12 รวม TestTC_APV_01_5_ApproveAt1600)
+  vitest TC-APV-01-2 ผ่านไปก่อนหน้านี้แล้ว / TC-APV-01-3 เป็นแถว "คน" ยังไม่ได้ลอง
+- แก้ tasks.md T-21: บรรทัดบันทึกการแก้เปลี่ยนจาก "รอผู้สั่งรัน test" เป็น test ผ่าน
+
+---
+
+## 2569-11-12 /testcases AC-APV-02, 06, 11 (โหมดร่าง)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcases AC-APV-02, 06, 11`
+- โหมด: ร่าง ยังไม่เขียนโค้ด test
+- TC ที่เสนอ (สถานะ "ร่าง" ทุกแถว ต่อท้ายตาราง ไม่แก้แถวเดิม): TC-APV-02-1 ถึง 11, TC-APV-06-1 ถึง 8, TC-APV-11-1 ถึง 8 รวม 27 แถว
+- ส่วนของ Then ที่ spec ไม่ได้บอก (เสนอเป็นคำถามให้ทีม):
+  1. TC-APV-02-7 ปฏิเสธคำขอที่ไม่ใช่คำขอแรกได้หรือไม่
+  2. TC-APV-06-6 เหตุผลการปฏิเสธยาวสูงสุดเท่าไร
+  3. TC-APV-06-7 ไม่มีเหตุผล และคำขอถูกยกเลิกแล้ว ตอบรหัสไหน
+  4. TC-APV-11-4 เวลาที่ส่งเท่ากัน เรียงอย่างไร
+  5. TC-APV-11-5 หน้ารายการว่างแสดงข้อความอะไร
+
+---
+
+## 2569-11-12 /testcases AC-APV-02, 06, 11 (โหมดเขียน test)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcases` (ไม่ได้ระบุ AC)
+- คำถามที่ AI ถามก่อนทำ และคำตอบของทีม (ผู้สั่ง):
+  1. จะเขียน test ของ AC ไหน -> AC-APV-02, 06, 11 (ทุกแถวสถานะ "ใช้ได้" แล้ว)
+  2. 5 แถวที่สถานะ "ใช้ได้" แต่ Then ยังเป็น "spec ไม่ได้บอก" (TC-APV-02-7, 06-6, 06-7, 11-4, 11-5) -> ข้ามไว้ก่อน เขียนเป็น skip ไม่มี assert
+- ไฟล์ที่สร้าง: `backend/internal/approve/tc_ac_apv_02_06_11_test.go` (21 test: ตรวจจริง 17, skip 4),
+  `frontend/src/__tests__/TC-APV-02-2.test.jsx`, `TC-APV-06-2.test.jsx`, `TC-APV-06-5.test.jsx`, `TC-APV-11-2.test.jsx` (ตรวจจริง 4), `TC-APV-11-5.test.jsx` (skip 1),
+  `frontend/src/__tests__/helpers/apvFakeClient.js` (client จำลองใช้ร่วมของ 004)
+  ไม่แก้โค้ดของระบบ ไม่แก้ test เดิม
+- TC-APV-02-3 ช่อง "ตรวจด้วย" เป็น "คน" ไม่เขียนโค้ด
+- ผล test (AI รัน):
+  - `go test ./internal/approve/ -run "TestTC_APV_" -count=1 -v`: ผ่าน 27 (01 ทั้ง 10 ตัว และชุดใหม่ 17 ตัว) skip 4 (02-7, 06-6, 06-7, 11-4)
+  - `npx vitest run src/__tests__/TC-APV-`: ผ่าน 5 ไฟล์ (01-2, 02-2, 06-2, 06-5, 11-2) skip 1 (11-5)
+
+---
+
+## 2569-11-12 ทีมตอบคำถามจาก test cases (Q-APV-27 ถึง 31) แก้ spec โค้ด และ test
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ทำเป็น html ตอบคำถามให้หน่อย" แล้ว "ตอบแล้ว"
+- AI ทำหน้าเว็บคำถาม 5 ข้อ (https://claude.ai/artifact/7GcUrjzzJYKKYpfUhMfNhG) แล้วอ่านคำตอบจากที่เก็บของหน้านั้น
+- คำตอบของทีม (ผู้สั่ง) และ ID ที่ AI ตั้ง (ข้อถัดจาก Q-APV-26 ปิดทันทีพร้อมคำตอบ):
+  1. Q-APV-27 (TC-APV-02-7) ปฏิเสธคำขอที่ไม่ใช่คำขอแรกได้หรือไม่ -> ได้ (ตรงกับโค้ด)
+  2. Q-APV-28 (TC-APV-06-6) เหตุผลยาวสูงสุด -> 500 ตัวอักษร
+  3. Q-APV-29 (TC-APV-06-7) ยกเลิกแล้วและไม่มีเหตุผล -> VALIDATION_FAILED (ตรงกับโค้ด)
+  4. Q-APV-30 (TC-APV-11-4) เวลาที่ส่งเท่ากัน -> รหัสคำขอน้อยก่อน (ตรงกับโค้ด)
+  5. Q-APV-31 (TC-APV-11-5) หน้ารายการว่าง -> "ไม่มีคำขอที่รออนุมัติ"
+- คำถามที่ AI ถามต่อ และคำตอบของทีม (ผู้สั่ง):
+  1. ข้อความเมื่อเหตุผลยาวเกิน -> "เหตุผลต้องไม่เกิน 500 ตัวอักษร" (รหัสเดิม VALIDATION_FAILED)
+  2. นับ 500 แบบไหน -> นับตาม code point เหมือน 003
+  3. ข้อ 2 และ 5 ต้องแก้โค้ด จะให้แก้เลยไหม -> แก้เลยทั้ง 2 ข้อ
+- ไฟล์ที่แก้: `specs/004-approve-request/spec.md`, `plan.md`, `tasks.md` (T-06, T-12, T-13), `test-cases.md` (Then 5 แถว และ When ของ 06-6), `specs/CHANGELOG.md`,
+  `backend/internal/config/config.go`, `backend/internal/approve/service.go`, `backend/internal/approve/handler.go`,
+  `backend/internal/approve/tc_ac_apv_02_06_11_test.go` (TestTC_APV_02_7, 06_6, 06_7, 11_4 จาก skip เป็น assert ตามแถว),
+  `frontend/src/config.js`, `frontend/src/pages/ApproveRequest/ApproveRequests.jsx`, `frontend/src/__tests__/TC-APV-11-5.test.jsx` (จาก skip เป็น assert)
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้): หน้าจอตรวจความยาวก่อนส่ง และใช้รหัสภายในหน้าจอ `REASON_TOO_LONG` เลือกข้อความ เพราะหลังบ้านตอบ VALIDATION_FAILED เหมือนกรณีไม่ระบุเหตุผล
+  / ถ้าไม่มีคำขอ แสดงข้อความแทนตาราง (ไม่แสดงหัวตารางเปล่า)
+- ผล test (AI รัน): `go test ./internal/approve/ -count=1` ผ่าน ไม่มี skip / `go test ./internal/config/` ผ่าน / `go vet ./...` ผ่าน /
+  `npx vitest run` ผ่าน 38 ไฟล์ 95 test / ยังไม่ได้รัน `go test ./...` ทั้งระบบ
+
+---
+
+## 2569-11-12 /testcases AC-APV-05, 12 (โหมดร่าง)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcases AC-APV-05, 12`
+- โหมด: ร่าง ยังไม่เขียนโค้ด test
+- TC ที่เสนอ (สถานะ "ร่าง" ทุกแถว ต่อท้ายตาราง ไม่แก้แถวเดิม): TC-APV-05-1 ถึง 8, TC-APV-12-1 ถึง 7 รวม 15 แถว
+  ไม่เสนอซ้ำกับแถวเดิมที่ตรวจสิทธิ์ไปแล้ว (TC-APV-01-8, 02-8, 06-8, 11-6 ถึง 8)
+- ส่วนของ Then ที่ spec ไม่ได้บอก (เสนอเป็นคำถามให้ทีม):
+  1. TC-APV-05-8 หน้าจออนุมัติได้ UNAUTHENTICATED ต้องแสดงข้อความอะไร
+  2. TC-APV-12-6 ภาควิชาอื่นและคำขอถูกยกเลิก ตอบรหัสไหน
+  3. TC-APV-12-7 ภาควิชาอื่นและไม่ระบุเหตุผล ตอบรหัสไหน
+
+---
+
+## 2569-11-12 /testcases AC-APV-05, 12 (โหมดเขียน test)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcases AC-APV-05, 12`
+- โหมด: เขียน test (ทีมเปลี่ยนสถานะ TC-APV-05-1 ถึง 8 และ TC-APV-12-1 ถึง 7 เป็น "ใช้ได้" แล้ว)
+- 3 แถวที่ Then ยังเป็น "spec ไม่ได้บอก" (TC-APV-05-8, 12-6, 12-7) AI ทำแบบเดียวกับรอบก่อนที่ทีมสั่งให้ข้าม:
+  12-6, 12-7 เขียนเป็น t.Skip ไม่มี assert / 05-8 assert เฉพาะส่วนที่รู้แล้ว (คำขอยังอยู่ในรายการ) ไม่ assert ข้อความ
+- ไฟล์ที่สร้าง: `backend/internal/approve/tc_ac_apv_05_12_test.go` (12 test: ตรวจจริง 10, skip 2),
+  `frontend/src/__tests__/TC-APV-05-3.test.jsx`, `TC-APV-05-8.test.jsx`, `TC-APV-12-3.test.jsx`
+  ไม่แก้โค้ดของระบบ ไม่แก้ test เดิม
+- ผล test (AI รัน): `go test ./internal/approve/ -run "TestTC_APV_(05|12)" -count=1 -v` ผ่าน 10 skip 2 / vitest 3 ไฟล์ผ่าน
+
+---
+
+## 2569-11-12 ทีมตอบคำถามจาก test cases ชุดที่ 2 (Q-APV-32 ถึง 34) แก้ spec โค้ด และ test
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "จะตอบ 3 ข้อนี้ผ่านหน้าเว็บ" แล้ว "ตอบแล้ว"
+- AI เพิ่ม 3 คำถามในหน้าเว็บเดิม (https://claude.ai/artifact/7GcUrjzzJYKKYpfUhMfNhG) แล้วอ่านคำตอบจากที่เก็บของหน้านั้น
+- คำตอบของทีม (ผู้สั่ง) และ ID ที่ AI ตั้ง (ข้อถัดจาก Q-APV-31 ปิดทันทีพร้อมคำตอบ):
+  1. Q-APV-32 (TC-APV-05-8) หมดอายุระหว่างใช้หน้า -> "ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง" แบบเดิม (ตรงกับโค้ด)
+  2. Q-APV-33 (TC-APV-12-6) ภาควิชาอื่นและยกเลิกแล้ว -> FORBIDDEN_DEPARTMENT (ตรงกับโค้ด)
+  3. Q-APV-34 (TC-APV-12-7) ภาควิชาอื่นและไม่มีเหตุผล -> FORBIDDEN_DEPARTMENT (ต้องแก้โค้ด)
+- คำถามที่ AI ถามต่อ: ข้อ 3 ต้องแก้ลำดับใน Reject และมีผลข้างเคียงว่าปฏิเสธคำขอที่ไม่มีอยู่โดยไม่ใส่เหตุผลได้ REQUEST_NOT_FOUND แทน VALIDATION_FAILED จะแก้เลยไหม -> แก้เลย
+- ไฟล์ที่แก้: `specs/004-approve-request/spec.md`, `tasks.md` (T-25), `test-cases.md` (Then 3 แถว), `specs/CHANGELOG.md`,
+  `backend/internal/approve/service.go` (ย้ายการตรวจเหตุผลเข้าไปหลังตรวจภาควิชา ก่อนตรวจสถานะ),
+  `backend/internal/approve/tc_ac_apv_05_12_test.go` (TestTC_APV_12_6, 12_7 จาก skip เป็น assert), `frontend/src/__tests__/TC-APV-05-8.test.jsx` (เพิ่ม assert ข้อความ)
+- ผล test (AI รัน): `go test ./internal/approve/ -count=1` ผ่าน ไม่มี skip / `npx vitest run` ผ่าน 41 ไฟล์ 98 test / ยังไม่ได้รัน `go test ./...` ทั้งระบบ
+
+---
+
+## 2569-11-12 /testcases AC-APV-03, 07, 08, 09, 16, 17 (โหมดร่าง)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcases AC-APV-03, 07, 08, 09, 16, 17`
+- โหมด: ร่าง ยังไม่เขียนโค้ด test
+- TC ที่เสนอ (สถานะ "ร่าง" ทุกแถว ต่อท้ายตาราง ไม่แก้แถวเดิม): TC-APV-03-1 ถึง 7, 07-1 ถึง 6, 08-1 ถึง 4, 09-1 ถึง 6, 16-1 ถึง 5, 17-1 ถึง 5 รวม 33 แถว
+  ไม่เสนอซ้ำกับแถวเดิมที่ครอบเรื่องเดียวกันแล้ว (TC-APV-01-4 ถึง 12, 02-4, 02-5, 02-6, 02-9, 02-10)
+- ส่วนของ Then ที่ spec ไม่ได้บอก (เสนอเป็นคำถามให้ทีม):
+  1. TC-APV-08-4 อุปกรณ์ไม่ว่างและไม่ใช่คำขอแรก ตอบรหัสไหน
+  2. TC-APV-16-5 อุปกรณ์ไม่ว่างและเลย 16:00 น. ตอบรหัสไหน
+
+---
+
+## 2569-11-12 ทีมตอบคำถามจาก test cases ชุดที่ 3 (Q-APV-35, 36)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ทำเป็น html ให้ตอบ" แล้ว "ตอบแล้ว"
+- AI เพิ่ม 2 คำถามในหน้าเว็บเดิม (https://claude.ai/artifact/7GcUrjzzJYKKYpfUhMfNhG) แล้วอ่านคำตอบจากที่เก็บของหน้านั้น
+- คำตอบของทีม (ผู้สั่ง) และ ID ที่ AI ตั้ง (ข้อถัดจาก Q-APV-34 ปิดทันทีพร้อมคำตอบ):
+  1. Q-APV-35 (TC-APV-08-4) อุปกรณ์ไม่ว่างและไม่ใช่คำขอแรก -> NOT_FIRST_IN_QUEUE (ตรงกับโค้ด)
+  2. Q-APV-36 (TC-APV-16-5) อุปกรณ์ไม่ว่างและเลย 16:00 น. -> ITEM_NOT_AVAILABLE (ตรงกับโค้ด) หมายเหตุของทีม "อนุมัติก่อนให้ยืมเท่านั้น"
+- ไฟล์ที่แก้: `specs/004-approve-request/spec.md` (FR-APV-01 ซ ลำดับการตรวจ, Q-APV-35, 36, Clarifications), `test-cases.md` (Then 2 แถว), `specs/CHANGELOG.md`
+- ไม่แก้โค้ด ไม่ได้รัน test (ยังไม่ได้เขียน test ของชุดนี้ แถวยังรอทีมตรวจ)
+
+---
+
+## 2569-11-12 /testcases AC-APV-03, 07, 08, 09, 16, 17 (โหมดเขียน test)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcases AC-APV-03, 07, 08, 09, 16, 17`
+- โหมด: เขียน test (ทีมเปลี่ยนสถานะ 33 แถวเป็น "ใช้ได้" แล้ว ทุกแถวมี Then ครบ ไม่มี "spec ไม่ได้บอก")
+- ไฟล์ที่สร้าง: `backend/internal/approve/tc_ac_apv_queue_test.go` (27 test),
+  `frontend/src/__tests__/TC-APV-03-2.test.jsx`, `TC-APV-07-1.test.jsx`, `TC-APV-07-2.test.jsx`, `TC-APV-08-2.test.jsx`, `TC-APV-09-3.test.jsx`, `TC-APV-16-2.test.jsx` (6 test)
+  ไม่แก้โค้ดของระบบ ไม่แก้ test เดิม
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้): คำขอเพิ่มที่ใช้ใน 03-3, 03-7, 07-5, 08-4 เป็นของ student-005 (ไม่มีใน approve_dev.sql ใส่ใน transaction ของ test)
+  / TC-APV-16-4 ตรวจว่าข้อมูลทดลองเริ่มยืม 09:00 น. เวลาไทยก่อน แล้วตั้งนาฬิกาเป็นเวลา UTC เอง ไม่ใช้ฟังก์ชันคำนวณเวลาตัดของโค้ด
+- ผล test (AI รัน): `go test ./internal/approve/ -run "TestTC_APV_(03|07|08|09|16|17)" -count=1 -v` ผ่าน 27 / `npx vitest run` ผ่าน 47 ไฟล์ 104 test
+
+---
+
+## 2569-11-12 /testcases AC-APV-04, 10, 13, 14, 15, 18 (โหมดร่าง)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcases AC-APV-04, 10, 13, 14, 15, 18`
+- โหมด: ร่าง ยังไม่เขียนโค้ด test
+- TC ที่เสนอ (สถานะ "ร่าง" ทุกแถว ต่อท้ายตาราง ไม่แก้แถวเดิม): TC-APV-04-1 ถึง 6, 10-1 ถึง 5, 13-1 ถึง 6, 14-1 ถึง 9, 15-1 ถึง 6, 18-1 ถึง 5 รวม 37 แถว
+  ไม่เสนอซ้ำกับแถวเดิม (TC-APV-17-2 ถึง 4 ครอบงานเที่ยงคืนกับคำขอค้างคืนแล้ว)
+- ส่วนของ Then ที่ติด Open Question (เขียน "รอ Q-APV-04" ไม่ assert ตอนเขียน test): ชื่อผู้อนุมัติ/ผู้พิจารณาใน Email (04-1, 04-2), ที่อยู่ผู้รับ (04-1), ชื่อเจ้าหน้าที่ในประวัติ (15-1)
+- ส่วนของ Then ที่ spec ไม่ได้บอก (เสนอเป็นคำถามให้ทีม): TC-APV-14-9 ส่งซ้ำ Email ที่ส่งสำเร็จแล้ว ต้องตอบอะไร
+
+---
+
+## 2569-11-12 ทีมตอบ TC-APV-14-9 ส่งซ้ำ Email ที่สำเร็จแล้ว (Q-APV-37)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "TC-APV-14-9 ตอบ 200 พร้อมสถานะ sent เดิม และไม่ส่งใหม่"
+- AI ตั้งเป็น Q-APV-37 (ข้อถัดจาก Q-APV-36) และปิดทันทีพร้อมคำตอบ ตรงกับโค้ด ไม่แก้โค้ด
+- ไฟล์ที่แก้: `specs/004-approve-request/spec.md` (FR-APV-02 ง, Q-APV-37, Clarifications), `test-cases.md` (Then ของ TC-APV-14-9), `specs/CHANGELOG.md`
+
+---
+
+## 2569-11-12 /testcases AC-APV-04, 10, 13, 14, 15, 18 (โหมดเขียน test)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcases AC-APV-04, 10, 13, 14, 15, 18`
+- โหมด: เขียน test (ทีมเปลี่ยนสถานะ 37 แถวเป็น "ใช้ได้" แล้ว)
+- ไฟล์ที่สร้าง: `backend/internal/approve/tc_ac_apv_email_test.go` (35 test), `frontend/src/__tests__/TC-APV-10-3.test.jsx`, `TC-APV-14-4.test.jsx` (2 test)
+  ไม่แก้โค้ดของระบบ ไม่แก้ test เดิม
+- ส่วนที่ติด "รอ Q-APV-04" ไม่ assert ค่า (ชื่อผู้อนุมัติ/ผู้พิจารณา ที่อยู่ผู้รับ ชื่อเจ้าหน้าที่ในประวัติ) ตรวจแค่ว่ามีหัวข้อนั้นใน Email
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้):
+  - TC-APV-10-1, 10-2 ทำซ้ำ 20 รอบในฐานข้อมูลแยก (concurrencyDB) แต่ละรอบสร้างคำขอใหม่บนชิ้นเดิมและยกเลิกคำขอ requested เดิมของชิ้นนั้นก่อน เพื่อให้คำขอใหม่เป็นคำขอแรก
+  - ข้อความของ REQUEST_DECIDED_CONCURRENTLY ใน 10-1 และรหัสใน 10-4 ตรวจผ่านตัวแปลง error ของ handler เพราะเจ้าหน้าที่คนที่ 2 ไม่มี token ใน auth จำลอง
+  - TC-APV-15-1 เผื่อเวลา 5 วินาทีเมื่อเทียบ decided_at เพราะเวลามาจาก now() ของฐานข้อมูลใน container
+  - วันเวลาที่ตรวจใน Email เขียนรูปแบบ พ.ศ. ใน test เอง ไม่ใช้ฟังก์ชันจัดรูปแบบของโค้ด
+- ผล test (AI รัน): `go test ./internal/approve/ -count=1` ผ่าน TestTC_APV_ ทั้งหมด 105 test ไม่มี fail/skip / `npx vitest run` ผ่าน 49 ไฟล์ 106 test
+- test-cases.md ครบ AC-APV-01 ถึง 18 รวม 124 แถว: go test 105, vitest 17, คน 2 (TC-APV-01-3, 02-3 ยังไม่ได้ลอง)
+
+---
+
+## 2569-11-12 ผลการลองแถว "คน" ของ test-cases (TC-APV-01-3, 02-3)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (ลองเองในระบบจริง แล้วแจ้งผล)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ลองแถว "คน" 2 แถว testแล้ว" / AI ถามผล -> ทีมตอบ: ผ่านทั้ง 2 แถว
+- ไฟล์ที่แก้: `specs/004-approve-request/test-cases.md` (เพิ่มหัวข้อ "ผลการลองโดยคน" ท้ายไฟล์ ไม่แก้แถวเดิมในตาราง)
+
+---
+
+## 2569-11-12 ขึ้น spec 004 เป็น Draft v2.2 และทำ CR-008
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "1. ขึ้นเป็น v2.2 เลย 2. ทำ CR-008" (ตอบข้อเสนอของ AI ก่อน /verify)
+- ไฟล์ที่สร้าง: `specs/changes/CR-008.md` (นอกโฟลเดอร์ 004 เจ้าของสั่งเอง) ตรวจแล้วว่าเลข CR-008 ยังไม่มีใน branch ใดบน remote
+- ไฟล์ที่แก้: `specs/004-approve-request/spec.md` (Status Draft v2.2, หัว Clarifications อ้าง CR-008), `plan.md` (v1.2 อ้าง spec v2.2),
+  `test-cases.md` (หัวไฟล์อ้าง spec v2.2, plan v1.2), `specs/CHANGELOG.md`
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้): ขึ้น plan เป็น v1.2 ด้วย เพราะ plan แก้ตาม Q-APV-28, 31 ไปแล้ว / CR-008 สถานะ "อนุมัติ" เพราะเจ้าของ 004 ตัดสินทุกข้อเองและไม่กระทบฟีเจอร์อื่น
+- ยังไม่ได้แก้: `specs/README.md` แถว 004 ยังเขียนสถานะ "ยังไม่เริ่ม" (อยู่นอกโฟลเดอร์ 004 รอเจ้าของสั่ง)
+
+---
+
+## 2569-11-12 /verify 004 (สร้าง rtm.md)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง `/verify` เรียก skill ตรวจการทำงานของ Claude Code ขึ้นมาแทน AI ทำตาม `.claude/commands/verify.md` ของโปรเจกต์ตามที่ตกลงไว้)
+- คำสั่ง: `/verify`
+- ผล test (ดูอย่างเดียว ไม่แก้): go test approve, config, platform, auth -count=1 ผ่าน 191 (นับรวม subtest) / vitest ของ 004 ผ่าน 37 ใน 19 ไฟล์ / แถว "คน" 2 แถวผ่าน / ไม่ผ่าน 0
+- ตารางไปข้างหน้า 22 แถว: ครบ 13 / ยังไม่ถึง 0 / รอ 2 (IF-IDP-01 รอ Q-SH-03, IF-NOT-01 รอ Q-APV-04) / ช่องโหว่ 7
+- ข้อค้นพบใหม่: F-01 (CON-TECH-02 ไม่มี HTTPS/Docker ของหลังบ้าน), F-02 (NFR-SEC-01 TLS ไม่มี AC), F-03 (ชื่อเจ้าหน้าที่ใน Email/ประวัติเป็นรหัส รอ Q-APV-04),
+  F-04 (FR-APV-01 ซ UPSTREAM_UNAVAILABLE ไม่มี AC และ test), F-05 (คอลัมน์ "เวลาที่ส่ง" และ studentCode ไม่มี FR), F-06 ("16:00" ฝังในข้อความ error ภายใน)
+- ไฟล์ที่สร้าง: `specs/004-approve-request/rtm.md` ไม่แก้โค้ด test spec plan และ tasks
+=======
 ## 2569-11-12 review task ที่ test ตัดสินได้ (17 task)
 
 - ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
@@ -5551,3 +5878,4 @@ main
   - คอมเมนต์โค้ด: repository.go (ชื่อ นามสกุล ASM-HND-10), verifier.go (ASM-HND-09 เทอมนี้ใช้ตัวจำลอง), handler.go (ขนาดรูปตรวจใน validatePhotos)
 - ไม่แก้: คอมเมนต์ "ที่มารอ Q-HND-13" ใน `0006_handover.up.sql` (migration ที่ merge แล้ว ห้ามแก้), ช่องติ๊ก AC ใน spec.md (ทีมติ๊กตอนทำ RTM), specs/README.md และ data-model.md (ไฟล์กลาง)
 - ผล test (container golang:1.25): test ของ 005 ทั้ง 27 ฟังก์ชันผ่าน `go test ./...` ผ่านทุก package gofmt ผ่าน
+main

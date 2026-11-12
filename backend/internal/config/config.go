@@ -230,6 +230,13 @@ var ApprovalMessages = map[string]string{
 	"REQUEST_NOT_FOUND":            "ไม่พบคำขอนี้",                            // Q-APV-25
 }
 
+// ApprovalRejectReasonMaxLength คือความยาวสูงสุดของเหตุผลการปฏิเสธ นับตาม code point แบบเดียวกับ 003 (FR-APV-01 ง, Q-APV-28)
+// ต้องตรงกับ APPROVAL_REASON_MAX_LENGTH ใน frontend/src/config.js
+const ApprovalRejectReasonMaxLength = 500
+
+// ApprovalReasonTooLongMessage คือข้อความเมื่อเหตุผลยาวเกิน ใช้กับ 422 VALIDATION_FAILED ช่อง reason (FR-APV-01 ซ, Q-APV-28)
+var ApprovalReasonTooLongMessage = "เหตุผลต้องไม่เกิน 500 ตัวอักษร"
+
 // ---------- จบค่าของฟีเจอร์ 004 ----------
 
 // Config คือค่าที่โปรแกรมหลังบ้านใช้ตอนเริ่มทำงาน

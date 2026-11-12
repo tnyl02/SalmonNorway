@@ -192,7 +192,7 @@ test('AC-APV-08 หลังบ้านตอบ ITEM_NOT_AVAILABLE แสด�
   expect(within(table).getAllByRole('row').slice(1)).toHaveLength(2)
 })
 
-// AC-APV-16 (FR-APV-01 ค, DOM-LOAN-01) ฝั่งหน้าจอ (หลังบ้านตรวจใน TestAC_APV_16) [ID รอทีมอนุมัติ Q-APV-13]
+// AC-APV-16 (FR-APV-01 ค, DOM-LOAN-01) ฝั่งหน้าจอ (หลังบ้านตรวจใน TestAC_APV_16)
 //   Given คำขอแรกของอุปกรณ์ที่ "ว่าง" และเวลาปัจจุบันเลย 16:00 น. ของวันที่เริ่มยืมแล้ว
 //   When  เจ้าหน้าที่กดอนุมัติ แล้วหลังบ้านตอบ APPROVAL_CUTOFF_PASSED
 //   Then  แสดง "เลย 16:00 น. ของวันที่ยืมแล้ว อนุมัติไม่ได้" และคำขอยังอยู่ในรายการ (ปฏิเสธเองได้ Q-APV-16)

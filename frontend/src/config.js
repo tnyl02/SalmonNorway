@@ -32,6 +32,13 @@ export const APPROVAL_MESSAGES = {
   UPSTREAM_UNAVAILABLE: 'ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง',
   REQUEST_NOT_FOUND: 'ไม่พบคำขอนี้',
 }
+// เหตุผลการปฏิเสธยาวไม่เกินเท่านี้ นับตาม code point แบบเดียวกับ 003 (FR-APV-01 ง, Q-APV-28)
+// ต้องตรงกับ ApprovalRejectReasonMaxLength ใน backend/internal/config/config.go
+export const APPROVAL_REASON_MAX_LENGTH = 500
+// ข้อความเมื่อเหตุผลยาวเกิน (FR-APV-01 ซ, Q-APV-28) ต้องตรงกับ ApprovalReasonTooLongMessage ของหลังบ้าน
+export const APPROVAL_REASON_TOO_LONG = 'เหตุผลต้องไม่เกิน 500 ตัวอักษร'
+// ข้อความเมื่อไม่มีคำขอที่รอพิจารณาในหน้ารายการ (FR-APV-01 ก, Q-APV-31) ข้อความเดียวกับ MSG_NO_PENDING ของ 003
+export const APPROVAL_EMPTY_LIST = 'ไม่มีคำขอที่รออนุมัติ'
 // แบบของ Email ที่แสดงในรายการ "Email ที่ส่งไม่สำเร็จ" (FR-APV-02 ก ข ค, T-34) ค่า key ตรงกับ kind ของหลังบ้าน
 // ข้อความทีมออกแบบเอง ไม่ได้มาจาก spec
 export const APPROVAL_EMAIL_KIND_LABELS = {
