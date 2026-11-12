@@ -5099,3 +5099,17 @@ T-13 มีแค่ `service.go` ในช่องไฟล์ที่แต�
   specs/changes/CR-006.md (หัวข้อตัดสิน), specs/CHANGELOG.md
 - ไม่ได้แก้: โค้ด test หน้าจอ
 - ยังต้องทำ: แจ้งเจ้าของ 004 ว่าคงไว้ทั้ง 2 รหัส ถ้าต้องการเติมคำอธิบายในแถว REQUEST_ALREADY_DECIDED ให้ 004 แก้เอง
+
+---
+
+## 2569-11-12 รัน load test k6 ซ้ำ AC-CXL-17 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เหตุผล: ผลเดิม (list p95 106.63 ms, cancel p95 38.9 ms) วัดก่อนเพิ่ม audit (T-31, T-32) และ NotifyTimeout (T-34)
+- วิธี: ฐานข้อมูลแยก salmon_load ใน container salmon-db (ตามหัวไฟล์ seed_003_load.sql), หลังบ้านอีกตัวที่ :8001 (migration + seed.sql), โหลด seed_003_load.sql (คำขอ 50001-51000),
+  k6 ผ่าน Docker grafana/k6 BASE_URL=http://host.docker.internal:8001 ไม่แตะฐานข้อมูล salmon ที่ใช้ทดสอบหน้าเว็บ
+- ผล: 50 VU 1,000 iteration checks 100% (2000/2000) http_req_failed 0%
+  list p95 123.39 ms (เดิม 106.63), cancel p95 61.03 ms (เดิม 38.9) ทั้งคู่ต่ำกว่า 15000 ms (CancelPerfP95) มาก
+  audit_log ใน salmon_load: cancel ok 1000 แถว (T-31 ทำงานใต้โหลด) คำขอ 1000 ใบเป็น cancelled
+- ปิดหลังบ้าน :8001 แล้ว ไม่ได้แก้ไฟล์ใน repo (rtm.md จะอัปเดตตัวเลขตอน /verify รอบ 3)
