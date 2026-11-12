@@ -600,9 +600,9 @@ func dirEntries(t *testing.T) int {
 	return len(entries)
 }
 
-// AC-HND-12 (FR-HND-06) กรณี (ก) 1 รูป และ (ข) GIF ส่วน (ค) 11 MB รอ Q-HND-10 (T-28)
+// AC-HND-12 (FR-HND-06) กรณี (ก) 1 รูป (ข) GIF (T-21) และ (ค) 11 MB (T-28, 10 MB ต่อรูป ตาม Q-HND-10)
 // Given คำขอยืมแบบปกติที่ได้รับอนุมัติแล้ว
-// When  เจ้าหน้าที่บันทึกการส่งมอบโดยแนบรูป (ก) 1 รูป หรือ (ข) ไฟล์ GIF
+// When  เจ้าหน้าที่บันทึกการส่งมอบโดยแนบรูป (ก) 1 รูป หรือ (ข) ไฟล์ GIF หรือ (ค) รูปขนาด 11 MB
 // Then  ระบบไม่บันทึกการส่งมอบในทุกกรณี และไม่มี Loan ถูกสร้าง (และไม่มีไฟล์ค้างบนดิสก์ T-21)
 func TestAC_HND_12_InvalidPhotos(t *testing.T) {
 	pool := testPool(t)
@@ -616,6 +616,7 @@ func TestAC_HND_12_InvalidPhotos(t *testing.T) {
 		{"ก_1_รูป", []photoFile{{"1.jpg", "image/jpeg", testJPEG(1024)}}},
 		{"ข_GIF", []photoFile{{"1.jpg", "image/jpeg", testJPEG(1024)}, {"2.gif", "image/gif", gif}}},
 		{"ข_GIF_ตั้งชื่อเป็น_jpg", []photoFile{{"1.jpg", "image/jpeg", testJPEG(1024)}, {"2.jpg", "image/jpeg", gif}}},
+		{"ค_11_MB", []photoFile{{"1.jpg", "image/jpeg", testJPEG(1024)}, {"2.jpg", "image/jpeg", testJPEG(11 << 20)}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			itemID := createItem(t, pool, "T12-PH-000"+strconv.Itoa(i+1), "available")

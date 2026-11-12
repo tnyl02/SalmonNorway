@@ -2062,3 +2062,17 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ไฟล์ที่แก้: `backend/internal/handover/service.go` (normalDueAt: หลัง LoanNormalReturnHour:00 เลื่อนกำหนดคืนไปวันถัดไป), `backend/internal/handover/handler_test.go` (TestAC_HND_11_HandoverAfter1600 ตรวจ due_at = 2569-11-13 16:00) ไม่ต้องเพิ่มค่าใน config.go (ใช้ LoanNormalReturnHour เดิม)
 - ผล test (container golang:1.25): TestAC_HND_11_HandoverAfter1600 และ TestAC_HND_05_DueAt1600SameDay ผ่าน `go test ./...` ผ่านทุก package go vet และ gofmt ผ่าน
 - สิ่งที่ AI ตัดสินจากข้อความ spec (ไม่ได้ถาม): ส่งมอบตรง 16:00:00 พอดีนับเป็นวันเดียวกัน เพราะ spec เขียนว่า "หลัง 16:00" และ "วันถัดไป" นับตามปฏิทิน ไม่ข้ามวันหยุด ทีมควรตรวจ
+
+---
+
+## 2569-11-12 /implement T-28 ตรวจขนาดรูปไม่เกิน 10 MB ต่อรูป
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ทำ task ต่อไปได้เลย หากส่วนไหนไม่รู้ให้ถาม" (Q-HND-10 ปิดแล้วใน spec v2.7: 10 MB ต่อรูป ไม่จำกัดจำนวน)
+- ไฟล์ที่แก้: `backend/internal/handover/photos.go` (inspectPhoto อ่านไฟล์รอบเดียว หาชนิดและนับขนาด หยุดนับเมื่อเกิน HandoverPhotoMaxBytes), `backend/internal/handover/handler_test.go` (TestAC_HND_12_InvalidPhotos เพิ่มกรณี ค_11_MB), `frontend/src/pages/Handover/HandoverForm.jsx` (ตรวจ File.size กับ HANDOVER_PHOTO_MAX_BYTES และเพิ่มข้อความ "ขนาดไม่เกิน 10 MB ต่อรูป"), `frontend/src/__tests__/AC-HND-12.test.jsx` (กรณี ค รูป 11 MB)
+  และแก้เฉพาะคอมเมนต์ใน `backend/internal/config/config.go`, `frontend/src/config.js` (เดิมเขียนว่ารอ Q-HND-10) ค่าไม่เปลี่ยน
+- ผล test: Go (container golang:1.25) TestAC_HND_12_InvalidPhotos 4 กรณีผ่าน TestAC_HND_06_TwoJpgPhotosSaved ยังผ่าน `go test ./...` ผ่านทุก package go vet และ gofmt ผ่าน
+  หน้าจอ (vitest รันในสำเนาโฟลเดอร์ frontend ใน scratchpad เพราะ frontend/node_modules ไม่อยู่ใน .gitignore) 13 ไฟล์ 24 test ผ่าน รวม AC-HND-12 3 กรณี
+- สิ่งที่ AI ตัดสินจากข้อความ spec (ไม่ได้ถาม): รูปขนาด 10 MB พอดีผ่าน ("ไม่เกิน") และข้อความแจ้งเตือนที่หน้าจอเป็นข้อความที่ทีมออกแบบเอง (ไม่มี mockup) ทีมควรดูหน้าจอ

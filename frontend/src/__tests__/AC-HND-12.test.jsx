@@ -1,8 +1,8 @@
 // AC-HND-12 (FR-HND-06) ตรวจรูปที่หน้าจอก่อนส่ง ใช้ client จำลองแทนหลังบ้าน
 //   Given คำขอยืมแบบปกติที่ได้รับอนุมัติแล้ว
-//   When  เจ้าหน้าที่บันทึกการส่งมอบโดยแนบรูป (ก) 1 รูป หรือ (ข) ไฟล์ GIF
+//   When  เจ้าหน้าที่บันทึกการส่งมอบโดยแนบรูป (ก) 1 รูป หรือ (ข) ไฟล์ GIF หรือ (ค) รูปขนาด 11 MB
 //   Then  ระบบไม่บันทึกการส่งมอบในทุกกรณี และไม่มี Loan ถูกสร้าง
-// หน้าจอไม่เรียกหลังบ้านเลยในกรณีนี้ (หลังบ้านตรวจซ้ำใน TestAC_HND_12_InvalidPhotos) กรณี (ค) 11 MB รอ Q-HND-10 (T-28)
+// หน้าจอไม่เรียกหลังบ้านเลยในกรณีนี้ (หลังบ้านตรวจซ้ำใน TestAC_HND_12_InvalidPhotos) (ค) 10 MB ต่อรูป ตาม Q-HND-10 (T-28)
 import { fireEvent, render, screen } from '@testing-library/react'
 import HandoverForm from '../pages/Handover/HandoverForm.jsx'
 
@@ -22,10 +22,13 @@ function fakeClient() {
 
 const jpg = (name) => new File(['x'], name, { type: 'image/jpeg' })
 const gif = (name) => new File(['x'], name, { type: 'image/gif' })
+// รูป JPG ขนาด bytes (สร้างไฟล์ขนาดจริง เพื่อให้ File.size ตรง)
+const bigJpg = (name, bytes) => new File([new Uint8Array(bytes)], name, { type: 'image/jpeg' })
 
 test.each([
   ['ก 1 รูป', [jpg('a.jpg')]],
   ['ข ไฟล์ GIF', [jpg('a.jpg'), gif('b.gif')]],
+  ['ค รูป 11 MB', [jpg('a.jpg'), bigJpg('b.jpg', 11 * 1024 * 1024)]],
 ])('AC-HND-12 %s ไม่ส่งไปหลังบ้าน และแจ้งเงื่อนไขรูป', async (_, photos) => {
   const client = fakeClient()
   render(<HandoverForm request={request} client={client} />)
