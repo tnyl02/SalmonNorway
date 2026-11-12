@@ -5559,3 +5559,19 @@ main
   2. Q-APV-36 (TC-APV-16-5) อุปกรณ์ไม่ว่างและเลย 16:00 น. -> ITEM_NOT_AVAILABLE (ตรงกับโค้ด) หมายเหตุของทีม "อนุมัติก่อนให้ยืมเท่านั้น"
 - ไฟล์ที่แก้: `specs/004-approve-request/spec.md` (FR-APV-01 ซ ลำดับการตรวจ, Q-APV-35, 36, Clarifications), `test-cases.md` (Then 2 แถว), `specs/CHANGELOG.md`
 - ไม่แก้โค้ด ไม่ได้รัน test (ยังไม่ได้เขียน test ของชุดนี้ แถวยังรอทีมตรวจ)
+
+---
+
+## 2569-11-12 /testcases AC-APV-03, 07, 08, 09, 16, 17 (โหมดเขียน test)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcases AC-APV-03, 07, 08, 09, 16, 17`
+- โหมด: เขียน test (ทีมเปลี่ยนสถานะ 33 แถวเป็น "ใช้ได้" แล้ว ทุกแถวมี Then ครบ ไม่มี "spec ไม่ได้บอก")
+- ไฟล์ที่สร้าง: `backend/internal/approve/tc_ac_apv_queue_test.go` (27 test),
+  `frontend/src/__tests__/TC-APV-03-2.test.jsx`, `TC-APV-07-1.test.jsx`, `TC-APV-07-2.test.jsx`, `TC-APV-08-2.test.jsx`, `TC-APV-09-3.test.jsx`, `TC-APV-16-2.test.jsx` (6 test)
+  ไม่แก้โค้ดของระบบ ไม่แก้ test เดิม
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้): คำขอเพิ่มที่ใช้ใน 03-3, 03-7, 07-5, 08-4 เป็นของ student-005 (ไม่มีใน approve_dev.sql ใส่ใน transaction ของ test)
+  / TC-APV-16-4 ตรวจว่าข้อมูลทดลองเริ่มยืม 09:00 น. เวลาไทยก่อน แล้วตั้งนาฬิกาเป็นเวลา UTC เอง ไม่ใช้ฟังก์ชันคำนวณเวลาตัดของโค้ด
+- ผล test (AI รัน): `go test ./internal/approve/ -run "TestTC_APV_(03|07|08|09|16|17)" -count=1 -v` ผ่าน 27 / `npx vitest run` ผ่าน 47 ไฟล์ 104 test
