@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+
+	"salmonnorway/backend/internal/platform"
 )
 
 // PathPrefix คือส่วนต้นของ path ทุก endpoint ของฟีเจอร์นี้ที่หลังบ้านรับ
@@ -93,11 +95,11 @@ func nonEmpty(values []string) []string {
 	return out
 }
 
-// writeUpstreamError ตอบเมื่ออ่านฐานข้อมูลไม่สำเร็จ ตาม Error contract ใน plan.md ข้อ 5 (FR-EQS-08)
+// writeUpstreamError ตอบ 503 UPSTREAM_UNAVAILABLE เมื่ออ่านฐานข้อมูลไม่สำเร็จ (FR-EQS-08) body {code, message} ตาม CON-TECH-03
 // ไม่ส่งข้อมูลเก่าหรือรายละเอียดภายในกลับไป (test และหน้าจอของกรณีนี้อยู่ใน T-20)
 func writeUpstreamError(w http.ResponseWriter, err error) {
 	log.Printf("equipment: database error: %v", err)
-	writeJSON(w, http.StatusServiceUnavailable, ErrorDTO{Code: "UPSTREAM_UNAVAILABLE", Retryable: true})
+	platform.WriteError(w, http.StatusServiceUnavailable, platform.CodeUpstreamUnavailable)
 }
 
 // nonNil ให้ JSON เป็น [] แทน null เมื่อไม่มีข้อมูล (plan.md ข้อ 5: ไม่พบ = items ว่าง)

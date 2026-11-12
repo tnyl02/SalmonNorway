@@ -3111,3 +3111,28 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
   - tasks v2.2: เฟส 15 ใหม่ T-38 (หน้าจอเท่านั้น หลังบ้านเป็นของ 002), เฟสรอคำตอบเลื่อนเป็น 16, ตาราง AC / Constraint / FR
 - สิ่งที่ AI ไม่ได้ทำ: ไม่แก้โค้ด ไม่ commit ไม่ได้แก้บรรทัด " 003-cancel-request" ที่เหลือค้างใน CHANGELOG (มาจาก commit ของ 003)
 - เรื่องที่ spec ยังไม่บอก (เสนอทีม): ไม่มีคำขอค้าง หรือ 002 ไม่ตอบ หน้าจอแสดงข้อความอะไร (ตอนนี้ไม่แสดงส่วนนี้)
+
+---
+
+## 2569-11-12 /implement T-37 ตอบ error ทุกตัวด้วย {code, message} ตาม CON-TECH-03
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `backend/internal/platform/` และ `backend/internal/auth/middleware.go` เพราะ T-37 ของ 001)
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement T-37`
+- ก่อนเริ่ม: ดึง main ล่าสุดแบบ rebase (commit README ของผู้สั่งยังไม่ได้ push)
+- ไฟล์ที่สร้าง: `backend/internal/platform/apierror.go` (รหัส 4 ตัว, ข้อความภาษาไทยตาม plan ข้อ 5, ErrorBody, ErrorMessage, WriteError),
+  `backend/internal/platform/apierror_test.go`
+- ไฟล์ที่แก้: `backend/internal/auth/middleware.go` (ใช้ platform.WriteError ลบ writeError เดิม),
+  `backend/internal/auth/middleware_test.go` (ตรวจ code และ message ใน 401, 403), `backend/internal/equipment/handler.go` (503 ใช้ platform.WriteError เลิกใช้ retryable)
+- ไม่ได้แตะ `backend/internal/equipment/handler_test.go` (อยู่ในช่องไฟล์ที่แตะ แต่ test 503 อยู่ใน apierror_test.go แล้ว)
+- test: `TestCON_TECH_03_ErrorBodyHasCodeAndMessage` ผ่าน (401 x2, 403 PRINCIPAL_INCOMPLETE, 503 รายการรุ่น และ 503 รายละเอียด
+  ทุกกรณี body มีแค่ code และ message และ message ไม่ว่าง), `TestErrorMessage_AllCodesHaveMessage` ผ่าน, test ของ auth เดิม 3 ตัวผ่าน
+  test หลังบ้านทั้งระบบผ่าน (รวม borrowrequest, cancelrequest ที่มี TestTC_, handover) หน้าจอ 23 test ผ่าน
+- ผลต่อฟีเจอร์อื่น: auth.Middleware ใช้ร่วมโดย 002, 003, 005 ตอนนี้ 401/403 มี message เพิ่ม test ของทุกฟีเจอร์ตรวจแค่ code จึงยังผ่าน
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้):
+  - test 503 ใช้ฐานข้อมูลจำลองที่ตอบ error ทุก query ไม่ต้องหยุด Docker
+  - รหัสที่ยังไม่มีข้อความ ErrorMessage คืนรหัสเองแทน เพื่อให้ message ไม่ว่าง และ log เตือน
+  - ไม่ลบ `ErrorDTO` ใน `equipment/dto.go` ที่เลิกใช้แล้ว เพราะ dto.go ไม่อยู่ในไฟล์ที่แตะของ T-37 (ลบได้ใน task ถัดไปที่แตะ dto.go)
+- ข้อค้นพบ: ข้อความของ UPSTREAM_UNAVAILABLE ของ 005 ("ระบบไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาลองใหม่") ต่างจากของ 001
+  รหัสเดียวกันควรใช้ข้อความเดียวกัน 002, 005 เรียก platform.WriteError ได้ถ้าทีมตกลง / 404, 405 ยังตอบข้อความธรรมดา (รอรหัสในรายการกลาง)
