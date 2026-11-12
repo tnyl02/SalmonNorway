@@ -2,6 +2,12 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [SPEC-APV-004 Draft v2.1 Q-APV-37 ส่งซ้ำ Email ที่สำเร็จแล้ว] - 2569-11-12
+ทีมตอบคำถามที่พบตอน /testcases AC-APV-14 ยืนยันแบบที่โค้ดทำอยู่ ไม่เปลี่ยน ID ไม่เปลี่ยน AC และไม่แก้โค้ด
+### Changed
+- `specs/004-approve-request/spec.md`: FR-APV-02 (ง) ส่งซ้ำ Email ที่ส่งสำเร็จแล้ว ตอบสถานะ `sent` เดิมและไม่ส่งใหม่ / Q-APV-37 ปิดแล้ว และ Clarifications
+- `specs/004-approve-request/test-cases.md`: Then ของ TC-APV-14-9
+
 ## [SPEC-APV-004 Draft v2.1 Q-APV-35, 36 ลำดับการตรวจตอนอนุมัติ] - 2569-11-12
 ทีมตอบ 2 คำถามที่พบตอน /testcases AC-APV-08, 16 ผ่านหน้าเว็บ ยืนยันลำดับที่โค้ดใช้อยู่ ไม่เปลี่ยน ID ไม่เปลี่ยน AC และไม่แก้โค้ด
 ### Changed
