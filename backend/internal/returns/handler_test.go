@@ -111,14 +111,14 @@ func call(router http.Handler, method, path, token string) *httptest.ResponseRec
 func TestReturns_Skeleton_RoutedThroughAuth(t *testing.T) {
 	router := newTestRouter(nil) // ไม่ต้องใช้ฐานข้อมูล: middleware ปฏิเสธก่อนถึง handler
 
-	if rec := call(router, http.MethodGet, "/api/v1/returns/open-loans", ""); rec.Code != http.StatusUnauthorized {
+	if rec := call(router, http.MethodGet, "/v1/returns/open-loans", ""); rec.Code != http.StatusUnauthorized {
 		t.Errorf("ไม่มี token: status = %d, want 401 (IF-IDP-01)", rec.Code)
 	}
 	// ทุก endpoint ของ 006 ต้องผ่าน auth
 	for _, ep := range []struct{ method, path string }{
-		{http.MethodGet, "/api/v1/returns/lookup?assetCode=CS-NB-0004"},
-		{http.MethodPost, "/api/v1/returns"},
-		{http.MethodGet, "/api/v1/returns/loans/1"},
+		{http.MethodGet, "/v1/returns/lookup?assetCode=CS-NB-0004"},
+		{http.MethodPost, "/v1/returns"},
+		{http.MethodGet, "/v1/returns/loans/1"},
 	} {
 		if rec := call(router, ep.method, ep.path, ""); rec.Code != http.StatusUnauthorized {
 			t.Errorf("%s %s ไม่มี token: status = %d, want 401", ep.method, ep.path, rec.Code)
@@ -181,7 +181,7 @@ func insertBorrowedItem(t *testing.T, pool *pgxpool.Pool, assetCode string, dueI
 	}
 }
 
-// postReturn ส่ง multipart ไปที่ POST /api/v1/returns ด้วย token ที่ระบุ
+// postReturn ส่ง multipart ไปที่ POST /v1/returns ด้วย token ที่ระบุ
 func postReturn(t *testing.T, router http.Handler, token string, fields map[string]string) *httptest.ResponseRecorder {
 	t.Helper()
 	var body bytes.Buffer
@@ -194,7 +194,7 @@ func postReturn(t *testing.T, router http.Handler, token string, fields map[stri
 	if err := mw.Close(); err != nil {
 		t.Fatal(err)
 	}
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/returns", &body)
+	req := httptest.NewRequest(http.MethodPost, "/v1/returns", &body)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
@@ -269,7 +269,7 @@ func TestReturns_Lookup_FoundOpenLoan(t *testing.T) {
 		overdue   bool
 	}{{"T05-LOOKUP", false}, {"T05-LATE", true}} {
 		// When เจ้าหน้าที่กรอกรหัสครุภัณฑ์
-		rec := call(router, http.MethodGet, "/api/v1/returns/lookup?assetCode="+tc.assetCode, "mock-staff-001")
+		rec := call(router, http.MethodGet, "/v1/returns/lookup?assetCode="+tc.assetCode, "mock-staff-001")
 
 		// Then ได้การยืมที่ยังไม่คืนพร้อมข้อมูลตาม plan.md ข้อ 4
 		if rec.Code != http.StatusOK {
@@ -292,7 +292,7 @@ func TestReturns_Lookup_FoundOpenLoan(t *testing.T) {
 	}
 
 	// การยืมที่คืนแล้วต้องหาไม่พบ (CS-NB-0001 คืนแล้วใน seed_006_return.sql) กรณีอื่นของ AC-RET-03 อยู่ใน T-18
-	if rec := call(router, http.MethodGet, "/api/v1/returns/lookup?assetCode=CS-NB-0001", "mock-staff-001"); rec.Code != http.StatusConflict {
+	if rec := call(router, http.MethodGet, "/v1/returns/lookup?assetCode=CS-NB-0001", "mock-staff-001"); rec.Code != http.StatusConflict {
 		t.Errorf("อุปกรณ์ที่ไม่มีการยืมค้าง: status = %d, want 409", rec.Code)
 	}
 }
@@ -505,7 +505,7 @@ func TestReturns_LoanDetail(t *testing.T) {
 	}
 
 	// When เปิดรายละเอียดการยืม
-	rec = call(router, http.MethodGet, fmt.Sprintf("/api/v1/returns/loans/%d", created.LoanID), "mock-staff-001")
+	rec = call(router, http.MethodGet, fmt.Sprintf("/v1/returns/loans/%d", created.LoanID), "mock-staff-001")
 
 	// Then ได้ข้อมูลครบตาม plan.md ข้อ 4
 	if rec.Code != http.StatusOK {
@@ -532,13 +532,13 @@ func TestReturns_LoanDetail(t *testing.T) {
 		`SELECT l.id FROM loan l JOIN equipment_item i ON i.id = l.item_id WHERE i.asset_code = 'T11-OPEN'`).Scan(&openID); err != nil {
 		t.Fatal(err)
 	}
-	rec = call(router, http.MethodGet, fmt.Sprintf("/api/v1/returns/loans/%d", openID), "mock-staff-001")
+	rec = call(router, http.MethodGet, fmt.Sprintf("/v1/returns/loans/%d", openID), "mock-staff-001")
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"returnedAt":null`) {
 		t.Errorf("การยืมที่ยังไม่คืน: status = %d body=%s, want 200 และ returnedAt null", rec.Code, rec.Body.String())
 	}
 
 	// ไม่มีการยืมนี้ / รหัสไม่ใช่ตัวเลข -> 404
-	for _, path := range []string{"/api/v1/returns/loans/999999", "/api/v1/returns/loans/abc"} {
+	for _, path := range []string{"/v1/returns/loans/999999", "/v1/returns/loans/abc"} {
 		if rec := call(router, http.MethodGet, path, "mock-staff-001"); rec.Code != http.StatusNotFound {
 			t.Errorf("%s: status = %d, want 404", path, rec.Code)
 		}
@@ -689,7 +689,7 @@ func TestAC_RET_10_OpenLoansOwnDepartment(t *testing.T) {
 	router := newRouterWith(pool, provider)
 
 	// When
-	rec := call(router, http.MethodGet, "/api/v1/returns/open-loans", "staff-t14")
+	rec := call(router, http.MethodGet, "/v1/returns/open-loans", "staff-t14")
 
 	// Then
 	if rec.Code != http.StatusOK {
@@ -717,7 +717,7 @@ func TestAC_RET_10_OpenLoansOwnDepartment(t *testing.T) {
 	// ภาควิชาที่ไม่มีการยืมค้างได้รายการว่าง [] ไม่ใช่ null
 	emptyDept, _ := insertDepartment(t, pool, "T14 ภาควิชาว่าง")
 	provider["staff-empty"] = auth.Principal{UserID: "staff-empty", Role: auth.RoleStaff, DepartmentID: emptyDept}
-	if rec := call(router, http.MethodGet, "/api/v1/returns/open-loans", "staff-empty"); strings.TrimSpace(rec.Body.String()) != "[]" {
+	if rec := call(router, http.MethodGet, "/v1/returns/open-loans", "staff-empty"); strings.TrimSpace(rec.Body.String()) != "[]" {
 		t.Errorf("ภาควิชาที่ไม่มีการยืมค้าง: body = %s, want []", rec.Body.String())
 	}
 }
@@ -750,7 +750,7 @@ func TestAC_RET_13_OverdueShownToStaff(t *testing.T) {
 	}
 
 	// When + Then: หน้ารายละเอียดของรายการแรก
-	rec = call(router, http.MethodGet, fmt.Sprintf("/api/v1/returns/loans/%d", created.LoanID), "staff-t16")
+	rec = call(router, http.MethodGet, fmt.Sprintf("/v1/returns/loans/%d", created.LoanID), "staff-t16")
 	var detail LoanDetail
 	if err := json.Unmarshal(rec.Body.Bytes(), &detail); err != nil {
 		t.Fatal(err)
@@ -760,7 +760,7 @@ func TestAC_RET_13_OverdueShownToStaff(t *testing.T) {
 	}
 
 	// When + Then: หน้ารายการที่ยังไม่คืน มีเฉพาะรายการที่สอง และเลยกำหนดคืน
-	rec = call(router, http.MethodGet, "/api/v1/returns/open-loans", "staff-t16")
+	rec = call(router, http.MethodGet, "/v1/returns/open-loans", "staff-t16")
 	var open []OpenLoan
 	if err := json.Unmarshal(rec.Body.Bytes(), &open); err != nil {
 		t.Fatal(err)
@@ -806,7 +806,7 @@ func TestAC_RET_03_NoOpenLoanRejected(t *testing.T) {
 		insertItemWithoutLoan(t, pool, tc.assetCode, tc.status)
 
 		// When: ทั้งขั้นค้นหา (lookup) และขั้นบันทึก (POST)
-		lookup := call(router, http.MethodGet, "/api/v1/returns/lookup?assetCode="+tc.assetCode, "mock-staff-001")
+		lookup := call(router, http.MethodGet, "/v1/returns/lookup?assetCode="+tc.assetCode, "mock-staff-001")
 		post := postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": tc.assetCode, "condition": "normal"})
 
 		// Then
@@ -903,10 +903,10 @@ func TestAC_RET_11_OtherDepartmentForbidden(t *testing.T) {
 
 	// When
 	recs := map[string]*httptest.ResponseRecorder{
-		"lookup":      call(router, http.MethodGet, "/api/v1/returns/lookup?assetCode=T20-OTHER", "mock-staff-001"),
+		"lookup":      call(router, http.MethodGet, "/v1/returns/lookup?assetCode=T20-OTHER", "mock-staff-001"),
 		"POST":        postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "T20-OTHER", "condition": "normal"}),
-		"loan detail": call(router, http.MethodGet, fmt.Sprintf("/api/v1/returns/loans/%d", loanID), "mock-staff-001"),
-		"lookup ว่าง": call(router, http.MethodGet, "/api/v1/returns/lookup?assetCode=T20-OTHER-FREE", "mock-staff-001"),
+		"loan detail": call(router, http.MethodGet, fmt.Sprintf("/v1/returns/loans/%d", loanID), "mock-staff-001"),
+		"lookup ว่าง": call(router, http.MethodGet, "/v1/returns/lookup?assetCode=T20-OTHER-FREE", "mock-staff-001"),
 		"POST ว่าง":   postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "T20-OTHER-FREE", "condition": "normal"}),
 	}
 
@@ -952,9 +952,9 @@ func TestAC_RET_08_StudentForbidden(t *testing.T) {
 	// When
 	recs := map[string]*httptest.ResponseRecorder{
 		"POST /returns":   postReturn(t, router, student, map[string]string{"assetCode": "T22-STUDENT", "condition": "normal"}),
-		"GET /open-loans": call(router, http.MethodGet, "/api/v1/returns/open-loans", student),
-		"GET /lookup":     call(router, http.MethodGet, "/api/v1/returns/lookup?assetCode=T22-STUDENT", student),
-		"GET /loans/{id}": call(router, http.MethodGet, fmt.Sprintf("/api/v1/returns/loans/%d", loanID), student),
+		"GET /open-loans": call(router, http.MethodGet, "/v1/returns/open-loans", student),
+		"GET /lookup":     call(router, http.MethodGet, "/v1/returns/lookup?assetCode=T22-STUDENT", student),
+		"GET /loans/{id}": call(router, http.MethodGet, fmt.Sprintf("/v1/returns/loans/%d", loanID), student),
 	}
 
 	// Then: 403 FORBIDDEN_ROLE ทุก endpoint body มีแค่ code
@@ -972,7 +972,7 @@ func TestAC_RET_08_StudentForbidden(t *testing.T) {
 	}
 
 	// เจ้าหน้าที่ยังใช้ได้ตามปกติ
-	if rec := call(router, http.MethodGet, "/api/v1/returns/lookup?assetCode=T22-STUDENT", "mock-staff-001"); rec.Code != http.StatusOK {
+	if rec := call(router, http.MethodGet, "/v1/returns/lookup?assetCode=T22-STUDENT", "mock-staff-001"); rec.Code != http.StatusOK {
 		t.Errorf("เจ้าหน้าที่: status = %d, want 200", rec.Code)
 	}
 }
@@ -1023,7 +1023,7 @@ func TestAC_RET_07_ReturnAudited(t *testing.T) {
 	insertBorrowedItem(t, pool, "T23-AUDIT", 2*time.Hour)
 
 	// When: เจ้าหน้าที่ค้นหา บันทึกคืนสำเร็จ เปิดรายละเอียด เปิดรายการ และบันทึกซ้ำ (ไม่มีการยืมค้างแล้ว)
-	call(router, http.MethodGet, "/api/v1/returns/lookup?assetCode=T23-AUDIT", "staff-t23")
+	call(router, http.MethodGet, "/v1/returns/lookup?assetCode=T23-AUDIT", "staff-t23")
 	rec := postReturn(t, router, "staff-t23", map[string]string{"assetCode": "T23-AUDIT", "condition": "normal"})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("บันทึกคืน: status = %d body=%s", rec.Code, rec.Body.String())
@@ -1032,8 +1032,8 @@ func TestAC_RET_07_ReturnAudited(t *testing.T) {
 		LoanID int `json:"loanId"`
 	}
 	_ = json.Unmarshal(rec.Body.Bytes(), &created)
-	call(router, http.MethodGet, fmt.Sprintf("/api/v1/returns/loans/%d", created.LoanID), "staff-t23")
-	call(router, http.MethodGet, "/api/v1/returns/open-loans", "staff-t23")
+	call(router, http.MethodGet, fmt.Sprintf("/v1/returns/loans/%d", created.LoanID), "staff-t23")
+	call(router, http.MethodGet, "/v1/returns/open-loans", "staff-t23")
 	postReturn(t, router, "staff-t23", map[string]string{"assetCode": "T23-AUDIT", "condition": "normal"})
 
 	// Then: แถว audit ของเจ้าหน้าที่ครบตามลำดับ
@@ -1072,7 +1072,7 @@ func TestAC_RET_07_ReturnAudited(t *testing.T) {
 
 	// นักศึกษาถูกปฏิเสธ: มี audit outcome forbidden
 	postReturn(t, router, "student-t23", map[string]string{"assetCode": "T23-AUDIT", "condition": "normal"})
-	call(router, http.MethodGet, "/api/v1/returns/open-loans", "student-t23")
+	call(router, http.MethodGet, "/v1/returns/open-loans", "student-t23")
 	st := auditRowsOf(t, pool, "student-t23")
 	if len(st) != 2 || st[0].Action != "return" || st[1].Action != "return_list" ||
 		st[0].Outcome != "forbidden" || st[1].Outcome != "forbidden" || st[0].Role != "student" {

@@ -4,11 +4,11 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client.js'
 import LoanDetailPage from './LoanDetailPage.jsx'
-import { RETURN_CONDITIONS, STATUS_LABELS, TIMEZONE } from '../../config.js'
+import { RETURN_CONDITIONS, STATUS_LABELS, TIME_ZONE } from '../../config.js'
 
 // formatDateTime แสดงวันที่และเวลาตามเขตเวลา Asia/Bangkok (glossary)
 function formatDateTime(iso) {
-  return new Date(iso).toLocaleString('th-TH', { timeZone: TIMEZONE, dateStyle: 'medium', timeStyle: 'short' })
+  return new Date(iso).toLocaleString('th-TH', { timeZone: TIME_ZONE, dateStyle: 'medium', timeStyle: 'short' })
 }
 
 // conditionRequiredMessage แจ้งให้เลือกสภาพ ใช้ชื่อสภาพจาก config.js (AC-RET-04, FR-RET-02)

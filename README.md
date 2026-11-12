@@ -10,7 +10,7 @@ Term Project รายวิชา 520461-165 Software Requirement Specification
 
 | สมาชิก | GitHub | ฟีเจอร์ที่รับผิดชอบ | ส่วนอื่นที่ทำ |
 |---|---|---|---|
-| 660710767 นางสาวพรรณธร จันทร์สายทอง | https://github.com/Pannathorn05 | 001-equipment-status |  |
+| 660710767 นางสาวพรรณธร จันทร์สายทอง | https://github.com/Pannathorn05 | 001-equipment-status | วางของกลาง (000-shared, AGENTS.md), ร่าง SRS, โครง Go + ฐานข้อมูล + auth จำลอง, audit_log และแพ็กเกจ audit ใช้ร่วม, รหัส error กลาง (ITEM_NOT_FOUND, METHOD_NOT_ALLOWED และตัวครอบ 405), หน้าล็อกอินจำลอง, แก้ Migrate ให้ใช้บน Windows ได้ |
 | 660710715 นางสาวธัญลักษณ์ เดชนครชัย  | https://github.com/tnyl02 | 002-borrow-request | |
 | 660710763 นางสาวนภัสนัน ดีเสมอ | https://github.com/napatsanan-np | 003-cancel-request | |
 | 660710758 นางสาวณัฐสุดา กัญญาบุญ | https://github.com/natsuda05 | 004-approve-request | |

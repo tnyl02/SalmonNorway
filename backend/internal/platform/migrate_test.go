@@ -172,17 +172,163 @@ func TestMigration_AuditLogAction(t *testing.T) {
 			t.Errorf("action %q อยู่ใน DM-07 ต้องบันทึกได้ แต่ได้ error: %v", a, err)
 		}
 	}
-	for _, a := range []string{"cancel_notify_failed", "approve", ""} {
+	// 'approve' เคยอยู่ในรายการนี้ ย้ายเป็น 'delete' เพราะ migration 0008 ของ 004 เพิ่ม 'approve' ใน DM-07 แล้ว (ทีมตกลง 2569-11-12)
+	for _, a := range []string{"cancel_notify_failed", "delete", ""} {
 		stmt := `INSERT INTO audit_log (actor_id, actor_role, action, outcome) VALUES ('student-001', 'student', '` + a + `', 'ok')`
 		if err := execInTx(t, conn, stmt); err == nil {
 			t.Errorf("action %q ไม่อยู่ใน DM-07 ต้องถูกปฏิเสธ", a)
 		}
 	}
 	// การยกเลิกคำขอของ 003: มี request_id ไม่มีรหัสครุภัณฑ์ / การเปิดรายละเอียดของ 001: กลับกัน
+	// ตั้งแต่ migration 0003 ของ 002 คอลัมน์ request_id มี foreign key แล้ว (ASM-BRQ-03)
+	// จึงต้องมีคำขอจริงก่อน ไม่ใช่เลขสมมติ เจตนาเดิมของ test ยังเหมือนเดิมคือทั้งสองคอลัมน์ว่างได้
 	if err := execInTx(t, conn,
+		`INSERT INTO borrow_request (id, requester_id, requester_name, student_code, item_id,
+			loan_type, purpose, start_at, end_at, status)
+		 VALUES (42, 'student-001', 'ผู้ขอทดสอบ', '660710715', 1, 'normal', 'study', now(), now(), 'requested')`,
 		`INSERT INTO audit_log (actor_id, actor_role, action, request_id, outcome) VALUES ('student-001', 'student', 'cancel', 42, 'ok')`,
 		insertAudit,
 	); err != nil {
 		t.Errorf("request_id และ asset_code ต้องว่างได้ทั้งคู่: %v", err)
+	}
+}
+
+// insertRequest พยายามเพิ่มคำขอยืม 1 ใบใน transaction ที่ยกเลิกทิ้งเสมอ (T-01 ของ 002)
+func insertRequest(t *testing.T, conn *pgx.Conn, requesterID string, itemID int, status string, extra ...string) error {
+	t.Helper()
+	ctx := context.Background()
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx)
+	for _, s := range extra {
+		if _, err := tx.Exec(ctx, s); err != nil {
+			return err
+		}
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO borrow_request
+		(requester_id, requester_name, student_code, item_id, loan_type, purpose, start_at, end_at, status)
+		VALUES ($1, 'ธัญลักษณ์ ทดสอบ', '660710715', $2, 'normal', 'study', now(), now(), $3)`,
+		requesterID, itemID, status)
+	return err
+}
+
+// T-01 (002) เสร็จเมื่อ (ก): สถานะของคำขอนอก 8 ค่าถูกปฏิเสธ (data-model.md v9, FR-BRQ-04)
+func TestMigration_BorrowRequestConstraints(t *testing.T) {
+	conn := testDB(t)
+
+	for _, s := range []string{"requested", "approved_by_officer", "pending_advisor_approval",
+		"approved", "rejected", "handed_over", "returned", "cancelled"} {
+		if err := insertRequest(t, conn, "student-001", 1, s); err != nil {
+			t.Errorf("สถานะ %q อยู่ใน data-model v9 ต้องบันทึกได้ แต่ได้ error: %v", s, err)
+		}
+	}
+	for _, s := range []string{"Requested", "pending", "approve", ""} {
+		if err := insertRequest(t, conn, "student-001", 1, s); err == nil {
+			t.Errorf("สถานะ %q ไม่อยู่ในรายการ 8 ค่า ต้องถูกปฏิเสธ", s)
+		}
+	}
+	// อ้างอุปกรณ์ที่ไม่มีอยู่จริงต้องถูกปฏิเสธ (FR-BRQ-01 ขอยืมรายชิ้น)
+	if err := insertRequest(t, conn, "student-001", 99999, "requested"); err == nil {
+		t.Error("item_id ที่ไม่มีในตาราง equipment_item ต้องถูกปฏิเสธ")
+	}
+}
+
+// T-01 (002) เสร็จเมื่อ (ข): unique index กันคำขอซ้ำของผู้ขอคนเดิมบนชิ้นเดิมใน 4 สถานะที่ยังไม่จบ
+// (FR-BRQ-05 ข ตามขอบเขตที่ CR-004 ขยาย) แต่คำขอของคนอื่นบนชิ้นเดียวกันต้องส่งซ้อนได้ (DOM-REQ-01)
+func TestMigration_DuplicateRequestBlocked(t *testing.T) {
+	conn := testDB(t)
+
+	const first = `INSERT INTO borrow_request
+		(requester_id, requester_name, student_code, item_id, loan_type, purpose, start_at, end_at, status)
+		VALUES ('student-001', 'ก', '1', 1, 'normal', 'study', now(), now(), `
+
+	for _, s := range []string{"requested", "approved_by_officer", "pending_advisor_approval", "approved"} {
+		if err := insertRequest(t, conn, "student-001", 1, "requested", first+`'`+s+`')`); err == nil {
+			t.Errorf("คำขอใบเดิมสถานะ %q ยังไม่จบ ต้องส่งซ้ำไม่ได้ (FR-BRQ-05 ข, CR-004)", s)
+		}
+	}
+	for _, s := range []string{"rejected", "cancelled", "handed_over", "returned"} {
+		if err := insertRequest(t, conn, "student-001", 1, "requested", first+`'`+s+`')`); err != nil {
+			t.Errorf("คำขอใบเดิมสถานะ %q จบแล้ว ต้องส่งใหม่ได้ แต่ได้ error: %v", s, err)
+		}
+	}
+	// คนละคนบนอุปกรณ์ชิ้นเดียวกัน ต้องส่งซ้อนได้ (DOM-REQ-01)
+	if err := insertRequest(t, conn, "student-002", 1, "requested", first+`'requested')`); err != nil {
+		t.Errorf("คำขอของผู้อื่นบนชิ้นเดียวกันต้องส่งซ้อนได้ (DOM-REQ-01): %v", err)
+	}
+}
+
+// T-01 (002) เสร็จเมื่อ (ค)(ง): audit_log.request_id มี foreign key แล้ว และใช้ค่า action 'request' ได้ (Q-BRQ-07, ASM-BRQ-03)
+func TestMigration_AuditLogRequestAction(t *testing.T) {
+	conn := testDB(t)
+
+	const insertRequestRow = `INSERT INTO borrow_request
+		(id, requester_id, requester_name, student_code, item_id, loan_type, purpose, start_at, end_at, status)
+		VALUES (9001, 'student-001', 'ก', '1', 1, 'normal', 'study', now(), now(), 'requested')`
+
+	if err := execInTx(t, conn, insertRequestRow,
+		`INSERT INTO audit_log (actor_id, actor_role, action, asset_code, request_id, outcome)
+		 VALUES ('student-001', 'student', 'request', 'CS-NB-0001', 9001, 'ok')`,
+	); err != nil {
+		t.Errorf("action 'request' พร้อม request_id ที่มีจริง ต้องบันทึกได้: %v", err)
+	}
+	if err := execInTx(t, conn,
+		`INSERT INTO audit_log (actor_id, actor_role, action, request_id, outcome)
+		 VALUES ('student-001', 'student', 'request', 9999, 'ok')`,
+	); err == nil {
+		t.Error("request_id ที่ไม่มีในตาราง borrow_request ต้องถูกปฏิเสธด้วย foreign key (ASM-BRQ-03)")
+	}
+}
+
+// T-03 (002) เสร็จเมื่อ: ข้อมูลตั้งต้นมีครบ 3 กรณีที่จุดตรวจของฟีเจอร์ 002 ต้องใช้
+// เป็นเกราะกันไม่ให้ใครแก้ seed แล้วทำให้จุดตรวจของ 002 ใช้ไม่ได้โดยไม่รู้ตัว
+func TestSeed_BorrowRequestScenarios(t *testing.T) {
+	conn := testDB(t)
+	ctx := context.Background()
+
+	// (1) อุปกรณ์ว่างของภาควิชา 1 สำหรับส่งคำขอสำเร็จ (FR-BRQ-01)
+	var availableOwn int
+	if err := conn.QueryRow(ctx, `
+		SELECT count(*) FROM equipment_item i
+		JOIN equipment_model m ON m.id = i.model_id
+		WHERE i.status = 'available' AND m.department_id = 1`).Scan(&availableOwn); err != nil {
+		t.Fatal(err)
+	}
+	if availableOwn < 1 {
+		t.Error("ต้องมีอุปกรณ์ว่างของภาควิชา 1 อย่างน้อย 1 ชิ้น สำหรับลองส่งคำขอ")
+	}
+
+	// (2) อุปกรณ์ว่างของภาควิชาอื่น สำหรับลองคำขอข้ามภาควิชา (FR-BRQ-07, DOM-ACCESS-01)
+	var availableOther int
+	if err := conn.QueryRow(ctx, `
+		SELECT count(*) FROM equipment_item i
+		JOIN equipment_model m ON m.id = i.model_id
+		WHERE i.status = 'available' AND m.department_id <> 1`).Scan(&availableOther); err != nil {
+		t.Fatal(err)
+	}
+	if availableOther < 1 {
+		t.Error("ต้องมีอุปกรณ์ว่างของภาควิชาอื่นอย่างน้อย 1 ชิ้น สำหรับลองคำขอข้ามภาควิชา")
+	}
+
+	// (3) ผู้ขอที่มีของคืนเกินกำหนดค้างอยู่ สำหรับลองกฎปฏิเสธอัตโนมัติ (FR-BRQ-06)
+	var overdue int
+	if err := conn.QueryRow(ctx, `
+		SELECT count(*) FROM loan
+		WHERE borrower_id = 'student-002' AND returned_at IS NULL AND due_at < now()`).Scan(&overdue); err != nil {
+		t.Fatal(err)
+	}
+	if overdue < 1 {
+		t.Error("ต้องมี loan ของ student-002 ที่เลยกำหนดคืนและยังไม่คืน สำหรับลองกฎของค้างเกินกำหนด")
+	}
+
+	// ตาราง borrow_request ต้องว่างเปล่า คำขอทุกใบต้องเกิดจาก API ของ 002 เท่านั้น
+	var requests int
+	if err := conn.QueryRow(ctx, `SELECT count(*) FROM borrow_request`).Scan(&requests); err != nil {
+		t.Fatal(err)
+	}
+	if requests != 0 {
+		t.Errorf("ข้อมูลตั้งต้นต้องไม่มีคำขอยืม แต่พบ %d ใบ", requests)
 	}
 }

@@ -2,11 +2,11 @@
 // แสดงเวลาคืน สภาพ และป้าย "คืนเกินกำหนด" (FR-RET-06, AC-RET-13)
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client.js'
-import { RETURN_CONDITIONS, TIMEZONE } from '../../config.js'
+import { RETURN_CONDITIONS, TIME_ZONE } from '../../config.js'
 
 // formatDateTime แสดงวันที่และเวลาตามเขตเวลา Asia/Bangkok (glossary)
 function formatDateTime(iso) {
-  return new Date(iso).toLocaleString('th-TH', { timeZone: TIMEZONE, dateStyle: 'medium', timeStyle: 'short' })
+  return new Date(iso).toLocaleString('th-TH', { timeZone: TIME_ZONE, dateStyle: 'medium', timeStyle: 'short' })
 }
 
 // conditionLabel แปลงค่าสภาพเป็นคำที่แสดง จาก config.js (FR-RET-02)
@@ -14,7 +14,7 @@ function conditionLabel(value) {
   return RETURN_CONDITIONS.find((c) => c.value === value)?.label ?? value
 }
 
-// LoanDetailPage: รายละเอียดการยืม 1 รายการจาก GET /api/v1/returns/loans/{loanId} (FR-RET-06)
+// LoanDetailPage: รายละเอียดการยืม 1 รายการจาก GET /v1/returns/loans/{loanId} (FR-RET-06)
 export default function LoanDetailPage({ loanId, client = api }) {
   const [detail, setDetail] = useState(null)
   const [error, setError] = useState('')

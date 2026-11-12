@@ -2,11 +2,11 @@
 // แสดงป้าย "เลยกำหนดคืน" เมื่อหลังบ้านบอกว่า isOverdue (FR-RET-06, AC-RET-13 คำเดียวกับป้ายใน glossary)
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client.js'
-import { TIMEZONE } from '../../config.js'
+import { TIME_ZONE } from '../../config.js'
 
 // formatDateTime แสดงวันที่และเวลาตามเขตเวลา Asia/Bangkok (glossary)
 function formatDateTime(iso) {
-  return new Date(iso).toLocaleString('th-TH', { timeZone: TIMEZONE, dateStyle: 'medium', timeStyle: 'short' })
+  return new Date(iso).toLocaleString('th-TH', { timeZone: TIME_ZONE, dateStyle: 'medium', timeStyle: 'short' })
 }
 
 // OpenLoansPage: แสดงการยืมที่ยังไม่คืน เลือกแถวแล้วส่งรหัสครุภัณฑ์ให้หน้าบันทึกคืน (FR-RET-01(ข))

@@ -29,17 +29,17 @@ func (h *Handler) Routes(provider auth.Provider) func(*http.ServeMux) {
 			pattern, action string
 			handle          http.HandlerFunc
 		}{
-			{"GET /api/v1/returns/open-loans", actionReturnList, h.openLoans},        // FR-RET-01(ข), FR-RET-06
-			{"GET /api/v1/returns/lookup", actionReturnLookup, h.lookup},             // FR-RET-01(ก)
-			{"POST /api/v1/returns", actionReturn, h.recordReturn},                   // FR-RET-02, 03, 04, 06, 07
-			{"GET /api/v1/returns/loans/{loanId}", actionReturnDetail, h.loanDetail}, // FR-RET-06
+			{"GET /v1/returns/open-loans", actionReturnList, h.openLoans},        // FR-RET-01(ข), FR-RET-06
+			{"GET /v1/returns/lookup", actionReturnLookup, h.lookup},             // FR-RET-01(ก)
+			{"POST /v1/returns", actionReturn, h.recordReturn},                   // FR-RET-02, 03, 04, 06, 07
+			{"GET /v1/returns/loans/{loanId}", actionReturnDetail, h.loanDetail}, // FR-RET-06
 		} {
 			mux.Handle(rt.pattern, auth.Middleware(provider, h.staffOnly(rt.action, rt.handle)))
 		}
 	}
 }
 
-// returnResponse คือ output ของ POST /api/v1/returns ตาม plan.md ข้อ 4
+// returnResponse คือ output ของ POST /v1/returns ตาม plan.md ข้อ 4
 type returnResponse struct {
 	LoanID       int       `json:"loanId"`
 	AssetCode    string    `json:"assetCode"`
