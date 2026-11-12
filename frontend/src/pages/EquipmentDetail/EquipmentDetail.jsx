@@ -4,6 +4,7 @@ import { TIME_ZONE } from '../../config.js'
 import StatusBadge, { OverdueBadge } from '../../components/StatusBadge.jsx'
 import ErrorState from '../../components/ErrorState.jsx'
 import RequestQueue from '../../components/RequestQueue.jsx'
+import { RequestLoanButton } from '../../components/ItemTable.jsx'
 
 // ปี พ.ศ. = ปี ค.ศ. + 543 ใช้แสดงวันที่แบบตัวอย่างใน spec ("2569-10-10 16:00" ใน AC-EQS-14)
 const BUDDHIST_YEAR_OFFSET = 543
@@ -30,9 +31,9 @@ export function formatDueAt(iso) {
 // หน้ารายละเอียดอุปกรณ์รายชิ้น (UC-01 ขั้น 7-8, FR-EQS-04)
 // แสดงสถานะ กำหนดคืน (วันที่และเวลา) เมื่อถูกยืม และป้าย "เลยกำหนดคืน" เมื่อเลยกำหนด (FR-EQS-04 ข้อ ก, ข)
 // นักศึกษาที่เลยกำหนดแล้วไม่ได้รับกำหนดคืนจากหลังบ้าน จึงเห็นแค่ป้าย ส่วนเจ้าหน้าที่เห็นทั้งคู่ (CR-001)
-// ปุ่มส่งคำขอยืม (T-34 รอ Q-16) ยังไม่มีในตอนนี้
+// ปุ่มส่งคำขอยืมแสดงเมื่อหลังบ้านบอก canRequestLoan (สถานะ "ว่าง") กดแล้วส่ง assetCode ทาง onRequestLoan (FR-EQS-04, 05, 06, T-34)
 // คำขอยืมที่ค้างอยู่ของชิ้นนี้ (FR-EQS-11, T-38) โหลดแยกจาก getItem ดู useEffect ตัวที่สอง
-export default function EquipmentDetail({ assetCode, client = api, onBack }) {
+export default function EquipmentDetail({ assetCode, client = api, onBack, onRequestLoan }) {
   const [item, setItem] = useState(null)
   const [error, setError] = useState(null)
   const [requests, setRequests] = useState(null)
@@ -103,6 +104,12 @@ export default function EquipmentDetail({ assetCode, client = api, onBack }) {
             </>
           )}
         </dl>
+        {/* FR-EQS-04, 05, 06 (T-34): ปุ่มตาม canRequestLoan จากหลังบ้าน ถูกยืม เลยกำหนด หรือไม่พร้อมใช้งาน = ไม่มีปุ่ม */}
+        {item.canRequestLoan === true && (
+          <div>
+            <RequestLoanButton assetCode={item.assetCode ?? assetCode} onRequestLoan={onRequestLoan} />
+          </div>
+        )}
         {/* FR-EQS-11: แสดงคู่กับรายละเอียดที่โหลดสำเร็จเท่านั้น ถ้ารายละเอียดเป็น error ไม่แสดงส่วนนี้ */}
         <RequestQueue requests={requests} formatTime={formatDueAt} />
         </>

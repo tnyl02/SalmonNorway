@@ -5192,3 +5192,30 @@ T-13 มีแค่ `service.go` ในช่องไฟล์ที่แต�
 - ลองกับหลังบ้านจริง (`go run ./cmd/server`): POST /v1/equipment/models -> 405 Allow: GET, HEAD body METHOD_NOT_ALLOWED /
   GET /v1/loan-requests (002) -> 405 Allow: POST body เดียวกัน / GET models -> 200 / POST ไม่มี token -> 401 UNAUTHENTICATED เหมือนเดิม
 - ไม่มีเรื่องที่ต้องเดา: รหัส ข้อความ และวิธีครอบมีใน plan ข้อ 5 และข้อ 10
+
+---
+
+## 2569-11-12 /implement T-34 ปุ่มส่งคำขอยืม ทั้งตารางรายชิ้นและหน้ารายละเอียด (FR-EQS-04, 05, 06)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement T-34`
+- คำถามที่ AI ถามก่อนทำ และคำตอบของทีม (Pannathorn J):
+  1. ฟอร์มของ 002 ยังไม่มีใน main (ไม่มี pages/BorrowRequest และ Q-BRQ-14 ของ 002 ยังเปิด) และ App.jsx ไม่อยู่ในไฟล์ที่แตะ
+     กดปุ่มแล้วจะให้เกิดอะไร -> ทีมตอบ: ส่ง assetCode ออกไปก่อน (prop onRequestLoan) ไม่ต่อกับ App ในแอปจริงกดแล้วยังไม่ไปไหน
+- ไฟล์ที่แก้: `backend/internal/equipment/dto.go` (CanRequestLoan ใน StudentItemDTO / StaffItemDTO และฟังก์ชัน canRequestLoan = ว่างเท่านั้น),
+  `backend/internal/equipment/repository.go` (CanRequestLoan ใน ItemRow ของตารางรายชิ้น), `backend/internal/equipment/service.go` (ใส่ค่าในรายละเอียด),
+  `backend/internal/equipment/handler_test.go` (TestAC_EQS_04_06_14_CanRequestLoan และเติมช่อง canRequestLoan ใน want ของ TestAC_EQS_01_ItemsOfModel
+  ที่สร้าง ItemRow แบบตามตำแหน่ง ไม่งั้น compile ไม่ผ่าน), `frontend/src/components/ItemTable.jsx` (คอลัมน์ปุ่ม และ RequestLoanButton ใช้ร่วม 2 หน้า),
+  `frontend/src/pages/EquipmentList/EquipmentList.jsx` (รับ onRequestLoan ส่งต่อให้ตารางและรายละเอียด), `frontend/src/pages/EquipmentDetail/EquipmentDetail.jsx` (ปุ่มตาม canRequestLoan),
+  `specs/001-equipment-status/tasks.md` (สถานะ T-34)
+- ไฟล์ที่สร้าง: `frontend/src/__tests__/RequestButton.test.jsx`
+- test: `TestAC_EQS_04_06_14_CanRequestLoan` ผ่าน (นักศึกษาและเจ้าหน้าที่ ตารางรายชิ้นและรายละเอียด: CS-NB-0001 ว่าง = true /
+  CS-NB-0004 ถูกยืม, CS-NB-0005 เลยกำหนดคืน, CS-PJ-0002 ไม่พร้อมใช้งาน = false) / `RequestButton.test.jsx` 6 test ผ่าน
+  (ตาราง: ปุ่มเฉพาะชิ้นที่ว่าง กดแล้ว onRequestLoan('CS-NB-0001') / รายละเอียด: ว่างมีปุ่ม ถูกยืม เลยกำหนด ไม่พร้อมใช้งานไม่มีปุ่ม /
+  ไม่มี canRequestLoan จากหลังบ้าน = ไม่มีปุ่ม) หลังบ้านทั้งระบบผ่าน หน้าจอ 32 ไฟล์ 87 test ผ่าน `vite build` ผ่าน
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้):
+  - ข้อความบนปุ่ม "ส่งคำขอยืม" ใช้คำจาก FR-EQS-04 และ AC ไม่มี mockup หัวคอลัมน์ของปุ่มในตารางเว้นว่าง
+  - canRequestLoan ส่งเป็น false ชัด ๆ (ไม่ omitempty) และหน้าจอแสดงปุ่มเฉพาะเมื่อได้ true จากหลังบ้าน ไม่ดูสถานะเอง (plan ข้อ 6.7)
+- ยังขาด: ต่อ onRequestLoan กับฟอร์มของ 002 ใน App.jsx (รอ 002 สร้างฟอร์มและตกลงวิธีเปิด) / test-cases ชุด ค (AC-EQS-04, 05, 06, 14) ทำได้แล้ว

@@ -88,9 +88,12 @@ func (s *Service) GetItem(ctx context.Context, assetCode string) (any, bool, err
 	}
 
 	if p, ok := auth.FromContext(ctx); ok && p.Role == auth.RoleStaff {
-		return StaffItemDTO{AssetCode: rec.AssetCode, Status: rec.Status, DueAt: dueAt, IsOverdue: overdue}, true, nil
+		return StaffItemDTO{AssetCode: rec.AssetCode, Status: rec.Status, DueAt: dueAt, IsOverdue: overdue,
+			CanRequestLoan: canRequestLoan(rec.Status)}, true, nil
 	}
-	student := StudentItemDTO{AssetCode: rec.AssetCode, Status: rec.Status, IsOverdue: overdue}
+	// FR-EQS-04, 05, 06 (T-34): ปุ่มส่งคำขอยืมตามสถานะ ไม่ขึ้นกับบทบาท
+	student := StudentItemDTO{AssetCode: rec.AssetCode, Status: rec.Status, IsOverdue: overdue,
+		CanRequestLoan: canRequestLoan(rec.Status)}
 	if !overdue {
 		student.DueAt = dueAt
 	}
