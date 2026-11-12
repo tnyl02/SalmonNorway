@@ -27,7 +27,7 @@ type BorrowerVerifier interface {
 }
 
 // MockBorrowerVerifier คือตัวยืนยันผู้ยืมจำลองสำหรับ prototype ใช้ผู้ใช้จาก auth.Provider
-// (ทีมเลือกเอง ไม่ได้มาจาก spec รอ Q-HND-11 และ Q-SH-03) credential คือ token แบบ "mock-<รหัสผู้ใช้>"
+// (ทีมเลือกเอง ไม่ได้มาจาก spec ASM-HND-09 ผู้ยืมล็อกอินบนเครื่องเจ้าหน้าที่ เทอมนี้ใช้ตัวจำลอง T-29 ยกเลิก) credential คือ token แบบ "mock-<รหัสผู้ใช้>"
 type MockBorrowerVerifier struct {
 	provider auth.Provider
 }

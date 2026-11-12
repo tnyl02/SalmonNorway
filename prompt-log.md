@@ -5536,3 +5536,18 @@ main
   ผล: แสดง "ต้องแนบรูปสภาพอุปกรณ์อย่างน้อย 2 รูป เป็นไฟล์ JPG หรือ PNG ขนาดไม่เกิน 10 MB ต่อรูป" และไม่มี POST .../handover ไปหลังบ้าน ปิด container และ Vite แล้ว
 - T-30: เพิ่มคำถามใน spec.md (Open Questions) และ tasks.md แบบยังไม่มี ID (กฎข้อ 5 AI ไม่ตั้ง ID เอง) ให้ทีมตั้ง ID และตอบก่อนทำ
 - เปลี่ยนสถานะ T-25, T-26, T-27, T-28, T-30 เป็น "เสร็จ" commit `005: T-xx reviewed` ทีละ task
+
+---
+
+## 2569-11-12 เก็บเอกสาร 005 ให้พร้อมทำ RTM
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "recheck ก่อนว่า ตอนนี้ยังเหลืออะไรที่ไม่ไดทำ" แล้ว "แก้เลย ให้พร้อมสำหรับให้เพื่อนเอาไปทำ rtm"
+- สิ่งที่แก้ (เฉพาะไฟล์ของ 005):
+  - plan.md เป็น v1.5: ข้อ 6 ตาราง AC -> test ตรงกับชื่อ test ที่มีจริงทุกแถว (เพิ่ม TestAC_HND_02_HandoverRecordsBorrower, AC-HND-02.test.jsx, AC-HND-12.test.jsx) และตาราง test ที่ไม่มี AC แยก (test -> FR/CON -> task) พร้อมคำสั่งรัน / ข้อ 8 ปิด Q-HND-03, 04, 06, 07, 10, 14 พร้อมอ้าง task ที่ทำ / แถว Q-SH-03, DOM-AUDIT-01, IF-IDP-01, loan.due_at ไม่เขียนว่า "รอ" แล้ว
+  - tasks.md เป็น v1.5: สรุปหัวไฟล์ (เสร็จ 29 ยกเลิก 2) "ยังขาด" ของจุดตรวจเฟส 4, 5, 10, 12 หัวข้อเฟส AC-HND-08 หมายเหตุค้างคืน และตาราง AC -> task / Constraint -> task ระบุ T-29, T-31 ยกเลิก
+  - คอมเมนต์โค้ด: repository.go (ชื่อ นามสกุล ASM-HND-10), verifier.go (ASM-HND-09 เทอมนี้ใช้ตัวจำลอง), handler.go (ขนาดรูปตรวจใน validatePhotos)
+- ไม่แก้: คอมเมนต์ "ที่มารอ Q-HND-13" ใน `0006_handover.up.sql` (migration ที่ merge แล้ว ห้ามแก้), ช่องติ๊ก AC ใน spec.md (ทีมติ๊กตอนทำ RTM), specs/README.md และ data-model.md (ไฟล์กลาง)
+- ผล test (container golang:1.25): test ของ 005 ทั้ง 27 ฟังก์ชันผ่าน `go test ./...` ผ่านทุก package gofmt ผ่าน

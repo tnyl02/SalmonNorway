@@ -51,7 +51,7 @@ func newHandler(db DB, verifier BorrowerVerifier, photos *PhotoStore, now func()
 }
 
 // multipartMaxMemory คือขนาดที่อ่านเข้าหน่วยความจำตอนแยก multipart ส่วนเกินพักไว้ในไฟล์ชั่วคราว (ทีมเลือกเอง ไม่ได้มาจาก spec)
-// ขนาดสูงสุดของรูปตรวจใน T-28 ตาม config.HandoverPhotoMaxBytes
+// ขนาดสูงสุดต่อรูปตรวจใน validatePhotos ตาม config.HandoverPhotoMaxBytes (FR-HND-06)
 const multipartMaxMemory = 8 << 20
 
 // requestIDFrom อ่าน {requestId} จาก path ok = false ถ้าไม่ใช่ตัวเลขบวก

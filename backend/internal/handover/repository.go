@@ -61,8 +61,8 @@ type HandoverRecord struct {
 	RequestID         int
 	BorrowerUserID    string    // รหัสผู้ใช้ที่ยืนยันตัวตนแล้ว เก็บใน loan.borrower_id (DM-05)
 	BorrowerStudentID string    // FR-HND-03
-	BorrowerFirstName string    // FR-HND-03 (ที่มารอ Q-HND-13)
-	BorrowerLastName  string    // FR-HND-03 (ที่มารอ Q-HND-13)
+	BorrowerFirstName string    // FR-HND-03 เจ้าหน้าที่พิมพ์ตามบัตร (ASM-HND-10)
+	BorrowerLastName  string    // FR-HND-03 เจ้าหน้าที่พิมพ์ตามบัตร (ASM-HND-10)
 	IdentityMethod    string    // FR-HND-02: auth_api หรือ card_only
 	CardChecked       bool      // FR-HND-03
 	HandedOverBy      string    // รหัสเจ้าหน้าที่ (CON-HND-01)
