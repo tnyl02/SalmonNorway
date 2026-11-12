@@ -84,13 +84,14 @@ func testPool(t *testing.T) *pgxpool.Pool {
 	return dbPool
 }
 
-// newTestServer ประกอบ handler แบบเดียวกับ cmd/server/main.go (อยู่หลัง auth.Middleware และห่อด้วย platform.NoStore)
+// newTestServer ประกอบ handler แบบเดียวกับ cmd/server/main.go
+// (อยู่หลัง auth.Middleware และห่อด้วย platform.NoStore กับ platform.MethodNotAllowedJSON ของ T-40)
 func newTestServer(t *testing.T) http.Handler {
 	t.Helper()
 	h := NewHandler(NewService(NewRepository(testPool(t))))
 	mux := http.NewServeMux()
 	mux.Handle(PathPrefix, auth.Middleware(auth.NewMockProvider(), h.Routes()))
-	return platform.NoStore(mux)
+	return platform.NoStore(platform.MethodNotAllowedJSON(mux))
 }
 
 // get เรียก endpoint ด้วย token ที่กำหนด (ว่าง = ไม่ส่ง token)
@@ -460,6 +461,12 @@ func TestCON_DATA_02_NoWriteEndpoints(t *testing.T) {
 			srv.ServeHTTP(rec, req)
 			if rec.Code != http.StatusMethodNotAllowed {
 				t.Errorf("%s %s ได้ %d ต้องเป็น 405 (ไม่มี endpoint เขียนข้อมูล)", method, p, rec.Code)
+				continue
+			}
+			// CON-TECH-03 (T-40): body ของ 405 เป็น {code: METHOD_NOT_ALLOWED, message} ไม่มีช่องอื่น
+			body := decode[map[string]any](t, rec)
+			if len(body) != 2 || body["code"] != platform.CodeMethodNotAllowed {
+				t.Errorf("%s %s body = %v ต้องเป็น {code: %s, message}", method, p, body, platform.CodeMethodNotAllowed)
 			}
 		}
 	}

@@ -5169,3 +5169,26 @@ T-13 มีแค่ `service.go` ในช่องไฟล์ที่แต�
   หลังบ้านทั้งระบบ `go test ./...` ผ่าน 10 package หน้าจอ 31 ไฟล์ 81 test ผ่าน
 - สิ่งที่ไม่ได้ทำ: 405 METHOD_NOT_ALLOWED เป็นของ T-40 / ไม่แก้หน้าจอ (ErrorState แสดง serverMessage ของ 404 ได้อยู่แล้ว)
 - ไม่มีเรื่องที่ต้องเดา: รหัส ข้อความ และกรณีรุ่นตัวเลขที่ไม่มีอยู่ (200 รายการว่าง) มีใน plan ข้อ 5 และช่อง "เสร็จเมื่อ" ครบ
+
+---
+
+## 2569-11-12 /implement T-40 ตอบ 405 ด้วย {code, message} ทั้งระบบ (CON-TECH-03)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `backend/cmd/server/main.go`, `backend/internal/platform/http.go`, `apierror.go`
+  เพราะ T-40 ของ 001: 405 ของทุกฟีเจอร์เปลี่ยน body เป็น {code: METHOD_NOT_ALLOWED, message})
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement T-40`
+- คำถามที่ AI ถามก่อนทำ และคำตอบของทีม (Pannathorn J):
+  1. ช่องสถานะของ T-40 บอกให้แจ้งทีมในกลุ่มก่อนแก้ main.go แจ้งแล้วหรือยัง -> ทีมตอบ: แจ้งแล้ว ทำได้เลย
+- ไฟล์ที่แก้: `backend/internal/platform/apierror.go` (CodeMethodNotAllowed และข้อความ "ไม่รองรับการเรียกแบบนี้" ตาม plan ข้อ 5),
+  `backend/internal/platform/http.go` (MethodNotAllowedJSON ครอบ router ดักเฉพาะ 405 ทิ้งข้อความเดิมของ ServeMux เขียน {code, message} แทน header Allow คงเดิม),
+  `backend/internal/platform/http_test.go` (TestCON_TECH_03_MethodNotAllowed), `backend/cmd/server/main.go` (NoStore(MethodNotAllowedJSON(mux))),
+  `backend/internal/equipment/handler_test.go` (newTestServer ครอบแบบเดียวกับ main.go, TestCON_DATA_02 ตรวจ body ของ 405),
+  `specs/001-equipment-status/tasks.md` (สถานะ T-40)
+- test: `TestCON_TECH_03_MethodNotAllowed` ผ่าน 5 กรณี (405 ได้ body 2 ช่อง Content-Type JSON header Allow มี GET ไม่มีข้อความ "Method Not Allowed" เหลือ /
+  200 JSON, 200 แบบ Write อย่างเดียว, 401 UNAUTHENTICATED, 503 UPSTREAM_UNAVAILABLE ไม่ถูกแตะ) / `TestCON_DATA_02_NoWriteEndpoints` ผ่าน (12 คู่ method x path ได้ 405 METHOD_NOT_ALLOWED)
+  / `TestRoutes_OnlyPost` ของ 002 ยังผ่าน / หลังบ้านทั้งระบบ `go test ./...` ผ่าน 10 package หน้าจอ 31 ไฟล์ 81 test ผ่าน
+- ลองกับหลังบ้านจริง (`go run ./cmd/server`): POST /v1/equipment/models -> 405 Allow: GET, HEAD body METHOD_NOT_ALLOWED /
+  GET /v1/loan-requests (002) -> 405 Allow: POST body เดียวกัน / GET models -> 200 / POST ไม่มี token -> 401 UNAUTHENTICATED เหมือนเดิม
+- ไม่มีเรื่องที่ต้องเดา: รหัส ข้อความ และวิธีครอบมีใน plan ข้อ 5 และข้อ 10
