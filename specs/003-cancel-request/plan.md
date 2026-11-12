@@ -183,7 +183,7 @@ frontend: vitest ใน `frontend/src/pages/MyPendingRequests/__tests__/` ใช
 | AC-CXL-11 | `TestAC_CXL_11_RejectedAndCancelledNotCancellable` | `rejected` และ `cancelled` -> 409 `NOT_CANCELLABLE` ทั้งคู่ สถานะคงเดิม |
 | AC-CXL-12 | `TestAC_CXL_12_EmptyList` (Go) + `AC_CXL_12 shows empty message` (vitest) | ไม่มีคำขอที่ยกเลิกได้ -> `items: []` / หน้าจอแสดง "ไม่มีคำขอที่รออนุมัติ" |
 | AC-CXL-13 | `TestAC_CXL_13_DBDownReturns503` (Go) + `AC_CXL_13 shows retry` (vitest) | หยุด container ฐานข้อมูลก่อน POST -> 503 retryable / หน้าจอแสดงข้อผิดพลาดและปุ่มลองใหม่ แถวยังอยู่ เมื่อฐานข้อมูลกลับมา สถานะยังเป็น `requested` |
-| AC-CXL-14 | `TestAC_CXL_14_ReasonValidation` (Go) + `AC_CXL_14 confirm disabled` (vitest) | เหตุผลว่าง, ช่องว่างล้วน, 201 ตัวอักษร -> 400 สถานะไม่เปลี่ยน / "ไม่ต้องใช้อุปกรณ์แล้ว" -> 200 และ `cancel_reason` ตรงกัน / หน้าจอปุ่มยืนยันกดไม่ได้ 2 กรณีแรก |
+| AC-CXL-14 | `TestAC_CXL_14_ReasonValidation` (Go) + `AC_CXL_14 confirm disabled` (vitest) | เหตุผลว่าง, ช่องว่างล้วน, 201 ตัวอักษร -> 422 `VALIDATION_FAILED` (CR-006) สถานะไม่เปลี่ยน / "ไม่ต้องใช้อุปกรณ์แล้ว" -> 200 และ `cancel_reason` ตรงกัน / หน้าจอปุ่มยืนยันกดไม่ได้ 2 กรณีแรก |
 | AC-CXL-15 | `TestAC_CXL_15_NotifyDepartmentStaff` | ใช้ Notifier ปลอมใน test -> ยกเลิกสำเร็จ -> ได้ 1 ข้อความถึง Email เจ้าหน้าที่ภาควิชาของอุปกรณ์ (จาก staff_contact) มีผู้ยกเลิก ชื่อรุ่น รหัสครุภัณฑ์ เวลา และเหตุผล |
 | AC-CXL-16 | `TestAC_CXL_16_NotifyFailureStillCancelled` | Notifier ปลอมคืน error -> 200 สถานะ `cancelled` และ audit_log มีแถว action `notify` outcome `error` |
 | AC-CXL-17 | `AC_CXL_17` (สคริปต์ k6 `tests/load/cancel_request.js`) | 50 VU เปิดรายการและยกเลิก (seed คำขอพอสำหรับทุก VU) threshold `http_req_duration p(95) < 15000` |

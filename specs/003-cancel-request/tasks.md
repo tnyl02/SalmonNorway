@@ -84,7 +84,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.9) | Plan: plan.md Draft v1.7 | สร้�
 - ไฟล์ที่แตะ: `backend/internal/cancelrequest/repository.go`, `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/handler.go`, `backend/internal/cancelrequest/dto.go`, `backend/internal/cancelrequest/handler_test.go`, `backend/cmd/server/main.go` (ของกลาง ลงทะเบียน route หลัง `auth.Middleware` แบบเดียวกับ 001 เดิมเขียน platform/http.go ทีมแก้ 2569-11-11), `backend/internal/cancelrequest/tc_helpers_test.go` และ `tc_ac_cxl_08_test.go` (แก้ Given ของ TC-CXL-08-1, 08-3 ตาม test-cases.md ที่ทีมแก้ 2569-11-11)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01, T-03
-- เสร็จเมื่อ: `TestAC_CXL_08_ListOwnPendingSorted` ผ่าน (`GET /api/v1/my/pending-requests` คืนเฉพาะคำขอของผู้เรียกที่ยกเลิกได้ เรียงใหม่ไปเก่า เวลาเท่ากันเรียง requestId มากไปน้อย มี requestId, modelName, assetCode, submittedAt เจ้าหน้าที่ได้ 403 `STUDENT_ONLY`)
+- เสร็จเมื่อ: `TestAC_CXL_08_ListOwnPendingSorted` ผ่าน (`GET /api/v1/my/pending-requests` คืนเฉพาะคำขอของผู้เรียกที่ยกเลิกได้ เรียงใหม่ไปเก่า เวลาเท่ากันเรียง requestId มากไปน้อย มี requestId, modelName, assetCode, submittedAt เจ้าหน้าที่ได้ 403 `STUDENT_ONLY`) (รหัส error เปลี่ยนตาม CR-006 2569-11-12 ดู T-33: เจ้าหน้าที่ได้ 403 `FORBIDDEN_ROLE`)
 - สถานะ: เสร็จ
 
 ### T-05 สร้างหน้า "คำขอที่รออนุมัติของฉัน" แสดงรายการ
@@ -168,7 +168,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.9) | Plan: plan.md Draft v1.7 | สร้�
 - ไฟล์ที่แตะ: `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/handler.go`, `backend/internal/cancelrequest/handler_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06
-- เสร็จเมื่อ: `TestAC_CXL_14_ReasonValidation` ผ่าน (ว่าง และช่องว่างล้วน -> 400 `REASON_REQUIRED`, 201 ตัวอักษร -> 400 `REASON_TOO_LONG` สถานะไม่เปลี่ยน, "ไม่ต้องใช้อุปกรณ์แล้ว" -> 200 และ cancel_reason ตรงกัน)
+- เสร็จเมื่อ: `TestAC_CXL_14_ReasonValidation` ผ่าน (ว่าง และช่องว่างล้วน -> 400 `REASON_REQUIRED`, 201 ตัวอักษร -> 400 `REASON_TOO_LONG` สถานะไม่เปลี่ยน, "ไม่ต้องใช้อุปกรณ์แล้ว" -> 200 และ cancel_reason ตรงกัน) (รหัส error เปลี่ยนตาม CR-006 2569-11-12 ดู T-33: เหตุผลว่าง ช่องว่างล้วน หรือเกิน 200 ตัวอักษร ได้ 422 `VALIDATION_FAILED` fields reason)
 - สถานะ: เสร็จ
 
 ### T-10 ปิดปุ่มยืนยันเมื่อเหตุผลว่างหรือเกิน และแสดงจำนวนตัวอักษร
@@ -398,7 +398,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.9) | Plan: plan.md Draft v1.7 | สร้�
 - ไฟล์ที่แตะ: `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/handler.go`, `backend/internal/cancelrequest/handler_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06, T-03
-- เสร็จเมื่อ: `TestAC_CXL_13_DBDownReturns503` ผ่าน (หยุด container ก่อน POST -> 503 `UPSTREAM_UNAVAILABLE` retryable, ใช้ `CancelDBTimeout`, เปิดฐานข้อมูลกลับมาแล้วสถานะยัง requested)
+- เสร็จเมื่อ: `TestAC_CXL_13_DBDownReturns503` ผ่าน (หยุด container ก่อน POST -> 503 `UPSTREAM_UNAVAILABLE` retryable, ใช้ `CancelDBTimeout`, เปิดฐานข้อมูลกลับมาแล้วสถานะยัง requested) (รหัส error เปลี่ยนตาม CR-006 2569-11-12 ดู T-33: 503 เป็น `{code, message}` ไม่มี retryable)
 - สถานะ: เสร็จ
 
 ### T-24 แสดงข้อผิดพลาดพร้อมปุ่มลองใหม่
