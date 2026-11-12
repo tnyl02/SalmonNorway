@@ -2540,3 +2540,30 @@ func TestTC_RET_13_6_BorrowerViewOwnLateFlag(t *testing.T) {
 	}
 	// (2) ผู้ยืมเห็นเครื่องหมายของตนที่หน้าไหน: ยังไม่ตรวจ รอ Q-03
 }
+
+// F-07 (rtm.md, ทีมตัดสิน 2569-11-12): ฐานข้อมูลใช้ไม่ได้ -> 503 UPSTREAM_UNAVAILABLE
+// body มีแค่ code และ message ตาม CON-TECH-03 ไม่มี retryable (กันการแก้ F-05 ถอยหลัง)
+func TestReturns_UpstreamUnavailableBody(t *testing.T) {
+	testPool(t) // เตรียม dbURL ของ container
+	closed, err := pgxpool.New(context.Background(), dbURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	closed.Close() // pool ที่ปิดแล้ว: ทุก query และการเขียน audit ล้ม
+	router := newRouterWith(closed, auth.NewMockProvider())
+
+	recs := map[string]*httptest.ResponseRecorder{
+		"open-loans":  call(router, http.MethodGet, "/v1/returns/open-loans", "mock-staff-001"),
+		"lookup":      call(router, http.MethodGet, "/v1/returns/lookup?assetCode=CS-NB-0004", "mock-staff-001"),
+		"POST":        postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "CS-NB-0004", "condition": "normal"}),
+		"loan detail": call(router, http.MethodGet, "/v1/returns/loans/1", "mock-staff-001"),
+	}
+	for name, rec := range recs {
+		if rec.Code != http.StatusServiceUnavailable {
+			t.Errorf("%s: status = %d, want 503", name, rec.Code)
+		}
+		if !isErrorOnly(rec, "UPSTREAM_UNAVAILABLE") {
+			t.Errorf("%s: body = %s, want มีแค่ code UPSTREAM_UNAVAILABLE และ message", name, rec.Body.String())
+		}
+	}
+}
