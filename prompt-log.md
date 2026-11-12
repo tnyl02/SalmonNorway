@@ -5517,3 +5517,22 @@ main
 - สิ่งที่แก้: คืน `0008_approval.up.sql`, `0008_approval.down.sql` เป็นแบบ main ทุกบรรทัด, ลบ `0007_audit_log_handover_action.up.sql`, สร้าง `0009_audit_log_handover_action.up.sql` และ `.down.sql` (CHECK รวมค่าของ 001 ถึง 004 + handover), แก้คอมเมนต์ใน repository.go และเลข migration ใน spec.md (Q-HND-06), plan.md, tasks.md
 - ผล test (container golang:1.25): `go test ./...` ผ่านทุก package รวม TestAC_HND_08_AuditLogged 5 กรณี และ test migration ของ 001, 003, 004 gofmt ผ่าน
 - ต้องทำต่อ: แจ้งกลุ่มว่า 005 ใช้ 0009 (เลข 0007 ที่จองไว้ว่าง)
+
+---
+
+## 2569-11-12 ทีมตรวจ T-25, T-26, T-27, T-28, T-30
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- ผลตรวจของทีม (ข้อความที่ทีมส่งมา):
+  - T-25 ส่งมอบตรง 16:00:00 ให้กำหนดคืน 16:00 วันเดียวกัน (ตรงกับที่ทำ)
+  - T-26 ใช้ migration 0009 สำหรับ action=handover ตามที่ทีมตกลงไว้
+  - T-27 เพิ่ม audit ใน handler.go ตอนบันทึกส่งมอบไม่สำเร็จ ส่วนเรียกดูรายการหรือยืนยันตัวตนผู้ยืมไม่ต้องเก็บ (ตรงกับที่ทำ)
+  - T-28 จำกัด 10 MB ต่อรูป แล้วเปิดหน้าจอเช็กข้อความเตือน
+  - T-30 ใช้กำหนดคืน 16:00 ของวันสิ้นสุดตามคำขอ ส่วนกรณีส่งมอบหลังวันนั้นให้ทีมตกลงและระบุใน spec ก่อนทำ
+- การเปิดหน้าจอเช็ก T-28: รันฐานข้อมูลชั่วคราว (container แยก ไม่แตะ pgdata ของ deploy/) หลังบ้าน (migration ถึง 0009 + handover_dev.sql) และ Vite ด้วย VITE_MOCK_TOKEN=mock-staff-001 เปิด /handover.html
+  เลือกคำขอ HO-TEST-0001 ยืนยันผู้ยืม mock-student-001 กรอกชื่อ ติ๊กตรวจบัตร แนบ JPG 1 KB + JPG 11 MB แล้วกดบันทึก
+  ผล: แสดง "ต้องแนบรูปสภาพอุปกรณ์อย่างน้อย 2 รูป เป็นไฟล์ JPG หรือ PNG ขนาดไม่เกิน 10 MB ต่อรูป" และไม่มี POST .../handover ไปหลังบ้าน ปิด container และ Vite แล้ว
+- T-30: เพิ่มคำถามใน spec.md (Open Questions) และ tasks.md แบบยังไม่มี ID (กฎข้อ 5 AI ไม่ตั้ง ID เอง) ให้ทีมตั้ง ID และตอบก่อนทำ
+- เปลี่ยนสถานะ T-25, T-26, T-27, T-28, T-30 เป็น "เสร็จ" commit `005: T-xx reviewed` ทีละ task
