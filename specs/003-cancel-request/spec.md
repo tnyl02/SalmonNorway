@@ -1,7 +1,7 @@
 # specs/003-cancel-request/spec.md
 # Feature: ยกเลิกคำขอยืม (Cancel Borrow Request)
 Spec ID: SPEC-CXL-003 | Source: RQ-03, RQ-25, คำตอบของเจ้าของฟีเจอร์ (2569-11-10) และ /clarify รอบที่ 1 | Use case: UC-15
-Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np) | Status: Draft v3.8 | Updated: 2569-11-12 (CR-006 ใช้ CON-TECH-03, ASM-10 รายละเอียด Email, Q-SH-05 ปิดแล้ว) 
+Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np) | Status: Draft v3.9 | Updated: 2569-11-12 (F-09 ตาราง FR-CXL-05 เพิ่ม 2 กรณี, F-04 เวลารอส่ง Email ใน ASM-10) 
 Backlog: BL-20 (specs/backlog.md)
 
 ## Goal
@@ -89,7 +89,9 @@ Backlog: BL-20 (specs/backlog.md)
   | อนุมัติแล้ว | `cancel` | `forbidden` | รหัสคำขอ | `{"cause":"already_approved"}` |
   | Rejected / Handed Over / Returned / ยกเลิก | `cancel` | `forbidden` | รหัสคำขอ | `{"cause":"not_cancellable"}` |
   | เหตุผลว่างหรือเกิน 200 ตัวอักษร | `cancel` | `forbidden` | รหัสคำขอ | `{"cause":"reason_invalid"}` |
+  | เหตุผลผิด และไม่มีคำขอนี้ | `cancel` | `forbidden` | ว่าง | `{"cause":"reason_invalid","id":…}` |
   | ส่ง Email ไม่สำเร็จ (FR-CXL-09) | `notify` | `error` | รหัสคำขอ | `{"for":"cancel"}` |
+  | รหัสคำขอไม่ใช่ตัวเลข หรือข้อมูลที่ส่งมาอ่านไม่ได้ (ผู้ใช้หน้าเว็บส่งแบบนี้ไม่ได้) | ไม่บันทึก (ทีมตัดสิน 2569-11-12 rtm F-09) | | | |
   | ยังไม่ได้ยืนยันตัวตน | ไม่บันทึก (ASM-07) | | | |
 - FR-CXL-06 ระบบต้องมีหน้า "คำขอที่รออนุมัติของฉัน" ที่แสดงเฉพาะคำขอยืมของนักศึกษาที่เข้าสู่ระบบ
   และมีสถานะ Requested, Approved by Officer หรือ Pending Advisor Approval (CON-CXL-02)
@@ -231,7 +233,8 @@ Backlog: BL-20 (specs/backlog.md)
   - ผู้ยกเลิกแสดงชื่อและรหัสนักศึกษาจากคำขอ คู่กับรหัสผู้ใช้จากระบบยืนยันตัวตน
   - เวลาที่ยกเลิกแสดงเป็นเวลาไทย ปี พ.ศ. ไม่มีวินาที เช่น "2569-11-12 01:25" แบบเดียวกับหน้าเว็บ
   - ภาควิชาที่ไม่มี Email เจ้าหน้าที่ นับเป็นส่ง Email ไม่สำเร็จ (บันทึกแบบเดียวกับ AC-CXL-16) การยกเลิกยังสำเร็จ
-  - ส่งแบบรอผลก่อนตอบนักศึกษา (ถ้าตัวส่งจริงช้า ดู Q-15)
+  - ส่งแบบรอผลก่อนตอบนักศึกษา แต่รอไม่เกินเวลาที่ทีมกำหนด (5 วินาที ทีมเลือกเอง ไม่ได้มาจาก spec ทีมตัดสิน 2569-11-12 rtm F-04)
+    ส่งไม่ทันเวลานับเป็นส่ง Email ไม่สำเร็จ (บันทึกแบบเดียวกับ AC-CXL-16) การยกเลิกยังสำเร็จ (ถ้าตัวส่งจริงต้องใช้เวลานานกว่านี้ ดู Q-15)
 - ASM-11 [แก้ 2569-11-11 ตามคำตอบของเจ้าของ 002] ~~003 ร่าง migration borrow_request เบื้องต้นแล้วให้ 002 รับช่วง~~
   002 สร้างตาราง borrow_request เองที่ `0003_borrow_request.up.sql` ตามที่ data-model.md จองไว้ 003 ไม่ร่างตารางนี้
   ชื่อคอลัมน์ (id SERIAL, requester_id, item_id, loan_type, purpose, status, submitted_at) และค่าสถานะ 8 ค่าตาม CON-CXL-02 ใช้ตามที่ 003 เสนอ

@@ -23,7 +23,7 @@ const fieldReason = "reason"
 
 // ข้อความของแต่ละรหัส (CR-006) "ไม่พบคำขอ" มาจาก FR-CXL-03 ข้อความอื่นทีมเลือกเอง ไม่ได้มาจาก spec
 var (
-	msgUnauthenticated     = "กรุณาเข้าสู่ระบบ"
+	msgUnauthenticated     = "กรุณาเข้าสู่ระบบก่อนใช้งาน"
 	msgForbiddenRole       = "เฉพาะนักศึกษาเท่านั้นที่ยกเลิกคำขอของตนเองได้"
 	msgRequestNotFound     = "ไม่พบคำขอ"
 	msgAlreadyApproved     = "ยกเลิกไม่ได้ เพราะคำขอได้รับการอนุมัติแล้ว"

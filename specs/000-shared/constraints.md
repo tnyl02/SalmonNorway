@@ -1,5 +1,5 @@
 # Constraint ที่ใช้ร่วมทุกฟีเจอร์ (shared constraints)
-Status: v5.2 | Updated: 2569-11-12 (v5.2 003 ลงทะเบียน REQUEST_NOT_FOUND (ร่วมกับ 004), ALREADY_APPROVED, NOT_CANCELLABLE ตาม CR-006, เพิ่ม CON-TECH-03 รูปแบบและรายการรหัส error กลาง ตาม CR-004, v5.1 005 เพิ่มรหัส REQUEST_NOT_APPROVED, BORROWER_MISMATCH และ FORBIDDEN_ROLE (แถวเดียวกับที่ 004 ลงทะเบียน) ตามกติกาของ CON-TECH-03) | Source: Miro (Requirement table, Use Case Diagram, Architecture), spec 001
+Status: v5.2 | Updated: 2569-11-12 (v5.2 003 ใช้ REQUEST_NOT_FOUND แถวเดียวกับที่ 004 ลงทะเบียน และลงทะเบียน ALREADY_APPROVED, NOT_CANCELLABLE ตาม CR-006, เพิ่ม CON-TECH-03 รูปแบบและรายการรหัส error กลาง ตาม CR-004, v5.1 005 เพิ่มรหัส REQUEST_NOT_APPROVED, BORROWER_MISMATCH และ FORBIDDEN_ROLE (แถวเดียวกับที่ 004 ลงทะเบียน) ตามกติกาของ CON-TECH-03) | Source: Miro (Requirement table, Use Case Diagram, Architecture), spec 001
 
 กติกา: Constraint ที่ใช้มากกว่า 1 ฟีเจอร์ เขียนที่นี่ **ที่เดียว** spec ของแต่ละฟีเจอร์อ้าง ID ในหมวด Constraints ไม่ copy ข้อความ
 ถ้าแก้ไฟล์นี้ ต้องทำ CR และดู Impact Analysis กับทุก spec ที่อ้าง ID นั้น (ดู rtm.md ของแต่ละฟีเจอร์)
@@ -24,7 +24,7 @@ Status: v5.2 | Updated: 2569-11-12 (v5.2 003 ลงทะเบียน REQUEST
   | `DUPLICATE_REQUEST` | 409 | ผู้ขอคนเดิมมีคำขอที่ยังไม่จบของอุปกรณ์ชิ้นเดิมอยู่แล้ว | 002 |
   | `HAS_OVERDUE_LOAN` | 409 | ผู้ขอมีอุปกรณ์ที่คืนเกินกำหนดค้างอยู่ | 002 |
   | `FORBIDDEN_ROLE` | 403 | ยืนยันตัวตนได้และบทบาทรู้จัก แต่บทบาทนี้ไม่มีสิทธิ์ทำรายการนี้ (เช่น นักศึกษาเรียกการอนุมัติ) | 004, 001, 003 (เจ้าหน้าที่เรียกหน้าคำขอของนักศึกษาหรือสั่งยกเลิก CR-006) |
-  | `REQUEST_NOT_FOUND` | 404 | ไม่มีคำขอยืมนี้ หรือเป็นคำขอของผู้อื่น (ตอบเหมือนกันเพื่อไม่บอกว่าคำขอมีอยู่) | 003, 004 (ลงทะเบียน 2569-11-12 CR-006) |
+  | `REQUEST_NOT_FOUND` | 404 | ไม่มีคำขอยืมรหัสนี้ หรือเป็นคำขอที่ฟีเจอร์นั้นไม่ได้รับผิดชอบ | 004 (ลงทะเบียน 2569-11-12), 003 (คำขอของผู้อื่นตอบเหมือนไม่มี CR-006) |
   | `ALREADY_APPROVED` | 409 | ยกเลิกคำขอไม่ได้ เพราะคำขอได้รับการอนุมัติแล้ว แนบ `status` ของคำขอ | 003 (ลงทะเบียน 2569-11-12 CR-006) |
   | `NOT_CANCELLABLE` | 409 | ยกเลิกคำขอไม่ได้ เพราะสถานะเป็น rejected, handed_over, returned หรือ cancelled แนบ `status` ของคำขอ | 003 (ลงทะเบียน 2569-11-12 CR-006) |
 
@@ -92,7 +92,7 @@ Status: v5.2 | Updated: 2569-11-12 (v5.2 003 ลงทะเบียน REQUEST
 |---|---|
 | CON-TECH-01 | 001-equipment-status, 002-borrow-request, 005-handover, 003-cancel-request |
 | CON-TECH-02 | 001-equipment-status, 002-borrow-request, 005-handover, 003-cancel-request |
-| CON-TECH-03 | 001-equipment-status (รหัสเดิม 4 ตัว และ FORBIDDEN_ROLE ใน T-17), 002-borrow-request, 005-handover (ใช้ FORBIDDEN_ROLE ร่วมกับ 004, ลงทะเบียน REQUEST_NOT_APPROVED, BORROWER_MISMATCH), 003-cancel-request (CR-006 ลงทะเบียน REQUEST_NOT_FOUND, ALREADY_APPROVED, NOT_CANCELLABLE) |
+| CON-TECH-03 | 001-equipment-status (รหัสเดิม 4 ตัว และ FORBIDDEN_ROLE ใน T-17), 002-borrow-request, 005-handover (ใช้ FORBIDDEN_ROLE ร่วมกับ 004, ลงทะเบียน REQUEST_NOT_APPROVED, BORROWER_MISMATCH), 003-cancel-request (CR-006 ใช้ REQUEST_NOT_FOUND ร่วมกับ 004, ลงทะเบียน ALREADY_APPROVED, NOT_CANCELLABLE) |
 | CON-DATA-01 | 001-equipment-status, 002-borrow-request (ส่งคำขอได้เฉพาะชิ้นที่ "ว่าง"), 005-handover, 003-cancel-request (ยกเลิกไม่เปลี่ยนสถานะอุปกรณ์) |
 | CON-DATA-03 | 001-equipment-status, 002-borrow-request, 005-handover |
 | DOM-PRIV-01 | 001-equipment-status, 002-borrow-request (ไม่เปิดเผยชื่อผู้ขอรายอื่น FR-BRQ-05) |

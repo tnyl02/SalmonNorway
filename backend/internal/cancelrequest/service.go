@@ -55,12 +55,14 @@ type Service struct {
 	repo      *Repository
 	dbTimeout time.Duration // เวลารอฐานข้อมูลตอนยกเลิก (ASM-06) test เปลี่ยนเป็นค่าสั้นได้
 	notifier  Notifier      // ส่ง Email แจ้งเจ้าหน้าที่หลังยกเลิกสำเร็จ (FR-CXL-09, IF-NOT-01)
+	// notifyTimeout คือเวลารอส่ง Email (config.NotifyTimeout, ASM-10, T-34) test เปลี่ยนเป็นค่าสั้นได้
+	notifyTimeout time.Duration
 }
 
 // NewService สร้าง Service ใช้เวลารอฐานข้อมูลจาก config.CancelDBTimeout (ASM-06)
 // และใช้ LogNotifier (Email จำลอง ASM-10) เปลี่ยนตัวส่งได้ด้วย WithNotifier
 func NewService(repo *Repository) *Service {
-	return &Service{repo: repo, dbTimeout: config.CancelDBTimeout, notifier: LogNotifier{}}
+	return &Service{repo: repo, dbTimeout: config.CancelDBTimeout, notifier: LogNotifier{}, notifyTimeout: config.NotifyTimeout}
 }
 
 // WithNotifier เปลี่ยนตัวส่ง Email (เช่นตัวส่งจริงเมื่อได้คำตอบ Q-15 หรือตัวปลอมใน test)
@@ -172,7 +174,11 @@ func (s *Service) Cancel(ctx context.Context, p auth.Principal, requestID int, r
 	}
 	notice.CancelledBy, notice.Reason = p.UserID, reason
 	// ส่ง Email หลัง commit ส่งไม่สำเร็จไม่ย้อนการยกเลิก แต่บันทึก notify error (FR-CXL-09, FR-CXL-05, T-32)
-	if err := s.notify(context.WithoutCancel(ctx), notice); err != nil {
+	// รอไม่เกิน notifyTimeout ไม่ทันนับเป็นส่งไม่สำเร็จ (ASM-10, NFR-PERF-CXL-01, T-34)
+	nctx, ncancel := context.WithTimeout(context.WithoutCancel(ctx), s.notifyTimeout)
+	err = s.notify(nctx, notice)
+	ncancel()
+	if err != nil {
 		s.auditNotifyFailed(context.WithoutCancel(ctx), p, requestID)
 	}
 	return CancelResultDTO{RequestID: requestID, Status: "cancelled"}, nil
@@ -225,10 +231,17 @@ func (s *Service) auditRejected(ctx context.Context, tx pgx.Tx, p auth.Principal
 // notify ส่ง Email แจ้งเจ้าหน้าที่หลังยกเลิกสำเร็จ แบบรอผล (FR-CXL-09, ทีมตัดสิน 2569-11-12)
 // การยกเลิก commit ไปแล้ว ส่งไม่สำเร็จจึงไม่ย้อนการยกเลิก คืน error ให้ Cancel บันทึก audit notify error (T-32)
 // ภาควิชาที่ไม่มี Email เจ้าหน้าที่นับเป็นส่งไม่สำเร็จ (ErrNoRecipients ทีมตัดสิน 2569-11-12) ไม่เรียก Notifier
+// หยุดรอเมื่อ ctx หมดเวลา แม้ตัวส่งจะไม่สนใจ ctx ก็ตาม (T-34) ตัวส่งที่ค้างยังทำงานต่อเบื้องหลังจนจบเอง
 func (s *Service) notify(ctx context.Context, n CancelNotice) error {
 	err := ErrNoRecipients
 	if len(n.To) > 0 {
-		err = s.notifier.NotifyCancelled(ctx, n)
+		done := make(chan error, 1)
+		go func() { done <- s.notifier.NotifyCancelled(ctx, n) }()
+		select {
+		case err = <-done:
+		case <-ctx.Done():
+			err = ctx.Err()
+		}
 	}
 	if err != nil {
 		log.Printf("cancelrequest: ส่ง Email แจ้งการยกเลิกคำขอ %d ไม่สำเร็จ: %v", n.RequestID, err)

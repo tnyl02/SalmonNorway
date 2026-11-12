@@ -2,7 +2,7 @@
 Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้าง: 2569-11-10 | แก้: 2569-11-11 (ปิด Q-13) | Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
 
 สรุป
-- 18 เฟส (ฐานราก + 17 เฟสตาม AC) รวม 33 task (T-33 เพิ่มตาม CR-006) (เดิมเฟส 17 เป็นเฟสรอคำตอบ ปิด Q-13 แล้วจึงเป็นเฟสของ AC-CXL-06)
+- 18 เฟส (ฐานราก + 17 เฟสตาม AC) รวม 34 task (T-33 เพิ่มตาม CR-006, T-34 ตาม rtm F-04) (เดิมเฟส 17 เป็นเฟสรอคำตอบ ปิด Q-13 แล้วจึงเป็นเฟสของ AC-CXL-06)
 - รอ Q-xx 0 task
 - เฟสแรกที่ลองใช้งานได้จริง: เฟส 1 (นักศึกษาเห็นรายการคำขอที่รออนุมัติของตนเองบนหน้าจอ)
 
@@ -571,6 +571,20 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ต้องทำหลัง: T-09, T-15, T-17, T-19, T-23
 - เสร็จเมื่อ: ทุก error ของ 003 เป็น `{code, message}` (ไม่มี retryable) เจ้าหน้าที่ได้ 403 `FORBIDDEN_ROLE`, เหตุผลผิดได้ 422 `VALIDATION_FAILED` fields reason,
   409 แนบ `status` ของคำขอ และ test ทั้งหมดของ 003 ผ่าน
+- สถานะ: เสร็จ
+
+---
+
+## เฟส 19: เวลารอส่ง Email (rtm F-04)
+
+### T-34 จำกัดเวลารอส่ง Email หลังยกเลิก
+- รองรับ: FR-CXL-09, NFR-PERF-CXL-01, ASM-10 (rtm F-04)
+- ตรวจด้วย: AC-CXL-16 (ระบบแจ้งเตือน Email ไม่ตอบสนอง)
+- ไฟล์ที่แตะ: `backend/internal/config/config.go` (NotifyTimeout), `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/notifier_test.go`
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: T-28, T-32
+- เสร็จเมื่อ: `TestAC_CXL_16_NotifyHangsStillCancelled` ผ่าน (ตัวส่งค้างไม่ตอบ -> ได้ 200 ภายในเวลาที่จำกัด สถานะ cancelled
+  และมีแถว notify error ใน audit_log) ตัวส่งที่ไม่สนใจ context ก็ต้องหยุดรอได้
 - สถานะ: เสร็จ
 
 ---

@@ -192,6 +192,54 @@ func TestAC_CXL_16_NotifyFailureStillCancelled(t *testing.T) {
 	wantNotifyError(t, tcAuditSince(t, mark), id)
 }
 
+// hangingNotifier จำลองระบบ Email ที่ค้างไม่ตอบ และไม่สนใจ context (กรณีแย่ที่สุด) ปล่อยเมื่อ test จบ
+type hangingNotifier struct {
+	release chan struct{}
+	called  chan struct{}
+}
+
+func (h *hangingNotifier) NotifyCancelled(_ context.Context, _ CancelNotice) error {
+	close(h.called)
+	<-h.release
+	return nil
+}
+
+// AC-CXL-16 (FR-CXL-09, NFR-PERF-CXL-01, ASM-10) T-34 ระบบ Email ค้าง
+//
+//	Given ระบบแจ้งเตือน Email ไม่ตอบสนอง (ค้างไม่ตอบ)
+//	When  A ยกเลิกคำขอและยืนยัน
+//	Then  ได้ 200 ภายในเวลาที่จำกัด (ไม่รอ Email ไม่สิ้นสุด) สถานะเป็น cancelled
+//	      และ audit_log มีแถว notify error ของคำขอนั้น (ส่งไม่ทันนับเป็นส่งไม่สำเร็จ)
+func TestAC_CXL_16_NotifyHangsStillCancelled(t *testing.T) {
+	hang := &hangingNotifier{release: make(chan struct{}), called: make(chan struct{})}
+	t.Cleanup(func() { close(hang.release) })
+	notifyServer(t, hang) // ล้างคำขอเดิมและใส่ Email เจ้าหน้าที่ภาควิชา 1
+	svc := NewService(NewRepository(tcPool(t))).WithNotifier(hang)
+	svc.notifyTimeout = 200 * time.Millisecond // แทน config.NotifyTimeout ให้ test เร็ว
+	mux := http.NewServeMux()
+	mux.Handle(PathPrefixRequests, auth.Middleware(auth.NewMockProvider(), NewHandler(svc).Routes()))
+	id := tcInsert(t, tcUserA, tcItemAvailable, "normal", "requested", time.Now())
+	mark := tcAuditMark(t)
+
+	start := time.Now()
+	rec := tcCancel(t, mux, id, "ไม่ต้องใช้อุปกรณ์แล้ว", tcTokenA)
+	elapsed := time.Since(start)
+
+	tcWantStatus(t, rec, http.StatusOK)
+	select {
+	case <-hang.called:
+	default:
+		t.Errorf("ต้องเรียกตัวส่ง Email")
+	}
+	if elapsed > 3*time.Second {
+		t.Errorf("ใช้เวลา %v ต้องหยุดรอ Email เมื่อครบ notifyTimeout", elapsed)
+	}
+	if s := tcRow(t, id).Status; s != "cancelled" {
+		t.Errorf("สถานะ = %s ต้องเป็น cancelled", s)
+	}
+	wantNotifyError(t, tcAuditSince(t, mark), id)
+}
+
 // tcHandlerOnly ประกอบ handler แบบเดียวกับ tcServer แต่ไม่ล้างข้อมูล ใช้ตรวจผลหลังทำรายการ
 func tcHandlerOnly(t *testing.T) http.Handler {
 	t.Helper()

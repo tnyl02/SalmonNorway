@@ -1,5 +1,5 @@
 # Implementation Plan: ยกเลิกคำขอยืม (Cancel Borrow Request)
-Spec: SPEC-CXL-003 (specs/003-cancel-request/spec.md, Draft v3.8) | Plan status: Draft v1.6 | Updated: 2569-11-12 (ข้อ 4 รูปแบบ error ตาม CR-006, 401 ใช้กลไกของ 001 T-21, เจ้าหน้าที่เปิดหน้านี้ได้ข้อความไม่มีปุ่มลองใหม่)
+Spec: SPEC-CXL-003 (specs/003-cancel-request/spec.md, Draft v3.9) | Plan status: Draft v1.7 | Updated: 2569-11-12 (ข้อ 5 เพิ่ม NotifyTimeout ตาม rtm F-04)
 Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
 
 ## 1. สรุปแนวทาง
@@ -162,6 +162,7 @@ Quality Requirements: NFR-SEC-01 (middleware กลาง + HTTPS), NFR-AVAIL-01
 | ข้อความ "โหลดรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" และปุ่ม "ลองใหม่" | FR-CXL-06, ASM-13 | `MSG_LOAD_FAILED`, `LABEL_RETRY` ใน config.js |
 | ข้อความว่าอนุมัติแล้ว | FR-CXL-02 | `MSG_ALREADY_APPROVED` ใน config.js |
 | timeout ของคำสั่งฐานข้อมูลตอนยกเลิก | ASM-06 (ตัวเลขทีมเลือกเอง ไม่ได้มาจาก spec) | `CancelDBTimeout` ใน config.go ต้องน้อยกว่า 15 วินาที (NFR-PERF-CXL-01) |
+| เวลารอส่ง Email หลังยกเลิก | ASM-10, FR-CXL-09, NFR-PERF-CXL-01 (5 วินาที ทีมเลือกเอง ไม่ได้มาจาก spec rtm F-04 2569-11-12) | `NotifyTimeout` ใน config.go ส่งไม่ทันนับเป็นส่งไม่สำเร็จ (บันทึก notify error) |
 
 ## 6. แผนทดสอบจาก Acceptance Criteria
 backend: go test + testcontainers (PostgreSQL จริง) ในไฟล์ `*_test.go` ของ `backend/internal/cancelrequest/`
