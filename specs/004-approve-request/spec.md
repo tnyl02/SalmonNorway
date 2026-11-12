@@ -1,7 +1,7 @@
 # specs/004-approve-request/spec.md
 # Feature: อนุมัติคำขอยืมปกติ (Approve Request)
 Spec ID: SPEC-APV-004 | Source: US-007, RQ-14, RQ-21, RQ-25 | Use case: UC-12
-Owner: 660710758 นางสาวณัฐสุดา กัญญาบุญ (@natsuda05) | Status: Draft v2.1 | Updated: 2569-11-12 (ทีมตอบคำถามค้าง Q-APV-14 ถึง 25, ASM-10 Email แบบจำลอง, ทีมอนุมัติ ID AC-APV-16 ถึง 18, Q-APV-26 ถึง 37 คำถามจาก test cases)
+Owner: 660710758 นางสาวณัฐสุดา กัญญาบุญ (@natsuda05) | Status: Draft v2.2 | Updated: 2569-11-12 (CR-008 รวมคำตอบ Q-APV-26 ถึง 37 จาก test cases / v2.1: ทีมตอบคำถามค้าง Q-APV-14 ถึง 25, ASM-10 Email แบบจำลอง, ทีมอนุมัติ ID AC-APV-16 ถึง 18)
 Backlog: BL-08 (specs/backlog.md) | SRS: docs/srs/SRS.md หัวข้อ 3.1.4
 
 ## Goal
@@ -245,7 +245,7 @@ AC-APV-17, 18 ทีมอนุมัติ ID แล้ว 2569-11-12 (Q-APV-2
 - คำขอแรกเลย 16:00 น. -> เจ้าหน้าที่ปฏิเสธเอง (Q-APV-16) / ส่งซ้ำ -> 1 + 3 = 4 ครั้ง (Q-APV-17)
 - ข้อความ FORBIDDEN_DEPARTMENT -> ตามที่ AI ร่าง (Q-APV-18) / รหัส error 5 ตัว -> ลงทะเบียนตาม plan (Q-APV-19)
 - 003 ยกเลิกพร้อมอนุมัติ -> ไม่ต้องทำเพิ่ม (Q-APV-20) / server ไม่ทำงานตอนเที่ยงคืน -> ไล่ปฏิเสธตอนเริ่มทำงาน (Q-APV-21)
-### Session 2569-11-12 ตอบระหว่าง /testcases
+### Session 2569-11-12 ตอบระหว่าง /testcases (รวมเป็น CR-008, Draft v2.2)
 - อนุมัติตอน 16:00:00 น. ตรง -> อนุมัติไม่ได้ (Q-APV-26)
 - ตอบผ่านหน้าเว็บคำถามจาก test cases: ปฏิเสธคำขอที่ไม่ใช่คำขอแรกได้ (Q-APV-27) / เหตุผลไม่เกิน 500 ตัวอักษร นับตาม code point (Q-APV-28)
 - ยกเลิกแล้วและไม่มีเหตุผล -> VALIDATION_FAILED (Q-APV-29) / เวลาเท่ากัน -> รหัสคำขอน้อยก่อน (Q-APV-30) / รายการว่าง -> "ไม่มีคำขอที่รออนุมัติ" (Q-APV-31)

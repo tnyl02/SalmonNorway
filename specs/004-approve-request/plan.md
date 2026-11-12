@@ -1,5 +1,5 @@
 # Implementation Plan: อนุมัติคำขอยืมปกติ (Approve Request)
-Spec: SPEC-APV-004 (specs/004-approve-request/spec.md, Draft v2.1) | Plan status: Draft v1.1 | Updated: 2569-11-12 (ตามคำตอบ Q-APV-14 ถึง 21 / Q-APV-28, 31 จาก test cases)
+Spec: SPEC-APV-004 (specs/004-approve-request/spec.md, Draft v2.2) | Plan status: Draft v1.2 | Updated: 2569-11-12 (ตามคำตอบ Q-APV-14 ถึง 21 / v1.2 ตาม CR-008: Q-APV-28, 31 จาก test cases)
 Owner: 660710758 นางสาวณัฐสุดา กัญญาบุญ (@natsuda05)
 อ้างอิง: specs/000-shared/{constraints.md v5, data-model.md v9, glossary.md}, migration 0003 ของ 002
 

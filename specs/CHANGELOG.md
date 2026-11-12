@@ -2,6 +2,16 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [SPEC-APV-004 Draft v2.2 + plan 004 v1.2 (CR-008)] - 2569-11-12
+รวมคำตอบ Q-APV-26 ถึง 37 ที่พบตอน /testcases เป็น CR-008 ตามกติกา "การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request"
+รายละเอียดแต่ละข้ออยู่ในหัวข้อ Q-APV-26, Q-APV-27 ถึง 31, Q-APV-32 ถึง 34, Q-APV-35, 36 และ Q-APV-37 ด้านล่าง ไม่มี ID ใหม่ ไม่เปลี่ยน AC ไม่เพิ่มรหัส error
+### Added
+- `specs/changes/CR-008.md`: ตารางเดิม/หลัง 12 ข้อ ผลกระทบ สิ่งที่ต้องแลก และการตัดสินของเจ้าของ 004
+### Changed
+- `specs/004-approve-request/spec.md`: Draft v2.1 -> Draft v2.2 (หัวไฟล์และหัว Clarifications อ้าง CR-008)
+- `specs/004-approve-request/plan.md`: Draft v1.1 -> v1.2 อ้าง spec Draft v2.2
+- `specs/004-approve-request/test-cases.md`: หัวไฟล์อ้าง spec Draft v2.2 และ plan v1.2 / เพิ่มหัวข้อ "ผลการลองโดยคน" (TC-APV-01-3, 02-3 ผ่าน)
+
 ## [SPEC-APV-004 Draft v2.1 Q-APV-37 ส่งซ้ำ Email ที่สำเร็จแล้ว] - 2569-11-12
 ทีมตอบคำถามที่พบตอน /testcases AC-APV-14 ยืนยันแบบที่โค้ดทำอยู่ ไม่เปลี่ยน ID ไม่เปลี่ยน AC และไม่แก้โค้ด
 ### Changed

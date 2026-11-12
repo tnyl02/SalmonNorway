@@ -1,5 +1,5 @@
 # Test cases: อนุมัติคำขอยืมปกติ (Approve Request)
-อ้างอิง: spec.md SPEC-APV-004 Draft v2.1 | plan.md v1.1 ข้อ 4 (สัญญา API) และข้อ 6 | tasks.md
+อ้างอิง: spec.md SPEC-APV-004 Draft v2.2 (CR-008) | plan.md v1.2 ข้อ 4 (สัญญา API) และข้อ 6 | tasks.md
 
 คนออกแบบตารางนี้ AI เขียนโค้ด test ตามตารางด้วยคำสั่ง /testcases
 - สถานะ: ร่าง (AI เสนอ ยังไม่มีใครตรวจ) / ใช้ได้ (ทีมตรวจแล้ว) / รอ Q-xx
