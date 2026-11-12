@@ -353,14 +353,15 @@ func TestAC_CXL_04_ApprovedBeforeConfirm(t *testing.T) {
 	}
 }
 
-// AC-CXL-07 (IF-IDP-01, NFR-SEC-01) T-25 ส่วนหลังบ้าน (ส่วน audit_log อยู่ใน T-31 ส่วนหน้าจออยู่ใน T-26)
+// AC-CXL-07 (IF-IDP-01, NFR-SEC-01) T-25 ส่วนหลังบ้าน, T-31 ส่วน audit_log (ส่วนหน้าจออยู่ใน T-26)
 //
 //	Given A มีคำขอ requested และ session หมดอายุ (ไม่มี token หรือ token ที่ระบบไม่รู้จัก)
 //	When  ส่งคำสั่งยกเลิก
-//	Then  ได้ 401 UNAUTHENTICATED และสถานะไม่เปลี่ยน
+//	Then  ได้ 401 UNAUTHENTICATED สถานะไม่เปลี่ยน และไม่มีบันทึกใน audit_log (ASM-07)
 func TestAC_CXL_07_ExpiredSessionNoCancel(t *testing.T) {
 	srv := tcServer(t)
 	id := tcInsert(t, tcUserA, tcItemAvailable, "normal", "requested", time.Now())
+	mark := tcAuditMark(t)
 
 	for _, token := range []string{"", "mock-expired-token"} {
 		rec := tcCancel(t, srv, id, "ไม่ต้องใช้อุปกรณ์แล้ว", token)
@@ -372,6 +373,102 @@ func TestAC_CXL_07_ExpiredSessionNoCancel(t *testing.T) {
 	r := tcRow(t, id)
 	if r.Status != "requested" || r.CancelReason != nil {
 		t.Errorf("แถว = %+v ต้องยังเป็น requested", r)
+	}
+	if rows := tcAuditSince(t, mark); len(rows) != 0 {
+		t.Errorf("audit_log มีแถวใหม่ %d แถว ต้องไม่มี (ASM-07): %+v", len(rows), rows)
+	}
+}
+
+// AC-CXL-06 (FR-CXL-05) T-31
+//
+//	Given นักศึกษา A ยกเลิกคำขอของตนเอง 1 ครั้งสำเร็จ พยายามยกเลิกคำขอที่อนุมัติแล้ว 1 ครั้ง
+//	      และพยายามยกเลิกคำขอของนักศึกษา B 1 ครั้ง
+//	When  ตรวจ audit_log
+//	Then  มีบันทึก 3 รายการ ระบุผู้ยกเลิก (นักศึกษา A) เวลา คำขอ และผลลัพธ์ (สำเร็จ 1 รายการ ไม่สำเร็จ 2 รายการ)
+//	      รูปแบบตามตาราง FR-CXL-05: action cancel, query reason_len / cause
+func TestAC_CXL_06_AuditLogAttempts(t *testing.T) {
+	srv := tcServer(t)
+	own := tcInsert(t, tcUserA, tcItemAvailable, "normal", "requested", time.Now())
+	approved := tcInsert(t, tcUserA, tcItemAvailable2, "normal", "approved", time.Now())
+	others := tcInsert(t, tcUserB, tcItemAvailable, "normal", "requested", time.Now())
+	mark := tcAuditMark(t)
+
+	reason := "ไม่ต้องใช้อุปกรณ์แล้ว"
+	tcWantStatus(t, tcCancel(t, srv, own, reason, tcTokenA), http.StatusOK)
+	tcWantStatus(t, tcCancel(t, srv, approved, reason, tcTokenA), http.StatusConflict)
+	tcWantStatus(t, tcCancel(t, srv, others, reason, tcTokenA), http.StatusNotFound)
+
+	rows := tcAuditSince(t, mark)
+	if len(rows) != 3 {
+		t.Fatalf("audit_log มี %d แถว ต้องมี 3: %+v", len(rows), rows)
+	}
+	want := []struct {
+		outcome string
+		reqID   int
+		key     string
+		value   any
+	}{
+		{"ok", own, "reason_len", float64(len([]rune(reason)))},
+		{"forbidden", approved, "cause", "already_approved"},
+		{"forbidden", others, "cause", "not_owner"},
+	}
+	for i, w := range want {
+		r := rows[i]
+		if r.ActorID != tcUserA || r.ActorRole != "student" || r.Action != "cancel" || !r.HasTime {
+			t.Errorf("แถว %d: %+v ต้องเป็นของ %s บทบาท student action cancel และมีเวลา", i, r, tcUserA)
+		}
+		if r.Outcome != w.outcome || r.RequestID == nil || *r.RequestID != w.reqID || r.Query[w.key] != w.value {
+			t.Errorf("แถว %d: %+v ต้องเป็น outcome %s request_id %d query %s=%v", i, r, w.outcome, w.reqID, w.key, w.value)
+		}
+	}
+}
+
+// FR-CXL-05 ตารางกรณีที่เหลือ (T-31): ไม่มีคำขอนี้, สถานะยกเลิกไม่ได้, เหตุผลผิด, และเจ้าหน้าที่ไม่ถูกบันทึก
+//
+//	ไม่มีคำขอนี้ -> request_id ว่าง query {"cause":"not_found","id":…}
+//	rejected -> {"cause":"not_cancellable"}, เหตุผลว่าง -> {"cause":"reason_invalid"} มี request_id
+//	เหตุผลผิดกับคำขอที่ไม่มี -> request_id ว่าง เก็บ id ใน query (ทีมเลือกเอง)
+func TestFR_CXL_05_AuditLogOtherCauses(t *testing.T) {
+	srv := tcServer(t)
+	rejected := tcInsert(t, tcUserA, tcItemAvailable, "normal", "rejected", time.Now())
+	pending := tcInsert(t, tcUserA, tcItemAvailable2, "normal", "requested", time.Now())
+	missing := rejected + 100000
+	mark := tcAuditMark(t)
+
+	tcWantStatus(t, tcCancel(t, srv, missing, "เหตุผล", tcTokenA), http.StatusNotFound)
+	tcWantStatus(t, tcCancel(t, srv, rejected, "เหตุผล", tcTokenA), http.StatusConflict)
+	tcWantStatus(t, tcCancel(t, srv, pending, "   ", tcTokenA), http.StatusUnprocessableEntity)
+	tcWantStatus(t, tcCancel(t, srv, missing, "", tcTokenA), http.StatusUnprocessableEntity)
+	tcWantStatus(t, tcCancel(t, srv, pending, "เหตุผล", tcTokenStaff), http.StatusForbidden) // ไม่บันทึก
+
+	rows := tcAuditSince(t, mark)
+	if len(rows) != 4 {
+		t.Fatalf("audit_log มี %d แถว ต้องมี 4 (เจ้าหน้าที่ไม่บันทึก): %+v", len(rows), rows)
+	}
+	want := []struct {
+		reqID *int
+		cause string
+	}{
+		{nil, "not_found"},
+		{&rejected, "not_cancellable"},
+		{&pending, "reason_invalid"},
+		{nil, "reason_invalid"},
+	}
+	for i, w := range want {
+		r := rows[i]
+		if r.ActorID != tcUserA || r.Outcome != "forbidden" || r.Query["cause"] != w.cause {
+			t.Errorf("แถว %d: %+v ต้องเป็นของ %s outcome forbidden cause %s", i, r, tcUserA, w.cause)
+		}
+		if w.reqID == nil {
+			if r.RequestID != nil || r.Query["id"] != float64(missing) {
+				t.Errorf("แถว %d: %+v ต้องไม่มี request_id และ query id = %d", i, r, missing)
+			}
+		} else if r.RequestID == nil || *r.RequestID != *w.reqID {
+			t.Errorf("แถว %d: %+v ต้องมี request_id %d", i, r, *w.reqID)
+		}
+	}
+	if s := tcRow(t, pending).Status; s != "requested" {
+		t.Errorf("สถานะ = %s ต้องยังเป็น requested", s)
 	}
 }
 

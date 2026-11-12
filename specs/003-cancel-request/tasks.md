@@ -538,7 +538,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-30, T-09, T-19, T-25
 - เสร็จเมื่อ: `TestAC_CXL_06_AuditLogAttempts` ผ่าน (3 แถว action `cancel`: `ok` 1, `forbidden` 2 มี request_id และ cause ใน query ตามตาราง FR-CXL-05 เขียนใน transaction เดียวกับการยกเลิก) และ `TestAC_CXL_07_ExpiredSessionNoCancel` ตรวจเพิ่มว่าไม่มีแถวใหม่
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 ### T-32 บันทึกเมื่อส่ง Email ไม่สำเร็จ
 - รองรับ: FR-CXL-09, FR-CXL-05

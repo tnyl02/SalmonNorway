@@ -103,13 +103,26 @@ func tcPool(t *testing.T) *pgxpool.Pool {
 }
 
 // tcServer ล้างคำขอทั้งหมด แล้วประกอบ handler แบบเดียวกับ cmd/server/main.go (หลัง auth.Middleware ห่อด้วย platform.NoStore)
-// ล้างด้วย DELETE เพราะ audit_log เป็น append-only (TRUNCATE ... CASCADE จะโดน trigger)
-// ถ้า 002 เพิ่ม foreign key จาก audit_log.request_id มาที่ borrow_request ต้องกลับมาแก้วิธีล้างตรงนี้
+// audit_log อ้าง borrow_request ด้วย FK และลบไม่ได้ (append-only) จึงปิด trigger และ FK ชั่วคราวด้วย
+// SET LOCAL session_replication_role = replica เฉพาะใน transaction ของการล้าง (plan.md หัวข้อ 8 ทีมเลือก ข 2569-11-12, T-31)
+// แถวเก่าใน audit_log ยังอยู่ test ที่ตรวจ audit จึงนับเฉพาะแถวที่ id มากกว่าค่าก่อนเริ่ม (tcAuditMark)
 func tcServer(t *testing.T) http.Handler {
 	t.Helper()
 	pool := tcPool(t)
-	if _, err := pool.Exec(context.Background(), `DELETE FROM borrow_request`); err != nil {
+	ctx := context.Background()
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("เปิด transaction ล้างข้อมูลไม่สำเร็จ: %v", err)
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `SET LOCAL session_replication_role = replica`); err != nil {
+		t.Fatalf("ปิด trigger ชั่วคราวไม่สำเร็จ (ต้องใช้ superuser ของ testcontainers): %v", err)
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM borrow_request`); err != nil {
 		t.Fatalf("ล้างตาราง borrow_request ไม่สำเร็จ (สร้างใน T-01): %v", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatalf("ล้างข้อมูลไม่สำเร็จ: %v", err)
 	}
 	h := NewHandler(NewService(NewRepository(pool)))
 	routes := auth.Middleware(auth.NewMockProvider(), h.Routes())
@@ -117,6 +130,51 @@ func tcServer(t *testing.T) http.Handler {
 	mux.Handle("/v1/my/", routes)
 	mux.Handle("/v1/borrow-requests/", routes)
 	return platform.NoStore(mux)
+}
+
+// tcAuditRow คือแถว audit_log ที่ test ของ 003 ตรวจ (FR-CXL-05)
+type tcAuditRow struct {
+	ActorID   string
+	ActorRole string
+	Action    string
+	Outcome   string
+	RequestID *int
+	Query     map[string]any
+	HasTime   bool
+}
+
+// tcAuditMark คืน id ล่าสุดของ audit_log ใช้เป็นจุดเริ่มนับแถวใหม่ (แถวเก่าลบไม่ได้)
+func tcAuditMark(t *testing.T) int64 {
+	t.Helper()
+	var id int64
+	if err := tcPool(t).QueryRow(context.Background(), `SELECT COALESCE(max(id), 0) FROM audit_log`).Scan(&id); err != nil {
+		t.Fatalf("อ่าน audit_log ไม่สำเร็จ: %v", err)
+	}
+	return id
+}
+
+// tcAuditSince คืนแถว audit_log ที่ id มากกว่า mark เรียงตาม id
+func tcAuditSince(t *testing.T, mark int64) []tcAuditRow {
+	t.Helper()
+	rows, err := tcPool(t).Query(context.Background(),
+		`SELECT actor_id, actor_role, action, outcome, request_id, query, occurred_at IS NOT NULL
+		   FROM audit_log WHERE id > $1 ORDER BY id`, mark)
+	if err != nil {
+		t.Fatalf("อ่าน audit_log ไม่สำเร็จ: %v", err)
+	}
+	defer rows.Close()
+	var out []tcAuditRow
+	for rows.Next() {
+		var r tcAuditRow
+		if err := rows.Scan(&r.ActorID, &r.ActorRole, &r.Action, &r.Outcome, &r.RequestID, &r.Query, &r.HasTime); err != nil {
+			t.Fatalf("อ่านแถว audit_log ไม่สำเร็จ: %v", err)
+		}
+		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("อ่าน audit_log ไม่สำเร็จ: %v", err)
+	}
+	return out
 }
 
 // tcInsert ใส่คำขอยืม 1 คำขอ คืนรหัสคำขอ (คอลัมน์ตาม 0003_borrow_request ของ 002)

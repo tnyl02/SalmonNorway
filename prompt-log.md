@@ -3360,3 +3360,31 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - เจ้าของตรวจบนหน้าเว็บ: ลบ token ใน Session storage แล้วได้หน้าเข้าสู่ระบบจำลองพร้อมข้อความ, staff-001 เห็นข้อความเฉพาะนักศึกษาไม่มีปุ่มลองใหม่,
   session หมดอายุระหว่างยืนยันยกเลิก ล็อกอินแล้วกลับแท็บเดิม คำขอยังอยู่ แจ้งว่า "ผ่าน"
 - เปลี่ยนสถานะ T-26 ใน tasks.md เป็น เสร็จ
+
+---
+
+## 2569-11-12 /implement T-31 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md เอง)
+- สิ่งที่ทำ: บันทึก audit_log ทุกครั้งที่นักศึกษาพยายามยกเลิก ตามตาราง FR-CXL-05 ใน transaction เดียวกับการยกเลิก ใช้ audit.Write ของ 001 (รับ pgx.Tx)
+  ไม่สำเร็จก็ commit เพื่อเก็บแถว audit, แยก not_found กับ not_owner ด้วย RequestState (แทน OwnStatus) หน้าจอยังได้ 404 เหมือนกัน (FR-CXL-03)
+  ล้างข้อมูลใน test ด้วย SET LOCAL session_replication_role = replica (ทีมเลือก ข)
+- ไฟล์ที่แก้: backend/internal/cancelrequest/service.go, repository.go, handler_test.go (TestAC_CXL_06_AuditLogAttempts ใหม่, TestFR_CXL_05_AuditLogOtherCauses ใหม่, TestAC_CXL_07 ตรวจไม่มีแถวใหม่), tc_helpers_test.go (วิธีล้าง, tcAuditMark, tcAuditSince)
+- สิ่งที่ AI เลือกเอง (ตาราง FR-CXL-05 ไม่ได้บอก):
+  - เหตุผลผิดกับคำขอที่ไม่มีอยู่ -> request_id ว่าง เก็บ id ใน query แบบ not_found (FK ไม่ยอมให้อ้างคำขอที่ไม่มี)
+  - เจ้าหน้าที่สั่งยกเลิก (403) ไม่บันทึก เพราะ FR-CXL-05 กำหนดเฉพาะนักศึกษา
+  - บันทึก audit ไม่สำเร็จ -> 503 และไม่ยกเลิก, เหตุผลผิดต้องเปิด transaction ก่อน (ฐานข้อมูลล่มตอนเหตุผลผิดได้ 503 แทน 422)
+  - id ที่ไม่ใช่ตัวเลข และ body ที่ไม่ใช่ JSON ไม่บันทึก (ตอบใน handler.go ซึ่งไม่อยู่ในไฟล์ที่แตะของ T-31)
+- ผล test: go test -p 1 ./... ผ่านทุก package (ของ 003 ผ่าน 50) ลองเปลี่ยน cause not_owner และลบ commit ของแถว forbidden ชั่วคราว test ไม่ผ่าน คืนโค้ดแล้วผ่าน
+- สถานะ: รอเจ้าของตรวจ
+
+---
+
+## 2569-11-12 ตรวจ T-31 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เจ้าของตรวจแล้วแจ้งว่า "ผ่าน" และรับ 4 เรื่องที่ AI เลือกเอง (เหตุผลผิดกับคำขอที่ไม่มี เก็บ id ใน query, เจ้าหน้าที่ไม่บันทึก,
+  บันทึก audit ไม่ได้ -> 503, id ไม่ใช่ตัวเลขและ body ไม่ใช่ JSON ไม่บันทึก)
+- เปลี่ยนสถานะ T-31 ใน tasks.md เป็น เสร็จ

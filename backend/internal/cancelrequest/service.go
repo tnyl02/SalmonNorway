@@ -8,6 +8,9 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/jackc/pgx/v5"
+
+	"salmonnorway/backend/internal/audit"
 	"salmonnorway/backend/internal/auth"
 	"salmonnorway/backend/internal/config"
 )
@@ -88,15 +91,24 @@ func (s *Service) ListMyPending(ctx context.Context, p auth.Principal) ([]Pendin
 	return out, nil
 }
 
+// ค่าใน audit_log ของการยกเลิก (FR-CXL-05 ตาราง, ASM-12, DM-07)
+const (
+	auditActionCancel    = "cancel"
+	causeNotOwner        = "not_owner"
+	causeNotFound        = "not_found"
+	causeAlreadyApproved = "already_approved"
+	causeNotCancellable  = "not_cancellable"
+	causeReasonInvalid   = "reason_invalid"
+)
+
 // Cancel ยกเลิกคำขอ requestID ของนักศึกษาที่เข้าสู่ระบบพร้อมเหตุผล (FR-CXL-01, FR-CXL-04, FR-CXL-08, CON-CXL-02)
 // ผู้ขอมาจาก Principal เสมอ (IF-IDP-01) ไม่เปลี่ยนสถานะอุปกรณ์ (CON-CXL-01)
-// ตรวจเหตุผลก่อนแตะฐานข้อมูล (FR-CXL-08) การบันทึก audit_log ใน transaction เดียวกันอยู่ใน T-31 การส่ง Email หลัง commit อยู่ใน T-27
+// ทุกครั้งที่นักศึกษาพยายามยกเลิก บันทึก audit_log ใน transaction เดียวกับการยกเลิก (FR-CXL-05, T-31)
+// บันทึกไม่ได้ = error -> 503 และไม่ยกเลิก เจ้าหน้าที่ไม่บันทึก เพราะ FR-CXL-05 กำหนดเฉพาะนักศึกษา
+// การส่ง Email หลัง commit อยู่ใน T-27
 func (s *Service) Cancel(ctx context.Context, p auth.Principal, requestID int, reason string) (CancelResultDTO, error) {
 	if p.Role != auth.RoleStudent {
 		return CancelResultDTO{}, ErrStudentOnly
-	}
-	if err := ValidateReason(reason); err != nil {
-		return CancelResultDTO{}, err
 	}
 	// ฐานข้อมูลไม่ตอบภายใน dbTimeout -> error -> handler ตอบ 503 และ rollback สถานะคงเดิม (FR-CXL-01, ASM-06)
 	ctx, cancel := context.WithTimeout(ctx, s.dbTimeout)
@@ -107,24 +119,47 @@ func (s *Service) Cancel(ctx context.Context, p auth.Principal, requestID int, r
 	}
 	defer tx.Rollback(ctx) // ไม่มีผลถ้า commit ไปแล้ว
 
+	// ตรวจเหตุผลก่อนแตะคำขอ (FR-CXL-08) ไม่ผ่านบันทึก reason_invalid แล้วตอบ 422
+	if verr := ValidateReason(reason); verr != nil {
+		if err := s.auditRejected(ctx, tx, p, requestID, causeReasonInvalid); err != nil {
+			return CancelResultDTO{}, err
+		}
+		return CancelResultDTO{}, verr
+	}
+
 	ok, err := s.repo.Cancel(ctx, tx, requestID, p.UserID, reason, config.CancellableStatuses())
 	if err != nil {
 		return CancelResultDTO{}, err
 	}
 	if !ok {
 		// แยกสาเหตุจากสถานะ ณ ตอนนี้ ใน transaction เดียวกัน (FR-CXL-02, FR-CXL-04)
-		status, found, err := s.repo.OwnStatus(ctx, tx, requestID, p.UserID)
+		owner, status, found, err := s.repo.RequestState(ctx, tx, requestID)
 		if err != nil {
 			return CancelResultDTO{}, err
 		}
+		var cause string
+		var result error
 		switch {
 		case !found:
-			return CancelResultDTO{}, ErrRequestNotFound // ไม่มี หรือไม่ใช่ของผู้ขอคนนี้ (FR-CXL-03)
+			cause, result = causeNotFound, ErrRequestNotFound
+		case owner != p.UserID:
+			cause, result = causeNotOwner, ErrRequestNotFound // ตอบเหมือนไม่มีคำขอ ไม่บอกว่ามีอยู่ (FR-CXL-03)
 		case status == statusApproved:
-			return CancelResultDTO{}, &StatusError{Err: ErrAlreadyApproved, Status: status} // แนบ status ใน 409 (CR-006)
+			cause, result = causeAlreadyApproved, &StatusError{Err: ErrAlreadyApproved, Status: status} // แนบ status ใน 409 (CR-006)
 		default:
-			return CancelResultDTO{}, &StatusError{Err: ErrNotCancelled, Status: status}
+			cause, result = causeNotCancellable, &StatusError{Err: ErrNotCancelled, Status: status}
 		}
+		if err := s.auditRejected(ctx, tx, p, requestID, cause); err != nil {
+			return CancelResultDTO{}, err
+		}
+		return CancelResultDTO{}, result
+	}
+	// ยกเลิกสำเร็จ: บันทึก ok พร้อมความยาวเหตุผล นับตาม code point แบบ FR-CXL-08
+	if _, err := audit.Write(ctx, tx, audit.Entry{
+		ActorID: p.UserID, ActorRole: string(p.Role), Action: auditActionCancel,
+		Query: map[string]any{"reason_len": utf8.RuneCountInString(reason)}, RequestID: &requestID, Outcome: audit.OutcomeOK,
+	}); err != nil {
+		return CancelResultDTO{}, err
 	}
 	// อ่านข้อมูลสำหรับ Email ใน transaction เดียวกัน แต่ส่งหลัง commit เท่านั้น (FR-CXL-09, plan.md ข้อ 4 ขั้น 4)
 	notice, err := s.repo.CancelledNotice(ctx, tx, requestID)
@@ -137,6 +172,35 @@ func (s *Service) Cancel(ctx context.Context, p auth.Principal, requestID int, r
 	notice.CancelledBy, notice.Reason = p.UserID, reason
 	_ = s.notify(context.WithoutCancel(ctx), notice) // ผลของการส่งใช้บันทึก audit ใน T-32 ไม่กระทบผลการยกเลิก
 	return CancelResultDTO{RequestID: requestID, Status: "cancelled"}, nil
+}
+
+// auditRejected บันทึกการยกเลิกที่ไม่สำเร็จ (outcome forbidden) แล้ว commit (FR-CXL-05 ตาราง)
+// ใน transaction นี้ไม่มีการเปลี่ยนสถานะคำขอ commit จึงเก็บแค่แถว audit
+// คำขอที่มีอยู่จริงใส่ request_id ไม่มีคำขอนี้ใส่ request_id ว่างและเก็บรหัสที่ส่งมาใน query (FK ของ 0003 อ้างคำขอที่ไม่มีไม่ได้)
+// เหตุผลผิดกับคำขอที่ไม่มีอยู่ใช้รูปแบบเดียวกับ not_found (ทีมเลือกเอง ตาราง FR-CXL-05 ไม่ได้แยกกรณีนี้)
+func (s *Service) auditRejected(ctx context.Context, tx pgx.Tx, p auth.Principal, requestID int, cause string) error {
+	exists := cause != causeNotFound
+	if cause == causeReasonInvalid {
+		_, _, found, err := s.repo.RequestState(ctx, tx, requestID)
+		if err != nil {
+			return err
+		}
+		exists = found
+	}
+	query := map[string]any{"cause": cause}
+	var reqID *int
+	if exists {
+		reqID = &requestID
+	} else {
+		query["id"] = requestID
+	}
+	if _, err := audit.Write(ctx, tx, audit.Entry{
+		ActorID: p.UserID, ActorRole: string(p.Role), Action: auditActionCancel,
+		Query: query, RequestID: reqID, Outcome: audit.OutcomeForbidden,
+	}); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 // notify ส่ง Email แจ้งเจ้าหน้าที่หลังยกเลิกสำเร็จ แบบรอผล (FR-CXL-09, ทีมตัดสิน 2569-11-12)
