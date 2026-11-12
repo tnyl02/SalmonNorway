@@ -5568,3 +5568,17 @@ main
   - TC-HND-08-5 audit log ของคำขอที่ไม่มีจริง ใส่รหัสคำขอ / รหัสครุภัณฑ์อย่างไร
   - ข้อความบนหน้าจอ: TC-HND-02-7 (ปุ่มปิดหรือแจ้ง), 03-5 (unavailable), 10-3 (mismatch), 12-7 (รูปไม่ถูกต้อง), 14-4 (ไม่มีคำขอ) spec ไม่มี UI ID ไม่มี mockup
 - AC-HND-13 ใส่ "(รอ Q-SH-06)" เพราะ Given ไม่เกิดในระบบจริง
+
+---
+
+## 2569-11-12 /verify specs/005-handover สร้าง rtm.md
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "test-case rtm ทำเพิ่มมา" -> /verify specs/005-handover (หลัง /testcases โหมดร่าง)
+- แก้จำนวนในบันทึก /testcases ก่อนหน้า: 63 แถว = go test 50 แถว / vitest 7 แถว / คน 6 แถว (บันทึกก่อนหน้าเขียน go test 44 vitest 8 ซึ่งนับผิด)
+- ผล test (commit e57cd3f รันใน container golang:1.25 และ vitest ในสำเนา frontend): ของ 005 ผ่าน 32 ไม่ผ่าน 0 (หลังบ้าน 25 test function, หน้าจอ 7 test) `go test ./...` ผ่านทุก package vitest 90/90
+- ตารางไปข้างหน้า 20 แถว: ครบ 11 / ยังไม่ถึง 0 / รอ 0 / ช่องโหว่ 9
+- ข้อค้นพบใหม่: F-01 (CON-TECH-03 404 ไม่มี `{code, message}`), F-02 (DOM-AUDIT-01 รายการรอส่งมอบไม่บันทึก audit ขัดกับที่ทีมตัดสินตอน T-27), F-03 (ค้างคืนไม่มี AC), F-04 (NFR-SEC-01, NFR-AVAIL-01 ไม่มี AC), F-05 (CON-TECH-02 ยังไม่มี HTTPS / volume photos ใน deploy), F-06 (error ของชื่อ / credential ว่างหรือใช้ไม่ได้ไม่มีใน plan ข้อ 4), F-07 (photoExt ประกาศชนิดรูปซ้ำกับ config), F-08 (ไม่มี test ยืนยัน timeout 10 วินาทีของระบบจริง)
+- ไม่ได้แก้โค้ด test spec plan tasks ช่อง "ทีมตัดสิน" เว้นว่างทุกข้อ
