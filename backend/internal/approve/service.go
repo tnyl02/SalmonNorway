@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"salmonnorway/backend/internal/auth"
 	"salmonnorway/backend/internal/config"
@@ -124,8 +125,9 @@ func (s *Service) Approve(ctx context.Context, requestID int, loadedAt time.Time
 			return ErrItemNotAvailable
 		}
 		// FR-APV-01 (ค), Q-APV-11, DOM-LOAN-01: อนุมัติไม่ได้เมื่อเลย 16:00 น. ของวันที่เริ่มยืม (AC-APV-16, T-21)
+		// "เลย 16:00 น." นับตั้งแต่ 16:00:00 น. ตรง อนุมัติได้ถึง 15:59:59 น. (Q-APV-26, TC-APV-01-5)
 		// คำขอนั้นยังเป็นคำขอแรก เจ้าหน้าที่ปฏิเสธเองหรือรอเที่ยงคืน (Q-APV-16)
-		if s.now().After(approvalCutoff(target.StartAt)) {
+		if !s.now().Before(approvalCutoff(target.StartAt)) {
 			return ErrApprovalCutoff
 		}
 		if err := tx.setStatus(ctx, target.ID, config.StatusApproved); err != nil {
@@ -225,6 +227,9 @@ func (s *Service) rejectSuperseded(ctx context.Context, tx *Repository, p auth.P
 // ErrReasonRequired เกิดเมื่อปฏิเสธโดยไม่ระบุเหตุผล (FR-APV-01 ง, AC-APV-06, CON-TECH-03 VALIDATION_FAILED ช่อง reason)
 var ErrReasonRequired = errors.New("ต้องระบุเหตุผลในการปฏิเสธ")
 
+// ErrReasonTooLong เกิดเมื่อเหตุผลการปฏิเสธยาวเกิน config.ApprovalRejectReasonMaxLength (FR-APV-01 ง, Q-APV-28, VALIDATION_FAILED ช่อง reason)
+var ErrReasonTooLong = errors.New("เหตุผลในการปฏิเสธยาวเกินกำหนด")
+
 // Reject ปฏิเสธคำขอยืมแบบปกติ 1 ใบพร้อมเหตุผลที่เจ้าหน้าที่ระบุ ใน transaction เดียว (FR-APV-01 ง ฌ, AC-APV-02)
 //   - คำขอเป็น rejected บันทึกเหตุผลใน approval_decision และ audit_log action reject (RQ-25)
 //   - ไม่เปลี่ยนสถานะอุปกรณ์ (CON-DATA-01)
@@ -235,10 +240,8 @@ func (s *Service) Reject(ctx context.Context, requestID int, reason string, load
 	if err != nil {
 		return Result{}, err
 	}
-	// FR-APV-01 (ง)(ซ), AC-APV-06: ต้องระบุเหตุผล ว่างหรือมีแต่ช่องว่างไม่นับ ไม่เปิด transaction เลย สถานะจึงคงเดิม
-	if strings.TrimSpace(reason) == "" {
-		return Result{}, ErrReasonRequired
-	}
+	// ลำดับการตรวจ (Q-APV-29, Q-APV-34): หาคำขอ -> ภาควิชา -> เหตุผล -> สถานะ
+	// ตรวจเหตุผลหลังภาควิชา เจ้าหน้าที่ภาควิชาอื่นจึงได้ FORBIDDEN_DEPARTMENT เสมอ และก่อนสถานะ คำขอที่ยกเลิกแล้วจึงได้ VALIDATION_FAILED
 	var out Result
 	err = s.repo.inTx(ctx, func(tx *Repository) error {
 		target, _, ok, err := tx.lockItemRequests(ctx, requestID)
@@ -252,6 +255,14 @@ func (s *Service) Reject(ctx context.Context, requestID int, reason string, load
 		// ตรวจก่อนเรื่องอื่น ผู้ที่อยู่ภาควิชาอื่นจึงไม่รู้สถานะหรือข้อมูลใดของคำขอนั้น
 		if target.DepartmentID != p.DepartmentID {
 			return ErrForbiddenDepartment
+		}
+		// FR-APV-01 (ง)(ซ), AC-APV-06: ต้องระบุเหตุผล ว่างหรือมีแต่ช่องว่างไม่นับ ยังไม่เขียนอะไร สถานะจึงคงเดิม
+		if strings.TrimSpace(reason) == "" {
+			return ErrReasonRequired
+		}
+		// FR-APV-01 (ง), Q-APV-28: ไม่เกิน ApprovalRejectReasonMaxLength นับตาม code point แบบเดียวกับ 003
+		if utf8.RuneCountInString(reason) > config.ApprovalRejectReasonMaxLength {
+			return ErrReasonTooLong
 		}
 		if target.Status != config.StatusRequested {
 			return notRequestedError(ctx, tx, target, loadedAt) // FR-APV-01 (ซ), T-23

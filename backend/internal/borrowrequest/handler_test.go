@@ -17,6 +17,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"salmonnorway/backend/internal/auth"
 	"salmonnorway/backend/internal/config"
 )
@@ -941,4 +944,315 @@ func TestSafeFileName(t *testing.T) {
 			t.Errorf("safeFileName(%q) = %q ต้องเป็น %q", c.in, got, c.want)
 		}
 	}
+}
+
+// failOnceDB ห่อการเชื่อมฐานข้อมูลจริง แล้วทำให้คำสั่งที่ "เขียนคำขอ" ล้มเหลวครั้งแรกครั้งเดียว
+// ใช้จำลองฐานข้อมูลขัดข้องตอนกดส่ง โดยไม่ต้องหยุด container จริง (FR-BRQ-09, AC-BRQ-09)
+// คำสั่งอื่น เช่น การเขียน audit_log ยังวิ่งไปที่ฐานข้อมูลจริงตามปกติ
+type failOnceDB struct {
+	Querier
+	failed bool
+}
+
+func (d *failOnceDB) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
+	if !d.failed && strings.HasPrefix(strings.TrimSpace(sql), "INSERT INTO borrow_request") {
+		d.failed = true
+		return errRow{err: errors.New("จำลองฐานข้อมูลขัดข้องตอนบันทึกคำขอ")}
+	}
+	return d.Querier.QueryRow(ctx, sql, args...)
+}
+
+// errRow คือแถวผลลัพธ์ที่อ่านแล้วได้ error เสมอ
+type errRow struct{ err error }
+
+func (r errRow) Scan(...any) error { return r.err }
+
+// AC-BRQ-09 (FR-BRQ-09)
+// Given การบันทึกคำขอลงฐานข้อมูลไม่สำเร็จ
+// When  นักศึกษากดส่งคำขอ แล้วกดส่งใหม่อีกครั้งจนสำเร็จ
+// Then  ครั้งแรกต้องแจ้งข้อผิดพลาดและไม่มีคำขอค้างในระบบ และเมื่อสำเร็จต้องมีคำขอเพียง 1 รายการ
+func TestAC_BRQ_09(t *testing.T) {
+	pool := testPool(t)
+	const requester = "student-001"
+	const assetCode = "CS-NB-0002"
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM borrow_request WHERE requester_id = $1`, requester)
+	})
+
+	// Given: ฐานข้อมูลจะล้มเหลวเฉพาะการเขียนคำขอครั้งแรก
+	svc := NewServiceWithClock(NewRepository(&failOnceDB{Querier: pool}), testClock())
+	srv := auth.Middleware(auth.NewMockProvider(), NewHandler(svc).Routes())
+
+	// When: กดส่งครั้งแรก
+	w := postRequest(t, srv, tokenStudentDept1, bodyFor(assetCode))
+
+	// Then: แจ้งข้อผิดพลาดด้วยรหัสกลาง (CON-TECH-03)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("บันทึกไม่สำเร็จต้องได้ 503 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	var e ErrorDTO
+	if err := json.Unmarshal(w.Body.Bytes(), &e); err != nil {
+		t.Fatalf("อ่าน JSON ไม่ได้: %v", err)
+	}
+	if e.Code != "UPSTREAM_UNAVAILABLE" {
+		t.Errorf("รหัสต้องเป็น UPSTREAM_UNAVAILABLE ตาม CON-TECH-03 แต่ได้ %q", e.Code)
+	}
+	if e.Message == "" {
+		t.Error("ต้องมีข้อความแจ้งผู้ขอว่าเกิดข้อผิดพลาด (FR-BRQ-09)")
+	}
+	// Then: ไม่มีคำขอค้างในระบบ
+	if n := countRequests(t, pool, requester); n != 0 {
+		t.Fatalf("บันทึกไม่สำเร็จต้องไม่ทิ้งคำขอค้างไว้ แต่พบ %d ใบ", n)
+	}
+
+	// When: กดส่งใหม่อีกครั้ง
+	w = postRequest(t, srv, tokenStudentDept1, bodyFor(assetCode))
+
+	// Then: สำเร็จ และมีคำขอเพียง 1 รายการ ไม่ซ้ำซ้อน (FR-BRQ-05 ข ช่วยกันไว้อีกชั้น)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("ส่งใหม่ต้องสำเร็จ 201 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	decodeCreated(t, w)
+	if n := countRequests(t, pool, requester); n != 1 {
+		t.Errorf("ต้องมีคำขอเพียง 1 รายการ แต่พบ %d ใบ", n)
+	}
+}
+
+// getQueue ยิง GET /v1/equipment/items/{assetCode}/requests ด้วย token ที่ให้
+func getQueue(t *testing.T, srv http.Handler, token, assetCode string) *httptest.ResponseRecorder {
+	t.Helper()
+	r := httptest.NewRequest(http.MethodGet, "/v1/equipment/items/"+assetCode+"/requests", nil)
+	if token != "" {
+		r.Header.Set("Authorization", "Bearer "+token)
+	}
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, r)
+	return w
+}
+
+// AC-BRQ-05 (FR-BRQ-05 ข้อ ก)
+// Given อุปกรณ์ชิ้นหนึ่งมีคำขอค้างอยู่แล้ว 1 คำขอจากนักศึกษาคนอื่น
+// When  นักศึกษาอีกคนส่งคำขอของอุปกรณ์ชิ้นเดียวกัน
+// Then  ระบบต้องรับคำขอไว้ และเมื่อเรียกข้อมูลลำดับของอุปกรณ์ชิ้นนั้นผ่าน API
+//
+//	ต้องได้คำขอเดิมเป็นลำดับที่ 1 และคำขอใหม่เป็นลำดับที่ 2 เรียงตามเวลาที่ส่ง
+//	โดยนักศึกษาต้องไม่เห็นข้อมูลคำขอของผู้อื่น
+func TestAC_BRQ_05(t *testing.T) {
+	pool := testPool(t)
+	const assetCode = "CS-NB-0003"
+	const firstRequester = "student-031"
+	const secondRequester = "student-032"
+	svc := NewServiceWithClock(NewRepository(pool), testClock())
+	srv := auth.Middleware(auth.NewMockProvider(), NewHandler(svc).Routes())
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(),
+			`DELETE FROM borrow_request WHERE requester_id = ANY($1)`,
+			[]string{firstRequester, secondRequester})
+	})
+
+	// Given: คำขอใบแรกจากนักศึกษาคนหนึ่ง
+	first := newTestRequest(assetCode)
+	first.RequesterName = "ผู้ขอคนแรก ทดสอบ"
+	firstReq, err := svc.CreateWithAttachment(studentCtx(firstRequester), first, nil)
+	if err != nil {
+		t.Fatalf("คำขอใบแรกต้องสำเร็จ แต่ได้ error: %v", err)
+	}
+
+	// When: นักศึกษาอีกคนส่งคำขอของอุปกรณ์ชิ้นเดียวกัน ระบบต้องรับไว้ (ส่งซ้อนได้ DOM-REQ-01)
+	second := newTestRequest(assetCode)
+	second.RequesterName = "ผู้ขอคนที่สอง ทดสอบ"
+	secondReq, err := svc.CreateWithAttachment(studentCtx(secondRequester), second, nil)
+	if err != nil {
+		t.Fatalf("คำขอซ้อนของผู้อื่นต้องสำเร็จ แต่ได้ error: %v", err)
+	}
+
+	// Then: เจ้าหน้าที่เรียกลำดับได้ เรียงตามเวลาที่ส่ง
+	w := getQueue(t, srv, tokenStaff, assetCode)
+	if w.Code != http.StatusOK {
+		t.Fatalf("เจ้าหน้าที่ต้องได้ 200 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	var got []queueItemDTO
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatalf("อ่าน JSON ไม่ได้: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("ต้องได้คำขอ 2 ใบ แต่ได้ %d ใบ body=%s", len(got), w.Body.String())
+	}
+	if got[0].RequestID != firstReq.ID || got[0].QueuePosition != 1 {
+		t.Errorf("ลำดับที่ 1 ต้องเป็นคำขอ %d แต่ได้ %d (ลำดับ %d)", firstReq.ID, got[0].RequestID, got[0].QueuePosition)
+	}
+	if got[1].RequestID != secondReq.ID || got[1].QueuePosition != 2 {
+		t.Errorf("ลำดับที่ 2 ต้องเป็นคำขอ %d แต่ได้ %d (ลำดับ %d)", secondReq.ID, got[1].RequestID, got[1].QueuePosition)
+	}
+	// Then: มีชื่อผู้ขอและเวลาที่ส่งให้เจ้าหน้าที่เห็น (สัญญา API ใน CR-005)
+	if got[0].RequesterName != first.RequesterName || got[1].RequesterName != second.RequesterName {
+		t.Errorf("ชื่อผู้ขอไม่ตรง: ได้ %q และ %q", got[0].RequesterName, got[1].RequesterName)
+	}
+	if got[0].SubmittedAt.After(got[1].SubmittedAt) {
+		t.Error("ต้องเรียงตามเวลาที่ส่ง ใบแรกต้องมาก่อนใบที่สอง")
+	}
+
+	// Then: นักศึกษาเรียกไม่ได้ ต้องไม่เห็นคำขอของผู้อื่น (DOM-PRIV-01)
+	t.Run("นักศึกษาเรียกไม่ได้", func(t *testing.T) {
+		w := getQueue(t, srv, tokenStudentDept1, assetCode)
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("นักศึกษาต้องได้ 403 แต่ได้ %d body=%s", w.Code, w.Body.String())
+		}
+		var e ErrorDTO
+		if err := json.Unmarshal(w.Body.Bytes(), &e); err != nil {
+			t.Fatalf("อ่าน JSON ไม่ได้: %v", err)
+		}
+		if e.Code != "FORBIDDEN_ROLE" {
+			t.Errorf("รหัสต้องเป็น FORBIDDEN_ROLE ตาม CR-005 แต่ได้ %q", e.Code)
+		}
+		if strings.Contains(w.Body.String(), first.RequesterName) {
+			t.Error("คำตอบต้องไม่มีชื่อผู้ขอรายอื่นติดไปด้วย (DOM-PRIV-01)")
+		}
+	})
+
+	// Then: ไม่มีคำขอค้าง หรือไม่มีรหัสครุภัณฑ์นั้น ต้องได้ [] (ทีมตัดสิน 2569-11-12 ตาม CR-005)
+	t.Run("รหัสที่ไม่มีอยู่จริงได้รายการว่าง", func(t *testing.T) {
+		w := getQueue(t, srv, tokenStaff, "NO-SUCH-0001")
+		if w.Code != http.StatusOK {
+			t.Fatalf("ต้องได้ 200 แต่ได้ %d", w.Code)
+		}
+		if body := strings.TrimSpace(w.Body.String()); body != "[]" {
+			t.Errorf("ต้องได้รายการว่าง [] แต่ได้ %s", body)
+		}
+	})
+}
+
+// countAudit นับแถว audit ของการส่งคำขอของผู้ใช้คนนั้น (ตาราง append-only ลบไม่ได้ จึงนับก่อนและหลัง)
+func countAudit(t *testing.T, pool *pgxpool.Pool, actorID string) int {
+	t.Helper()
+	var n int
+	if err := pool.QueryRow(context.Background(),
+		`SELECT count(*) FROM audit_log WHERE actor_id = $1 AND action = $2`,
+		actorID, config.AuditActionRequest).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+// lastAuditOutcome คืน outcome และรหัสครุภัณฑ์ของแถว audit ล่าสุดของผู้ใช้คนนั้น
+func lastAuditOutcome(t *testing.T, pool *pgxpool.Pool, actorID string) (string, *string) {
+	t.Helper()
+	var outcome string
+	var assetCode *string
+	if err := pool.QueryRow(context.Background(), `
+		SELECT outcome, asset_code FROM audit_log
+		WHERE actor_id = $1 AND action = $2 ORDER BY id DESC LIMIT 1`,
+		actorID, config.AuditActionRequest).Scan(&outcome, &assetCode); err != nil {
+		t.Fatal(err)
+	}
+	return outcome, assetCode
+}
+
+// T-24 เสร็จเมื่อ: คำขอที่ถูกปฏิเสธตั้งแต่การตรวจข้อมูล (422) ต้องมี audit เพิ่มขึ้น 1 แถว
+// รองรับ FR-BRQ-08 ที่สั่งให้บันทึก "ทุกครั้งที่มีการส่งคำขอ ทั้งกรณีสำเร็จและถูกปฏิเสธ"
+// (ทีมตัดสิน 2569-11-12 ว่าคำว่า "ถูกปฏิเสธ" รวมกรณี 422 ที่ไม่ถึง service ด้วย)
+func TestAuditOnValidationRejected(t *testing.T) {
+	t.Setenv("ATTACHMENT_DIR", t.TempDir())
+	pool := testPool(t)
+	srv := newTestServer(t)
+	const actor = "student-001"
+	const assetCode = "CS-NB-0003"
+
+	t.Run("ข้อมูลไม่ครบ", func(t *testing.T) {
+		before := countAudit(t, pool, actor)
+
+		w := postRequest(t, srv, tokenStudentDept1, bodyWithout(assetCode, "studentCode"))
+		if w.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("ข้อมูลไม่ครบต้องได้ 422 แต่ได้ %d body=%s", w.Code, w.Body.String())
+		}
+
+		if after := countAudit(t, pool, actor); after != before+1 {
+			t.Fatalf("ต้องมี audit เพิ่ม 1 แถว แต่ก่อนมี %d หลังมี %d", before, after)
+		}
+		outcome, logged := lastAuditOutcome(t, pool, actor)
+		if outcome != "forbidden" {
+			t.Errorf("คำขอที่ถูกปฏิเสธต้องบันทึก outcome forbidden แต่ได้ %q", outcome)
+		}
+		if logged == nil || *logged != assetCode {
+			t.Errorf("ต้องบันทึกรหัสครุภัณฑ์ %s ด้วย แต่ได้ %v", assetCode, logged)
+		}
+	})
+
+	t.Run("ไฟล์แนบผิดชนิด", func(t *testing.T) {
+		before := countAudit(t, pool, actor)
+
+		ct, body := multipartForm(t, assetCode, config.LoanTypeOvernight,
+			&testFile{name: "memo.txt", contentType: "text/plain", content: []byte("ไม่ใช่ PDF")})
+		w := postMultipart(t, srv, tokenStudentDept1, ct, body)
+		if w.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("ไฟล์ผิดชนิดต้องได้ 422 แต่ได้ %d body=%s", w.Code, w.Body.String())
+		}
+
+		if after := countAudit(t, pool, actor); after != before+1 {
+			t.Fatalf("ต้องมี audit เพิ่ม 1 แถว แต่ก่อนมี %d หลังมี %d", before, after)
+		}
+	})
+
+	t.Run("body ที่อ่านไม่ออก", func(t *testing.T) {
+		before := countAudit(t, pool, actor)
+
+		w := postRequest(t, srv, tokenStudentDept1, "{ ไม่ใช่ JSON")
+		if w.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("body ที่อ่านไม่ออกต้องได้ 422 แต่ได้ %d", w.Code)
+		}
+
+		if after := countAudit(t, pool, actor); after != before+1 {
+			t.Fatalf("ต้องมี audit เพิ่ม 1 แถว แต่ก่อนมี %d หลังมี %d", before, after)
+		}
+	})
+}
+
+// unavailableIdP จำลองระบบยืนยันตัวตนของมหาวิทยาลัยที่เชื่อมต่อไม่ได้ (IF-IDP-01, ASM-BRQ-01)
+// ต่างจาก token ผิด ตรงที่ผู้ใช้ส่ง token ที่ถูกต้องมา แต่ระบบปลายทางตอบไม่ได้
+type unavailableIdP struct{}
+
+func (unavailableIdP) Authenticate(context.Context, string) (auth.Principal, error) {
+	return auth.Principal{}, errors.New("จำลองระบบยืนยันตัวตนเชื่อมต่อไม่ได้")
+}
+
+// T-23 เสร็จเมื่อ: มี test ที่ยืนยันพฤติกรรมตามที่ทีมตัดสิน (Q-SH-08 ปิดแล้ว 2569-11-12)
+// คำตัดสิน: คงพฤติกรรมปัจจุบันคือตอบ 401 UNAUTHENTICATED และ fail closed
+// ไม่แก้ auth/ ของกลาง เพราะโปรโตไทป์ใช้ระบบจำลองซึ่งยังเชื่อมต่อไม่ได้จริงไม่ได้
+func TestIdentityProviderUnavailable(t *testing.T) {
+	pool := testPool(t)
+	svc := NewServiceWithClock(NewRepository(pool), testClock())
+	srv := auth.Middleware(unavailableIdP{}, NewHandler(svc).Routes())
+	const requester = "student-001"
+	before := countRequests(t, pool, requester)
+
+	// Given: ผู้ใช้ส่ง token ที่ปกติใช้ได้ แต่ระบบยืนยันตัวตนตอบไม่ได้
+	// When/Then: ส่งคำขอยืม ต้องถูกปฏิเสธด้วย 401 ตามรหัสกลาง (CON-TECH-03)
+	w := postRequest(t, srv, tokenStudentDept1, bodyFor("CS-NB-0003"))
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("ระบบยืนยันตัวตนล่มต้องได้ 401 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	var e ErrorDTO
+	if err := json.Unmarshal(w.Body.Bytes(), &e); err != nil {
+		t.Fatalf("อ่าน JSON ไม่ได้: %v", err)
+	}
+	if e.Code != "UNAUTHENTICATED" {
+		t.Errorf("รหัสต้องเป็น UNAUTHENTICATED แต่ได้ %q", e.Code)
+	}
+
+	// Then: fail closed ต้องไม่สร้างคำขอ และไม่เดาว่าผู้ขอเป็นใคร (DOM-ACCESS-01)
+	if after := countRequests(t, pool, requester); after != before {
+		t.Errorf("ต้องไม่มีคำขอเกิดขึ้น แต่จำนวนเปลี่ยนจาก %d เป็น %d", before, after)
+	}
+
+	// Then: endpoint อื่นของฟีเจอร์นี้ก็ต้องถูกปิดเหมือนกัน ไม่ใช่แค่การส่งคำขอ
+	t.Run("เปิดไฟล์แนบก็ไม่ได้", func(t *testing.T) {
+		if got := getAttachment(t, srv, tokenStudentDept1, 1); got.Code != http.StatusUnauthorized {
+			t.Errorf("ต้องได้ 401 แต่ได้ %d", got.Code)
+		}
+	})
+	t.Run("ดูลำดับคำขอก็ไม่ได้", func(t *testing.T) {
+		if got := getQueue(t, srv, tokenStaff, "CS-NB-0003"); got.Code != http.StatusUnauthorized {
+			t.Errorf("ต้องได้ 401 แต่ได้ %d", got.Code)
+		}
+	})
 }

@@ -1,5 +1,5 @@
 # Implementation Plan: อนุมัติคำขอยืมปกติ (Approve Request)
-Spec: SPEC-APV-004 (specs/004-approve-request/spec.md, Draft v2.1) | Plan status: Draft v1.1 | Updated: 2569-11-12 (ตามคำตอบ Q-APV-14 ถึง 21)
+Spec: SPEC-APV-004 (specs/004-approve-request/spec.md, Draft v2.2) | Plan status: Draft v1.2 | Updated: 2569-11-12 (ตามคำตอบ Q-APV-14 ถึง 21 / v1.2 ตาม CR-008: Q-APV-28, 31 จาก test cases)
 Owner: 660710758 นางสาวณัฐสุดา กัญญาบุญ (@natsuda05)
 อ้างอิง: specs/000-shared/{constraints.md v5, data-model.md v9, glossary.md}, migration 0003 ของ 002
 
@@ -68,7 +68,7 @@ error (CON-TECH-03) ข้อความตาม FR-APV-01 (ซ) อยู่�
 | `FORBIDDEN_ROLE` | 403 | ไม่ใช่เจ้าหน้าที่ | มีแล้ว (004 ลงทะเบียน) | AC-APV-05 |
 | `FORBIDDEN_DEPARTMENT` | 403 | อุปกรณ์ภาควิชาอื่น (ข้อความ Q-APV-18) | มีแล้ว | AC-APV-12 |
 | `ITEM_NOT_AVAILABLE` | 409 | อุปกรณ์ไม่ "ว่าง" | มีแล้ว | AC-APV-08 |
-| `VALIDATION_FAILED` | 422 | ไม่ระบุเหตุผลการปฏิเสธ (field `reason`) | มีแล้ว | AC-APV-06 |
+| `VALIDATION_FAILED` | 422 | ไม่ระบุเหตุผลการปฏิเสธ หรือเหตุผลยาวเกิน 500 ตัวอักษร (field `reason` ข้อความต่างกัน Q-APV-28) | มีแล้ว | AC-APV-06 |
 | `REQUEST_CANCELLED` | 409 | คำขอ `cancelled` | ลงทะเบียนแล้ว 2569-11-12 (Q-APV-19) | AC-APV-09 |
 | `REQUEST_ALREADY_DECIDED` | 409 | พิจารณาไปแล้วก่อนหน้าจอโหลด | ลงทะเบียนแล้ว 2569-11-12 (Q-APV-19) | AC-APV-09 |
 | `REQUEST_DECIDED_CONCURRENTLY` | 409 | ถูกพิจารณาหลังหน้าจอโหลด (กดพร้อมกัน) | ลงทะเบียนแล้ว 2569-11-12 (Q-APV-19) | AC-APV-10 |
@@ -111,6 +111,8 @@ error (CON-TECH-03) ข้อความตาม FR-APV-01 (ซ) อยู่�
 | เหตุผล "คำขอยังคงค้างอยู่และไม่ได้รับการพิจารณาภายในเวลาที่กำหนด" | FR-APV-01 ฉ | `ApprovalAutoRejectReason` (config.go) |
 | แนวทาง "หากยังต้องการยืมอุปกรณ์ สามารถยื่นคำขอใหม่ได้" | FR-APV-02 ค | ใน `ApprovalEmailTemplates` (config.go) |
 | ข้อความ error 9 ข้อความ | FR-APV-01 ซ, ASM-07, Q-APV-18 | `ApprovalMessages` (config.go) และ `APPROVAL_MESSAGES` (config.js) |
+| เหตุผลการปฏิเสธไม่เกิน 500 ตัวอักษร นับตาม code point และข้อความ "เหตุผลต้องไม่เกิน 500 ตัวอักษร" | FR-APV-01 ง ซ, Q-APV-28 | `ApprovalRejectReasonMaxLength`, `ApprovalReasonTooLongMessage` (config.go) และ `APPROVAL_REASON_MAX_LENGTH`, `APPROVAL_REASON_TOO_LONG` (config.js) |
+| ข้อความหน้ารายการว่าง "ไม่มีคำขอที่รออนุมัติ" | FR-APV-01 ก, Q-APV-31 | `APPROVAL_EMPTY_LIST` (config.js) |
 | ค่า action `approve`, `reject`, `auto_reject` | RQ-25, DM-07 | `AuditActionApprove`, `AuditActionReject`, `AuditActionAutoReject` (config.go) |
 
 ## 6. แผนทดสอบจาก Acceptance Criteria
@@ -122,7 +124,7 @@ test หลังบ้านอยู่ใน `backend/internal/approve/*_test
 | AC-APV-01 | TestAC_APV_01 | อนุมัติคำขอแรกของอุปกรณ์ `available` -> `approved`, `equipment_item.status` ยังเป็น `available`, มีแถว `approval_decision` |
 | AC-APV-02 | TestAC_APV_02 | ปฏิเสธพร้อมเหตุผล -> `rejected` เหตุผลถูกบันทึก สถานะอุปกรณ์ไม่เปลี่ยน |
 | AC-APV-03 | TestAC_APV_03 | คำขอ A, B ของชิ้นเดียวกัน อนุมัติ A -> A `approved`, B `rejected` reason = `ApprovalSupersededReason` actor = เจ้าหน้าที่คนเดียวกัน และมี Email ผลปฏิเสธของ B |
-| AC-APV-17 [เสนอ] | TestAC_APV_17 | คำขอปกติ A และคำขอค้างคืน C ของชิ้นเดียวกัน อนุมัติ A -> C `rejected` reason = `ApprovalSupersededReason` มี Email ผลปฏิเสธของ C / อีกกรณี: ถึง 00:00 น. หลังวันที่ส่งของ C -> C ยังเป็น `requested` (ID รอ Q-APV-22) |
+| AC-APV-17 | TestAC_APV_17 | คำขอปกติ A และคำขอค้างคืน C ของชิ้นเดียวกัน อนุมัติ A -> C `rejected` reason = `ApprovalSupersededReason` มี Email ผลปฏิเสธของ C / อีกกรณี: ถึง 00:00 น. หลังวันที่ส่งของ C -> C ยังเป็น `requested` |
 | AC-APV-04 | TestAC_APV_04 | หลังอนุมัติ/ปฏิเสธ ตัวส่งจำลองได้ Email ภายใน 60 วินาที หัวข้อและข้อมูลครบตาม FR-APV-02 ก ข (ไม่มีจำนวนอุปกรณ์) |
 | AC-APV-05 | TestAC_APV_05 | ไม่มี token -> 401 `UNAUTHENTICATED` / `mock-student-001` -> 403 `FORBIDDEN_ROLE` สถานะคำขอคงเดิม |
 | AC-APV-06 | TestAC_APV_06 (+ vitest) | reason ว่างหรือมีแต่ช่องว่าง -> 422 `VALIDATION_FAILED` สถานะคงเดิม / หน้าจอแสดง "กรุณาระบุเหตุผลในการปฏิเสธ" |
@@ -133,10 +135,10 @@ test หลังบ้านอยู่ใน `backend/internal/approve/*_test
 | AC-APV-11 | TestAC_APV_11 (+ vitest) | ข้อมูลผสม (requested ภาควิชา 1 หลายใบ, พิจารณาแล้ว, ภาควิชา 2, ค้างคืน) -> เห็นเฉพาะ requested ยืมปกติของภาควิชาตนเอง เรียงตาม submitted_at พร้อมข้อมูลครบ |
 | AC-APV-12 | TestAC_APV_12 | เจ้าหน้าที่ภาควิชา 2 อนุมัติ/ปฏิเสธคำขอของอุปกรณ์ภาควิชา 1 -> 403 `FORBIDDEN_DEPARTMENT` message ตาม Q-APV-18 สถานะคงเดิม |
 | AC-APV-13 | TestAC_APV_13 | ตั้งนาฬิกาเป็น 00:00 น. หลังวันที่ D -> คำขอ requested ที่ส่งวัน D เป็น `rejected` result `auto_rejected` actor `system` และ Email ปฏิเสธอัตโนมัติภายใน 60 วินาที / คำขอที่ส่งวัน D+1 และคำขอค้างคืนที่ส่งวัน D ไม่ถูกแตะ |
-| AC-APV-18 [เสนอ] | TestAC_APV_18 | ตั้งนาฬิกาเลย 00:00 น. หลังวันที่ D แล้วจึงเริ่ม service (จำลอง server ไม่ได้ทำงานตอนเที่ยงคืน) -> คำขอปกติที่ส่งวัน D เป็น `rejected` result `auto_rejected` และมี Email ปฏิเสธอัตโนมัติ (ID รอ Q-APV-22) |
+| AC-APV-18 | TestAC_APV_18 | ตั้งนาฬิกาเลย 00:00 น. หลังวันที่ D แล้วจึงเริ่ม service (จำลอง server ไม่ได้ทำงานตอนเที่ยงคืน) -> คำขอปกติที่ส่งวัน D เป็น `rejected` result `auto_rejected` และมี Email ปฏิเสธอัตโนมัติ |
 | AC-APV-14 | TestAC_APV_14 (+ vitest) | ตัวส่งจำลองล้มทุกครั้ง -> ส่งครั้งแรก + ส่งซ้ำ 3 ครั้งห่าง 1 นาที (ตัวส่งจำลองถูกเรียกรวม 4 ครั้ง นาฬิกาจำลอง) แล้ว `failed` พร้อม last_error และเวลา อยู่ใน failed-emails / กดส่งซ้ำหลังตัวส่งกลับมาปกติ -> `sent` และ `approval_decision` ไม่เปลี่ยน |
 | AC-APV-15 | TestAC_APV_15 | หลังอนุมัติ ปฏิเสธ ปฏิเสธตาม และปฏิเสธอัตโนมัติ -> แต่ละครั้งมีแถว `approval_decision` (รหัสคำขอ ผล เหตุผล ผู้ดำเนินการ วันเวลา) และ `audit_log` action ตรงกับกรณี |
-| AC-APV-16 | TestAC_APV_16 | ตั้งนาฬิกาเลย 16:00 น. ของวันที่เริ่มยืม -> 409 `APPROVAL_CUTOFF_PASSED` สถานะคงเดิม (ID ของ AC นี้รอทีมอนุมัติ Q-APV-13) |
+| AC-APV-16 | TestAC_APV_16 | ตั้งนาฬิกาเลย 16:00 น. ของวันที่เริ่มยืม -> 409 `APPROVAL_CUTOFF_PASSED` สถานะคงเดิม |
 
 vitest อยู่ที่ `frontend/src/pages/ApproveRequest/ApproveRequests.test.jsx` และ `FailedEmails.test.jsx` ตั้งชื่อ test ขึ้นต้นด้วย AC ID
 
@@ -156,8 +158,8 @@ vitest อยู่ที่ `frontend/src/pages/ApproveRequest/ApproveRequests.
 - Q-SH-08 ถ้าระบบยืนยันตัวตนเชื่อมต่อไม่ได้ ระบบต้องทำอย่างไร -> ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ
 - Q-APV-01 รับคำขอยืมแบบค้างคืน -> ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (plan กรองเฉพาะ `loan_type = 'normal'`)
 - Q-APV-04 Email ของผู้ขอมาจากไหน -> ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (`RecipientResolver` ตัวจริง)
-- Q-APV-13 ทีมอนุมัติ ID ของ AC-APV-16 -> ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (TestAC_APV_16 ตั้งชื่อรอไว้)
-- Q-APV-22 ทีมอนุมัติ ID ของ AC-APV-17, 18 -> TestAC_APV_17, 18 ตั้งชื่อรอไว้ พฤติกรรมตาม FR-APV-01 (จ)(ฉ) ทำได้เลยเพราะทีมตอบแล้ว
+- Q-APV-13 [ปิดแล้ว 2569-11-12] ทีมอนุมัติ ID ของ AC-APV-16 แล้ว
+- Q-APV-22 [ปิดแล้ว 2569-11-12] ทีมอนุมัติ ID ของ AC-APV-17, 18 แล้ว
 
 ทีมตอบแล้ว 2569-11-12 (Q-APV-14 ถึง 21) และแก้ plan ตามแล้ว ข้อที่ไม่ต้องแก้ plan:
 - Q-APV-15 เที่ยงคืนนับจากวันที่ส่ง (เดิม) / Q-APV-16 คำขอแรกที่เลย 16:00 น. ยังขวางคิว (เดิม ใช้ `APPROVAL_CUTOFF_PASSED` และเจ้าหน้าที่ปฏิเสธเอง)

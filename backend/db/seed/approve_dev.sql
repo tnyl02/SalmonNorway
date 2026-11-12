@@ -1,7 +1,10 @@
 -- ข้อมูลตัวอย่างสำหรับลองฟีเจอร์ 004 อนุมัติคำขอยืมปกติ ตามจุดตรวจใน specs/004-approve-request/tasks.md (T-03)
 -- ทีมเลือกเอง ไม่ได้มาจาก spec เป็นข้อมูลตัวอย่าง ไม่ใช่ข้อมูลจริง
 -- ใช้หลัง migration (ถึง 0008) และ seed.sql ของ 001 โหลดแล้วเท่านั้น โหลดร่วมกับ handover_dev.sql ของ 005 ได้
--- โหลดเอง: docker compose -f deploy/docker-compose.yml exec -T db psql -U salmon -d salmon < backend/db/seed/approve_dev.sql
+-- โหลดเอง (คัดลอกไฟล์เข้า container แล้วให้ psql อ่านเอง ใช้ได้ทั้ง Windows และ Linux):
+--   docker compose -f deploy/docker-compose.yml cp backend/db/seed/approve_dev.sql db:/tmp/approve_dev.sql
+--   docker compose -f deploy/docker-compose.yml exec -T db psql -U salmon -d salmon -f /tmp/approve_dev.sql
+-- ห้ามส่งผ่าน pipe ของ Windows PowerShell 5.1 (Get-Content ... | psql) เพราะอักษรไทยกลายเป็น ? (พบ 2569-11-12)
 --
 -- ไม่แตะ seed.sql เพราะ TestSeed_BorrowRequestScenarios ของ 002 บังคับว่า seed.sql ต้องไม่มีคำขอยืม
 -- เพิ่มรุ่นและอุปกรณ์ชุดของตัวเอง (รหัสขึ้นต้น AP-TEST-) ตัวเลขที่ใช้ลองของ 001 / 002 / 005 จึงไม่เปลี่ยน

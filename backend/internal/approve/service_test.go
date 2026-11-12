@@ -3,15 +3,20 @@ package approve
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"salmonnorway/backend/internal/auth"
 	"salmonnorway/backend/internal/config"
+	"salmonnorway/backend/internal/platform"
 )
 
 // staffCtx จำลองเจ้าหน้าที่ที่ยืนยันตัวตนแล้ว แบบเดียวกับที่ auth.Middleware ใส่ใน context (IF-IDP-01)
@@ -311,7 +316,7 @@ func TestAC_APV_08(t *testing.T) {
 	}
 }
 
-// AC-APV-16 (FR-APV-01 ค, DOM-LOAN-01) [ID รอทีมอนุมัติ Q-APV-13]
+// AC-APV-16 (FR-APV-01 ค, DOM-LOAN-01)
 // Given คำขอแรกสถานะ requested ของอุปกรณ์ที่ "ว่าง" และเวลาปัจจุบันเลย 16:00 น. ของวันที่เริ่มยืมแล้ว
 // When  เจ้าหน้าที่พยายามอนุมัติ
 // Then  ระบบไม่อนุมัติ แสดงข้อความกรณีเลย 16:00 น. และสถานะคงเดิม
@@ -538,7 +543,7 @@ func TestAC_APV_15(t *testing.T) {
 		config.ApprovalSystemActorID, config.AuditActionAutoReject)
 }
 
-// AC-APV-17 (FR-APV-01 จ ฉ, Q-APV-14) [ID รอทีมอนุมัติ Q-APV-22]
+// AC-APV-17 (FR-APV-01 จ ฉ, Q-APV-14)
 // Given อุปกรณ์รายชิ้นเดียวกันมีคำขอยืมปกติ A (ส่งก่อน) และคำขอค้างคืน C สถานะ requested (AP-TEST-0001)
 // When  เจ้าหน้าที่อนุมัติคำขอ A / หรือเมื่อถึง 00:00 น. หลังวันที่ส่งของ C
 // Then  กรณีอนุมัติ A: C เป็น rejected ด้วยเหตุผล "อุปกรณ์ชิ้นนี้ได้รับการอนุมัติให้คำขออื่นแล้ว" และผู้ขอได้รับ Email ผลปฏิเสธ
@@ -600,4 +605,121 @@ func TestAC_APV_17(t *testing.T) {
 			t.Errorf("C ค้างคืนต้องยังเป็น requested ไม่มีผลการพิจารณา แต่ได้ %q / %d", status, decisions)
 		}
 	})
+}
+
+// concurrencyDB สร้างฐานข้อมูลแยกใน container เดียวกันสำหรับ test ที่ต้องใช้หลาย connection พร้อมกัน (T-35)
+// ใช้ devTx ไม่ได้เพราะทุกอย่างใน transaction เดียวไม่มีการแย่งกันจริง และข้อมูลที่ commit แล้วลบไม่ได้
+// (approval_decision และ audit_log แก้หรือลบไม่ได้) จึงแยกฐานข้อมูลแล้วลบทั้งฐานตอนจบ
+func concurrencyDB(t *testing.T) *pgxpool.Pool {
+	t.Helper()
+	ctx := context.Background()
+	base := testPool(t)
+	name := fmt.Sprintf("approve_conc_%d", time.Now().UnixNano())
+	if _, err := base.Exec(ctx, "CREATE DATABASE "+name); err != nil {
+		t.Fatal(err)
+	}
+	baseURL, err := dbContainer.ConnectionString(ctx, "sslmode=disable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	url := strings.Replace(baseURL, "/salmon?", "/"+name+"?", 1)
+	if err := platform.Migrate(url, migrationsDir); err != nil {
+		t.Fatal(err)
+	}
+	if err := platform.Seed(ctx, url, seedFile); err != nil {
+		t.Fatal(err)
+	}
+	if err := platform.Seed(ctx, url, approveDevSQL); err != nil {
+		t.Fatal(err)
+	}
+	pool, err := pgxpool.New(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		pool.Close()
+		_, _ = base.Exec(ctx, "DROP DATABASE IF EXISTS "+name+" WITH (FORCE)")
+	})
+	return pool
+}
+
+// AC-APV-10 (FR-APV-01 ช)
+// Given เจ้าหน้าที่ 2 คนเปิดคำขอเดียวกันสถานะ requested
+// When  ทั้งสองกดอนุมัติหรือปฏิเสธพร้อมกัน
+// Then  ระบบบันทึกเฉพาะผลของคนที่สำเร็จก่อน อีกคนเห็น "คำขอนี้เพิ่งถูกพิจารณาโดยเจ้าหน้าที่คนอื่น กรุณารีเฟรชหน้า"
+//
+//	(T-35 เสร็จเมื่อ: ผ่านซ้ำ -count=20 มี approval_decision 1 แถวและ approval_email 1 แถว)
+func TestAC_APV_10(t *testing.T) {
+	pool := concurrencyDB(t)
+	svc := NewService(NewRepository(pool))
+	// หน้าจอของทั้งสองคนโหลดก่อนกด เผื่อเวลาของ container กับเครื่องต่างกันเล็กน้อย จึงย้อนไป 1 ชั่วโมง
+	loadedAt := time.Now().Add(-time.Hour)
+
+	type action func(ctx context.Context, id int) error
+	approve := func(ctx context.Context, id int) error { _, err := svc.Approve(ctx, id, loadedAt); return err }
+	reject := func(ctx context.Context, id int) error {
+		_, err := svc.Reject(ctx, id, "กดพร้อมกัน", loadedAt)
+		return err
+	}
+
+	cases := []struct {
+		name, asset, requester string
+		dept                   int
+		first, second          action
+	}{
+		{"อนุมัติ+อนุมัติ", "AP-TEST-0002", "student-001", 1, approve, approve},
+		{"อนุมัติ+ปฏิเสธ", "AP-TEST-0003", "student-002", 1, approve, reject},
+		{"ปฏิเสธ+ปฏิเสธ", "AP-TEST-0101", "student-101", 2, reject, reject},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := context.Background()
+			var id int
+			if err := pool.QueryRow(ctx, `
+				SELECT r.id FROM borrow_request r JOIN equipment_item i ON i.id = r.item_id
+				WHERE i.asset_code = $1 AND r.requester_id = $2`, c.asset, c.requester).Scan(&id); err != nil {
+				t.Fatal(err)
+			}
+
+			// When: 2 goroutine เริ่มพร้อมกันหลังสัญญาณ start
+			start := make(chan struct{})
+			errs := make([]error, 2)
+			var wg sync.WaitGroup
+			for i, act := range []action{c.first, c.second} {
+				wg.Add(1)
+				go func(i int, act action, staffID string) {
+					defer wg.Done()
+					<-start
+					errs[i] = act(staffCtx(staffID, c.dept), id)
+				}(i, act, fmt.Sprintf("staff-%d0%d", c.dept, i+1))
+			}
+			close(start)
+			wg.Wait()
+
+			// Then: สำเร็จ 1 อีกคนได้ ErrDecidedConcurrently
+			ok, concurrent := 0, 0
+			for _, err := range errs {
+				switch {
+				case err == nil:
+					ok++
+				case errors.Is(err, ErrDecidedConcurrently):
+					concurrent++
+				default:
+					t.Errorf("ได้ error ที่ไม่คาด: %v", err)
+				}
+			}
+			if ok != 1 || concurrent != 1 {
+				t.Errorf("ต้องสำเร็จ 1 และได้ ErrDecidedConcurrently 1 แต่ได้ %d / %d (%v)", ok, concurrent, errs)
+			}
+			var decisions, emails int
+			if err := pool.QueryRow(ctx, `
+				SELECT (SELECT count(*) FROM approval_decision WHERE request_id = $1),
+				       (SELECT count(*) FROM approval_email WHERE request_id = $1)`, id).Scan(&decisions, &emails); err != nil {
+				t.Fatal(err)
+			}
+			if decisions != 1 || emails != 1 {
+				t.Errorf("ต้องมี approval_decision 1 แถวและ Email 1 ฉบับ แต่ได้ %d / %d", decisions, emails)
+			}
+		})
+	}
 }

@@ -7,7 +7,7 @@
 // จำนวนรูปสภาพอุปกรณ์ขั้นต่ำตอนส่งมอบ (FR-HND-06, ASM-HND-07)
 export const HANDOVER_MIN_PHOTOS = 2
 
-// ขนาดไฟล์รูปสูงสุด 10 MB (FR-HND-06, ASM-HND-07) ต่อรูปหรือรวม รอ Q-HND-10
+// ขนาดไฟล์รูปสูงสุด 10 MB ต่อรูป ไม่จำกัดจำนวนรูป (FR-HND-06, ASM-HND-07, Q-HND-10 ปิด 2569-11-12)
 export const HANDOVER_PHOTO_MAX_BYTES = 10 * 1024 * 1024
 
 // ชนิดไฟล์รูปที่รับ JPG และ PNG (FR-HND-06, ASM-HND-07)
@@ -32,6 +32,13 @@ export const APPROVAL_MESSAGES = {
   UPSTREAM_UNAVAILABLE: 'ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง',
   REQUEST_NOT_FOUND: 'ไม่พบคำขอนี้',
 }
+// เหตุผลการปฏิเสธยาวไม่เกินเท่านี้ นับตาม code point แบบเดียวกับ 003 (FR-APV-01 ง, Q-APV-28)
+// ต้องตรงกับ ApprovalRejectReasonMaxLength ใน backend/internal/config/config.go
+export const APPROVAL_REASON_MAX_LENGTH = 500
+// ข้อความเมื่อเหตุผลยาวเกิน (FR-APV-01 ซ, Q-APV-28) ต้องตรงกับ ApprovalReasonTooLongMessage ของหลังบ้าน
+export const APPROVAL_REASON_TOO_LONG = 'เหตุผลต้องไม่เกิน 500 ตัวอักษร'
+// ข้อความเมื่อไม่มีคำขอที่รอพิจารณาในหน้ารายการ (FR-APV-01 ก, Q-APV-31) ข้อความเดียวกับ MSG_NO_PENDING ของ 003
+export const APPROVAL_EMPTY_LIST = 'ไม่มีคำขอที่รออนุมัติ'
 // แบบของ Email ที่แสดงในรายการ "Email ที่ส่งไม่สำเร็จ" (FR-APV-02 ก ข ค, T-34) ค่า key ตรงกับ kind ของหลังบ้าน
 // ข้อความทีมออกแบบเอง ไม่ได้มาจาก spec
 export const APPROVAL_EMAIL_KIND_LABELS = {
@@ -40,6 +47,24 @@ export const APPROVAL_EMAIL_KIND_LABELS = {
   auto_rejected: 'ปฏิเสธอัตโนมัติ',
 }
 // ---- จบ 004-approve-request ----
+
+// ---- 006-return (specs/006-return/plan.md ข้อ 5 ตาราง "ค่าที่ตั้งได้") ----
+// วางไว้ต้นไฟล์ต่อจาก 004 เพื่อไม่ชนกับฟีเจอร์อื่นที่เพิ่มค่าต่อท้ายไฟล์ตอน merge / เขตเวลาใช้ TIME_ZONE ร่วมกับฟีเจอร์อื่น
+
+// ชื่อสถานะอุปกรณ์ที่แสดงบนหน้าจอ 3 ค่า (CON-DATA-01, specs/000-shared/data-model.md)
+export const STATUS_LABELS = {
+  available: 'ว่าง',
+  borrowed: 'ถูกยืม',
+  unavailable: 'ไม่พร้อมใช้งาน',
+}
+
+// สภาพตอนรับคืน 2 ค่า ไม่มี "สูญหาย" (FR-RET-02, glossary "สภาพ (ตอนรับคืน)")
+// value ตรงกับ ReturnConditionStatus ใน backend/internal/config/config.go / label คือคำที่แสดงบนหน้าจอ
+export const RETURN_CONDITIONS = [
+  { value: 'normal', label: 'ปกติ' },
+  { value: 'damaged', label: 'ชำรุด' },
+]
+// ---- จบ 006-return ----
 
 // token ของผู้ใช้จำลองที่หน้าจอส่งไปกับทุก request (IF-IDP-01 ใช้ระบบยืนยันตัวตนจำลองไปก่อน รอ Q-SH-03)
 // ทีมเลือกเอง ไม่ได้มาจาก spec (ตัดสิน 2569-11-10 ตอนทำ T-06) ใช้จนกว่าจะมีหน้าล็อกอินจำลองใน T-21
@@ -107,3 +132,59 @@ export const PURPOSE_OPTIONS = [
 
 // ค่าวัตถุประสงค์ที่บังคับให้ผู้ขอพิมพ์ระบุเพิ่ม (FR-BRQ-02 ข้อ ก)
 export const PURPOSE_OTHER = 'other'
+
+// ---- ข้อความบนหน้าจอของ 002 (T-19) ----
+// Q-BRQ-14 ปิดแล้ว 2569-11-12: spec ไม่มีหมวดหน้าจอและไม่มี mockup เจ้าของฟีเจอร์เป็นผู้กำหนดข้อความ
+// ข้อความที่ FR สั่งให้แสดงรวมไว้ที่นี่ที่เดียว เพื่อให้ตามรอยกลับไปหา FR ได้และ test อ้างค่าเดียวกัน
+
+// เงื่อนไขของการยืมแบบปกติ ต้องแสดงก่อนส่ง (FR-BRQ-10 ข้อ ข, AC-BRQ-10, DOM-LOAN-01)
+export const MSG_LOAN_NORMAL_CONDITIONS = `ยืมแบบปกติต้องคืนภายใน ${LOAN_NORMAL_RETURN_HOUR}:00 น. ของวันเดียวกัน และใช้งานภายในพื้นที่มหาวิทยาลัย`
+
+// เงื่อนไขไฟล์แนบของการยืมค้างคืน ต้องบอกชนิดและขนาดที่รับได้ (FR-BRQ-10 ข้อ ก, AC-BRQ-10)
+export const MSG_ATTACHMENT_HINT = `แนบใบบันทึกข้อความ: PDF หรือรูปถ่าย ขนาดไม่เกิน ${ATTACHMENT_MAX_BYTES / (1024 * 1024)} MB`
+
+// ผลของการส่งคำขอ (FR-BRQ-04 สถานะเริ่มต้นคือรออนุมัติ)
+export const MSG_SUBMIT_SUCCESS = (requestId) => `ส่งคำขอยืมเรียบร้อยแล้ว หมายเลขคำขอ ${requestId} สถานะ รออนุมัติ`
+
+// ส่งไม่สำเร็จเพราะระบบไม่ตอบสนอง ใช้เมื่อหลังบ้านไม่ได้ส่งข้อความมา (FR-BRQ-09) รูปแบบเดียวกับ MSG_CANCEL_FAILED ของ 003
+export const MSG_SUBMIT_FAILED = 'ส่งคำขอไม่สำเร็จ กรุณาลองใหม่อีกครั้ง'
+
+// ป้ายปุ่มส่งคำขอ ใช้คำเดียวกับปุ่มของ 001 ที่พาผู้ใช้มาหน้านี้ (FR-EQS-06, T-34 ของ 001)
+export const LABEL_SUBMIT_REQUEST = 'ส่งคำขอยืม'
+
+// ---- ข้อความของแต่ละรหัส error บนหน้าฟอร์มคำขอ (T-20) ----
+// หน้าจอตัดสินใจจาก "รหัส" ไม่ใช่จากข้อความที่หลังบ้านส่งมา (CON-TECH-03)
+// ครบทุกรหัสที่ฟีเจอร์นี้ใช้ตามตาราง Error contract ใน plan.md ข้อ 4
+// ข้อความตรงกับที่หลังบ้านตอบใน backend/internal/borrowrequest/handler.go เพื่อไม่ให้ผู้ใช้เห็นคนละคำกัน
+export const BORROW_REQUEST_MESSAGES = {
+  UNAUTHENTICATED: 'กรุณาเข้าสู่ระบบก่อนส่งคำขอ', // 401 IF-IDP-01
+  PRINCIPAL_INCOMPLETE: 'บัญชีของคุณยังไม่มีข้อมูลภาควิชา กรุณาติดต่อเจ้าหน้าที่', // 403 IF-IDP-01
+  FORBIDDEN_DEPARTMENT: 'ส่งคำขอยืมได้เฉพาะอุปกรณ์ของภาควิชาตนเอง', // 403 FR-BRQ-07
+  ITEM_NOT_AVAILABLE: 'อุปกรณ์ชิ้นนี้ไม่อยู่ในสถานะว่างแล้ว', // 409 FR-BRQ-01 (แสดงสถานะล่าสุดต่อท้าย)
+  DUPLICATE_REQUEST: 'คุณมีคำขอของอุปกรณ์ชิ้นนี้ค้างอยู่แล้ว', // 409 FR-BRQ-05 ข
+  HAS_OVERDUE_LOAN: 'คุณมีอุปกรณ์ที่คืนเกินกำหนดค้างอยู่ กรุณาคืนอุปกรณ์ก่อนส่งคำขอใหม่', // 409 FR-BRQ-06
+  VALIDATION_FAILED: 'กรุณาแก้ไขข้อมูลให้ครบถ้วนก่อนส่งคำขอ', // 422 FR-BRQ-03, FR-BRQ-10
+  UPSTREAM_UNAVAILABLE: MSG_SUBMIT_FAILED, // 503 FR-BRQ-09 ใช้ข้อความเดียวกับตอนส่งไม่สำเร็จ
+}
+
+// ชื่อช่องภาษาไทยของแต่ละค่าที่หลังบ้านส่งกลับมาใน fields ของ VALIDATION_FAILED (FR-BRQ-03, AC-BRQ-03)
+// ชื่อ key ตรงกับ CreateRequestDTO และ validate.go ของหลังบ้าน
+export const FIELD_LABELS = {
+  requesterName: 'ชื่อ-นามสกุล',
+  studentCode: 'รหัสนักศึกษา',
+  startAt: 'วันและเวลาที่เริ่มยืม',
+  endAt: 'วันและเวลาที่คืน',
+  purpose: 'วัตถุประสงค์การยืม',
+  purposeOther: 'ระบุวัตถุประสงค์',
+  attachment: 'ใบบันทึกข้อความ',
+}
+
+// นำหน้ารายชื่อช่องที่ต้องแก้ (FR-BRQ-03 "ระบุช่องที่ยังขาด", AC-BRQ-03, AC-BRQ-10)
+export const MSG_FIELDS_TO_FIX = 'ช่องที่ต้องแก้:'
+
+// แจ้งผู้ขอเรื่องคำขอที่ส่งซ้อนกับของผู้อื่น แสดงคู่กับข้อความสำเร็จทุกครั้ง (FR-BRQ-05, T-22)
+// ทีมตัดสิน 2569-11-13 ให้เป็นข้อความคงที่ ไม่บอกว่ามีคำขออื่นอยู่จริงหรือไม่ และไม่บอกลำดับ
+// เพราะ AC-BRQ-05 ระบุว่าหน้าจอของ 002 ไม่แสดงข้อมูลคำขอของผู้อื่นให้นักศึกษาเห็น (DOM-PRIV-01)
+// ส่วน "จะได้รับแจ้งเมื่อมีผล" มาจากคำตอบของ Q-SH-06 ที่ว่าต้องแจ้งผู้ขอที่ถูกปฏิเสธ (RQ-21 การแจ้งเป็นงานของ 004)
+export const MSG_STACKED_NOTICE =
+  'อุปกรณ์ชิ้นนี้อาจมีผู้อื่นขอยืมด้วย เจ้าหน้าที่จะพิจารณาตามลำดับการส่งคำขอ และคุณจะได้รับแจ้งเมื่อมีผล'

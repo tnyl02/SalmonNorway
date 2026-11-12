@@ -6,6 +6,9 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
+
+	"salmonnorway/backend/internal/auth"
 )
 
 // PathPrefix คือ path ของ endpoint ส่งคำขอยืม
@@ -13,8 +16,18 @@ import (
 // ใน frontend/vite.config.js (template รายวิชา) หลังบ้านจึงรับที่ /v1/loan-requests
 const PathPrefix = "/v1/loan-requests"
 
+// QueuePath คือ endpoint ลำดับคำขอที่ค้างอยู่ของอุปกรณ์ชิ้นหนึ่ง (FR-BRQ-05 ข้อ ก)
+// path อยู่ใต้ /v1/equipment/ ของ 001 แต่เจ้าของคือ 002 ตามสัญญา API ใน specs/changes/CR-005.md
+// main.go ผูก pattern นี้ที่ mux ชั้นนอก Go 1.22 ส่ง request ให้ pattern ที่เจาะจงกว่า จึงไม่ชนกับของ 001
+const QueuePath = "/v1/equipment/items/{assetCode}/requests"
+
 // Handler รับ HTTP request ของฟีเจอร์ 002
 // ทุก endpoint ต้องอยู่หลัง auth.Middleware (IF-IDP-01, NFR-SEC-01) และให้บริการผ่าน HTTPS เท่านั้น (CON-TECH-02)
+//
+// เมื่อระบบยืนยันตัวตนของมหาวิทยาลัยเชื่อมต่อไม่ได้ (Q-SH-08 ปิดแล้ว 2569-11-12 ทีมตัดสิน, T-23)
+// auth.Middleware ของกลางจะตอบ 401 UNAUTHENTICATED และไม่ปล่อยให้ request ถึง handler นี้เลย
+// ฟีเจอร์นี้จึงไม่สร้างคำขอและไม่เดาว่าผู้ขอเป็นใครหรืออยู่ภาควิชาไหน (fail closed ตาม DOM-ACCESS-01)
+// ทีมรับข้อจำกัดไว้ว่าผู้ใช้จะเห็นข้อความเหมือน session หมดอายุ และจะแยกเป็น 503 เมื่อต่อ IdP จริง
 type Handler struct {
 	svc *Service
 }
@@ -30,6 +43,8 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST "+PathPrefix, h.create)
 	// เปิดดูไฟล์ใบบันทึกข้อความของคำขอใบนั้น (FR-BRQ-10 ข้อ ก, plan.md ข้อ 4)
 	mux.HandleFunc("GET "+PathPrefix+"/{id}/attachment", h.attachment)
+	// ลำดับคำขอที่ค้างอยู่ของอุปกรณ์ชิ้นนั้น ให้ 001 เรียกไปแสดง (FR-BRQ-05 ข้อ ก, CR-005)
+	mux.HandleFunc("GET "+QueuePath, h.itemRequests)
 	// method อื่นบน path เดียวกันได้ 405 จาก router
 	return mux
 }
@@ -74,11 +89,13 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		// ส่งมาพร้อมไฟล์แนบ (plan.md ข้อ 4) ใช้กับการยืมค้างคืนเป็นหลัก
 		var err error
 		if in, up, err = parseCreateForm(r); err != nil {
+			h.svc.AuditValidationRejected(r.Context(), in.AssetCode) // ถูกปฏิเสธก็ต้องบันทึก (FR-BRQ-08, T-24)
 			writeError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "รูปแบบข้อมูลที่ส่งมาไม่ถูกต้อง")
 			return
 		}
 	} else if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		// body ที่อ่านไม่ออก ไม่ใช่ข้อมูลที่ส่งมาไม่ครบ (การตรวจความครบถ้วนรายช่องเป็นงานของ T-06)
+		h.svc.AuditValidationRejected(r.Context(), in.AssetCode) // ถูกปฏิเสธก็ต้องบันทึก (FR-BRQ-08, T-24)
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "รูปแบบข้อมูลที่ส่งมาไม่ถูกต้อง")
 		return
 	}
@@ -88,6 +105,8 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	newReq := in.toNewRequest()
 	problems := append(missingFields(newReq), attachmentProblems(newReq.LoanType, up)...)
 	if len(problems) > 0 {
+		// คำขอที่ถูกปฏิเสธตั้งแต่ตรงนี้ก็ต้องมี audit เหมือนกัน (FR-BRQ-08 "ทั้งกรณีสำเร็จและถูกปฏิเสธ", T-24)
+		h.svc.AuditValidationRejected(r.Context(), newReq.AssetCode)
 		writeValidationError(w, problems)
 		return
 	}
@@ -121,6 +140,53 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		log.Printf("borrowrequest create: %v", err)
 		writeError(w, http.StatusServiceUnavailable, "UPSTREAM_UNAVAILABLE", "ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง")
 	}
+}
+
+// queueItemDTO คือคำขอ 1 ใบในลำดับคิวของอุปกรณ์ชิ้นนั้น รูปแบบล็อกไว้ในสัญญา API ของ CR-005
+// ไม่มีรหัสผู้ใช้ของผู้ขอ มีแต่ชื่อที่ผู้ขอพิมพ์เอง เพราะผู้เรียกคือเจ้าหน้าที่ที่เห็นชื่อได้ (DOM-PRIV-01)
+// (ประกาศไว้ที่นี่เพราะ dto.go ไม่อยู่ในช่องไฟล์ที่แตะของ T-18 ย้ายไปรวมกับ DTO ตัวอื่นได้ภายหลัง)
+type queueItemDTO struct {
+	RequestID     int       `json:"requestId"`
+	QueuePosition int       `json:"queuePosition"`
+	SubmittedAt   time.Time `json:"submittedAt"`
+	RequesterName string    `json:"requesterName"`
+}
+
+// itemRequests: GET /v1/equipment/items/{assetCode}/requests ลำดับคำขอที่ค้างอยู่ของอุปกรณ์ชิ้นนั้น
+// เฉพาะเจ้าหน้าที่ นักศึกษาได้ 403 เพราะต้องไม่เห็นคำขอของผู้อื่น (FR-BRQ-05 ข้อ ก, DOM-PRIV-01, CR-005)
+// 002 เป็นเจ้าของ endpoint นี้ ส่วนการแสดงผลเป็นของ 001 ตาม CR-003
+func (h *Handler) itemRequests(w http.ResponseWriter, r *http.Request) {
+	p, ok := auth.FromContext(r.Context())
+	if !ok || !p.Complete() {
+		// ปกติ auth.Middleware กันไว้ก่อนถึงตรงนี้แล้ว (IF-IDP-01)
+		writeError(w, http.StatusUnauthorized, "UNAUTHENTICATED", "ต้องเข้าสู่ระบบก่อน")
+		return
+	}
+	if p.Role != auth.RoleStaff {
+		writeError(w, http.StatusForbidden, "FORBIDDEN_ROLE", "ดูลำดับคำขอได้เฉพาะเจ้าหน้าที่")
+		return
+	}
+
+	// เรียก repository ผ่าน service โดยตรง เพราะ service.go ไม่อยู่ในช่องไฟล์ที่แตะของ T-18
+	// ย้ายเป็น method ของ service ได้ภายหลัง งานนี้ไม่มีกฎของฟีเจอร์นอกจากการเรียงลำดับ
+	pending, err := h.svc.repo.PendingByItem(r.Context(), r.PathValue("assetCode"))
+	if err != nil {
+		log.Printf("borrowrequest itemRequests: %v", err)
+		writeError(w, http.StatusServiceUnavailable, "UPSTREAM_UNAVAILABLE", "ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง")
+		return
+	}
+
+	// ลำดับที่ 1 คือคำขอที่ส่งก่อนสุด นับจากการเรียงของฐานข้อมูล (DOM-REQ-01)
+	out := make([]queueItemDTO, 0, len(pending))
+	for i, q := range pending {
+		out = append(out, queueItemDTO{
+			RequestID:     q.RequestID,
+			QueuePosition: i + 1,
+			SubmittedAt:   q.SubmittedAt.In(appLoc), // เวลาตามเขตเวลา Asia/Bangkok (glossary)
+			RequesterName: q.RequesterName,
+		})
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 // writeJSON ส่งคำตอบเป็น JSON

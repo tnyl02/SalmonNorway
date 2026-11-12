@@ -142,6 +142,11 @@ func writeServiceError(w http.ResponseWriter, err error) {
 		writeJSON(w, http.StatusUnprocessableEntity, ValidationErrorDTO{
 			Code: "VALIDATION_FAILED", Message: config.ApprovalMessages["VALIDATION_FAILED"], Fields: []string{"reason"},
 		})
+	case errors.Is(err, ErrReasonTooLong):
+		// รหัสเดียวกับไม่ระบุเหตุผล ข้อความต่างกัน (FR-APV-01 ซ, Q-APV-28)
+		writeJSON(w, http.StatusUnprocessableEntity, ValidationErrorDTO{
+			Code: "VALIDATION_FAILED", Message: config.ApprovalReasonTooLongMessage, Fields: []string{"reason"},
+		})
 	case errors.Is(err, ErrForbiddenDepartment):
 		// ไม่ส่งข้อมูลอุปกรณ์กลับ ตอบแค่ {code, message} (CON-TECH-03, AC-APV-12)
 		writeError(w, http.StatusForbidden, "FORBIDDEN_DEPARTMENT")

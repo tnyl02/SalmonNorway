@@ -1,10 +1,10 @@
 # Tasks: บันทึกการส่งมอบอุปกรณ์ (Handover)
-Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4: 2569-11-11 (v1.1 ไม่กระทบฟีเจอร์อื่น, v1.2 รับผล CR-003, v1.3 รับผล CR-004, migration 0003 และ 004 spec v1, v1.4 ปิด Q-HND-11, Q-HND-13, Q-P4) | Owner: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn101219)
+Spec: SPEC-HND-005 (spec.md Draft v2.8) | Plan: plan.md Draft v1.5 | tasks v1.5: 2569-11-12 (v1.1 ไม่กระทบฟีเจอร์อื่น, v1.2 รับผล CR-003, v1.3 รับผล CR-004, migration 0003 และ 004 spec v1, v1.4 ปิด Q-HND-11, Q-HND-13, Q-P4, v1.5 ทำครบทุก task ตาม spec v2.8) | Owner: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn101219)
 
 สรุป
 - 14 เฟส (ฐานราก + 12 เฟสตาม AC + รอคำตอบ) รวม 31 task
-- รอ Q-xx 7 task (T-25 ถึง T-31 ในเฟสรอคำตอบ) เส้นทางหลักไม่ติดคำถามแล้ว (Q-HND-11, Q-HND-13, Q-P4 ปิด 2569-11-11)
-  เสร็จแล้ว: T-01, T-02, T-06, T-07, T-08, T-18 ถัดไป: T-03 -> T-04 -> T-05 และ T-09 -> T-10 -> ที่เหลือ
+- ไม่มี task รอ Q-xx แล้ว (spec v2.8 2569-11-12) ยกเลิก 2 task: T-29 (เทอมนี้ใช้ตัวจำลอง) และ T-31 (Q-HND-04 ระบบไม่ต้องทำอะไร)
+  เสร็จและทีมตรวจแล้ว 29 task: T-01 ถึง T-28 และ T-30 ไม่มี task ค้าง ตาราง AC -> test ที่ใช้ทำ RTM อยู่ใน plan.md ข้อ 6
 - เฟสแรกที่ลองใช้งานได้จริง: เฟส 1 (เห็นรายการคำขอที่รอส่งมอบ) migration 0003 ของ 002 merge แล้ว
 
 เทคโนโลยีตาม plan.md ข้อ 2: Go (net/http + pgx), PostgreSQL 16, React + Vite, เก็บรูปบน Docker volume
@@ -36,7 +36,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: บล็อก `// ---- 005-handover ----` ใน `config.go` มี `BorrowerAuthTimeout`, `HandoverMinPhotos`, `HandoverPhotoMaxBytes`, `HandoverPhotoTypes`, `PhotoDir` (อ่านจาก env) (ค่า 16:00 ใช้ `LoanNormalReturnHour` ของ 002) บล็อกเดียวกันใน `config.js` มี `HANDOVER_MIN_PHOTOS`, `HANDOVER_PHOTO_MAX_BYTES`, `HANDOVER_PHOTO_TYPES` ทุกตัวมีคอมเมนต์อ้าง ID ไม่แก้บรรทัดของฟีเจอร์อื่น และ `go test ./...`, `npm test` เดิมยังผ่าน
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 ### T-02 สร้าง migration ของการส่งมอบและข้อมูลตัวอย่าง
 - รองรับ: CON-TECH-01, FR-HND-03, FR-HND-05, FR-HND-06, FR-HND-07
@@ -45,7 +45,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01 (migration 0003 ของ 002 merge แล้ว)
 - เสร็จเมื่อ: `TestMigration_HandoverPhotoContentType` ผ่าน (`content_type` นอก jpeg/png ถูกปฏิเสธ) `TestMigration_HandoverIdentityMethod` ผ่าน (`identity_method` นอก `auth_api`/`card_only` ถูกปฏิเสธ) ไม่มีคอลัมน์เลขบัตรใด ๆ และ test ของ 001 ทั้งหมดยังผ่าน
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 ### T-03 สร้าง package handover ผูก route และกันผู้ที่ไม่ใช่เจ้าหน้าที่
 - รองรับ: CON-HND-01, IF-IDP-01, CON-TECH-02
@@ -54,7 +54,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
 - เสร็จเมื่อ: `TestHandover_NonStaffForbidden` ผ่าน (ทั้ง 3 route ตอบ 403 `{code, message}` `FORBIDDEN_ROLE` เมื่อใช้ `mock-student-001` และตอบ 401 เมื่อไม่มี token ผ่าน middleware เดิม)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 #### จุดตรวจเฟส 0
 - test ที่ต้องผ่านทั้งหมด: TestMigration_HandoverPhotoContentType, TestMigration_HandoverIdentityMethod, TestHandover_NonStaffForbidden และ test เดิมของ 001 ทั้งหมด
@@ -76,7 +76,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-02, T-03
 - เสร็จเมื่อ: `TestAC_HND_14_ListApprovedOnly` ผ่าน (มีข้อมูล 2 อนุมัติ, 1 ยังไม่อนุมัติ, 1 ส่งมอบแล้ว ได้กลับมา 2 รายการพร้อม `assetCode`)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 ### T-05 สร้างหน้า HandoverList
 - รองรับ: FR-HND-01
@@ -85,7 +85,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี (spec ไม่มี UI ID และไม่มี mockup ทีมออกแบบเอง)
 - ต้องทำหลัง: T-04
 - เสร็จเมื่อ: `AC-HND-14.test.jsx` ผ่าน (client จำลองคืน 2 คำขอ หน้าจอแสดง 2 แถว)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ผ่าน ทีมดูหน้าจอแล้วผ่าน)
 
 #### จุดตรวจเฟส 1
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_14_ListApprovedOnly, AC-HND-14.test.jsx และ test ของเฟส 0
@@ -108,7 +108,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-02
 - เสร็จเมื่อ: `TestRepository_CreateHandover` ผ่าน (`SELECT ... FOR UPDATE` อุปกรณ์ สร้าง Loan ด้วยคอลัมน์เดิมของ 001 ที่ `returned_at` ว่าง และแถว `handover` คู่กัน อุปกรณ์เป็น `borrowed` คำขอเป็น `handed_over` ทั้งหมดใน transaction เดียว ไม่แตะคำขออื่น)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 ### T-07 สร้างที่เก็บไฟล์รูปบน Docker volume
 - รองรับ: FR-HND-06, CON-TECH-02
@@ -117,7 +117,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
 - เสร็จเมื่อ: `TestPhotoStore_SaveAndRemove` ผ่าน (เขียนไฟล์ลง `PhotoDir/<loanId>/` ใน temp dir และลบทิ้งได้เมื่อ rollback)
-- สถานะ: เสร็จ รอทีมตรวจ (ยังไม่แก้ docker-compose.yml ดู prompt-log)
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ผ่าน ทีมรับว่าไม่แก้ docker-compose.yml จนกว่าจะมี service หลังบ้าน)
 
 ### T-08 สร้าง BorrowerVerifier และตัวจำลอง
 - รองรับ: FR-HND-02, IF-IDP-01
@@ -126,7 +126,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
 - เสร็จเมื่อ: `TestVerifier_Mock` ผ่าน (interface คืนรหัสนักศึกษาของผู้ที่ยืนยันตัวตน ตัวจำลองใช้ผู้ใช้จาก `auth.MockProvider`)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 ### T-09 สร้าง API ยืนยันตัวตนผู้ยืม
 - รองรับ: FR-HND-02, IF-IDP-01
@@ -135,7 +135,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-03, T-08
 - เสร็จเมื่อ: `TestAC_HND_02_AuthApiVerifiedAndCardChecked/verify_borrower` ผ่าน (`POST .../verify-borrower` คืน `verified`)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 ### T-10 สร้าง API บันทึกการส่งมอบ
 - รองรับ: FR-HND-02, FR-HND-03, FR-HND-05, FR-HND-07
@@ -144,7 +144,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06, T-07, T-09
 - เสร็จเมื่อ: `TestAC_HND_07_HandoverCreatesLoan` และ `TestAC_HND_02_AuthApiVerifiedAndCardChecked` ผ่าน (201 พร้อมชื่อ นามสกุล รหัสนักศึกษา เวลาที่ส่งมอบใน Loan / `cardChecked=false` ได้ 422 `VALIDATION_FAILED` ระบุช่อง `cardChecked` ไม่มี Loan)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 ### T-11 สร้างหน้า HandoverForm ส่วนตรวจบัตร แนบรูป และบันทึก
 - รองรับ: FR-HND-03, FR-HND-06, FR-HND-07
@@ -153,7 +153,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี (ไม่มี mockup ทีมออกแบบเอง)
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `AC-HND-02.test.jsx` ผ่าน (ไม่ติ๊กยืนยันตรวจบัตร ปุ่มบันทึกส่งไม่ได้ / ติ๊กแล้วส่ง multipart ไป client จำลอง และแสดงผลที่ได้กลับ)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ผ่าน ทีมดูหน้าจอแล้วผ่าน)
 
 ### T-12 เพิ่มส่วนยืนยันตัวตนผู้ยืมในหน้า HandoverForm
 - รองรับ: FR-HND-02
@@ -162,7 +162,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี (ไม่มี mockup ทีมออกแบบเอง)
 - ต้องทำหลัง: T-11
 - เสร็จเมื่อ: `AC-HND-02.test.jsx` ผ่านกรณียืนยันตัวตนผู้ยืมก่อนบันทึก
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ผ่าน ทีมดูหน้าจอแล้วผ่าน)
 
 #### จุดตรวจเฟส 2
 - test ที่ต้องผ่านทั้งหมด: TestRepository_CreateHandover, TestPhotoStore_SaveAndRemove, TestVerifier_Mock, TestAC_HND_02_AuthApiVerifiedAndCardChecked, TestAC_HND_07_HandoverCreatesLoan, AC-HND-02.test.jsx และ test ของเฟส 0-1
@@ -181,11 +181,11 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 ### T-13 ใส่ timeout 10 วินาทีและโหมดตรวจบัตรอย่างเดียว
 - รองรับ: FR-HND-02, FR-HND-03, IF-IDP-01
 - ตรวจด้วย: AC-HND-03
-- ไฟล์ที่แตะ: `backend/internal/handover/verifier.go`, `backend/internal/handover/service.go`, `backend/internal/handover/handler_test.go`
+- ไฟล์ที่แตะ: `backend/internal/handover/verifier.go`, `backend/internal/handover/service.go`, `backend/internal/handover/handler_test.go`, `backend/internal/handover/handler.go` (ทีมอนุญาตเพิ่ม 2569-11-12: verify-borrower ตอบ `unavailable` และ NewHandler ใส่ timeout)
 - แบบหน้าจอ: ไม่มี (หน้าจอใช้ผล `unavailable` จาก T-12)
 - ต้องทำหลัง: T-08, T-10
 - เสร็จเมื่อ: `TestAC_HND_03_AuthApiTimeoutCardOnly` ผ่าน (verifier ค้างเกิน `BorrowerAuthTimeout` ที่ตั้งสั้นใน test ได้ `unavailable` บันทึกด้วย `card_only` ได้ 201 / ไม่ยืนยันบัตรได้ 422)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ผ่าน card_only ใช้ `requester_id` เป็นรหัสผู้ยืม ทีมตัดสิน 2569-11-12)
 
 #### จุดตรวจเฟส 3
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_03_AuthApiTimeoutCardOnly และ test ของเฟส 0-2
@@ -207,7 +207,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `TestAC_HND_05_DueAt1600SameDay` ผ่าน (clock 2569-11-12 10:00 Asia/Bangkok ได้ `handed_over_at` 10:00 และ `due_at` 16:00 วันเดียวกัน ค่า 16:00 อ่านจาก `LoanNormalReturnHour`)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 #### จุดตรวจเฟส 4
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_05_DueAt1600SameDay และ test ของเฟส 0-3
@@ -216,7 +216,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
   Given คำขออนุมัติแล้ว ลองก่อน 16:00
   When บันทึกการส่งมอบ
   Then ผลที่หน้าจอแสดงเวลาส่งมอบตามเวลาจริง และกำหนดคืน 16:00 วันเดียวกัน
-- ยังขาด: กรณีหลัง 16:00 (T-25 รอ Q-HND-03)
+- ยังขาด: ไม่มี (กรณีหลัง 16:00 ทำแล้วใน T-25 เฟส 12)
 
 ---
 
@@ -229,7 +229,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-07, T-10
 - เสร็จเมื่อ: `TestAC_HND_06_TwoJpgPhotosSaved` ผ่าน (JPG 2 รูป รูปละ 2 MB ได้ 201 มี `handover_photo` 2 แถวผูก Loan และไฟล์อยู่บนดิสก์ ชนิดไฟล์ตรวจจากเนื้อไฟล์ ไม่ใช่นามสกุล)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 #### จุดตรวจเฟส 5
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_06_TwoJpgPhotosSaved และ test ของเฟส 0-4
@@ -238,7 +238,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
   Given คำขออนุมัติแล้ว และรูป JPG 2 รูป รูปละประมาณ 2 MB
   When แนบรูปทั้ง 2 แล้วบันทึกการส่งมอบ
   Then บันทึกสำเร็จ มีไฟล์ 2 ไฟล์ใน volume ใต้โฟลเดอร์ของ Loan นั้น
-- ยังขาด: การตรวจขนาด 10 MB (T-28 รอ Q-HND-10)
+- ยังขาด: ไม่มี (การตรวจขนาด 10 MB ต่อรูปทำแล้วใน T-28)
 
 ---
 
@@ -251,7 +251,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `TestAC_HND_01_RequestNotApproved` ผ่าน (409 `REQUEST_NOT_APPROVED` ไม่มี Loan อุปกรณ์ยัง `available`)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 #### จุดตรวจเฟส 6
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_01_RequestNotApproved และ test ของเฟส 0-5
@@ -273,7 +273,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `TestAC_HND_04_ItemNotAvailable` ผ่าน (อุปกรณ์ `unavailable` และ `borrowed` ได้ 409 `ITEM_NOT_AVAILABLE` สถานะไม่เปลี่ยน)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 ### T-18 ทดสอบส่งมอบอุปกรณ์ชิ้นเดียวกันพร้อมกัน
 - รองรับ: FR-HND-04, DOM-REQ-01
@@ -282,7 +282,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06
 - เสร็จเมื่อ: `TestHandover_ConcurrentSameItem` ผ่าน (2 goroutine ส่งมอบชิ้นเดียวกัน สำเร็จ 1 อีกอันได้ `ITEM_NOT_AVAILABLE` มี Loan 1 แถว)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 #### จุดตรวจเฟส 7
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_04_ItemNotAvailable, TestHandover_ConcurrentSameItem และ test ของเฟส 0-6
@@ -304,7 +304,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10, T-17
 - เสร็จเมื่อ: `TestAC_HND_13_OtherRequestUntouched` ผ่าน (ส่งมอบ X สำเร็จ สถานะของ Y เท่าเดิม แล้วส่งมอบ Y ได้ 409 `ITEM_NOT_AVAILABLE`)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ผ่าน ทีมรับไว้ก่อน ถ้าแก้ AC-HND-13 ผ่าน CR ต้องแก้ test ตาม)
 
 #### จุดตรวจเฟส 8
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_13_OtherRequestUntouched และ test ของเฟส 0-7
@@ -326,7 +326,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-08, T-10
 - เสร็จเมื่อ: `TestAC_HND_10_BorrowerMismatch` ผ่าน (verifier คืนนักศึกษา B สำหรับคำขอของ A ได้ 409 `BORROWER_MISMATCH` อุปกรณ์ยัง `available`)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 #### จุดตรวจเฟส 9
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_10_BorrowerMismatch และ test ของเฟส 0-8
@@ -348,7 +348,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-15
 - เสร็จเมื่อ: `TestAC_HND_12_InvalidPhotos` กรณี (ก) 1 รูป และ (ข) GIF ผ่าน (422 `VALIDATION_FAILED` ระบุช่อง `photos` ไม่มี Loan ไม่มีไฟล์ค้างบนดิสก์)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 ### T-22 ตรวจจำนวนและชนิดรูปที่หน้าจอก่อนส่ง
 - รองรับ: FR-HND-06
@@ -357,7 +357,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี (ไม่มี mockup ทีมออกแบบเอง)
 - ต้องทำหลัง: T-11, T-21
 - เสร็จเมื่อ: `AC-HND-12.test.jsx` ผ่าน (1 รูป หรือ GIF ไม่เรียก client จำลอง ใช้ค่าจาก `config.js`)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ผ่าน ทีมดูหน้าจอแล้วผ่าน)
 
 #### จุดตรวจเฟส 10
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_12_InvalidPhotos (ก, ข), AC-HND-12.test.jsx และ test ของเฟส 0-9
@@ -366,7 +366,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
   Given คำขออนุมัติแล้ว
   When แนบรูป 1 รูป แล้วลองใหม่ด้วยไฟล์ GIF
   Then บันทึกไม่ได้ทั้ง 2 ครั้ง และคำขอยังอยู่ในรายการรอส่งมอบ
-- ยังขาด: กรณี (ค) รูป 11 MB (T-28 รอ Q-HND-10)
+- ยังขาด: ไม่มี (กรณี (ค) รูป 11 MB ทำแล้วใน T-28 ทีมเปิดหน้าจอเช็กแล้ว)
 
 ---
 
@@ -379,7 +379,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-03, T-10
 - เสร็จเมื่อ: `TestAC_HND_09_StudentForbidden` ผ่าน (`mock-student-001` เรียก POST handover ของคำขออนุมัติแล้ว ได้ 403 ไม่มี Loan สถานะอุปกรณ์ไม่เปลี่ยน)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 #### จุดตรวจเฟส 11
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_09_StudentForbidden และ test ของเฟส 0-10
@@ -401,7 +401,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-14
 - เสร็จเมื่อ: `TestAC_HND_11_HandoverAfter1600` ผ่าน (clock 16:30 ได้ 201 `handed_over_at` 16:30 อุปกรณ์ `borrowed` **ไม่ตรวจ `due_at`**)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ในช่องเสร็จเมื่อผ่าน)
 
 #### จุดตรวจเฟส 12
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_11_HandoverAfter1600 และ test ของเฟส 0-11
@@ -410,12 +410,12 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
   Given คำขออนุมัติแล้ว ลองหลัง 16:00
   When บันทึกการส่งมอบ
   Then บันทึกสำเร็จ เวลาส่งมอบตามเวลาจริง อุปกรณ์ "ถูกยืม" (ไม่ต้องดูกำหนดคืน)
-- ยังขาด: กำหนดคืนของกรณีนี้ (T-25 รอ Q-HND-03)
+- ยังขาด: ไม่มี (กำหนดคืน 16:00 ของวันถัดไปทำแล้วใน T-25)
 
 ---
 
-## เฟส AC-HND-08 (audit log): ย้ายไปเฟสรอคำตอบทั้งเฟส
-ค่า `action` ยังไม่มีใน DM-07 (Q-HND-06) และกรณีไม่สำเร็จรอ Q-HND-14 จึงไม่มีส่วนที่ทำได้ก่อน ดู T-26, T-27
+## เฟส AC-HND-08 (audit log): ทำในเฟส 13
+เดิมย้ายไปเฟสรอคำตอบเพราะรอ Q-HND-06, Q-HND-14 ปิดแล้ว 2569-11-12 ทำแล้วใน T-26 (สำเร็จ) และ T-27 (ไม่สำเร็จ) test `TestAC_HND_08_AuditLogged`
 
 ---
 
@@ -427,17 +427,17 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - ไฟล์ที่แตะ: `backend/internal/handover/service.go`, `backend/internal/config/config.go` (ถ้าคำตอบมีค่าใหม่), `backend/internal/handover/handler_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-24
-- เสร็จเมื่อ: `TestAC_HND_11_HandoverAfter1600` ตรวจ `due_at` ตามคำตอบ Q-HND-03 และผ่าน
-- สถานะ: รอ Q-HND-03
+- เสร็จเมื่อ: `TestAC_HND_11_HandoverAfter1600` ตรวจ `due_at` = 2569-11-13 16:00 (16:00 ของวันถัดไป ตาม Q-HND-03) และผ่าน `TestAC_HND_05_DueAt1600SameDay` ยังผ่าน
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ผ่าน ส่งมอบตรง 16:00:00 กำหนดคืน 16:00 วันเดียวกัน ทีมยืนยัน)
 
 ### T-26 เขียน audit log เมื่อส่งมอบสำเร็จ
 - รองรับ: FR-HND-08, DOM-AUDIT-01, CON-DATA-03
 - ตรวจด้วย: AC-HND-08
-- ไฟล์ที่แตะ: `backend/db/migrations/0007_audit_log_handover_action.up.sql` (ทีมกำหนดเลข 0007 2569-11-11 CHECK ใหม่ต้องมีทุกค่าเดิมของทุกฟีเจอร์ ณ เวลานั้น บวกค่าของ 005), `backend/internal/handover/repository.go` (ใช้ `backend/internal/audit/writer.go` ของ 001 ถ้ามีแล้ว ถ้ายังไม่มี INSERT เองแบบแผนสำรองของ 003), `backend/internal/handover/handler_test.go`, `specs/000-shared/data-model.md` (เพิ่มแถว action ของ 005 ในตาราง DM-07 แจ้งเจ้าของ 001)
+- ไฟล์ที่แตะ: `backend/db/migrations/0009_audit_log_handover_action.up.sql` และ `.down.sql` (เดิมกำหนด 0007 ย้ายเป็น 0009 ทีมเลือก 2569-11-12 เพราะ 0008 ของ 004 สร้าง CHECK ใหม่ จะได้ไม่แก้ไฟล์ของ 004 CHECK ใหม่ต้องมีทุกค่าเดิมของทุกฟีเจอร์ ณ เวลานั้น บวกค่าของ 005), `backend/internal/handover/repository.go` (ใช้ `backend/internal/audit/writer.go` ของ 001 ถ้ามีแล้ว ถ้ายังไม่มี INSERT เองแบบแผนสำรองของ 003), `backend/internal/handover/handler_test.go`, `specs/000-shared/data-model.md` (เพิ่มแถว action ของ 005 ในตาราง DM-07 แจ้งเจ้าของ 001)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `TestAC_HND_08_AuditLogged` ผ่านกรณีสำเร็จ (มีแถวระบุผู้ทำ เวลา รหัสครุภัณฑ์ รหัสคำขอ ผลลัพธ์) และ `TestMigration_AuditLogAction` ของ 001 กับ test ของ 003 ที่ใช้ action `cancel`, `notify` ยังผ่าน
-- สถานะ: รอ Q-HND-06
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ผ่าน ใช้ migration 0009 ตามที่ทีมตกลง ไม่แก้ไฟล์ของ 004 / เลข 0007 ที่จองไว้ไม่ได้ใช้ / แก้ cleanup ใน `repository_test.go` เพราะ audit_log ลบไม่ได้ / ไม่แก้ `data-model.md` เพราะทีมตัดสิน 2569-11-12 ตามคอมเมนต์ใน 0008 ว่าค่า action ใหม่กำหนดใน migration ไม่เขียนใน data-model.md)
 
 ### T-27 เขียน audit log เมื่อส่งมอบไม่สำเร็จ
 - รองรับ: FR-HND-08, DOM-AUDIT-01
@@ -445,8 +445,8 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - ไฟล์ที่แตะ: `backend/internal/handover/service.go`, `backend/internal/handover/handler_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-26
-- เสร็จเมื่อ: `TestAC_HND_08_AuditLogged` กรณีไม่สำเร็จผ่าน ตามคำตอบ Q-HND-14
-- สถานะ: รอ Q-HND-14
+- เสร็จเมื่อ: `TestAC_HND_08_AuditLogged` กรณีไม่สำเร็จผ่าน (Q-HND-14: บันทึกทั้งสำเร็จและไม่สำเร็จ)
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ผ่าน outcome: นักศึกษาเรียกบันทึกการส่งมอบ = forbidden อื่น ๆ = error / แก้ `handler.go` เพิ่ม ดูรายการและยืนยันผู้ยืมไม่เก็บ ทีมยืนยัน)
 
 ### T-28 ตรวจขนาดรูปไม่เกิน 10 MB
 - รองรับ: FR-HND-06
@@ -454,8 +454,8 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - ไฟล์ที่แตะ: `backend/internal/handover/photos.go`, `backend/internal/handover/handler_test.go`, `frontend/src/pages/Handover/HandoverForm.jsx`, `frontend/src/__tests__/AC-HND-12.test.jsx`
 - แบบหน้าจอ: ไม่มี (ไม่มี mockup ทีมออกแบบเอง)
 - ต้องทำหลัง: T-21, T-22
-- เสร็จเมื่อ: `TestAC_HND_12_InvalidPhotos` กรณี (ค) 11 MB ผ่าน และ `AC-HND-12.test.jsx` กรณีขนาดผ่าน (ต่อรูปหรือรวมตามคำตอบ)
-- สถานะ: รอ Q-HND-10
+- เสร็จเมื่อ: `TestAC_HND_12_InvalidPhotos` กรณี (ค) 11 MB ผ่าน และ `AC-HND-12.test.jsx` กรณีขนาดผ่าน (10 MB ต่อรูป ไม่จำกัดจำนวน ตาม Q-HND-10)
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ผ่าน เปิดหน้าจอแล้ว รูป 11 MB แสดงข้อความเตือน "ขนาดไม่เกิน 10 MB ต่อรูป" และไม่ส่งไปหลังบ้าน)
 
 ### T-29 เชื่อม Auth API จริงแทนตัวจำลอง
 - รองรับ: FR-HND-02, IF-IDP-01
@@ -464,7 +464,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-13
 - เสร็จเมื่อ: ยืนยันตัวตนผู้ยืมกับ Auth API จริงได้ และ `TestAC_HND_02`, `TestAC_HND_03` ยังผ่าน
-- สถานะ: รอ Q-SH-03 (วิธีล็อกอินที่เคาน์เตอร์ตอบแล้วใน ASM-HND-09 เหลือโปรโตคอลของ Auth API ตัวจริง)
+- สถานะ: ยกเลิกเทอมนี้ (ทีมตัดสิน 2569-11-12 ไม่เชื่อม Auth API จริง ใช้ตัวจำลอง ถ้าเชื่อมภายหลังให้เปิด task นี้ใหม่)
 
 ### T-30 รองรับการส่งมอบยืมแบบค้างคืน
 - รองรับ: FR-HND-01, FR-HND-05, FR-HND-06
@@ -473,7 +473,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-14
 - เสร็จเมื่อ: ส่งมอบคำขอค้างคืนได้ `loan_type = overnight` และ `due_at` ตามคำตอบ Q-SH-04
-- สถานะ: รอ Q-HND-07 (004 spec v1 ตัด UC-14 ออก) กำหนดคืน = 16:00 ของ `borrow_request.end_at` (Q-SH-04, Q-HND-05 ปิดแล้ว)
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 `TestHandover_OvernightDueAt` ผ่าน กำหนดคืน 16:00 ของวันสิ้นสุดตามคำขอ ทีมยืนยัน / กรณีส่งมอบหลังวันสิ้นสุดเป็นคำถามใน spec รอทีมตกลงก่อนทำ / ไม่มี AC ของค้างคืน)
 
 ### T-31 ทำกฎ "ใช้ได้เฉพาะในพื้นที่มหาวิทยาลัย"
 - รองรับ: DOM-LOAN-01
@@ -482,7 +482,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: ตามคำตอบ Q-HND-04 (ถ้าเป็นแค่กฎที่เจ้าหน้าที่แจ้งผู้ยืม task นี้ยกเลิก)
-- สถานะ: รอ Q-HND-04
+- สถานะ: ยกเลิก (Q-HND-04 ปิด 2569-11-12 เป็นกฎที่เจ้าหน้าที่แจ้งผู้ยืมเท่านั้น ระบบไม่ต้องทำอะไร)
 
 ---
 
@@ -492,8 +492,8 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 | AC ID | task ที่ตรวจ AC นี้ |
 |---|---|
 | AC-HND-01 | T-16 |
-| AC-HND-02 | T-09, T-10, T-11, T-12, T-29 |
-| AC-HND-03 | T-13, T-29 |
+| AC-HND-02 | T-09, T-10, T-11, T-12 (T-29 ยกเลิกเทอมนี้) |
+| AC-HND-03 | T-13 (T-29 ยกเลิกเทอมนี้) |
 | AC-HND-04 | T-17, T-18 |
 | AC-HND-05 | T-14 |
 | AC-HND-06 | T-15, T-28 |
@@ -515,9 +515,9 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 | CON-DATA-01 | T-06, T-17 |
 | CON-DATA-03 | T-04, T-26 |
 | DOM-AUDIT-01 | T-26, T-27 |
-| DOM-LOAN-01 | T-01, T-14, T-25, T-31 |
+| DOM-LOAN-01 | T-01, T-14, T-25, T-30 (T-31 ยกเลิก: ส่วน "ใช้ได้เฉพาะในพื้นที่มหาวิทยาลัย" ระบบไม่ทำอะไร Q-HND-04) |
 | DOM-REQ-01 | T-06, T-18, T-19 |
-| IF-IDP-01 | T-03, T-08, T-09, T-13, T-29 |
+| IF-IDP-01 | T-03, T-08, T-09, T-13 (T-29 ยกเลิกเทอมนี้ ใช้ตัวจำลอง) |
 | CON-HND-01 | T-03, T-23 |
 
 ### 3. FR -> AC -> เฟส
@@ -532,25 +532,26 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 | FR-HND-07 | AC-HND-07, AC-HND-13 | 2, 8 |
 | FR-HND-08 | AC-HND-08 | 13 |
 
-FR ทุกข้อมี AC แต่ส่วนยืมแบบค้างคืนของ FR-HND-01, 05, 06 ไม่มี AC ควรเสนอทีมเพิ่ม (รอ Q-HND-07)
+FR ทุกข้อมี AC แต่ส่วนยืมแบบค้างคืนของ FR-HND-01, 05, 06 ไม่มี AC (Q-HND-07 ปิดแล้ว ทำใน T-30 ตรวจด้วย `TestHandover_OvernightDueAt`) ควรเสนอทีมเพิ่ม AC
 
 ---
 
 ## สิ่งที่ยังไม่ทำ (Open Questions จาก spec และของกลาง)
 | คำถาม | task ที่รอ |
 |---|---|
-| Q-HND-03 ส่งมอบยืมปกติหลัง 16:00 กำหนดคืนคือเวลาไหน (ถ้า 16:00 วันเดียวกัน ผู้ยืมเกินกำหนดทันทีและ FR-BRQ-06 ของ 002 ปฏิเสธคำขอใหม่) -> นักคอมพิวเตอร์ | T-25 |
-| Q-HND-04 "ใช้งานได้เฉพาะภายในพื้นที่มหาวิทยาลัย" ระบบต้องทำอะไร -> นักคอมพิวเตอร์ | T-31 |
+| Q-HND-03 [ปิดแล้ว 2569-11-12] กำหนดคืน = 16:00 ของวันถัดไป | T-25 พร้อมทำ |
+| Q-HND-04 [ปิดแล้ว 2569-11-12] กฎที่เจ้าหน้าที่แจ้ง ระบบไม่ทำอะไร | T-31 ยกเลิก |
 | Q-HND-05 [ปิดแล้ว] `approved` -> `handed_over`, `requester_id`, `item_id`, `end_at` มีใน migration 0003 | ไม่มี task รอ |
-| Q-HND-06 ค่า `action` ของ audit log สำหรับการส่งมอบ -> จองในกลุ่ม | T-26 |
-| Q-HND-07 ต้องทดสอบยืมแบบค้างคืนเทอมนี้ไหม (ขึ้นกับว่า 004 ทำ UC-14 ไหม) -> ทีม + เจ้าของ 004 | T-30 |
+| Q-HND-06 [ปิดแล้ว 2569-11-12] action = `handover` | T-26 พร้อมทำ |
+| Q-HND-07 [ปิดแล้ว 2569-11-12] ทำเทอมนี้ | T-30 พร้อมทำ |
 | Q-HND-09 เวลาตอบสนองของการบันทึกการส่งมอบ -> เจ้าหน้าที่ | ไม่มี task (ไม่มี NFR ID รองรับ จะเสนอเป็น NFR เมื่อได้คำตอบ) |
-| Q-HND-10 10 MB ต่อรูปหรือรวม และมากสุดกี่รูป -> เจ้าหน้าที่ | T-28 |
+| Q-HND-10 [ปิดแล้ว 2569-11-12] 10 MB ต่อรูป ไม่จำกัดจำนวน | T-28 พร้อมทำ |
 | Q-HND-11 [ปิดแล้ว] ผู้ยืมล็อกอินบนเครื่องเจ้าหน้าที่ (ASM-HND-09) | ไม่มี task รอ |
 | Q-HND-13 [ปิดแล้ว] เจ้าหน้าที่พิมพ์ชื่อตามบัตร (ASM-HND-10) | ไม่มี task รอ |
-| Q-HND-14 ส่งมอบไม่สำเร็จต้องบันทึก audit log ไหม -> เจ้าหน้าที่ | T-27 |
+| Q-HND-14 [ปิดแล้ว 2569-11-12] บันทึกทั้งสำเร็จและไม่สำเร็จ | T-27 พร้อมทำ |
 | Q-HND-15 ย้าย CON-HND-01 ไป constraints.md ไหม -> ทีม | ไม่มี task (ไม่กระทบโค้ด) |
-| Q-SH-03 auth จริง (ของกลาง) | T-29 |
+| (ยังไม่มี ID) ส่งมอบค้างคืนหลังวันสิ้นสุดการยืม กำหนดคืนเป็นอย่างไร -> ทีมตกลงและระบุใน spec ก่อนทำ | ยังไม่มี task (เปิดหลังได้คำตอบ) |
+| Q-SH-03 auth จริง (ของกลาง) ทีมตัดสินฝั่ง 005 2569-11-12 เทอมนี้ใช้ตัวจำลอง | T-29 ยกเลิกเทอมนี้ |
 | Q-SH-04 [ปิดแล้ว] กำหนดคืนยืมค้างคืน = 16:00 ของวันสิ้นสุดการยืม | ไม่มี task รอ (T-30 ใช้คำตอบนี้) |
 | Q-SH-06 [ปิดบางส่วน] 004 ปฏิเสธคำขออื่นของชิ้นเดียวกันอัตโนมัติเมื่ออนุมัติ ทำให้ Given ของ AC-HND-13 ไม่เกิดในระบบจริง -> ทีมตัดสินแก้หรือยกเลิก AC-HND-13 (ผ่าน CR) | T-19 (ทำได้ด้วยข้อมูลที่ตั้งเอง แต่อาจถูกยกเลิก) |
 | Q-SH-08 ระบบยืนยันตัวตนเชื่อมต่อไม่ได้ตอนเข้าใช้ทั่วไป | ไม่มี task (ใช้ middleware เดิมของ 001) |
@@ -558,4 +559,4 @@ FR ทุกข้อมี AC แต่ส่วนยืมแบบค้า�
 | Q-P3 [หมดไปแล้ว] 004 spec v1 ไม่มีที่เก็บกำหนดคืนตอนอนุมัติ 005 เป็นที่เดียวที่บันทึกกำหนดคืน | ไม่มี task รอ |
 | Q-P4 [ปิดแล้ว] ลงทะเบียน `FORBIDDEN_ROLE`, `REQUEST_NOT_APPROVED`, `BORROWER_MISMATCH` ใน CON-TECH-03 แล้ว | ไม่มี task รอ |
 
-นอกจากนี้ยังต้องทำก่อนเริ่ม (ไม่ใช่ Open Question): แจ้งกลุ่มว่า 005 ใช้ migration 0006, 0007 (T-02, T-26), merge 003 ก่อนแตะ `App.jsx`/`client.js`, แจ้ง 006 เรื่อง volume `photos`
+นอกจากนี้ยังต้องทำก่อนเริ่ม (ไม่ใช่ Open Question): แจ้งกลุ่มว่า 005 ใช้ migration 0006 (T-02) และ 0009 แทน 0007 (T-26), merge 003 ก่อนแตะ `App.jsx`/`client.js`, แจ้ง 006 เรื่อง volume `photos`
