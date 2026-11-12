@@ -129,6 +129,29 @@ function filterQuery(filter = {}) {
   return qs ? `?${qs}` : ''
 }
 
+// ---- 006-return (specs/006-return/plan.md ข้อ 4) ----
+// returnsRequest คืนค่าเป็น { ok, status, data } เสมอ หน้าจอของ 006 ตัดสินใจจาก data.code (T-06)
+// ใช้ token จาก session จำลองของ 001 (authHeaders) และแจ้ง 401 ให้ App แสดงหน้าล็อกอินจำลองเหมือนฟีเจอร์อื่น (IF-IDP-01)
+// ต่อหลังบ้านไม่ได้ -> status 0, code UPSTREAM_UNAVAILABLE
+async function returnsRequest(path, options = {}) {
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      ...options,
+      cache: 'no-store',
+      headers: { ...authHeaders(), ...(options.headers ?? {}) },
+    })
+    const data = await res.json().catch(() => ({}))
+    if (res.status === 401) {
+      const err = new ApiError(401, data?.code, data?.message)
+      unauthorizedListeners.forEach((listener) => listener(err))
+    }
+    return { ok: res.ok, status: res.status, data }
+  } catch {
+    return { ok: false, status: 0, data: { code: 'UPSTREAM_UNAVAILABLE' } }
+  }
+}
+// ---- จบ 006-return ----
+
 export const api = {
   // 001 FR-EQS-01, FR-EQS-02: รายการรุ่น 1 แถว = 1 รุ่น ตามตัวกรอง
   //   -> { items: [{ modelId, name, category, availableCount, totalCount }], total }
@@ -174,4 +197,24 @@ export const api = {
   //   -> สำเร็จ หรือ throw ApiError(403 FORBIDDEN_ROLE, 404 REQUEST_NOT_FOUND, 409 ALREADY_APPROVED / NOT_CANCELLABLE, 422 VALIDATION_FAILED, 503)
   cancelRequest: (requestId, reason) =>
     postJSON(`/v1/borrow-requests/${encodeURIComponent(requestId)}/cancel`, { reason }),
+
+  // ---- 006-return: บันทึกการรับคืน (เฉพาะเจ้าหน้าที่) คืนค่า { ok, status, data } ----
+  returns: {
+    // FR-RET-01(ข), FR-RET-06: การยืมที่ยังไม่คืนของภาควิชาเจ้าหน้าที่
+    openLoans: () => returnsRequest('/v1/returns/open-loans'),
+
+    // FR-RET-01(ก): หาการยืมที่ยังไม่คืนจากรหัสครุภัณฑ์
+    lookup: (assetCode) => returnsRequest(`/v1/returns/lookup?assetCode=${encodeURIComponent(assetCode)}`),
+
+    // FR-RET-06: รายละเอียดการยืม เวลาคืน สภาพ คืนเกินกำหนด
+    loanDetail: (loanId) => returnsRequest(`/v1/returns/loans/${encodeURIComponent(loanId)}`),
+
+    // FR-RET-02: บันทึกการรับคืน รหัสครุภัณฑ์และสภาพ ไม่ส่งเวลา (เวลาคืนมาจากระบบ ASM-04)
+    record: ({ assetCode, condition }) => {
+      const form = new FormData()
+      form.append('assetCode', assetCode)
+      form.append('condition', condition)
+      return returnsRequest('/v1/returns', { method: 'POST', body: form })
+    },
+  },
 }

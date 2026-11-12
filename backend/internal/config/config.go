@@ -255,6 +255,32 @@ type Config struct {
 	AttachmentDir string
 }
 
+// ---- ค่าที่มาจาก spec ของ 006-return (specs/006-return/plan.md ข้อ 5 ตาราง "ค่าที่ตั้งได้") ----
+
+// Timezone คือเขตเวลาที่ใช้เทียบ "วันที่ปัจจุบัน / เวลาปัจจุบัน / วันเดียวกัน" (specs/000-shared/glossary.md)
+const Timezone = "Asia/Bangkok"
+
+// ReturnConditionStatus คือสภาพตอนรับคืน 2 ค่า และสถานะอุปกรณ์หลังบันทึกการรับคืนสำเร็จ
+// ปกติ -> ว่าง (FR-RET-03, RQ-13) / ชำรุด -> ไม่พร้อมใช้งาน ไม่ผ่าน "ว่าง" (FR-RET-04, ASM-05)
+// สูญหายไม่ใช่สภาพ (FR-RET-02) ค่าสถานะตาม CON-DATA-01 ใน specs/000-shared/data-model.md
+var ReturnConditionStatus = map[string]string{
+	"normal":  "available",
+	"damaged": "unavailable",
+}
+
+// ReturnMessages คือข้อความภาษาไทยในช่อง message ของ error ทุกตัวของ 006 ตามรูปแบบ CON-TECH-03
+// หน้าจอตัดสินใจจาก code ไม่ใช่จากข้อความ ข้อความทีมออกแบบเอง ไม่ได้มาจาก spec (ยกเว้น NO_OPEN_LOAN ตาม AC-RET-03)
+// NO_OPEN_LOAN, CONDITION_REQUIRED, LOAN_NOT_FOUND ลงทะเบียนในรายการกลางของ CON-TECH-03 แล้ว (constraints.md v5.4, Q-10)
+var ReturnMessages = map[string]string{
+	"UNAUTHENTICATED":      "กรุณาเข้าสู่ระบบก่อนใช้งาน",
+	"FORBIDDEN_ROLE":       "เฉพาะเจ้าหน้าที่เท่านั้นที่บันทึกการรับคืนได้", // AC-RET-08
+	"FORBIDDEN_DEPARTMENT": "ไม่มีสิทธิ์: อุปกรณ์นี้เป็นของภาควิชาอื่น",     // AC-RET-11
+	"NO_OPEN_LOAN":         "อุปกรณ์นี้ไม่มีการยืมที่ยังไม่คืน",             // AC-RET-03
+	"CONDITION_REQUIRED":   "กรุณาเลือกสภาพ ปกติ หรือ ชำรุด",                // AC-RET-04
+	"LOAN_NOT_FOUND":       "ไม่พบการยืมนี้",                                // FR-RET-06
+	"UPSTREAM_UNAVAILABLE": "ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง",      // ข้อความเดียวกับ 004
+}
+
 // Load อ่านค่าจาก environment ถ้าไม่ตั้งไว้ใช้ค่าเริ่มต้นสำหรับเครื่องพัฒนา
 func Load() Config {
 	return Config{

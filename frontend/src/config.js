@@ -48,6 +48,24 @@ export const APPROVAL_EMAIL_KIND_LABELS = {
 }
 // ---- จบ 004-approve-request ----
 
+// ---- 006-return (specs/006-return/plan.md ข้อ 5 ตาราง "ค่าที่ตั้งได้") ----
+// วางไว้ต้นไฟล์ต่อจาก 004 เพื่อไม่ชนกับฟีเจอร์อื่นที่เพิ่มค่าต่อท้ายไฟล์ตอน merge / เขตเวลาใช้ TIME_ZONE ร่วมกับฟีเจอร์อื่น
+
+// ชื่อสถานะอุปกรณ์ที่แสดงบนหน้าจอ 3 ค่า (CON-DATA-01, specs/000-shared/data-model.md)
+export const STATUS_LABELS = {
+  available: 'ว่าง',
+  borrowed: 'ถูกยืม',
+  unavailable: 'ไม่พร้อมใช้งาน',
+}
+
+// สภาพตอนรับคืน 2 ค่า ไม่มี "สูญหาย" (FR-RET-02, glossary "สภาพ (ตอนรับคืน)")
+// value ตรงกับ ReturnConditionStatus ใน backend/internal/config/config.go / label คือคำที่แสดงบนหน้าจอ
+export const RETURN_CONDITIONS = [
+  { value: 'normal', label: 'ปกติ' },
+  { value: 'damaged', label: 'ชำรุด' },
+]
+// ---- จบ 006-return ----
+
 // token ของผู้ใช้จำลองที่หน้าจอส่งไปกับทุก request (IF-IDP-01 ใช้ระบบยืนยันตัวตนจำลองไปก่อน รอ Q-SH-03)
 // ทีมเลือกเอง ไม่ได้มาจาก spec (ตัดสิน 2569-11-10 ตอนทำ T-06) ใช้จนกว่าจะมีหน้าล็อกอินจำลองใน T-21
 // เปลี่ยนผู้ใช้ได้ด้วย VITE_MOCK_TOKEN เช่น `VITE_MOCK_TOKEN=mock-staff-001 npm run dev`

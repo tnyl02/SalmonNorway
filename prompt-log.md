@@ -5882,6 +5882,732 @@ main
 
 ---
 
+## 2569-11-10 อ่านของกลางและ SRS ก่อนเริ่ม 006 แล้วตอบคำถามที่ยังไม่ชัด
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: ให้อ่าน AGENTS.md, specs/000-shared/ (3 ไฟล์) และ SRS หัวข้อ 3.0 กับ 3.1.6 แล้ว AI สรุปเรื่องที่ยังไม่ชัด 7 ข้อ
+
+### คำถามที่ AI ถาม และคำตอบของเจ้าของฟีเจอร์
+1. ถ้ารับคืนแล้วอุปกรณ์ชำรุด สถานะเป็นอะไร (ลำดับ UC-09 กับ UC-07) -> เป็น "ไม่พร้อมใช้งาน"
+2. UC-07 ตรวจสอบอุปกรณ์ที่คืน อยู่ในขอบเขตของ 006 ไหม -> อยู่ในขอบเขต
+3. ต้องแนบรูปสภาพอุปกรณ์ตอนรับคืนไหม (RQ-04) -> ทำ
+4. สภาพอุปกรณ์ตอนรับคืนมีค่าอะไรบ้าง -> ปกติ, ชำรุด (สูญหายไม่ใช้เป็นสภาพ)
+5. คืนเลยกำหนดต้องทำอะไรไหม -> บันทึกหรือทำเครื่องหมายไว้
+6. UC-04 คืนอุปกรณ์ (นักศึกษา) ที่ไม่มี RQ รองรับ -> รวมกับ UC-09
+7. กำหนดคืนของยืมค้างคืนยังไม่รู้ (Q-SH-04) กระทบ 006 ไหม -> "ไม่มีทางไม่รู้กำหนด" (รอ AI ยืนยันความหมาย)
+
+### ยังไม่ได้แก้ไฟล์ใด คำตอบข้อ 1, 2, 6 ขัดกับ SRS / README / data-model.md ต้องทำ CR ก่อน
+
+---
+
+## 2569-11-10 เขียน FR ของ 006 ใน SRS หัวข้อ 3.1.6
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: "เขียน FR ของตัวเองใน SRS (ตอนนี้ยังเป็น [เติม])"
+- สิ่งที่ AI แก้: `docs/srs/SRS.md` หัวข้อ 3.1.6 เพิ่ม FR-RET-01 ถึง FR-RET-07 จาก RQ-04, RQ-11, RQ-13, RQ-25, US-010
+  และคำตอบของเจ้าของฟีเจอร์ในบันทึกก่อนหน้า เพิ่ม RQ-04, RQ-25 ในบรรทัดที่มา และหมายเหตุ "รอ CR"
+- ยังค้าง `[ยืนยัน]` 3 จุด: กรณีสูญหายใครจัดการ (FR-RET-02), รูปบังคับหรือไม่/กี่รูป (FR-RET-05), ใครเห็นเครื่องหมายคืนเกินกำหนด (FR-RET-06)
+- ไม่ได้แก้: หัวข้อ 3.1.7, 4.3 และ data-model.md (ต้องทำ CR ก่อน)
+
+---
+
+## 2569-11-10 สร้าง specs/006-return/spec.md (Draft v1)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: สร้าง spec.md ครบ 6 ส่วน + Assumptions & Open Questions, Constraint ใช้ร่วมอ้าง ID ไม่ copy ข้อความ,
+  ใส่ชื่อในช่อง Owner, เพิ่ม 006-return ในตาราง "ใครอ้างใช้บ้าง" ของ constraints.md
+- สิ่งที่ AI สร้าง/แก้:
+  - `specs/006-return/spec.md` FR-RET-01 ถึง 07 ตาม SRS 3.1.6, AC-RET-01 ถึง 08 (AI ร่าง), ASM-01, 02, Q-01 ถึง Q-08,
+    Clarifications 2569-11-10, Traceability (มีหัวข้อ Clarifications และ Traceability เพิ่มตามแบบของ 001)
+  - `specs/000-shared/constraints.md` ตาราง "ใครอ้างใช้บ้าง": เพิ่ม 006-return ใน CON-TECH-01, CON-TECH-02, CON-DATA-01,
+    CON-DATA-03, DOM-AUDIT-01, DOM-LOAN-01, IF-IDP-01 (แก้ของกลางเพราะฟีเจอร์ 006 ตามกติกาท้ายไฟล์)
+- สิ่งที่ AI เลือกเอง (ทีมต้องตรวจ): ไม่อ้าง DOM-PRIV-01, DOM-ACCESS-01, DOM-REQ-01 ในใช้ร่วม (ถามเป็น Q-03, Q-06, Q-08 แทน)
+  และเลือก NFR-DATA-01, NFR-SEC-01, NFR-AVAIL-01 จาก SRS 3.3
+
+---
+
+## 2569-11-10 คำสั่ง: /clarify (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return
+- เครื่องมือ: Claude Code (`.claude/commands/clarify.md`)
+- ไฟล์: specs/006-return/spec.md (Draft v1)
+- คำสั่ง: "/clarify -> /plan -> /tasks -> /implement T-xx ทีละ task แล้ว commit ทุกขั้น" (เริ่มที่ /clarify ซึ่งต้องหยุดรอคำตอบ)
+
+### คำถามที่ AI ถาม (ทั้งหมด)
+ส่วน A (จุดกำกวม 12 แถว): 1 เวลาคืนมาจากไหน, 2 วิธีเลือกการยืม, 3 FR-RET-02 มี 2 พฤติกรรม, 4 รูปบังคับ/กี่รูป/ชนิด/ขนาด,
+5 ใครเห็นคืนเกินกำหนด, 6 FR-RET-04/05 ขัด SRS 3.1.7 และ data-model, 7 IF-IDP-01 ล่ม, 8 FR-RET-07 กับ DOM-AUDIT-01 (อ่าน vs เขียน),
+9 ASM-01 การยืมค้างคืนไม่มีกำหนดคืน, 10 Goal ไม่มีตัวเลข, 11 คำว่า "สภาพ" ไม่มีใน glossary, 12 คืนมาชำรุดแต่มีคำขอค้าง (DOM-REQ-01)
+ส่วน B: Q1 เวลาคืน, Q2 วิธีหาการยืม, Q3 เงื่อนไขรูป, Q4 ใครเห็นคืนเกินกำหนด, Q5 สูญหาย, Q6 ภาควิชาอื่น, Q7 ความหมาย "ไม่มีทางไม่รู้กำหนด", Q8 ทำ CR ก่อน plan ไหม
+ถามซ้ำ 4 ข้อเพราะคำตอบขัดกัน: รูป (A4 กับ Q3), เวลาคืนแก้ได้ไหม (A1 กับ Q1), สูญหายเป็นสถานะ (ขัด CON-DATA-01), ชำรุดเป็น "ส่งซ่อม" + ระงับคำขอ (ขัด CON-DATA-01 และเป็น FR ใหม่)
+
+### คำตอบของทีมและเหตุผล
+- A1 ระบบบันทึก / A2 ดูรายการที่ยังไม่คืน / A3 แยก test ทีละเรื่อง / A4 แนบทุกครั้ง 1 รูป JPG, PNG
+- A5 เจ้าหน้าที่เห็นในรายการยืม/คืน หรือหน้ารายงานประวัติรายผู้ยืม / A6 ปล่อยไว้ก่อน
+- A7 (ตอบแถว DOM-AUDIT-01) ให้ DOM-AUDIT-01 ครอบทั้งอ่านและเขียน ไม่ให้ FR-RET-07 กำหนดเอง (แถว IF-IDP-01 ไม่ได้ตอบ คงเป็น Q-SH-08)
+- A8 การยืมทุกรายการมีกำหนดคืนเสมอ / A9 Goal ไม่เป็นไร / A10 เพิ่ม "สภาพ (ตอนรับคืน)" ใน glossary
+- A11 ชำรุดให้เป็น "ส่งซ่อม/ไม่พร้อมให้ยืม" ระงับคำขอค้าง และแจ้งผู้ขอ
+- Q1 ใช้เวลาคืนเป็นค่าเริ่มต้น / Q2 กรอกรหัสครุภัณฑ์เป็นหลัก และมีหน้ารายการที่ยังไม่คืน
+- Q3 ปกติไม่บังคับ ชำรุดบังคับ >= 1 รูป สูงสุด 5 รูป JPG/PNG <= 5 MB / Q4 เจ้าหน้าที่เห็นในหน้ารายละเอียดการยืมและรายการที่ยังไม่คืน ผู้ยืมเห็นเฉพาะของตนเอง
+- Q5 ปิดการยืมแบบ "สูญหาย" ต้องมีหมายเหตุ สถานะเป็น "สูญหาย" / Q6 เฉพาะภาควิชาตนเอง / Q7 ใช่ / Q8 ทำ CR ก่อน /plan
+- คำตอบที่ถามซ้ำ: รูป = บังคับทุกครั้ง + ขอบเขตจาก Q3 / เวลาคืนแก้ไม่ได้ / สูญหาย = "ไม่พร้อมใช้งาน" + เหตุสูญหาย /
+  ชำรุด = "ไม่พร้อมใช้งาน" ส่วนระงับคำขอและแจ้งผู้ขอเสนอใน CR
+
+### สิ่งที่แก้ใน spec.md (v1 เป็น v2)
+- FR-RET-01 เลือกได้ 2 ทาง (รหัสครุภัณฑ์ / หน้ารายการที่ยังไม่คืน) เฉพาะภาควิชาตนเอง
+- FR-RET-02 เวลาคืน = เวลาระบบ แก้ไม่ได้ / FR-RET-05 บังคับ 1-5 รูป JPG/PNG <= 5 MB
+- FR-RET-06 ระบุที่แสดงของเจ้าหน้าที่ / FR-RET-07 อ้าง DOM-AUDIT-01 ไม่กำหนดฟิลด์เอง
+- AC: แก้ AC-RET-01, 04, 05, 07, 08 และเพิ่ม AC-RET-09 ถึง 13 (AI ร่าง ทีมต้องตรวจ)
+- Constraints ใช้ร่วม: เพิ่ม DOM-REQ-01 / Scope: เพิ่มหน้ารายการที่ยังไม่คืน และย้ายสูญหาย/ระงับคำขอไป Out of scope (รอ CR-003)
+- ASM-01 ถึง 07, Q-01 ถึง Q-09 (ปิด Q-02, Q-05, Q-06 เพิ่ม Q-09), Clarifications, Traceability
+- ของกลางที่แก้เพราะ 006: glossary.md เพิ่ม "สภาพ (ตอนรับคืน)" (v2.1), constraints.md ตารางใครอ้างใช้ เพิ่ม 006 ที่ DOM-REQ-01
+
+---
+
+## 2569-11-10 คำสั่ง: /plan (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return
+- เครื่องมือ: Claude Code (`.claude/commands/plan.md`)
+- คำสั่งของทีม: "ไม่ต้องทำ CR-003.md ทำ plan ไปเลย" (ขัดกับ Q-07 ใน spec v2 ที่เขียนว่าทำ CR ก่อน plan ทีมตัดสินใหม่)
+- ก่อนเริ่ม: commit spec v2 (`0a7e66c 006: spec v2`)
+- ผลลัพธ์: specs/006-return/plan.md (Draft v1)
+- Constraint ที่ AI ยังไม่ได้ใช้: DOM-REQ-01 (การระงับคำขอค้างเป็น FR ใหม่ รอ Q-08)
+- สิ่งที่ AI บอกว่าอยากเดาแต่ไม่ได้เดา: ช่องหมายเหตุความเสียหาย (Q-04), หน้าของผู้ยืม (Q-03), ปิดการยืมแบบสูญหาย (Q-01),
+  ฟิลด์ audit สถานะก่อน/หลัง (Q-09), พฤติกรรมเมื่อ auth ล่ม (Q-SH-08)
+- สิ่งที่ AI เลือกเอง (ทีมเลือกเอง ไม่ได้มาจาก spec): เก็บรูปเป็น BYTEA, 5 MB = 5 × 1024 × 1024, ไม่แบ่งหน้ารายการที่ยังไม่คืน,
+  path `/api/v1/returns/...`, error code ใหม่ (FORBIDDEN_ROLE, NO_OPEN_LOAN, CONDITION_REQUIRED, PHOTO_*), action audit ใหม่ 4 ค่า
+- ของกลางที่ plan จะแก้ตอน implement: คอลัมน์ใหม่ในตาราง `loan` (DM-05), ค่า action ใหม่ของ `audit_log` (DM-07), เลข migration ต้องจองในกลุ่ม
+
+---
+
+## 2569-11-10 คำสั่ง: /tasks (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return
+- เครื่องมือ: Claude Code (`.claude/commands/tasks.md`)
+- ก่อนเริ่ม: ทีมแจ้งว่า "ตรวจ plan เรียบร้อยแล้ว" (ไม่ได้ตอบข้อ 1-4 ที่ AI ถามหลัง /plan: ข้อความ "รอ CR-003" ใน spec, Q-P1 ถึง Q-P5, เลข migration, คอลัมน์ใหม่ใน loan)
+- ผลลัพธ์: specs/006-return/tasks.md รอบแรก 15 เฟส (ฐานราก + 13 เฟสตาม AC + รอคำตอบ) 30 task
+- รอ Q-xx 4 task: T-27 (Q-04), T-28 (Q-03), T-29 (Q-09), T-30 (Q-SH-08) และ T-01 ต้องจองเลข migration ก่อน (Q-P4)
+- เฟสแรกที่ลองใช้งานได้จริง: เฟส 1 (บันทึกคืนสภาพปกติ อุปกรณ์กลับเป็น "ว่าง")
+- ไม่มี task: Q-01 (สูญหาย) และ Q-08 (ระงับคำขอค้าง) เพราะไม่มี FR รองรับ / DOM-REQ-01 ไม่มี task ด้วยเหตุผลเดียวกับ plan
+- test เพิ่มที่ไม่ได้มาจาก AC ตรงๆ: `TestReturns_Lookup_FoundOpenLoan`, `TestReturns_ConcurrentReturn_OneWins`
+
+---
+
+## 2569-11-10 คำสั่ง: /implement T-01 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 0 ฐานราก)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "/implement T-xx ทีละ task แล้ว commit 006-return ทุกขั้น" -> `/implement T-01 specs/006-return/tasks.md`
+- ก่อนหน้า: ทีมตอบ "จองเองเลย" เรื่องเลข migration (ใช้แค่ใน branch นี้) -> AI ใช้ `0006` แก้ data-model.md ตารางเลข migration, plan Q-P4, tasks T-01
+  (รอบแรกที่สั่ง implement ทีมหยุดและให้ถอน commit `89e9cb4` และบันทึกของรอบนั้นออก แล้วสั่งใหม่)
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- สร้าง `backend/db/migrations/0006_return.up.sql`: `loan.return_condition` (normal/damaged), `loan.returned_late`,
+  CHECK `loan_return_fields_complete`, ตาราง `loan_return_photo` (JPG/PNG, BYTEA), action ใหม่ 4 ค่าใน `audit_log_action_check`
+- แก้ `specs/000-shared/data-model.md` (ของกลาง แก้เพราะ 006): DM-05 ฟิลด์ตอนรับคืน, DM-07 แถว action ของ 006, ตารางเลข migration แถว 0006
+- แก้ `backend/internal/platform/migrate_test.go`: เพิ่ม 3 test ต่อท้าย ไม่แก้ test เดิมของ 001
+
+### ผล test (`cd backend && go test ./... -v`)
+- TestMigration006_AuditLogReturnActions PASS
+- TestMigration006_LoanReturnColumns PASS (ปกติ/ชำรุดได้, lost / ไม่ครบ 3 ค่า ถูกปฏิเสธ)
+- TestMigration006_LoanReturnPhoto PASS (JPG/PNG ได้, GIF/PDF/ว่าง และ loan ที่ไม่มีอยู่ ถูกปฏิเสธ)
+- test เดิมของ 001 (auth, healthz, migration, seed, audit_log) ยัง PASS ทั้งหมด
+
+### สิ่งที่เกือบต้องเดา
+- ชื่อ CHECK เดิมของ audit_log: ใช้ชื่อที่ PostgreSQL ตั้งให้อัตโนมัติ `audit_log_action_check` (ยืนยันด้วย test ที่ผ่าน)
+- ไม่ได้ใส่เพดานขนาดรูปเป็น CHECK ใน DB เพราะ AGENTS.md กฎข้อ 9 ให้ตัวเลขอยู่ใน config.go (T-02) ที่เดียว
+
+---
+
+## 2569-11-10 คำสั่ง: /implement T-02 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 0 ฐานราก)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "เอาเลย" -> `/implement T-02 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- แก้ `backend/internal/config/config.go`: `Timezone`, `ReturnPhotoMin`, `ReturnPhotoMax`, `ReturnPhotoMaxBytes`,
+  `ReturnRequestMaxBytes`, `ReturnPhotoTypes`, `ReturnConditionStatus` พร้อมคอมเมนต์อ้าง FR-RET-02 ถึง 05, ASM-05, ASM-06, glossary
+- สร้าง `backend/internal/config/config_test.go` (ไม่อยู่ในช่องไฟล์ที่แตะ เพิ่มเพราะ AGENTS.md ให้ test อยู่ข้างโค้ด)
+- ไม่ได้ทำ `frontend/src/config.js`: AI สร้างแล้วรัน vitest ไม่ได้ (ไม่มี node_modules) ถามว่าจะรัน `npm ci` ไหม
+  ทีมตอบ "ไม่ต้องทำอะไรกับ frontend" -> AI ลบ `frontend/src/config.js` และ `frontend/src/__tests__/config.test.js` ที่สร้างไว้ออก
+
+### ผล test (`cd backend && go test ./internal/config -v`)
+- TestReturnPhotoLimits PASS / TestReturnConditionStatus PASS / TestTimezoneLoads PASS
+
+### สิ่งที่เกือบต้องเดา
+- ที่เผื่อ 1 MB ใน `ReturnRequestMaxBytes` และ 5 MB = 5 × 1024 × 1024 มาจาก plan.md (ทีมเลือกเอง) ไม่ได้ตั้งใหม่
+- ยังไม่รู้ว่า "ไม่ต้องทำ frontend" ใช้กับ task หน้าจอที่เหลือ (T-06, T-10, T-13, T-15, T-18, T-20, T-22, T-24) ด้วยหรือไม่ ต้องถามทีม
+
+---
+
+## 2569-11-10 คำสั่ง: /implement T-03 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 0 ฐานราก)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "เอาเลยย" -> `/implement T-03 specs/006-return/tasks.md`
+- คำถามค้างจาก T-02 ที่ทีมยังไม่ตอบ: "ไม่ต้องทำ frontend" ใช้กับ task หน้าจอที่เหลือด้วยไหม (T-03 เป็นหลังบ้าน ไม่กระทบ)
+
+### ไฟล์ที่สร้างหรือแก้
+- สร้าง `backend/internal/returns/handler.go` (5 route ตาม plan ข้อ 4 ผ่าน `auth.Middleware` ตอบ 501 จนกว่าจะถึง task ของแต่ละ endpoint, `Cache-Control: no-store`)
+- สร้าง `backend/internal/returns/repository.go` (โครง Repository)
+- แก้ `backend/internal/platform/http.go` (ของกลาง แก้เพราะ 006): เพิ่ม `type Routes` และ `NewRouter(db, routes...)` แบบ variadic
+  ให้ฟีเจอร์ผูก route เองโดย platform ไม่ต้อง import ฟีเจอร์ / test เดิมของ 001 ที่เรียก `NewRouter(db)` ใช้ได้เหมือนเดิม
+- แก้ `backend/cmd/server/main.go`: สร้าง `auth.NewMockProvider()` และผูก route ของ 006 (ครั้งแรกที่ middleware ถูกผูกเข้า router จริง)
+- สร้าง `backend/db/seed/seed_006_return.sql`: `XX-NB-0002` ภาควิชา 2 ถูกยืม + การยืมที่ยังไม่คืน, การยืมที่คืนแล้ว 2 รายการของ CS-NB-0001/0002
+- สร้าง `backend/internal/returns/handler_test.go` (ไม่อยู่ในช่องไฟล์ที่แตะ เพิ่มเพราะ AGENTS.md ให้ test อยู่ข้างโค้ด)
+
+### ผล test (`cd backend && go test ./... -v`)
+- TestReturns_Skeleton_RoutedThroughAuth PASS (staff -> 501, ไม่มี token -> 401 ทั้ง 5 endpoint)
+- TestReturns_Seed006Loaded PASS (ภาควิชา 1 ยังไม่คืน 2 / คืนแล้ว 2, ภาควิชา 2 ยังไม่คืน 1)
+- test เดิมทั้งหมด (auth, config, platform) ยัง PASS
+
+### สิ่งที่เกือบต้องเดา
+- วิธีผูก route: เลือกส่งฟังก์ชันเข้า `NewRouter` แทนให้ platform import returns เพื่อไม่ให้ของกลางผูกกับฟีเจอร์ใดฟีเจอร์หนึ่ง (002-005 ใช้แบบเดียวกันได้)
+- ยังไม่ตรวจบทบาทเจ้าหน้าที่ (นักศึกษาก็ได้ 501) เพราะเป็นงานของ T-25 ตาม tasks.md
+
+---
+
+## 2569-11-10 คำสั่ง: /implement T-04 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 1)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "เอาเลย" -> `/implement T-04 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- `backend/internal/returns/repository.go`: `RecordReturn` 1 transaction (`SELECT ... FOR UPDATE OF l, i` -> ปิดการยืมด้วย `now()` ->
+  เปลี่ยนสถานะครั้งเดียว -> เก็บรูป -> commit), `ErrNoOpenLoan`
+- `backend/internal/returns/service.go` (ใหม่): สถานะหลังคืนจาก `config.ReturnConditionStatus`, `ErrUnknownCondition`
+- `backend/internal/returns/handler.go`: `POST /api/v1/returns` multipart (`assetCode`, `condition`, `photos`) ชนิดรูปจาก `http.DetectContentType`
+- `backend/internal/returns/handler_test.go`: ตัวช่วย `insertBorrowedItem`, `postReturn` และ AC test / แก้ `TestReturns_Seed006Loaded` ให้นับเฉพาะข้อมูลตัวอย่าง
+
+### ผล test (`cd backend && go test ./... -v`)
+- TestAC_RET_01_NormalReturnBecomesAvailable PASS (200, returned_at มีค่า, สถานะ available, รูป 1 รูป, Cache-Control no-store)
+- test เดิมทั้งหมดยัง PASS
+
+### สิ่งที่ต้องทำเกินขอบ task เล็กน้อย (บอกทีม)
+- `returned_late = (now() > due_at)` ต้องใส่ใน T-04 เพราะ CHECK `loan_return_fields_complete` ของ T-01 บังคับ (test ของค่านี้ยังเป็น T-16)
+- ตอบ 422 `CONDITION_REQUIRED` เมื่อสภาพไม่รู้จัก และ 409 `NO_OPEN_LOAN` แบบขั้นต่ำ เพราะต้องมีทางออกของ error เหล่านี้
+  (test และข้อความแจ้งอยู่ใน T-09 และ T-21)
+- ยังไม่ทำ: ตรวจรูป (T-11, T-12) ชนิดผิดตอนนี้ DB ปฏิเสธแล้วตอบ 503, ตรวจภาควิชา (T-23), บทบาท (T-25), audit (T-26)
+
+---
+
+## 2569-11-11 แก้คำสั่งเรื่อง frontend และทำส่วนหน้าจอของ T-02 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return
+- เครื่องมือ: Claude Code
+- คำสั่ง: "แก้ไข มีหน้า frontend ด้วย" (เปลี่ยนจากคำตอบใน T-02 ที่ว่า "ไม่ต้องทำอะไรกับ frontend")
+  -> ตอบคำถามค้างหลัง T-02 ถึง T-04 ว่า task หน้าจอ (T-06, T-10, T-13, T-15, T-18, T-20, T-22, T-24) ต้องทำ
+- สิ่งที่ AI ทำ: สร้าง `frontend/src/config.js` (ค่าเดียวกับ config.go: RETURN_PHOTO_MIN/MAX/MAX_BYTES/TYPES, RETURN_CONDITIONS)
+  และ `frontend/src/__tests__/config.test.js` ใหม่ (เป็นไฟล์เดิมที่ลบไปใน T-02), รัน `npm ci` ใน frontend/ (ติดตั้งตาม package-lock.json)
+- ผล test (`cd frontend && npm test`): config.test.js 2 tests PASS, setup.test.jsx 1 test PASS
+- หมายเหตุ: `npm ci` เตือนว่า esbuild มี install script ที่ยังไม่ได้อนุญาต (allowScripts) แต่ vitest รันได้ปกติ
+
+---
+
+## 2569-11-11 /tasks แก้รอบที่ 1 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ช่วยแยกให้หน่อยได้มั้ย task ไหนต้องทำ ควรทำ หรือไม่ต้องทำก็ได้" แล้ว "แยกเข้าไปใน task.md เลยได้มั้ย"
+- แก้รอบที่ 1: เพิ่มหัวข้อ "ลำดับความสำคัญ" ใต้ส่วนหัว และบรรทัด `- ความสำคัญ:` ในทุก task (30 task) ไม่ได้แก้ task เดิมช่องอื่น ไม่ผิดกฎข้อใด เป็นการเพิ่มตามที่ทีมขอ
+  - ต้องทำ 13 (T-01 ถึง T-06, T-08, T-09, T-11, T-21, T-23, T-25, T-26) / ควรทำ 13 / ไม่ต้องทำตอนนี้ 4 (T-27 ถึง T-30 รอ Q)
+- เกณฑ์ที่ AI ใช้ (ทีมต้องตรวจ): "ต้องทำ" = ไม่ทำแล้วระบบผิดหรือไม่ปลอดภัย, "ควรทำ" = มี AC รองรับแต่ระบบหลักใช้ได้, "ไม่ต้องทำตอนนี้" = ติด Q
+- AI เตือน: ข้าม task ไหน RTM จะแสดงว่า AC นั้นยังไม่ผ่าน / ลำดับที่แนะนำดึง T-25 ขึ้นก่อน แต่ช่อง "ต้องทำหลัง" ของ T-25 ยังชี้ T-17, T-14 ต้องให้ทีมปรับก่อน
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-05 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 1)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำ task ต่อไปได้เลย" -> `/implement T-05 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- `backend/internal/returns/repository.go`: `OpenLoan`, `FindOpenLoan` (isOverdue = now() > due_at ที่ฐานข้อมูล)
+- `backend/internal/returns/handler.go`: `GET /api/v1/returns/lookup?assetCode=` -> 200 / 409 `NO_OPEN_LOAN` / 503
+- `backend/internal/returns/handler_test.go`: `TestReturns_Lookup_FoundOpenLoan`
+
+### ผล test (`cd backend && go test ./... -v`)
+- TestReturns_Lookup_FoundOpenLoan PASS (พบการยืม ข้อมูลครบ isOverdue ถูกทั้งยังไม่เลยและเลยกำหนด, คืนแล้วได้ 409)
+- test เดิมทั้งหมดยัง PASS
+
+### สิ่งที่เกือบต้องเดา
+- ไม่ส่ง `assetCode` มาเลย: ตอบเหมือนหาไม่พบ (409 `NO_OPEN_LOAN`) ไม่สร้าง error code ใหม่ เพราะ plan ข้อ 4 ไม่มี code สำหรับกรณีนี้
+- ยังไม่กรองภาควิชา (T-23) และไม่ลง audit `return_lookup` (T-26)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-06 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 1)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำเลย" -> `/implement T-06 specs/006-return/tasks.md`
+
+### คำถามที่ AI ถาม และคำตอบของทีม
+1. หน้าจอได้ token จากไหน (หน้าล็อกอินจำลองเป็นงานของ 001 T-21 ที่ยังไม่ทำ) -> อ่านจาก localStorage key `token`
+2. `vite.config.js` ตัด `/api` ออกก่อนส่งหลังบ้าน แต่หลังบ้านใช้ `/api/v1/...` -> เอา rewrite ออก
+
+### ไฟล์ที่สร้างหรือแก้
+- ตามช่องไฟล์ที่แตะ: `frontend/src/pages/Return/ReturnPage.jsx`, `frontend/src/pages/Return/__tests__/ReturnPage.test.jsx`,
+  `frontend/src/api/client.js` (`api.returns.lookup`, `api.returns.record`, `authHeaders` จาก localStorage, `request` คืน `{ok,status,data}`),
+  `frontend/src/App.jsx` (แสดง ReturnPage ใต้หัวเรื่องเดิม)
+- นอกช่องไฟล์ที่แตะ (ทีมอนุญาต/ตามกติกา): `frontend/vite.config.js` (เอา rewrite ออก ตามคำตอบข้อ 2 เป็นไฟล์กลาง กระทบ 001),
+  `frontend/src/config.js` (เพิ่ม `TIMEZONE`, `STATUS_LABELS` ตามกฎข้อ 9)
+- `specs/006-return/tasks.md`: สถานะ T-06 และวิธีตั้ง token ในจุดตรวจเฟส 1
+
+### ผล test (`cd frontend && npm test`)
+- ReturnPage.test.jsx 2 tests PASS (AC-RET-01 บนหน้าจอ / ตัวเลือกสภาพมีแค่ปกติ-ชำรุด และไม่มีช่องเวลา)
+- config.test.js, setup.test.jsx ยัง PASS / `vite build` สำเร็จ
+
+### สิ่งที่เกือบต้องเดา
+- ข้อความ error ตอนนี้เป็นแบบรวม "ค้นหาไม่สำเร็จ (code)" / "บันทึกไม่สำเร็จ (code)" ข้อความแยกตามกรณีอยู่ใน T-10, T-13, T-22, T-24
+- ยังไม่มี router หน้าเดียวแสดงใน App.jsx (plan ไม่ได้กำหนด router)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-07 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 2)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำเลยย" (ไม่ระบุ task) -> AI เลือก T-07 ตามลำดับเฟส เพราะ T-25 ที่แนะนำยังติดช่อง "ต้องทำหลัง" (T-17, T-14) ที่ทีมยังไม่สั่งแก้
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/returns/handler_test.go`: `TestAC_RET_09_ReturnTimeFromServer`
+- `backend/internal/returns/handler.go`: ไม่ต้องแก้ (T-04 ไม่อ่านฟิลด์เวลาจาก client อยู่แล้ว)
+
+### ผล test (`cd backend && go test ./internal/returns -v`)
+- TestAC_RET_09_ReturnTimeFromServer PASS (ส่ง `returnedAt` / `returned_at` ปลอม -> returned_at อยู่ระหว่าง now() ก่อนและหลังบันทึก)
+- test เดิมของ returns ยัง PASS
+
+### สิ่งที่เกือบต้องเดา
+- AC ใช้เวลา 14:30 ตายตัว แต่เวลาคืนมาจาก now() ของฐานข้อมูล จึงตรวจแบบช่วงเวลา (ก่อน/หลังบันทึก) แทน ตามที่ plan.md ข้อ 6 เสนอ
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-08 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 3)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำตามลำดับ" -> `/implement T-08 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/returns/handler_test.go`: `TestAC_RET_02_DamagedReturnBecomesUnavailable`
+  (สร้าง trigger + ตาราง `test_status_history` เฉพาะใน test แล้วลบทิ้งใน Cleanup)
+- `backend/internal/returns/service.go`: ไม่ต้องแก้ (T-04 ใช้ `config.ReturnConditionStatus` ซึ่งมี damaged -> unavailable แล้ว)
+
+### ผล test (`cd backend && go test ./internal/returns -v`)
+- TestAC_RET_02_DamagedReturnBecomesUnavailable PASS (200, itemStatus unavailable, returned_at มีค่า, ประวัติสถานะ = [unavailable] ครั้งเดียว)
+- test เดิมของ returns ยัง PASS
+
+### สิ่งที่เกือบต้องเดา
+- ไม่มี: วิธีตรวจ "ไม่เคยเป็นว่างระหว่างทาง" ด้วย trigger มาจาก plan.md ข้อ 6
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-09 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 4)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำ task ต่อไปเลย" -> `/implement T-09 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/returns/handler_test.go`: `TestAC_RET_04_ConditionRequired`
+- `backend/internal/returns/handler.go`: ไม่ต้องแก้ (T-04 ตอบ 422 `CONDITION_REQUIRED` ก่อนแตะฐานข้อมูลอยู่แล้ว ผ่าน `ErrUnknownCondition` ใน service)
+
+### ผล test (`cd backend && go test ./internal/returns -v`)
+- TestAC_RET_04_ConditionRequired PASS (ไม่ส่ง / ว่าง / lost / broken / "ปกติ" ภาษาไทย -> 422 CONDITION_REQUIRED, การยืม สถานะ รูป ไม่เปลี่ยน)
+- test เดิมของ returns ยัง PASS
+
+### สิ่งที่เกือบต้องเดา
+- ไม่มี
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-10 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 4)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำเลยย" -> `/implement T-10 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- `frontend/src/pages/Return/ReturnPage.jsx`: `conditionRequiredMessage` (สร้างจากชื่อสภาพใน config.js), ตรวจก่อนส่งถ้ายังไม่เลือกสภาพ,
+  แสดงข้อความเดียวกันเมื่อหลังบ้านตอบ `CONDITION_REQUIRED`
+- `frontend/src/pages/Return/__tests__/ReturnPage.test.jsx`: ตัวช่วย `openLoanForm` และ test AC-RET-04 2 ตัว
+
+### ผล test (`cd frontend && npm test`)
+- AC-RET-04: กดบันทึกโดยไม่เลือกสภาพ -> "กรุณาเลือกสภาพ ปกติ หรือ ชำรุด", ไม่เรียก record, ไม่มี "สูญหาย" PASS
+- AC-RET-04: หลังบ้านตอบ CONDITION_REQUIRED -> ข้อความเดียวกัน PASS
+- test เดิมทั้งหมด PASS (7 tests)
+
+### สิ่งที่เกือบต้องเดา
+- ข้อความ "กรุณาเลือกสภาพ ปกติ หรือ ชำรุด" ไม่มี mockup ทีมออกแบบเอง ใช้ถ้อยคำตาม Then ของ AC-RET-04
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-11 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 5)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำ task ต่อเลย" -> `/implement T-11 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- `backend/internal/returns/repository.go`: `LoanDetail`, `GetLoan`, `ErrLoanNotFound`
+- `backend/internal/returns/handler.go`: `GET /api/v1/returns/loans/{loanId}` -> 200 / 404 `LOAN_NOT_FOUND` / 503
+- `backend/internal/returns/handler_test.go`: `TestReturns_LoanDetail`
+
+### ผล test (`cd backend && go test ./internal/returns -v`)
+- TestReturns_LoanDetail PASS (คืนแล้ว: ข้อมูลครบ condition damaged returnedLate false / ยังไม่คืน: returnedAt null / ไม่มีหรือไม่ใช่ตัวเลข: 404)
+- test เดิมของ returns ยัง PASS (8 tests)
+
+### สิ่งที่เกือบต้องเดา
+- error code `LOAN_NOT_FOUND` (404) ไม่มีในตาราง error ของ plan ข้อ 4 AI ตั้งเอง ทีมต้องยืนยันและเพิ่มใน plan
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-12 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 5)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำเลยย" -> `/implement T-12 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- ตามช่องไฟล์ที่แตะ: สร้าง `frontend/src/pages/Return/LoanDetailPage.jsx` (เวลาคืน สภาพ "ยังไม่คืน" ข้อความ error ตาม code),
+  `frontend/src/pages/Return/__tests__/LoanDetailPage.test.jsx`, แก้ `frontend/src/api/client.js` (`api.returns.loanDetail`)
+- นอกช่องไฟล์ที่แตะ (จำเป็นตามช่อง "เสร็จเมื่อ" ที่ให้ ReturnPage มีลิงก์): `ReturnPage.jsx` ปุ่ม "ดูรายละเอียดการยืม" หลังบันทึกสำเร็จ,
+  `ReturnPage.test.jsx` test ของปุ่มนี้
+
+### ผล test (`cd frontend && npm test`)
+- LoanDetailPage.test.jsx 3 tests PASS (คืนแล้ว / ยังไม่คืน / โหลดไม่สำเร็จ)
+- ReturnPage.test.jsx เพิ่ม 1 test PASS (บันทึกแล้วกดดูรายละเอียด) / รวม 10 tests PASS / `vite build` สำเร็จ
+
+### สิ่งที่เกือบต้องเดา
+- แอปยังไม่มี router (plan ไม่ได้กำหนด) "ลิงก์" จึงเป็นปุ่มที่เปิด LoanDetailPage ในหน้าเดียวกัน ไม่เพิ่ม library ใหม่
+- ป้าย "คืนเกินกำหนด" ยังไม่แสดง เป็นงานของ T-17
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-13 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 6)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำต่อเลย" -> `/implement T-13 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/returns/handler_test.go`: `TestAC_RET_06_LateReturnFlagged`
+- `backend/internal/returns/repository.go`: ไม่ต้องแก้ (T-04 บันทึก `returned_late = (now() > due_at)` ไว้แล้ว เพราะ CHECK ของ T-01 บังคับ)
+
+### ผล test (`cd backend && go test ./internal/returns -v`)
+- TestAC_RET_06_LateReturnFlagged PASS (กำหนดคืนผ่านไปแล้ว -> true / ยังไม่ถึง -> false ทั้งใน response และฐานข้อมูล,
+  แก้ due_at ภายหลังแล้ว returned_late ไม่เปลี่ยน)
+- test เดิมของ returns ยัง PASS (9 tests)
+
+### สิ่งที่เกือบต้องเดา
+- AC ใช้เวลา 17:00 / 15:00 ตายตัว แต่เวลาคืนมาจาก now() ของฐานข้อมูล จึงใช้กำหนดคืนสัมพัทธ์ +/- 1 ชั่วโมงแทน ตาม plan.md ข้อ 6
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-14 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 7)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "เอาเลย" -> `/implement T-14 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- `backend/internal/returns/repository.go`: `ListOpenLoans(departmentID)` กรองภาควิชาที่ชั้น repository เรียงตาม due_at คืน `[]` เมื่อไม่มี
+- `backend/internal/returns/handler.go`: `GET /api/v1/returns/open-loans` ใช้ภาควิชาจาก `auth.FromContext` (IF-IDP-01) ไม่รับจาก query
+  ลบ `notImplemented` เพราะทุก endpoint ทำแล้ว
+- `backend/internal/returns/handler_test.go`: `TestAC_RET_10_OpenLoansOwnDepartment`, ตัวช่วย `fixedProvider`, `insertDepartment`, `insertLoanOfModel`
+  แก้ `TestReturns_Skeleton_RoutedThroughAuth` (test ของ T-03 ที่ AI เขียนเอง ไม่ใช่ TestTC_) ให้เลิกคาด 501 เหลือเฉพาะการตรวจ auth
+
+### ผล test (`cd backend && go test ./internal/returns -v`)
+- TestAC_RET_10_OpenLoansOwnDepartment PASS (ได้ 3 รายการของภาควิชาตนเองพอดี เรียงตามกำหนดคืน ไม่มีที่คืนแล้วหรือของภาควิชาอื่น,
+  isOverdue ถูก, ภาควิชาที่ไม่มีการยืมค้างได้ `[]`)
+- test เดิมของ returns ยัง PASS (10 tests)
+
+### สิ่งที่เกือบต้องเดา
+- ฐานข้อมูลทดสอบใช้ร่วมกันทุก test นับ "3 รายการพอดี" ในภาควิชา 1 ไม่ได้ จึงสร้างภาควิชาใหม่และเจ้าหน้าที่จำลองเฉพาะ test (ผ่าน `auth.Provider` ไม่แก้ mock ของกลาง)
+- ไม่แบ่งหน้า ตาม plan.md Q-P1 ที่ยังรอทีมยืนยัน
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-15 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 7)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำเลย" -> `/implement T-15 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- ตามช่องไฟล์ที่แตะ: สร้าง `frontend/src/pages/Return/OpenLoansPage.jsx` (ตาราง รหัสครุภัณฑ์ รุ่น ผู้ยืม กำหนดคืน ปุ่ม "เลือก", รายการว่าง, error ตาม code),
+  `frontend/src/pages/Return/__tests__/OpenLoansPage.test.jsx`, แก้ `frontend/src/api/client.js` (`api.returns.openLoans`),
+  `frontend/src/pages/Return/ReturnPage.jsx` (รับ `initialAssetCode` แล้วกรอกและค้นหาให้ทันที)
+- นอกช่องไฟล์ที่แตะ: `frontend/src/App.jsx` (แสดง OpenLoansPage ใต้ ReturnPage และเปิด ReturnPage ใหม่ด้วย key เมื่อเลือกแถว),
+  `ReturnPage.test.jsx` (test ของ initialAssetCode) เพราะแอปยังไม่มี router
+
+### ผล test (`cd frontend && npm test`)
+- OpenLoansPage.test.jsx 3 tests PASS (AC-RET-10: 3 แถว + กดเลือกส่งรหัส / รายการว่าง / โหลดไม่สำเร็จ)
+- ReturnPage.test.jsx เพิ่ม 1 test PASS (initialAssetCode) / รวม 14 tests PASS / `vite build` สำเร็จ
+- มีคำเตือน act(...) จาก `setup.test.jsx` (test โครงของรายวิชา) เพราะ App โหลดรายการตอนเปิด test ยังผ่าน ไม่ได้แก้ไฟล์นั้น
+
+### สิ่งที่เกือบต้องเดา
+- ไม่มี router "เปิด ReturnPage ที่กรอกรหัสไว้" จึงทำด้วย state ใน App.jsx แทนการเปลี่ยนหน้า
+- รายการไม่รีเฟรชเองหลังบันทึกคืน (spec ไม่ได้กำหนด) ต้องโหลดหน้าใหม่ ป้าย "เลยกำหนดคืน" อยู่ใน T-17
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-16 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 8)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำเลย" -> `/implement T-16 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/returns/handler_test.go`: `TestAC_RET_13_OverdueShownToStaff`
+- `backend/internal/returns/repository.go`: ไม่ต้องแก้ (`isOverdue` มีใน `ListOpenLoans` จาก T-14 และ `returnedLate` มีใน `GetLoan` จาก T-11)
+
+### ผล test (`cd backend && go test ./internal/returns -v`)
+- TestAC_RET_13_OverdueShownToStaff PASS (รายละเอียดการยืมที่คืนเกินกำหนดได้ returnedLate true, รายการที่ยังไม่คืนมีเฉพาะรายการที่เลยกำหนดพร้อม isOverdue true)
+- test เดิมของ returns ยัง PASS (11 tests)
+
+### สิ่งที่เกือบต้องเดา
+- ไม่มี (ใช้ภาควิชาใหม่เฉพาะ test เหมือน T-14 เพื่อให้รายการที่ยังไม่คืนนับได้แน่นอน)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-17 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 8)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำเล้ยยย" -> `/implement T-17 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- `frontend/src/pages/Return/LoanDetailPage.jsx`: ป้าย "คืนเกินกำหนด" เมื่อ `returnedLate`
+- `frontend/src/pages/Return/OpenLoansPage.jsx`: ป้าย "เลยกำหนดคืน" ในช่องกำหนดคืนเมื่อ `isOverdue`
+- `LoanDetailPage.test.jsx`, `OpenLoansPage.test.jsx`: test AC-RET-13 ฝั่งหน้าจอ
+
+### ผล test (`cd frontend && npm test`)
+- AC-RET-13: หน้ารายละเอียดแสดง "คืนเกินกำหนด" เมื่อ returnedLate (ไม่แสดงเมื่อคืนทัน) PASS
+- AC-RET-13: แถวที่ isOverdue แสดง "เลยกำหนดคืน" แถวอื่นไม่แสดง PASS
+- รวม 16 tests PASS / `vite build` สำเร็จ
+
+### สิ่งที่เกือบต้องเดา
+- คำบนป้าย: ใช้ "คืนเกินกำหนด" ตาม FR-RET-06 และ "เลยกำหนดคืน" ตามป้ายใน glossary.md (คำเดียวกับที่ 001 ใช้) ไม่มี mockup
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-18 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 9)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำเลย" -> `/implement T-18 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/returns/handler_test.go`: `TestAC_RET_03_NoOpenLoanRejected`, `TestReturns_ConcurrentReturn_OneWins`, ตัวช่วย `insertItemWithoutLoan`, `itemStatus`
+- `service.go`, `repository.go`: ไม่ต้องแก้ (409 `NO_OPEN_LOAN` มีตั้งแต่ T-04 / T-05 และ `SELECT ... FOR UPDATE OF l, i` กันบันทึกซ้อนอยู่แล้ว)
+
+### ผล test (`cd backend && go test ./internal/returns -v`)
+- TestAC_RET_03_NoOpenLoanRejected PASS (ว่าง / ไม่พร้อมใช้งาน: lookup และ POST ได้ 409 NO_OPEN_LOAN สถานะไม่เปลี่ยน, รหัสที่ไม่มีได้ 409)
+- TestReturns_ConcurrentReturn_OneWins PASS (5 ชิ้น ยิงพร้อมกันชิ้นละ 2 request ได้ 200 หนึ่ง 409 หนึ่ง ปิดการยืมครั้งเดียว)
+- รันแยก 5 รอบด้วย `-race` ผ่านทุกรอบ ไม่พบ data race / test เดิมของ returns ยัง PASS (13 tests)
+
+### สิ่งที่เกือบต้องเดา
+- ไม่มี / หมายเหตุ: test ใน package นี้ใช้รหัสครุภัณฑ์ตายตัว รันด้วย `-count` มากกว่า 1 จะชนรหัสเดิม ให้รันทีละครั้ง
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-19 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 9)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำต่อได้เลยครับ" -> `/implement T-19 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- `frontend/src/pages/Return/ReturnPage.jsx`: `noOpenLoanMessage` "อุปกรณ์นี้ไม่มีการยืมที่ยังไม่คืน" เมื่อ lookup หรือ record ได้ `NO_OPEN_LOAN`
+  (lookup: ไม่แสดงฟอร์มสภาพ / record ที่ชนกับคนอื่น: ปิดฟอร์ม)
+- `frontend/src/pages/Return/__tests__/ReturnPage.test.jsx`: test AC-RET-03 บนหน้าจอ และกรณีบันทึกซ้อน
+
+### ผล test (`cd frontend && npm test`)
+- AC-RET-03: ค้นหาแล้วได้ NO_OPEN_LOAN แจ้งข้อความ และไม่แสดงฟอร์มสภาพ PASS
+- T-19: บันทึกแล้วได้ NO_OPEN_LOAN แจ้งข้อความ และปิดฟอร์ม PASS
+- รวม 18 tests PASS / `vite build` สำเร็จ
+
+### สิ่งที่เกือบต้องเดา
+- ข้อความใช้ตาม Then ของ AC-RET-03 ไม่มี mockup / กรณีบันทึกซ้อนใช้ข้อความเดียวกัน (ไม่ได้สร้างข้อความใหม่)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-20 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 10)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำต่อได้เลย" -> `/implement T-20 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- ตามช่องไฟล์ที่แตะ: `repository.go` (`ErrForbiddenDepartment`, `checkItemDepartment` ตรวจภาควิชาก่อนเรื่องการยืมค้าง,
+  `RecordReturn` / `FindOpenLoan` / `GetLoan` รับ departmentID), `service.go` (`RecordReturn` รับ departmentID),
+  `handler_test.go` (`TestAC_RET_11_OtherDepartmentForbidden`)
+- นอกช่องไฟล์ที่แตะ: `handler.go` (จำเป็นเพื่อส่งภาควิชาจาก `auth.FromContext` และแปลง error เป็น 403 `FORBIDDEN_DEPARTMENT`, เพิ่ม `principal`, `writeForbiddenDepartment`)
+
+### ผล test (`cd backend && go test ./... -v`)
+- TestAC_RET_11_OtherDepartmentForbidden PASS (lookup / POST / loan detail ของอุปกรณ์ภาควิชาอื่น ทั้งที่ถูกยืมและที่ว่าง ได้ 403 body มีแค่ code,
+  การยืมไม่ถูกปิด สถานะยัง borrowed)
+- test เดิมทั้งหมด PASS (returns 14 tests, platform, config, auth)
+
+### สิ่งที่เกือบต้องเดา
+- ลำดับ 403 กับ 409: ตรวจภาควิชาก่อนเสมอตาม plan.md ข้อ 4 อุปกรณ์ภาควิชาอื่นที่ไม่มีการยืมค้างก็ได้ 403 (ไม่บอกใบ้ว่ามีการยืมหรือไม่)
+- รหัสครุภัณฑ์ที่ไม่มีในระบบยังได้ 409 `NO_OPEN_LOAN` ตามเดิม (AC-RET-03)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-21 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 10)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำต่อเลยคับ" -> `/implement T-21 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- `frontend/src/pages/Return/ReturnPage.jsx`: `forbiddenDepartmentMessage` "ไม่มีสิทธิ์: อุปกรณ์นี้เป็นของภาควิชาอื่น" เมื่อ lookup หรือ record ได้ `FORBIDDEN_DEPARTMENT`
+  (ไม่แสดงฟอร์ม / ปิดฟอร์ม)
+- `frontend/src/pages/Return/__tests__/ReturnPage.test.jsx`: test AC-RET-11 บนหน้าจอ และกรณีตอนบันทึก
+
+### ผล test (`cd frontend && npm test`)
+- AC-RET-11: ค้นหาแล้วได้ FORBIDDEN_DEPARTMENT แจ้งว่าไม่มีสิทธิ์ ไม่แสดงฟอร์ม ไม่เรียก record PASS
+- T-21: บันทึกแล้วได้ FORBIDDEN_DEPARTMENT แจ้งข้อความเดียวกัน ปิดฟอร์ม PASS
+- รวม 20 tests PASS / `vite build` สำเร็จ
+
+### สิ่งที่เกือบต้องเดา
+- ถ้อยคำ: AC-RET-11 บอกแค่ "ปฏิเสธว่าไม่มีสิทธิ์" AI ใช้ "ไม่มีสิทธิ์: อุปกรณ์นี้เป็นของภาควิชาอื่น" ไม่มี mockup ทีมตรวจถ้อยคำ
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-22 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 11)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำต่อเลย" -> `/implement T-22 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้ (ตรงกับช่องไฟล์ที่แตะ)
+- `backend/internal/returns/handler.go`: `staffOnly` ครอบทุก route ของ 006 ต่อจาก `auth.Middleware` บทบาทอื่นได้ 403 `FORBIDDEN_ROLE` ก่อนถึง handler
+- `backend/internal/returns/handler_test.go`: `TestAC_RET_08_StudentForbidden`
+
+### ผล test (`cd backend && go test ./... -v`)
+- TestAC_RET_08_StudentForbidden PASS (token นักศึกษาเรียกทั้ง 4 endpoint ได้ 403 body มีแค่ code, การยืมและสถานะไม่เปลี่ยน, เจ้าหน้าที่ยังได้ 200)
+- test ทั้งหมดของ backend ยัง PASS (returns 15 tests)
+
+### สิ่งที่เกือบต้องเดา
+- ไม่มี (error code `FORBIDDEN_ROLE` มาจากตาราง error ของ plan.md ข้อ 4)
+
+---
+
+## 2569-11-11 คำสั่ง: /implement T-23 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return (เฟส 12)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: "ทำเลย" -> `/implement T-23 specs/006-return/tasks.md`
+
+### ไฟล์ที่สร้างหรือแก้
+- ตามช่องไฟล์ที่แตะ: `handler.go` (ทุกคำตอบผ่าน `respond` ที่เขียน audit ก่อนตอบ, `errorResponse` รวมการแปลง error,
+  `staffOnly` เขียน audit forbidden ด้วย action ของ endpoint), `service.go` (ส่ง AuditEntry เข้า transaction),
+  `handler_test.go` (`TestAC_RET_07_ReturnAudited`, ตัวช่วย `auditRowsOf`)
+- นอกช่องไฟล์ที่แตะ: สร้าง `backend/internal/returns/audit.go` (ยังไม่มี package audit ของ 001 จึงเขียนใน returns ใช้คอลัมน์ DM-07 เดิม),
+  แก้ `repository.go` (`RecordReturn` เขียน audit "return" ใน transaction เดียวกัน ตามช่อง "เสร็จเมื่อ")
+
+### ผล test (`cd backend && go test ./... -v`)
+- TestAC_RET_07_ReturnAudited PASS (lookup / return / detail / list ของเจ้าหน้าที่ outcome ok ครบตามลำดับ, บันทึกซ้ำ 409 = error,
+  lookup เก็บเงื่อนไขที่ค้นใน query, audit ของการคืนสำเร็จมีเวลาเท่า returned_at = transaction เดียวกัน, นักศึกษาได้ outcome forbidden)
+- test ทั้งหมดของ backend ยัง PASS (returns 16 tests)
+
+### สิ่งที่เกือบต้องเดา (ทีมต้องยืนยัน)
+- การจับคู่ outcome: 2xx = ok, 403 = forbidden, อื่น ๆ (409, 422, 404, 503) = error เพราะ DM-07 มีแค่ 3 ค่า
+- เขียน audit ไม่สำเร็จตอบ 503 ไม่ส่งข้อมูล (fail closed ตามแนว plan 6.4 ของ 001)
+- ไม่เก็บสถานะก่อน/หลังใน audit (รอ Q-09 T-26)
+
+---
+
+## 2569-11-11 ใช้โครงกลางจาก 001 และย้ายโค้ดเข้า package ของ 006 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ใช้โครงกลางจาก 001 (Go, PostgreSQL, auth จำลอง) ห้ามสร้างโครงแอปใหม่เอง และเขียนโค้ดเฉพาะใน package ของตัวเอง"
+
+### สิ่งที่ AI ตรวจ
+- ไม่ได้สร้างโครงแอปใหม่: ใช้ `platform.NewRouter`, `platform.OpenDB/Migrate/Seed`, `auth.Middleware`, `auth.NewMockProvider`, PostgreSQL + testcontainers ของ 001 ตลอด
+- ไฟล์นอก package ของ 006 ที่เคยแก้: `platform/http.go`, `platform/migrate_test.go`, `config/config_test.go`, `frontend/src/__tests__/config.test.js`
+
+### สิ่งที่แก้
+- คืน `backend/internal/platform/http.go` และ `migrate_test.go` เป็นของ 001 (เหมือน commit 5edd87d ทุกตัวอักษร)
+- `backend/cmd/server/main.go`: ใช้ `platform.NewRouter(db)` เดิมแล้วผูก route ของ 006 ด้วย `returnsHandler.Routes(provider)(router)`
+- ย้าย test ของ migration 0006 และ config ของ 006 ไป `backend/internal/returns/migration_test.go` ลบ `config/config_test.go` (ไฟล์ที่ 006 สร้างเอง)
+- `handler_test.go`: ตัวช่วย `newRouterWith` ใช้ router กลางของ 001 แบบเดียวกับ main.go
+- ย้าย `frontend/src/__tests__/config.test.js` ไป `frontend/src/pages/Return/__tests__/config.test.js`
+
+### ที่ยังอยู่นอก package ของ 006 (ตั้งใจ)
+- `config/config.go`, `frontend/src/config.js`: AGENTS.md กฎข้อ 9 ให้ค่าจาก spec อยู่ที่นี่ที่เดียว
+- `cmd/server/main.go`, `frontend/src/api/client.js`, `frontend/src/App.jsx`, migration/seed: จุดที่โครงของ 001 ให้ฟีเจอร์เพิ่มเอง
+- `frontend/vite.config.js`: ทีมสั่งให้เอา rewrite ออกตอน T-06
+
+### ผล test
+- `cd backend && go test ./...`: PASS ทั้งหมด (platform ของ 001 เท่าเดิม, returns 20 tests)
+- `cd frontend && npm test`: 20 tests PASS
+
+---
+
+## 2569-11-11 คำสั่ง: /verify (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
+- ฟีเจอร์: 006-return
+- เครื่องมือ: Claude Code (`.claude/commands/verify.md`)
+- คำสั่ง: "ตอนท้ายรัน /verify ทำ rtm.md ของฟีเจอร์ตัวเอง" -> `/verify specs/006-return/spec.md`
+- ผลลัพธ์: `specs/006-return/rtm.md` (รอบแรก) ไม่ได้แก้โค้ด test spec plan tasks
+
+### ผล test (ดูอย่างเดียว)
+- `cd backend && go test ./... -v`: 30 ผ่าน 0 ไม่ผ่าน (auth 3, platform 7, returns 20)
+- `cd frontend && npm test`: 20 ผ่าน 0 ไม่ผ่าน
+
+### ตารางไปข้างหน้า 18 แถว
+- ครบ 9 / ยังไม่ถึง 3 (NFR-DATA-01 รอ 001 T-16, NFR-SEC-01 และ CON-TECH-02 รอ TLS ของ deploy กลาง) / รอ 1 (DOM-REQ-01 รอ Q-08) /
+  ช่องโหว่ 4 (FR-RET-01, FR-RET-07, DOM-AUDIT-01, NFR-AVAIL-01) / ยกเลิก 1 (FR-RET-05)
+
+### ข้อค้นพบใหม่
+- F-01 เดา: การจับคู่ outcome ของ audit (409/422/404 = error) ไม่มีที่มาใน spec/DM-07
+- F-02 เดา: fail closed 503 เมื่อเขียน audit ไม่ได้ ใช้แนว Q-P4 ของ 001 ที่ยังไม่มีคำตอบ
+- F-03 test อ่อน: การต่อ OpenLoansPage -> ReturnPage ใน App.jsx ไม่มี test (AC-RET-10)
+- F-04 FR ไม่มี AC: NFR-AVAIL-01
 
 ---
 
@@ -5925,3 +6651,25 @@ main
 - เครื่องมือ: Claude Code
 - ไฟล์ที่แก้: specs/003-cancel-request/plan.md บรรทัด 185 (ข้อ 6 แถว AC-CXL-13) ชื่อ vitest AC_CXL_13 shows error with retry, 503 UPSTREAM_UNAVAILABLE {code, message} ไม่มี retryable
   specs/003-cancel-request/rtm.md ช่องทีมตัดสินของ F-11 เขียนตามคำสั่งของเจ้าของ (จะย้ายไปหัวข้อแก้แล้วตอน /verify รอบหน้า)
+
+---
+
+## 2569-11-12 ย้อนข้อ ข ค ง และเก็บ T-29 CON-TECH-03 (006-return)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน (@660710737) สั่ง "อะไรที่ไม่จำเป็นไม่ต้องทำเพิ่ม"
+- เครื่องมือ: Claude Code
+- เก็บไว้: T-29 error ทุกตัวตอบ {code, message} ตาม CON-TECH-03 (handler.go errorBody, config.go ReturnMessages, TestReturns_ErrorBodyFollowsConTech03)
+- ย้อนออก: FR-RET-08 / AC-RET-14 / ASM-08 (คำขอเป็น returned), การใช้ package audit กลาง, หน้าจอแสดง message จากหลังบ้าน, ReturnsHome.test.jsx และ T-28, T-30, T-31 ใน tasks.md
+- ผล test: go test ./... ผ่านทุก package, npm test ผ่าน 126 (53 ไฟล์), vite build ผ่าน
+
+---
+
+## 2569-11-12 ปิด Q-10 ลงทะเบียนรหัส error ของ 006 (006-return แก้ไฟล์กลาง)
+
+- ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน (@660710737) ถาม "ถ้าใช้รหัสกลางจะมีปัญหาอะไรมั้ย" แล้วเลือกลงทะเบียน สั่ง "ทำเลย"
+- เครื่องมือ: Claude Code
+- AI ตอบ: ใช้รหัสกลางได้แค่ CONDITION_REQUIRED -> VALIDATION_FAILED ส่วน NO_OPEN_LOAN, LOAN_NOT_FOUND ไม่มีรหัสกลางที่ความหมายตรง ต้องลงทะเบียนอยู่ดี
+- ไฟล์กลางที่แก้ (เพราะ 006): specs/000-shared/constraints.md v5.4 เพิ่มแถว NO_OPEN_LOAN (409), CONDITION_REQUIRED (422), LOAN_NOT_FOUND (404)
+  เติม 006 ในช่อง "ใครใช้แล้ว" ของ UNAUTHENTICATED, FORBIDDEN_DEPARTMENT, UPSTREAM_UNAVAILABLE, FORBIDDEN_ROLE และในตาราง "ใครอ้างใช้" แถว CON-TECH-03 ไม่แก้แถวของฟีเจอร์อื่น
+- ไฟล์ของ 006: spec.md (Q-10 ปิด, Clarifications), plan.md, tasks.md, config.go (คอมเมนต์)
+- แก้เพิ่ม: ลบ conflict marker 3 บรรทัดที่ค้างใน prompt-log.md จาก merge 2531bd2 (<<<<<<< HEAD, =======, >>>>>>> 1a46da5) เก็บเนื้อหาทั้งสองฝั่ง ไม่ลบบันทึกใด
