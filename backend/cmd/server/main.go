@@ -63,6 +63,9 @@ func main() {
 	// ฟีเจอร์ 002 ส่งคำขอยืม (T-05) ต้องผ่านการยืนยันตัวตนเช่นกัน (IF-IDP-01, NFR-SEC-01)
 	br := borrowrequest.NewHandler(borrowrequest.NewService(borrowrequest.NewRepository(db)))
 	mux.Handle(borrowrequest.PathPrefix, auth.Middleware(provider, br.Routes()))
+	// path ลูกของฟีเจอร์นี้ เช่น /v1/loan-requests/{id}/attachment (T-15, FR-BRQ-10 ข้อ ก)
+	// mux ชั้นนอกจับ path แบบเป๊ะ ๆ ถ้าไม่ผูกตัวที่ลงท้ายด้วย / ไว้ด้วย path ลูกจะไปไม่ถึง router ของฟีเจอร์
+	mux.Handle(borrowrequest.PathPrefix+"/", auth.Middleware(provider, br.Routes()))
 
 	// ฟีเจอร์ 004 อนุมัติคำขอยืมปกติ (T-05) ต้องยืนยันตัวตนและเป็นเจ้าหน้าที่ (IF-IDP-01, NFR-SEC-01, AC-APV-05)
 	ap := approve.NewHandler(approve.NewService(approve.NewRepository(db)))
