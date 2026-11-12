@@ -5551,3 +5551,20 @@ main
   - คอมเมนต์โค้ด: repository.go (ชื่อ นามสกุล ASM-HND-10), verifier.go (ASM-HND-09 เทอมนี้ใช้ตัวจำลอง), handler.go (ขนาดรูปตรวจใน validatePhotos)
 - ไม่แก้: คอมเมนต์ "ที่มารอ Q-HND-13" ใน `0006_handover.up.sql` (migration ที่ merge แล้ว ห้ามแก้), ช่องติ๊ก AC ใน spec.md (ทีมติ๊กตอนทำ RTM), specs/README.md และ data-model.md (ไฟล์กลาง)
 - ผล test (container golang:1.25): test ของ 005 ทั้ง 27 ฟังก์ชันผ่าน `go test ./...` ผ่านทุก package gofmt ผ่าน
+
+---
+
+## 2569-11-12 /testcases โหมดร่าง AC-HND-01 ถึง AC-HND-14
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "test-case rtm ทำเพิ่มมา" -> /testcases specs/005-handover (ทำทุก AC ของ 005 ตามที่สั่ง)
+- โหมด: ร่าง (ยังไม่มี test-cases.md) สร้าง `specs/005-handover/test-cases.md` 63 แถว สถานะ "ร่าง" ทุกแถว ยังไม่เขียนโค้ด test
+  - go test 44 แถว / vitest 8 แถว (TC-HND-02-6, 02-7, 03-5, 10-3, 12-7, 14-3, 14-4) / คน 6 แถว (TC-HND-02-8, 04-4, 05-5, 06-5, 07-4, 14-5) รวม TC-HND-01-1 ถึง TC-HND-14-5
+- ส่วนของ Then ที่ spec ไม่ได้บอก (ต้องให้ทีมตอบก่อนเปลี่ยนเป็น "ใช้ได้"):
+  - TC-HND-01-4 ไม่มีคำขอรหัสนี้ ตอบ HTTP / code อะไร (ตอนนี้โค้ดตอบ 404 แบบไม่มี body `{code, message}` ขัด CON-TECH-03 ที่ให้ทุก error เป็น `{code, message}` รายการกลางมี `REQUEST_NOT_FOUND`)
+  - TC-HND-02-4 ชื่อหรือนามสกุลว่าง / TC-HND-02-5 credential ใช้ไม่ได้ / TC-HND-07-3 ไม่ส่ง credential ตอบ HTTP / code อะไร (plan ข้อ 4 ไม่มีแถว)
+  - TC-HND-08-5 audit log ของคำขอที่ไม่มีจริง ใส่รหัสคำขอ / รหัสครุภัณฑ์อย่างไร
+  - ข้อความบนหน้าจอ: TC-HND-02-7 (ปุ่มปิดหรือแจ้ง), 03-5 (unavailable), 10-3 (mismatch), 12-7 (รูปไม่ถูกต้อง), 14-4 (ไม่มีคำขอ) spec ไม่มี UI ID ไม่มี mockup
+- AC-HND-13 ใส่ "(รอ Q-SH-06)" เพราะ Given ไม่เกิดในระบบจริง
