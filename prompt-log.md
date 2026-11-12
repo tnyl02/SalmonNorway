@@ -5344,3 +5344,11 @@ main
   ข้อ 3 (returnTo) plan ข้อ 4 แก้แล้วใน v1.6 แต่ข้อ 6 ยังค้าง 2 บรรทัด (AI ตกหล่นตอน v1.6)
 - ไฟล์ที่แก้: specs/003-cancel-request/plan.md บรรทัด 179 ชื่อ test เป็น AC_CXL_07 redirects to login and back และคำอธิบายตามกลไกของ 001, บรรทัด 191 ตัด returnTo URL ภายนอกออกจาก test ของ 003 (อยู่ใน safePageKey ทดสอบโดย 001)
 - ยิงหลังบ้านจริง (405 ของ 001 T-40): GET ที่ /v1/borrow-requests/3001/cancel -> 405 Allow: POST {code:METHOD_NOT_ALLOWED, message}, DELETE ที่ /v1/my/pending-requests -> 405 Allow: GET, HEAD, ไม่มี token -> 401 ก่อน, GET ปกติ 200 คำขอ 3001 สถานะไม่เปลี่ยน
+
+---
+
+## 2569-11-12 แก้หัวไฟล์ test-cases.md (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np) สั่ง "โอเคแก้เลย" หลัง AI แจ้งว่าไฟล์นี้ต้องให้ทีมรับรู้ (AGENTS.md)
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: specs/003-cancel-request/test-cases.md บรรทัด 2 อ้าง spec Draft v3.9 / plan v1.7 / tasks 34 task (เดิม v3.3 / v1.2 / v1.1) ไม่แตะแถว TC
