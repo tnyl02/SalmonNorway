@@ -7410,3 +7410,23 @@ main
   - F-03 สรุปจำนวนของเจ้าหน้าที่ไม่มี AC และไม่มีหน้าจอ (FR-EQS-07) / F-04 เดา Q-P3 / F-05 เดา Q-P4
   - F-06 ไม่มี HTTPS (CON-TECH-02, NFR-SEC-01) / F-07 healthz และ path ที่ไม่มีไม่ใช่ {code, message} (CON-TECH-03)
   - F-08 NFR 3 ข้อไม่มี AC / F-09 perfP95 อยู่ในไฟล์ test / F-10 ป้ายสถานะซ้ำ 2 ที่ / F-11 คอมเมนต์ค้างใน repository.go
+
+---
+
+## 2569-11-12 แก้ข้อค้นพบ F-02, F-09, F-11 จาก rtm.md (ทีมตัดสิน "แก้โค้ด")
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `backend/internal/config/config.go` เพิ่มค่าของ 001 เพราะ F-09)
+- เครื่องมือ: Claude Code
+- คำสั่ง: "แก้ F-02 F-09 F-11"
+- F-02 (FR-EQS-08): `frontend/src/pages/EquipmentDetail/EquipmentDetail.jsx` หน้ารายละเอียดมีปุ่ม "ลองใหม่" เมื่อดึงข้อมูลไม่สำเร็จ
+  (503 หรือหน้าจอเลิกรอ) กดแล้วโหลดรายละเอียดและคำขอที่ค้างอยู่ใหม่ แก้คอมเมนต์ที่อ้าง T-20 ผิด
+  test เพิ่มใน `frontend/src/__tests__/AC-EQS-08.test.jsx` 2 ตัว (503 มีปุ่มลองใหม่ กดแล้วได้รายละเอียด / 403 ไม่มีปุ่ม)
+- F-09 (AGENTS.md กฎข้อ 9, NFR-PERF-01): เพิ่ม `EquipmentPerfP95 = 3 * time.Second` ใน config.go
+  `backend/internal/equipment/tc_ac_eqs_10_test.go` ให้ perfP95 อ้าง config.EquipmentPerfP95 ค่าเท่าเดิม ไม่ได้แก้เกณฑ์ของ test (ไม่ใช่การแก้ test ให้ผ่าน)
+- F-11: `backend/internal/equipment/repository.go` คอมเมนต์ ListModels เปลี่ยน "ยังไม่จำกัดภาควิชา (T-18)" เป็นบอกว่าจำกัดผ่าน filterWhere แล้ว
+  คอมเมนต์ของ CountByStatus ที่บอกว่ายังไม่จำกัดภาควิชาของเจ้าหน้าที่ (รอ Q-P3) ยังถูก ไม่แก้
+- test: หลังบ้าน `go test ./...` ผ่านทุก package (TestTC_EQS_10_5 ผ่าน p95 24ms) หน้าจอ 83 ไฟล์ 170 ผ่าน 1 ข้าม (TC-EQS-05-5 รอ Q-18) `vite build` ผ่าน
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้): ปุ่มลองใหม่บนหน้ารายละเอียดแสดงเฉพาะเมื่อไม่ใช่คำตอบ 4xx (403 ภาควิชาอื่น, 404 ไม่มีรหัสนี้ ลองใหม่ก็ได้ผลเดิม)
+  ต่างจากหน้ารายการที่แสดงปุ่มลองใหม่ทุก error
+- ไม่ได้แก้ rtm.md (หัวข้อ 4 "แก้แล้ว" ให้ /verify รอบถัดไปเขียน)

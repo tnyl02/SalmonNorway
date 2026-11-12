@@ -37,6 +37,7 @@ export default function EquipmentDetail({ assetCode, client = api, onBack, onReq
   const [item, setItem] = useState(null)
   const [error, setError] = useState(null)
   const [requests, setRequests] = useState(null)
+  const [reloadKey, setReloadKey] = useState(0) // เพิ่มทีละ 1 เมื่อกดลองใหม่ ให้โหลดรายละเอียดและคำขอใหม่ (FR-EQS-08, F-02)
 
   // FR-EQS-11, CR-005: เรียก endpoint ลำดับคำขอของ 002 ทุกครั้งที่เปิดหน้า หน้าจอไม่ต้องรู้บทบาทของผู้ใช้ (plan ข้อ 5)
   // - 200: ส่งรายการให้ RequestQueue แสดง
@@ -54,7 +55,7 @@ export default function EquipmentDetail({ assetCode, client = api, onBack, onReq
     return () => {
       active = false
     }
-  }, [client, assetCode])
+  }, [client, assetCode, reloadKey])
 
   useEffect(() => {
     let active = true
@@ -64,7 +65,7 @@ export default function EquipmentDetail({ assetCode, client = api, onBack, onReq
       .getItem(assetCode)
       .then((res) => active && setItem(res))
       .catch((err) => {
-        // FR-EQS-08: ไม่แสดงข้อมูลเก่า ปุ่มลองใหม่และ test ของกรณีนี้อยู่ใน T-20
+        // FR-EQS-08: ไม่แสดงข้อมูลเก่า แสดงข้อผิดพลาดพร้อมปุ่มลองใหม่ (ดู canRetry ข้างล่าง, F-02 ใน rtm.md)
         // FR-EQS-10: 403 ภาควิชาอื่น แสดงข้อความไม่มีสิทธิ์ ไม่มีข้อมูลอุปกรณ์
         if (active) {
           setItem(null)
@@ -74,7 +75,15 @@ export default function EquipmentDetail({ assetCode, client = api, onBack, onReq
     return () => {
       active = false
     }
-  }, [client, assetCode])
+  }, [client, assetCode, reloadKey])
+
+  // FR-EQS-08 "แจ้งข้อผิดพลาดพร้อมเปิดให้ลองใหม่" ใช้กับการดึงข้อมูลไม่สำเร็จเท่านั้น (503 หรือหน้าจอเลิกรอ / ต่อหลังบ้านไม่ได้)
+  // คำตอบ 4xx เช่น 403 ภาควิชาอื่น (FR-EQS-10) หรือ 404 ไม่มีรหัสนี้ ลองใหม่ก็ได้ผลเดิม จึงไม่มีปุ่ม
+  const canRetry = error != null && !(error.status >= 400 && error.status < 500)
+  const retry = () => {
+    setError(null)
+    setReloadKey((k) => k + 1)
+  }
 
   return (
     <section className="mt-4 grid gap-4">
@@ -86,7 +95,7 @@ export default function EquipmentDetail({ assetCode, client = api, onBack, onReq
       <h2 className="font-mono text-lg font-semibold text-slate-900">{assetCode}</h2>
 
       {error ? (
-        <ErrorState error={error} />
+        <ErrorState error={error} onRetry={canRetry ? retry : undefined} />
       ) : item == null ? (
         <p className="text-slate-600">กำลังโหลด...</p>
       ) : (

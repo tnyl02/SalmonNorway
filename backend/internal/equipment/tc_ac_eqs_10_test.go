@@ -10,11 +10,13 @@ import (
 	"sort"
 	"testing"
 	"time"
+
+	"salmonnorway/backend/internal/config"
 )
 
 // perfP95 คือเวลาตอบสนอง p95 สูงสุดของการค้นหาและแสดงรายการ (NFR-PERF-01, AC-EQS-10)
-// ควรย้ายไป backend/internal/config/config.go แต่ /testcases แก้โค้ดของระบบไม่ได้ จึงตั้งไว้ที่นี่ที่เดียว (เสนอทีมแล้ว)
-const perfP95 = 3 * time.Second
+// ค่ามาจาก config.go ที่เดียว (AGENTS.md กฎข้อ 9, F-09 ใน rtm.md) ค่าเท่าเดิม 3 วินาที
+const perfP95 = config.EquipmentPerfP95
 
 // TC-EQS-10-5 (ทางผิด)
 func TestTC_EQS_10_5_SingleUser1000Items(t *testing.T) {

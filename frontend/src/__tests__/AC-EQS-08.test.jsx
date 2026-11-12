@@ -8,6 +8,7 @@ import { afterEach, vi } from 'vitest'
 import { ApiError, api } from '../api/client.js'
 import { DEFAULT_ERROR_MESSAGE } from '../components/ErrorState.jsx'
 import { EQUIPMENT_REQUEST_TIMEOUT_MS } from '../config.js'
+import EquipmentDetail from '../pages/EquipmentDetail/EquipmentDetail.jsx'
 import EquipmentList from '../pages/EquipmentList/EquipmentList.jsx'
 
 afterEach(() => {
@@ -123,4 +124,42 @@ test('T-26 request ของ 003 ไม่ถูกตัดที่ EQUIPMENT_
 
   expect(settled).toBe(false)
   for (const [, init] of fetchMock.mock.calls) expect(init.signal).toBeUndefined()
+})
+
+// F-02 ใน rtm.md: หน้ารายละเอียดต้องแจ้งข้อผิดพลาดพร้อมปุ่มลองใหม่ด้วย (FR-EQS-08) ไม่ใช่แค่หน้ารายการ
+test('AC-EQS-08 หน้ารายละเอียด: ฐานข้อมูลไม่ตอบ แสดงข้อความพร้อมปุ่มลองใหม่ กดแล้วโหลดใหม่ได้', async () => {
+  // Given ฐานข้อมูลไม่ตอบในครั้งแรก แล้วกลับมาตอบได้
+  const state = { down: true }
+  const client = {
+    getItem: vi.fn(async () => {
+      if (state.down) throw new ApiError(503, 'UPSTREAM_UNAVAILABLE', DOWN_MESSAGE)
+      return { assetCode: 'CS-NB-0001', status: 'available', canRequestLoan: true }
+    }),
+  }
+
+  // When เปิดหน้ารายละเอียด
+  render(<EquipmentDetail assetCode="CS-NB-0001" client={client} />)
+
+  // Then แสดงข้อความผิดพลาดพร้อมปุ่มลองใหม่ ไม่มีข้อมูลอุปกรณ์
+  expect((await screen.findByRole('alert')).textContent).toBe(DOWN_MESSAGE)
+  expect(screen.queryByText('ว่าง')).toBeNull()
+
+  // กดลองใหม่หลังฐานข้อมูลกลับมา ได้รายละเอียด
+  state.down = false
+  fireEvent.click(screen.getByRole('button', { name: 'ลองใหม่' }))
+  expect(await screen.findByText('ว่าง')).toBeTruthy()
+  expect(screen.queryByRole('alert')).toBeNull()
+  expect(client.getItem).toHaveBeenCalledTimes(2)
+})
+
+test('FR-EQS-08 หน้ารายละเอียด: 403 ภาควิชาอื่นไม่มีปุ่มลองใหม่ (ลองใหม่ก็ได้ผลเดิม)', async () => {
+  const client = {
+    getItem: async () => {
+      throw new ApiError(403, 'FORBIDDEN_DEPARTMENT', 'ไม่มีสิทธิ์เข้าถึงอุปกรณ์ของภาควิชาอื่น')
+    },
+  }
+  render(<EquipmentDetail assetCode="XX-NB-0001" client={client} />)
+
+  expect(await screen.findByRole('alert')).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'ลองใหม่' })).toBeNull()
 })
