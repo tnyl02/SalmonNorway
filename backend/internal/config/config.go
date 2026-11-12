@@ -86,13 +86,30 @@ var PurposeValues = []string{"study", "activity", PurposeOther}
 // ฟีเจอร์ 002 ตั้งได้เฉพาะ StatusRequested ส่วนค่าที่เหลือเป็นของ 003 ถึง 006
 var RequestStatuses = []string{
 	StatusRequested,
-	"approved_by_officer",
-	"pending_advisor_approval",
-	"approved",
+	StatusApprovedByOfficer,
+	StatusPendingAdvisorApproval,
+	StatusApproved,
 	"rejected",
 	"handed_over",
 	"returned",
-	"cancelled",
+	StatusCancelled,
+}
+
+// สถานะระหว่างทางของการอนุมัติ ตั้งโดย 004 ส่วน 002 ใช้เพื่อนับว่าคำขอ "ยังไม่จบ" (data-model.md v10)
+// ส่วน StatusApproved ประกาศอยู่ในกลุ่มค่าของ 004 ด้านล่างแล้ว ใช้ร่วมกัน ไม่ประกาศซ้ำ
+const (
+	StatusApprovedByOfficer      = "approved_by_officer"
+	StatusPendingAdvisorApproval = "pending_advisor_approval"
+)
+
+// OpenRequestStatuses คือสถานะที่ถือว่าคำขอ "ยังไม่จบ" (FR-BRQ-05 ข้อ ข, CR-004)
+// ใช้ทั้งกฎกันคำขอซ้ำและการนับลำดับคำขอที่ค้างอยู่ของอุปกรณ์ชิ้นนั้น (FR-BRQ-05 ข้อ ก, CR-005)
+// ต้องตรงกับเงื่อนไข WHERE ของ unique index uq_request_open_per_item ใน migration 0003 เสมอ
+var OpenRequestStatuses = []string{
+	StatusRequested,
+	StatusApprovedByOfficer,
+	StatusPendingAdvisorApproval,
+	StatusApproved,
 }
 
 // ---------- ค่าของฟีเจอร์ 004 อนุมัติคำขอยืมปกติ (specs/004-approve-request/plan.md ข้อ 5, T-02) ----------
