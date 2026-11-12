@@ -7,7 +7,7 @@
 // จำนวนรูปสภาพอุปกรณ์ขั้นต่ำตอนส่งมอบ (FR-HND-06, ASM-HND-07)
 export const HANDOVER_MIN_PHOTOS = 2
 
-// ขนาดไฟล์รูปสูงสุด 10 MB (FR-HND-06, ASM-HND-07) ต่อรูปหรือรวม รอ Q-HND-10
+// ขนาดไฟล์รูปสูงสุด 10 MB ต่อรูป ไม่จำกัดจำนวนรูป (FR-HND-06, ASM-HND-07, Q-HND-10 ปิด 2569-11-12)
 export const HANDOVER_PHOTO_MAX_BYTES = 10 * 1024 * 1024
 
 // ชนิดไฟล์รูปที่รับ JPG และ PNG (FR-HND-06, ASM-HND-07)
@@ -32,6 +32,13 @@ export const APPROVAL_MESSAGES = {
   UPSTREAM_UNAVAILABLE: 'ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง',
   REQUEST_NOT_FOUND: 'ไม่พบคำขอนี้',
 }
+// เหตุผลการปฏิเสธยาวไม่เกินเท่านี้ นับตาม code point แบบเดียวกับ 003 (FR-APV-01 ง, Q-APV-28)
+// ต้องตรงกับ ApprovalRejectReasonMaxLength ใน backend/internal/config/config.go
+export const APPROVAL_REASON_MAX_LENGTH = 500
+// ข้อความเมื่อเหตุผลยาวเกิน (FR-APV-01 ซ, Q-APV-28) ต้องตรงกับ ApprovalReasonTooLongMessage ของหลังบ้าน
+export const APPROVAL_REASON_TOO_LONG = 'เหตุผลต้องไม่เกิน 500 ตัวอักษร'
+// ข้อความเมื่อไม่มีคำขอที่รอพิจารณาในหน้ารายการ (FR-APV-01 ก, Q-APV-31) ข้อความเดียวกับ MSG_NO_PENDING ของ 003
+export const APPROVAL_EMPTY_LIST = 'ไม่มีคำขอที่รออนุมัติ'
 // แบบของ Email ที่แสดงในรายการ "Email ที่ส่งไม่สำเร็จ" (FR-APV-02 ก ข ค, T-34) ค่า key ตรงกับ kind ของหลังบ้าน
 // ข้อความทีมออกแบบเอง ไม่ได้มาจาก spec
 export const APPROVAL_EMAIL_KIND_LABELS = {
@@ -40,6 +47,24 @@ export const APPROVAL_EMAIL_KIND_LABELS = {
   auto_rejected: 'ปฏิเสธอัตโนมัติ',
 }
 // ---- จบ 004-approve-request ----
+
+// ---- 006-return (specs/006-return/plan.md ข้อ 5 ตาราง "ค่าที่ตั้งได้") ----
+// วางไว้ต้นไฟล์ต่อจาก 004 เพื่อไม่ชนกับฟีเจอร์อื่นที่เพิ่มค่าต่อท้ายไฟล์ตอน merge / เขตเวลาใช้ TIME_ZONE ร่วมกับฟีเจอร์อื่น
+
+// ชื่อสถานะอุปกรณ์ที่แสดงบนหน้าจอ 3 ค่า (CON-DATA-01, specs/000-shared/data-model.md)
+export const STATUS_LABELS = {
+  available: 'ว่าง',
+  borrowed: 'ถูกยืม',
+  unavailable: 'ไม่พร้อมใช้งาน',
+}
+
+// สภาพตอนรับคืน 2 ค่า ไม่มี "สูญหาย" (FR-RET-02, glossary "สภาพ (ตอนรับคืน)")
+// value ตรงกับ ReturnConditionStatus ใน backend/internal/config/config.go / label คือคำที่แสดงบนหน้าจอ
+export const RETURN_CONDITIONS = [
+  { value: 'normal', label: 'ปกติ' },
+  { value: 'damaged', label: 'ชำรุด' },
+]
+// ---- จบ 006-return ----
 
 // token ของผู้ใช้จำลองที่หน้าจอส่งไปกับทุก request (IF-IDP-01 ใช้ระบบยืนยันตัวตนจำลองไปก่อน รอ Q-SH-03)
 // ทีมเลือกเอง ไม่ได้มาจาก spec (ตัดสิน 2569-11-10 ตอนทำ T-06) ใช้จนกว่าจะมีหน้าล็อกอินจำลองใน T-21

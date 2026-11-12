@@ -316,7 +316,7 @@ func TestAC_APV_08(t *testing.T) {
 	}
 }
 
-// AC-APV-16 (FR-APV-01 ค, DOM-LOAN-01) [ID รอทีมอนุมัติ Q-APV-13]
+// AC-APV-16 (FR-APV-01 ค, DOM-LOAN-01)
 // Given คำขอแรกสถานะ requested ของอุปกรณ์ที่ "ว่าง" และเวลาปัจจุบันเลย 16:00 น. ของวันที่เริ่มยืมแล้ว
 // When  เจ้าหน้าที่พยายามอนุมัติ
 // Then  ระบบไม่อนุมัติ แสดงข้อความกรณีเลย 16:00 น. และสถานะคงเดิม
@@ -543,7 +543,7 @@ func TestAC_APV_15(t *testing.T) {
 		config.ApprovalSystemActorID, config.AuditActionAutoReject)
 }
 
-// AC-APV-17 (FR-APV-01 จ ฉ, Q-APV-14) [ID รอทีมอนุมัติ Q-APV-22]
+// AC-APV-17 (FR-APV-01 จ ฉ, Q-APV-14)
 // Given อุปกรณ์รายชิ้นเดียวกันมีคำขอยืมปกติ A (ส่งก่อน) และคำขอค้างคืน C สถานะ requested (AP-TEST-0001)
 // When  เจ้าหน้าที่อนุมัติคำขอ A / หรือเมื่อถึง 00:00 น. หลังวันที่ส่งของ C
 // Then  กรณีอนุมัติ A: C เป็น rejected ด้วยเหตุผล "อุปกรณ์ชิ้นนี้ได้รับการอนุมัติให้คำขออื่นแล้ว" และผู้ขอได้รับ Email ผลปฏิเสธ

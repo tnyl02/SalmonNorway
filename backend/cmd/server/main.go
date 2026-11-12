@@ -14,6 +14,7 @@ import (
 	"salmonnorway/backend/internal/equipment"
 	"salmonnorway/backend/internal/handover"
 	"salmonnorway/backend/internal/platform"
+	"salmonnorway/backend/internal/returns"
 )
 
 // path ของไฟล์ migration และข้อมูลตั้งต้น เทียบจากโฟลเดอร์ backend/ (รันด้วย `cd backend && go run ./cmd/server`)
@@ -84,6 +85,10 @@ func main() {
 	cxRoutes := auth.Middleware(provider, cx.Routes())
 	mux.Handle(cancelrequest.PathPrefixMine, cxRoutes)
 	mux.Handle(cancelrequest.PathPrefixRequests, cxRoutes)
+
+	// 006 บันทึกการรับคืน (specs/006-return/plan.md ข้อ 4) เฉพาะเจ้าหน้าที่ภาควิชาเดียวกัน (FR-RET-01, AC-RET-08)
+	// Routes ห่อ auth.Middleware และตรวจบทบาทเองทุก route (IF-IDP-01) แก้ไฟล์กลางเพราะ 006
+	returns.NewHandler(returns.NewRepository(db)).Routes(provider)(mux)
 
 	log.Printf("listening on %s", cfg.HTTPAddr)
 	// ทุก response ห้าม cache เพื่อให้รีเฟรชแล้วเห็นสถานะล่าสุด (NFR-DATA-01, T-16)

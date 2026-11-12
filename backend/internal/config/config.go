@@ -247,6 +247,13 @@ var ApprovalMessages = map[string]string{
 	"REQUEST_NOT_FOUND":            "ไม่พบคำขอนี้",                            // Q-APV-25
 }
 
+// ApprovalRejectReasonMaxLength คือความยาวสูงสุดของเหตุผลการปฏิเสธ นับตาม code point แบบเดียวกับ 003 (FR-APV-01 ง, Q-APV-28)
+// ต้องตรงกับ APPROVAL_REASON_MAX_LENGTH ใน frontend/src/config.js
+const ApprovalRejectReasonMaxLength = 500
+
+// ApprovalReasonTooLongMessage คือข้อความเมื่อเหตุผลยาวเกิน ใช้กับ 422 VALIDATION_FAILED ช่อง reason (FR-APV-01 ซ, Q-APV-28)
+var ApprovalReasonTooLongMessage = "เหตุผลต้องไม่เกิน 500 ตัวอักษร"
+
 // ---------- จบค่าของฟีเจอร์ 004 ----------
 
 // Config คือค่าที่โปรแกรมหลังบ้านใช้ตอนเริ่มทำงาน
@@ -263,6 +270,32 @@ type Config struct {
 	// เก็บเป็นไฟล์บนเครื่องที่รันระบบ ไม่ได้เก็บในฐานข้อมูล
 	// ค่าเริ่มต้นเป็นของเครื่องพัฒนา ไม่ใช่ requirement เปลี่ยนด้วย ATTACHMENT_DIR
 	AttachmentDir string
+}
+
+// ---- ค่าที่มาจาก spec ของ 006-return (specs/006-return/plan.md ข้อ 5 ตาราง "ค่าที่ตั้งได้") ----
+
+// Timezone คือเขตเวลาที่ใช้เทียบ "วันที่ปัจจุบัน / เวลาปัจจุบัน / วันเดียวกัน" (specs/000-shared/glossary.md)
+const Timezone = "Asia/Bangkok"
+
+// ReturnConditionStatus คือสภาพตอนรับคืน 2 ค่า และสถานะอุปกรณ์หลังบันทึกการรับคืนสำเร็จ
+// ปกติ -> ว่าง (FR-RET-03, RQ-13) / ชำรุด -> ไม่พร้อมใช้งาน ไม่ผ่าน "ว่าง" (FR-RET-04, ASM-05)
+// สูญหายไม่ใช่สภาพ (FR-RET-02) ค่าสถานะตาม CON-DATA-01 ใน specs/000-shared/data-model.md
+var ReturnConditionStatus = map[string]string{
+	"normal":  "available",
+	"damaged": "unavailable",
+}
+
+// ReturnMessages คือข้อความภาษาไทยในช่อง message ของ error ทุกตัวของ 006 ตามรูปแบบ CON-TECH-03
+// หน้าจอตัดสินใจจาก code ไม่ใช่จากข้อความ ข้อความทีมออกแบบเอง ไม่ได้มาจาก spec (ยกเว้น NO_OPEN_LOAN ตาม AC-RET-03)
+// NO_OPEN_LOAN, CONDITION_REQUIRED, LOAN_NOT_FOUND ลงทะเบียนในรายการกลางของ CON-TECH-03 แล้ว (constraints.md v5.4, Q-10)
+var ReturnMessages = map[string]string{
+	"UNAUTHENTICATED":      "กรุณาเข้าสู่ระบบก่อนใช้งาน",
+	"FORBIDDEN_ROLE":       "เฉพาะเจ้าหน้าที่เท่านั้นที่บันทึกการรับคืนได้", // AC-RET-08
+	"FORBIDDEN_DEPARTMENT": "ไม่มีสิทธิ์: อุปกรณ์นี้เป็นของภาควิชาอื่น",     // AC-RET-11
+	"NO_OPEN_LOAN":         "อุปกรณ์นี้ไม่มีการยืมที่ยังไม่คืน",             // AC-RET-03
+	"CONDITION_REQUIRED":   "กรุณาเลือกสภาพ ปกติ หรือ ชำรุด",                // AC-RET-04
+	"LOAN_NOT_FOUND":       "ไม่พบการยืมนี้",                                // FR-RET-06
+	"UPSTREAM_UNAVAILABLE": "ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง",      // ข้อความเดียวกับ 004
 }
 
 // Load อ่านค่าจาก environment ถ้าไม่ตั้งไว้ใช้ค่าเริ่มต้นสำหรับเครื่องพัฒนา
@@ -287,11 +320,14 @@ func getenv(key, fallback string) string {
 // แล้วใช้ผลการตรวจบัตรแทน (FR-HND-02, ASM-HND-02, IF-IDP-01)
 const BorrowerAuthTimeout = 10 * time.Second
 
+// LoanOvernightReturnHour คือชั่วโมงที่ต้องคืนของการยืมแบบค้างคืน = 16:00 ของวันสิ้นสุดการยืมที่ผู้ขอระบุ
+// (FR-HND-05, Q-SH-04, Q-HND-07 ปิด 2569-11-12, T-30) เป็นค่าเดียวกับ DOM-LOAN-01 จึงอ้าง LoanNormalReturnHour ของ 002 ไม่ประกาศเลขซ้ำ
+const LoanOvernightReturnHour = LoanNormalReturnHour
+
 // HandoverMinPhotos คือจำนวนรูปสภาพอุปกรณ์ขั้นต่ำที่ต้องแนบตอนส่งมอบ (FR-HND-06, ASM-HND-07)
 const HandoverMinPhotos = 2
 
-// HandoverPhotoMaxBytes คือขนาดไฟล์รูปสูงสุด 10 MB (FR-HND-06, ASM-HND-07)
-// นับต่อรูปหรือรวมทุกรูป รอ Q-HND-10 (ใช้ใน T-28)
+// HandoverPhotoMaxBytes คือขนาดไฟล์รูปสูงสุด 10 MB ต่อรูป ไม่จำกัดจำนวนรูป (FR-HND-06, ASM-HND-07, Q-HND-10 ปิด 2569-11-12)
 const HandoverPhotoMaxBytes = 10 << 20
 
 // HandoverPhotoTypes คือชนิดไฟล์รูปที่รับ JPG และ PNG (FR-HND-06, ASM-HND-07)
