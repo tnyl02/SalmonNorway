@@ -55,8 +55,11 @@ type ListDTO[T any] struct {
 	Total int `json:"total"`
 }
 
-// ErrorDTO คือรูปแบบคำตอบเมื่อเกิดข้อผิดพลาด (plan.md ข้อ 5 Error contract)
-type ErrorDTO struct {
-	Code      string `json:"code"`
-	Retryable bool   `json:"retryable,omitempty"`
+// StatusSummaryDTO คือจำนวนอุปกรณ์รายชิ้นแยกตามสถานะ เฉพาะเจ้าหน้าที่ (FR-EQS-07 "สรุปจำนวนอุปกรณ์แยกตามสถานะ")
+// มี 3 สถานะตาม CON-DATA-01 และผลรวม
+type StatusSummaryDTO struct {
+	Available   int `json:"available"`
+	Borrowed    int `json:"borrowed"`
+	Unavailable int `json:"unavailable"`
+	Total       int `json:"total"`
 }

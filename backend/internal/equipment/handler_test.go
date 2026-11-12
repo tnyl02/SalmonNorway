@@ -532,3 +532,64 @@ SELECT id, 'student-001', 'normal', now() + interval '1 day' FROM item`, code)
 		}
 	}
 }
+
+// AC-EQS-07 (FR-EQS-07, DOM-PRIV-01) ส่วนนักศึกษา (ส่วนเจ้าหน้าที่เห็นชื่อผู้ยืมรอ Q-20 ดู T-36)
+//
+//	Given อุปกรณ์กำลังถูกยืมโดยนักศึกษาคนอื่น
+//	When  นักศึกษาทั่วไปเปิดดูรายละเอียด
+//	Then  นักศึกษาไม่เห็นชื่อผู้ยืม
+func TestAC_EQS_07_StudentNoBorrower(t *testing.T) {
+	// Given: ข้อมูลตั้งต้น CS-NB-0004 ถูกยืมโดย student-001
+	srv := newTestServer(t)
+
+	// When: student-002 (นักศึกษาอีกคน) เปิดดูรายละเอียด และเปิดรายชิ้นของรุ่นนั้น
+	for _, path := range []string{PathPrefix + "items/CS-NB-0004", PathPrefix + "models/1/items", PathPrefix + "models"} {
+		rec := get(t, srv, path, "mock-student-002")
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d", path, rec.Code)
+		}
+		body := strings.ToLower(rec.Body.String())
+
+		// Then: response ไม่มีข้อมูลผู้ยืมเลย ทั้งชื่อช่องและรหัสผู้ยืม (DOM-PRIV-01, plan.md ข้อ 6.1)
+		if strings.Contains(body, "borrower") || strings.Contains(body, "student-001") {
+			t.Errorf("%s ส่งข้อมูลผู้ยืมให้นักศึกษา: %s", path, rec.Body.String())
+		}
+	}
+}
+
+// FR-EQS-07 "สรุปจำนวนอุปกรณ์แยกตามสถานะ" ให้เจ้าหน้าที่ นักศึกษาไม่เห็น (ส่วนนี้ยังไม่มี AC ดู tasks.md "สิ่งที่ยังไม่ทำ")
+func TestFR_EQS_07_StaffSummaryByStatus(t *testing.T) {
+	pool := testPool(t)
+	srv := newTestServer(t)
+
+	// เจ้าหน้าที่ได้จำนวนแยก 3 สถานะ ตรงกับที่นับจากฐานข้อมูลโดยตรง
+	rec := get(t, srv, PathPrefix+"summary", "mock-staff-001")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("เจ้าหน้าที่ status = %d (body: %s)", rec.Code, rec.Body.String())
+	}
+	got := decode[StatusSummaryDTO](t, rec)
+	var want StatusSummaryDTO
+	err := pool.QueryRow(context.Background(), `
+SELECT count(*) FILTER (WHERE status = 'available'), count(*) FILTER (WHERE status = 'borrowed'),
+       count(*) FILTER (WHERE status = 'unavailable'), count(*) FROM equipment_item`).
+		Scan(&want.Available, &want.Borrowed, &want.Unavailable, &want.Total)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Errorf("สรุป = %+v ต้องเป็น %+v", got, want)
+	}
+	if got.Available+got.Borrowed+got.Unavailable != got.Total {
+		t.Errorf("ผลรวม 3 สถานะ (%d) ไม่เท่ากับ total (%d)", got.Available+got.Borrowed+got.Unavailable, got.Total)
+	}
+
+	// นักศึกษาได้ 403 FORBIDDEN_ROLE ตาม CON-TECH-03 และไม่ได้ตัวเลขใด ๆ
+	rec = get(t, srv, PathPrefix+"summary", tokenStudentDept1)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("นักศึกษา status = %d ต้องเป็น 403", rec.Code)
+	}
+	e := decode[map[string]string](t, rec)
+	if e["code"] != "FORBIDDEN_ROLE" || e["message"] == "" || e["message"] == "FORBIDDEN_ROLE" || len(e) != 2 {
+		t.Errorf("body ต้องเป็น {code: FORBIDDEN_ROLE, message: ข้อความไทย} ได้ %v", e)
+	}
+}

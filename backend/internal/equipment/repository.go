@@ -132,3 +132,18 @@ LIMIT 1`
 	}
 	return rec, true, nil
 }
+
+// CountByStatus นับอุปกรณ์รายชิ้นแยกตาม 3 สถานะ (FR-EQS-07, CON-DATA-01) อ่านอย่างเดียว (CON-DATA-02)
+// ยังไม่จำกัดภาควิชาของเจ้าหน้าที่ (รอ Q-P3 ดู T-28 / plan.md ข้อ 6.1 ชั่วคราวให้เห็นทุกภาควิชา)
+func (r *Repository) CountByStatus(ctx context.Context) (StatusSummaryDTO, error) {
+	const q = `
+SELECT count(DISTINCT item_id) FILTER (WHERE status = $1),
+       count(DISTINCT item_id) FILTER (WHERE status = $2),
+       count(DISTINCT item_id) FILTER (WHERE status = $3),
+       count(DISTINCT item_id)
+FROM v_equipment_item_status`
+	var out StatusSummaryDTO
+	err := r.db.QueryRow(ctx, q, string(StatusAvailable), string(StatusBorrowed), string(StatusUnavailable)).
+		Scan(&out.Available, &out.Borrowed, &out.Unavailable, &out.Total)
+	return out, err
+}

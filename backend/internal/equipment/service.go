@@ -2,6 +2,7 @@ package equipment
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"salmonnorway/backend/internal/auth"
@@ -62,4 +63,16 @@ func (s *Service) GetItem(ctx context.Context, assetCode string) (any, bool, err
 		student.DueAt = dueAt
 	}
 	return student, true, nil
+}
+
+// ErrStaffOnly หมายถึงผู้ใช้ไม่ใช่เจ้าหน้าที่ จึงไม่มีสิทธิ์ดูข้อมูลนี้ (FR-EQS-07) handler ตอบ 403 FORBIDDEN_ROLE
+var ErrStaffOnly = errors.New("staff only")
+
+// Summary คืนจำนวนอุปกรณ์แยกตามสถานะ ให้เฉพาะเจ้าหน้าที่ (FR-EQS-07 "นักศึกษาไม่เห็น", plan.md ข้อ 6.1 ตรวจสิทธิ์ที่ server)
+// ไม่มีผู้ใช้ใน context ถือว่าไม่ใช่เจ้าหน้าที่ (ให้สิทธิ์น้อยที่สุด)
+func (s *Service) Summary(ctx context.Context) (StatusSummaryDTO, error) {
+	if p, ok := auth.FromContext(ctx); !ok || p.Role != auth.RoleStaff {
+		return StatusSummaryDTO{}, ErrStaffOnly
+	}
+	return s.repo.CountByStatus(ctx)
 }

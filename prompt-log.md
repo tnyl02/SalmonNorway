@@ -3136,3 +3136,28 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
   - ไม่ลบ `ErrorDTO` ใน `equipment/dto.go` ที่เลิกใช้แล้ว เพราะ dto.go ไม่อยู่ในไฟล์ที่แตะของ T-37 (ลบได้ใน task ถัดไปที่แตะ dto.go)
 - ข้อค้นพบ: ข้อความของ UPSTREAM_UNAVAILABLE ของ 005 ("ระบบไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาลองใหม่") ต่างจากของ 001
   รหัสเดียวกันควรใช้ข้อความเดียวกัน 002, 005 เรียก platform.WriteError ได้ถ้าทีมตกลง / 404, 405 ยังตอบข้อความธรรมดา (รอรหัสในรายการกลาง)
+
+---
+
+## 2569-11-12 /implement-all เฟส 9: T-17 แยก DTO ให้นักศึกษาไม่มีข้อมูลผู้ยืม และ API สรุปจำนวนตามสถานะสำหรับเจ้าหน้าที่
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `backend/internal/platform/apierror.go` เพิ่มรหัส FORBIDDEN_ROLE เพราะ T-17)
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement-all ... เฟส 9` (task เดียวของเฟส)
+- คำถามที่ AI ถามก่อนทำ และคำตอบของทีม (Pannathorn J):
+  1. นักศึกษาเรียกสรุปได้ 403 รหัสอะไร plan ไม่ได้บอก -> ทีมตอบ: FORBIDDEN_ROLE จากรายการกลาง CON-TECH-03
+     ข้อความ "เฉพาะเจ้าหน้าที่เท่านั้นที่ดูข้อมูลนี้ได้" (ทีมเลือกเอง ไม่ได้มาจาก spec) เพิ่มใน platform/apierror.go
+  2. query สรุปต้องอยู่ใน repository.go ซึ่งไม่อยู่ในไฟล์ที่แตะ -> ทีมตอบ: เพิ่ม repository.go และ service.go
+  เพิ่ม 3 ไฟล์นี้ในช่องไฟล์ที่แตะของ T-17 แล้ว
+- ไฟล์ที่แก้: `backend/internal/equipment/dto.go` (StatusSummaryDTO, ลบ ErrorDTO ที่เลิกใช้ตั้งแต่ T-37),
+  `repository.go` (CountByStatus), `service.go` (Summary ตรวจบทบาทที่ server, ErrStaffOnly), `handler.go` (GET /v1/equipment/summary),
+  `handler_test.go`, `backend/internal/platform/apierror.go` (CodeForbiddenRole)
+- test: `TestAC_EQS_07_StudentNoBorrower` ผ่าน (student-002 เปิดรายละเอียด CS-NB-0004, รายชิ้น และรายการรุ่น ไม่มีคำว่า borrower หรือ student-001),
+  `TestFR_EQS_07_StaffSummaryByStatus` ผ่าน (เจ้าหน้าที่ได้ 3 สถานะ + total ตรงกับฐานข้อมูล / นักศึกษาได้ 403 FORBIDDEN_ROLE มีแค่ code และ message)
+  test หลังบ้านทั้งระบบผ่าน หน้าจอ 47 test ผ่าน
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้):
+  - response สรุปเป็น `{available, borrowed, unavailable, total}` plan ไม่ได้กำหนดรูปแบบ
+  - สรุปนับทุกภาควิชา ตาม plan ข้อ 6.1 (ขอบเขตของเจ้าหน้าที่รอ Q-P3 ดู T-28)
+  - ส่วนนักศึกษาไม่เห็นผู้ยืม: DTO ของนักศึกษาไม่มีช่องผู้ยืมอยู่แล้วตั้งแต่ T-05, T-12 task นี้เพิ่ม test ยืนยันทั้ง 3 endpoint
+  - ยังไม่มีหน้าจอของสรุป (T-17 เป็นงานหลังบ้าน และ FR-EQS-07 ส่วนสรุปยังไม่มี AC)

@@ -302,11 +302,11 @@ Spec: SPEC-EQS-001 (spec.md Draft v5) | Plan: plan.md Draft v1.7 | tasks v2.2: 2
 ### T-17 แยก DTO ให้นักศึกษาไม่มีข้อมูลผู้ยืม และ API สรุปจำนวนตามสถานะสำหรับเจ้าหน้าที่
 - รองรับ: FR-EQS-07 (ส่วนนักศึกษาไม่เห็นผู้ยืม และสรุปตามสถานะ), DOM-PRIV-01
 - ตรวจด้วย: AC-EQS-07 (ส่วนนักศึกษา)
-- ไฟล์ที่แตะ: `backend/internal/equipment/dto.go`, `backend/internal/equipment/handler.go`, `backend/internal/equipment/handler_test.go`
+- ไฟล์ที่แตะ: `backend/internal/equipment/dto.go`, `backend/internal/equipment/handler.go`, `backend/internal/equipment/handler_test.go`, `backend/internal/equipment/repository.go`, `backend/internal/equipment/service.go` (query สรุปตามสถานะ), `backend/internal/platform/apierror.go` (รหัส FORBIDDEN_ROLE) เพิ่มตามที่ทีมตัดสิน 2569-11-12
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-12
 - เสร็จเมื่อ: `TestAC_EQS_07_StudentNoBorrower` ผ่าน (response ของนักศึกษาไม่มีคำว่า borrower เลย) และ `TestFR_EQS_07_StaffSummaryByStatus` ผ่าน (เจ้าหน้าที่ได้จำนวนแยก 3 สถานะ นักศึกษาเรียกได้ 403)
-- สถานะ: พร้อมทำ (ชื่อผู้ยืมฝั่งเจ้าหน้าที่ย้ายไป T-36 รอ Q-20)
+- สถานะ: เสร็จ รอทีมตรวจ (ชื่อผู้ยืมฝั่งเจ้าหน้าที่ย้ายไป T-36 รอ Q-20)
 
 #### จุดตรวจเฟส 9
 - คนลองเองตาม AC-EQS-07:

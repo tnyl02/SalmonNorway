@@ -2,6 +2,7 @@ package equipment
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -30,6 +31,7 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET "+PathPrefix+"models", h.listModels)
 	mux.HandleFunc("GET "+PathPrefix+"models/{modelId}/items", h.listItems)
 	mux.HandleFunc("GET "+PathPrefix+"items/{assetCode}", h.getItem)
+	mux.HandleFunc("GET "+PathPrefix+"summary", h.summary)
 	// ไม่มี endpoint ที่เขียนข้อมูล ฟีเจอร์นี้อ่านอย่างเดียว (CON-DATA-02) method อื่นได้ 405 จาก router
 	return mux
 }
@@ -72,6 +74,21 @@ func (h *Handler) getItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, item)
+}
+
+// summary: GET /v1/equipment/summary จำนวนอุปกรณ์แยกตามสถานะ เฉพาะเจ้าหน้าที่ (FR-EQS-07)
+// นักศึกษาได้ 403 FORBIDDEN_ROLE ตาม CON-TECH-03 และไม่ได้ตัวเลขใด ๆ
+func (h *Handler) summary(w http.ResponseWriter, r *http.Request) {
+	out, err := h.svc.Summary(r.Context())
+	if errors.Is(err, ErrStaffOnly) {
+		platform.WriteError(w, http.StatusForbidden, platform.CodeForbiddenRole)
+		return
+	}
+	if err != nil {
+		writeUpstreamError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 // filterFrom อ่านตัวกรองจาก query string (FR-EQS-02) เลือกได้หลายค่าในแต่ละตัวกรอง (Q-15)

@@ -11,6 +11,7 @@ const (
 	CodeUnauthenticated     = "UNAUTHENTICATED"      // 401 ไม่มี session หรือหมดอายุ (IF-IDP-01)
 	CodePrincipalIncomplete = "PRINCIPAL_INCOMPLETE" // 403 ยืนยันตัวตนได้ แต่ไม่มีภาควิชาหรือบทบาทไม่รู้จัก (IF-IDP-01)
 	CodeForbiddenDepartment = "FORBIDDEN_DEPARTMENT" // 403 อุปกรณ์ของภาควิชาอื่น (FR-EQS-10, DOM-ACCESS-01) ใช้ใน T-18
+	CodeForbiddenRole       = "FORBIDDEN_ROLE"       // 403 บทบาทนี้ไม่มีสิทธิ์ เช่น นักศึกษาเรียกสรุปของเจ้าหน้าที่ (FR-EQS-07, T-17)
 	CodeUpstreamUnavailable = "UPSTREAM_UNAVAILABLE" // 503 ฐานข้อมูลไม่ตอบ (FR-EQS-08)
 )
 
@@ -21,6 +22,7 @@ var errorMessages = map[string]string{
 	CodeUnauthenticated:     "กรุณาเข้าสู่ระบบก่อนใช้งาน",
 	CodePrincipalIncomplete: "บัญชีนี้ไม่มีข้อมูลภาควิชาหรือบทบาท กรุณาติดต่อเจ้าหน้าที่",
 	CodeForbiddenDepartment: "ไม่มีสิทธิ์เข้าถึงอุปกรณ์ของภาควิชาอื่น",
+	CodeForbiddenRole:       "เฉพาะเจ้าหน้าที่เท่านั้นที่ดูข้อมูลนี้ได้",
 	CodeUpstreamUnavailable: "ดึงข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
 }
 
