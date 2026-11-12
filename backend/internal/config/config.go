@@ -39,6 +39,10 @@ const CancelPerfP95 = 15 * time.Second
 // ตัวเลขทีมเลือกเอง ไม่ได้มาจาก spec (ตัดสิน 2569-11-11 ตอนทำ T-03) ต้องน้อยกว่า CancelPerfP95
 const CancelDBTimeout = 5 * time.Second
 
+// NotifyTimeout คือเวลารอส่ง Email แจ้งเจ้าหน้าที่หลังยกเลิก (FR-CXL-09, ASM-10, NFR-PERF-CXL-01 ไม่นับเวลาส่ง Email)
+// ส่งไม่ทันนับเป็นส่งไม่สำเร็จ การยกเลิกยังสำเร็จ ตัวเลขทีมเลือกเอง ไม่ได้มาจาก spec (rtm F-04 ตัดสิน 2569-11-12, T-34)
+const NotifyTimeout = 5 * time.Second
+
 // ---------- ค่าของฟีเจอร์ 002 ส่งคำขอยืม (plan.md ข้อ 5 ตาราง "ค่าที่ตั้งได้") ----------
 
 // LoanNormalReturnHour คือชั่วโมงที่การยืมแบบปกติต้องคืนภายในวันเดียวกัน (DOM-LOAN-01, FR-BRQ-03 ข้อ ค)
@@ -50,6 +54,15 @@ const OverdueBlockUntilNextDayStart = true
 
 // AttachmentMaxBytes คือขนาดสูงสุดของใบบันทึกข้อความที่แนบกับการยืมค้างคืน (FR-BRQ-10 ข้อ ก)
 const AttachmentMaxBytes = 10 << 20 // 10MB
+
+// ประเภทการยืม 2 ค่าตาม DM-05 (FR-BRQ-10) กฎ DOM-LOAN-01 ใช้กับการยืมปกติเท่านั้น
+// ค่าเดียวกับ CHECK ของ borrow_request ใน migration 0003
+// 004 พิจารณาเฉพาะการยืมปกติ (FR-APV-01, Q-APV-01) ลำดับคำขอแรกและงานเที่ยงคืนก็นับเฉพาะประเภทนี้ (Q-APV-23, Q-APV-14)
+// (รวมคำประกาศซ้ำของ 004 เข้ากับของเดิมตอน merge main 2569-11-12)
+const (
+	LoanTypeNormal    = "normal"
+	LoanTypeOvernight = "overnight"
+)
 
 // StatusRequested คือสถานะเดียวที่ฟีเจอร์ 002 ตั้งได้ (FR-BRQ-04, data-model.md v9)
 const StatusRequested = "requested"
@@ -98,10 +111,6 @@ const StatusCancelled = "cancelled"
 // ItemStatusAvailable คือสถานะอุปกรณ์ "ว่าง" (CON-DATA-01, data-model.md) อนุมัติได้เฉพาะอุปกรณ์สถานะนี้ (FR-APV-01 ค, T-19)
 // ค่าเดียวกับ equipment.StatusAvailable ของ 001 004 ไม่ import package ของ 001
 const ItemStatusAvailable = "available"
-
-// LoanTypeNormal คือประเภทการยืมแบบปกติ (DM-05, DM-06) 004 พิจารณาเฉพาะประเภทนี้ (FR-APV-01, Q-APV-01)
-// ลำดับคำขอแรกและงานเที่ยงคืนนับเฉพาะประเภทนี้ (Q-APV-23, Q-APV-14) ค่าเดียวกับ CHECK ของ borrow_request ใน 0003
-const LoanTypeNormal = "normal"
 
 // ApprovalEmailDeadline คือเวลาที่ต้องส่ง Email แจ้งผลให้ผู้ขอหลังบันทึกผล (FR-APV-02)
 const ApprovalEmailDeadline = 60 * time.Second

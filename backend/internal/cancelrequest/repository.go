@@ -85,19 +85,21 @@ func (r *Repository) Cancel(ctx context.Context, tx pgx.Tx, requestID int, reque
 	return true, nil
 }
 
-// ownStatusSQL อ่านสถานะปัจจุบันของคำขอของผู้ขอคนนี้ ใช้แยกสาเหตุเมื่อ UPDATE ไม่เจอแถว (FR-CXL-02, plan.md ข้อ 4 ขั้น 2)
-const ownStatusSQL = `SELECT status FROM borrow_request WHERE id = $1 AND requester_id = $2`
+// requestStateSQL อ่านเจ้าของและสถานะปัจจุบันของคำขอ ใช้แยกสาเหตุเมื่อ UPDATE ไม่เจอแถว (FR-CXL-02, plan.md ข้อ 4 ขั้น 2)
+// อ่านโดยไม่กรองผู้ขอ เพื่อแยก "ไม่มีคำขอนี้" กับ "คำขอของผู้อื่น" ใน audit_log (FR-CXL-05, T-31)
+// ผลนี้ใช้ภายในเท่านั้น หน้าจอยังได้ 404 เหมือนกันทั้งสองกรณี (FR-CXL-03)
+const requestStateSQL = `SELECT requester_id, status FROM borrow_request WHERE id = $1`
 
-// OwnStatus คืนสถานะของคำขอ requestID ที่เป็นของ requesterID ใน transaction tx found = false ถ้าไม่พบ
-func (r *Repository) OwnStatus(ctx context.Context, tx pgx.Tx, requestID int, requesterID string) (status string, found bool, err error) {
-	err = tx.QueryRow(ctx, ownStatusSQL, requestID, requesterID).Scan(&status)
+// RequestState คืนเจ้าของและสถานะของคำขอ requestID ใน transaction tx found = false ถ้าไม่มีคำขอนี้
+func (r *Repository) RequestState(ctx context.Context, tx pgx.Tx, requestID int) (requesterID, status string, found bool, err error) {
+	err = tx.QueryRow(ctx, requestStateSQL, requestID).Scan(&requesterID, &status)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", false, nil
+		return "", "", false, nil
 	}
 	if err != nil {
-		return "", false, err
+		return "", "", false, err
 	}
-	return status, true, nil
+	return requesterID, status, true, nil
 }
 
 // cancelledInfoSQL อ่านข้อมูลที่ต้องใส่ใน Email หลังยกเลิกสำเร็จ (FR-CXL-09) ภาควิชาเจ้าของอุปกรณ์มาจากรุ่น (DM-01)
@@ -132,4 +134,3 @@ func (r *Repository) CancelledNotice(ctx context.Context, tx pgx.Tx, requestID i
 	}
 	return n, rows.Err()
 }
-

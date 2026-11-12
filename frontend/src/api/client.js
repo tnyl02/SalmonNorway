@@ -171,7 +171,7 @@ export const api = {
   listMyPendingRequests: () => getJSON('/v1/my/pending-requests'),
 
   // 003 FR-CXL-01, FR-CXL-08: ยกเลิกคำขอพร้อมเหตุผล (plan.md ข้อ 4 ของ 003)
-  //   -> สำเร็จ หรือ throw ApiError(400 REASON_*, 404 REQUEST_NOT_FOUND, 409 ALREADY_APPROVED / NOT_CANCELLABLE, 503)
+  //   -> สำเร็จ หรือ throw ApiError(403 FORBIDDEN_ROLE, 404 REQUEST_NOT_FOUND, 409 ALREADY_APPROVED / NOT_CANCELLABLE, 422 VALIDATION_FAILED, 503)
   cancelRequest: (requestId, reason) =>
     postJSON(`/v1/borrow-requests/${encodeURIComponent(requestId)}/cancel`, { reason }),
 }

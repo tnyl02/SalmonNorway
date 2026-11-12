@@ -1,8 +1,8 @@
 # Tasks: ยกเลิกคำขอยืม (Cancel Borrow Request)
-Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้าง: 2569-11-10 | แก้: 2569-11-11 (ปิด Q-13) | Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+Spec: SPEC-CXL-003 (spec.md Draft v3.9) | Plan: plan.md Draft v1.7 | สร้าง: 2569-11-10 | แก้: 2569-11-12 (เฟส 18 T-33 ตาม CR-006, เฟส 19 T-34 ตาม rtm F-04, หัวไฟล์อ้างเวอร์ชันปัจจุบัน) | Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
 
 สรุป
-- 18 เฟส (ฐานราก + 17 เฟสตาม AC) รวม 32 task (เดิมเฟส 17 เป็นเฟสรอคำตอบ ปิด Q-13 แล้วจึงเป็นเฟสของ AC-CXL-06)
+- 20 เฟส (ฐานราก + 17 เฟสตาม AC + เฟส 18 CR-006 + เฟส 19 rtm F-04) รวม 34 task เสร็จครบ 34 (T-33 เพิ่มตาม CR-006, T-34 ตาม rtm F-04) (เดิมเฟส 17 เป็นเฟสรอคำตอบ ปิด Q-13 แล้วจึงเป็นเฟสของ AC-CXL-06)
 - รอ Q-xx 0 task
 - เฟสแรกที่ลองใช้งานได้จริง: เฟส 1 (นักศึกษาเห็นรายการคำขอที่รออนุมัติของตนเองบนหน้าจอ)
 
@@ -84,7 +84,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ไฟล์ที่แตะ: `backend/internal/cancelrequest/repository.go`, `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/handler.go`, `backend/internal/cancelrequest/dto.go`, `backend/internal/cancelrequest/handler_test.go`, `backend/cmd/server/main.go` (ของกลาง ลงทะเบียน route หลัง `auth.Middleware` แบบเดียวกับ 001 เดิมเขียน platform/http.go ทีมแก้ 2569-11-11), `backend/internal/cancelrequest/tc_helpers_test.go` และ `tc_ac_cxl_08_test.go` (แก้ Given ของ TC-CXL-08-1, 08-3 ตาม test-cases.md ที่ทีมแก้ 2569-11-11)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01, T-03
-- เสร็จเมื่อ: `TestAC_CXL_08_ListOwnPendingSorted` ผ่าน (`GET /api/v1/my/pending-requests` คืนเฉพาะคำขอของผู้เรียกที่ยกเลิกได้ เรียงใหม่ไปเก่า เวลาเท่ากันเรียง requestId มากไปน้อย มี requestId, modelName, assetCode, submittedAt เจ้าหน้าที่ได้ 403 `STUDENT_ONLY`)
+- เสร็จเมื่อ: `TestAC_CXL_08_ListOwnPendingSorted` ผ่าน (`GET /api/v1/my/pending-requests` คืนเฉพาะคำขอของผู้เรียกที่ยกเลิกได้ เรียงใหม่ไปเก่า เวลาเท่ากันเรียง requestId มากไปน้อย มี requestId, modelName, assetCode, submittedAt เจ้าหน้าที่ได้ 403 `STUDENT_ONLY`) (รหัส error เปลี่ยนตาม CR-006 2569-11-12 ดู T-33: เจ้าหน้าที่ได้ 403 `FORBIDDEN_ROLE`)
 - สถานะ: เสร็จ
 
 ### T-05 สร้างหน้า "คำขอที่รออนุมัติของฉัน" แสดงรายการ
@@ -168,7 +168,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ไฟล์ที่แตะ: `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/handler.go`, `backend/internal/cancelrequest/handler_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06
-- เสร็จเมื่อ: `TestAC_CXL_14_ReasonValidation` ผ่าน (ว่าง และช่องว่างล้วน -> 400 `REASON_REQUIRED`, 201 ตัวอักษร -> 400 `REASON_TOO_LONG` สถานะไม่เปลี่ยน, "ไม่ต้องใช้อุปกรณ์แล้ว" -> 200 และ cancel_reason ตรงกัน)
+- เสร็จเมื่อ: `TestAC_CXL_14_ReasonValidation` ผ่าน (ว่าง และช่องว่างล้วน -> 400 `REASON_REQUIRED`, 201 ตัวอักษร -> 400 `REASON_TOO_LONG` สถานะไม่เปลี่ยน, "ไม่ต้องใช้อุปกรณ์แล้ว" -> 200 และ cancel_reason ตรงกัน) (รหัส error เปลี่ยนตาม CR-006 2569-11-12 ดู T-33: เหตุผลว่าง ช่องว่างล้วน หรือเกิน 200 ตัวอักษร ได้ 422 `VALIDATION_FAILED` fields reason)
 - สถานะ: เสร็จ
 
 ### T-10 ปิดปุ่มยืนยันเมื่อเหตุผลว่างหรือเกิน และแสดงจำนวนตัวอักษร
@@ -398,7 +398,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ไฟล์ที่แตะ: `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/handler.go`, `backend/internal/cancelrequest/handler_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06, T-03
-- เสร็จเมื่อ: `TestAC_CXL_13_DBDownReturns503` ผ่าน (หยุด container ก่อน POST -> 503 `UPSTREAM_UNAVAILABLE` retryable, ใช้ `CancelDBTimeout`, เปิดฐานข้อมูลกลับมาแล้วสถานะยัง requested)
+- เสร็จเมื่อ: `TestAC_CXL_13_DBDownReturns503` ผ่าน (หยุด container ก่อน POST -> 503 `UPSTREAM_UNAVAILABLE` retryable, ใช้ `CancelDBTimeout`, เปิดฐานข้อมูลกลับมาแล้วสถานะยัง requested) (รหัส error เปลี่ยนตาม CR-006 2569-11-12 ดู T-33: 503 เป็น `{code, message}` ไม่มี retryable)
 - สถานะ: เสร็จ
 
 ### T-24 แสดงข้อผิดพลาดพร้อมปุ่มลองใหม่
@@ -432,14 +432,16 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - เสร็จเมื่อ: `TestAC_CXL_07_ExpiredSessionNoCancel` ผ่าน (ไม่มี token หรือ token ไม่รู้จัก -> 401 `UNAUTHENTICATED` สถานะไม่เปลี่ยน) ส่วนตรวจ audit_log อยู่ที่ T-31
 - สถานะ: เสร็จ
 
-### T-26 พาไปหน้าเข้าสู่ระบบและกลับมาหน้าเดิม
-- รองรับ: IF-IDP-01
+### T-26 พาไปหน้าเข้าสู่ระบบและกลับมาหน้าเดิม และหน้าจอเมื่อเจ้าหน้าที่เปิดหน้านี้
+- รองรับ: IF-IDP-01, FR-CXL-03 (ASM-13)
 - ตรวจด้วย: AC-CXL-07
-- ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/MyPendingRequests.test.jsx` (ถ้า 001 ทำกลไก redirect พร้อม `returnTo` ไว้แล้วใน AC-EQS-09 ให้ใช้ของเดิม ไม่เขียนใหม่)
+- ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/MyPendingRequests.test.jsx` (กลไก 401 ใช้ของ 001 T-21 ที่มีแล้ว ไม่เขียนใหม่ ไม่แก้ `App.jsx`, `api/client.js`)
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
 - ต้องทำหลัง: T-07 (เดิม T-07, T-25 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
-- เสร็จเมื่อ: vitest `AC_CXL_07 redirects to login with returnTo` ผ่าน (401 -> ไปหน้าเข้าสู่ระบบพร้อม `returnTo` ของหน้านี้ ไม่เรียกยกเลิกซ้ำอัตโนมัติ `returnTo` ภายนอกระบบถูกปฏิเสธ)
-- สถานะ: พร้อมทำ
+- เสร็จเมื่อ: (แก้ 2569-11-12 ตาม plan v1.6 ข้อ 4)
+  (1) vitest `AC_CXL_07 redirects to login and back` ผ่าน: render `App` กับ client จริง mock `fetch` ให้ยกเลิกได้ 401 -> เห็นหน้าเข้าสู่ระบบพร้อมข้อความ ล็อกอินแล้วกลับมาแท็บ "คำขอที่รออนุมัติของฉัน" ไม่เรียกยกเลิกซ้ำอัตโนมัติ
+  (2) vitest เจ้าหน้าที่เปิดหน้านี้ได้ 403 `FORBIDDEN_ROLE` -> แสดง message จากหลังบ้าน ไม่มีปุ่ม "ลองใหม่" (ทีมตัดสิน ทาง ก)
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 13
 - test ที่ต้องผ่านทั้งหมด: `TestAC_CXL_07_ExpiredSessionNoCancel`, vitest `AC_CXL_07 ...` และ test ของเฟส 0-12
@@ -536,7 +538,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-30, T-09, T-19, T-25
 - เสร็จเมื่อ: `TestAC_CXL_06_AuditLogAttempts` ผ่าน (3 แถว action `cancel`: `ok` 1, `forbidden` 2 มี request_id และ cause ใน query ตามตาราง FR-CXL-05 เขียนใน transaction เดียวกับการยกเลิก) และ `TestAC_CXL_07_ExpiredSessionNoCancel` ตรวจเพิ่มว่าไม่มีแถวใหม่
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 ### T-32 บันทึกเมื่อส่ง Email ไม่สำเร็จ
 - รองรับ: FR-CXL-09, FR-CXL-05
@@ -546,7 +548,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - ต้องทำหลัง: T-28, T-31
 - เสร็จเมื่อ: `TestAC_CXL_16_NotifyFailureStillCancelled` ตรวจเพิ่มว่ามีแถว action `notify` outcome `error` และ request_id ของคำขอนั้นใน audit_log
   และกรณีภาควิชาไม่มี Email เจ้าหน้าที่ (ErrNoRecipients) ก็ต้องบันทึกแถวเดียวกัน (ทีมตัดสิน 2569-11-12 ตอนทำ T-27)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 17
 - test ที่ต้องผ่านทั้งหมด: `TestMigration_AuditLogAcceptsNotify`, `TestAC_CXL_06_AuditLogAttempts`, `TestAC_CXL_07_ExpiredSessionNoCancel` (ส่วน audit), `TestAC_CXL_16_NotifyFailureStillCancelled` (ส่วน audit) และ test ของเฟส 0-16
@@ -556,6 +558,34 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
   When ยกเลิกคำขอ requested ของตนเอง 1 ครั้ง, ส่งคำสั่งยกเลิกคำขอ approved ด้วย curl 1 ครั้ง และคำขอของ student-002 ด้วย curl 1 ครั้ง แล้วรัน `SELECT actor_id, action, outcome, request_id, query FROM audit_log WHERE action='cancel' ORDER BY id DESC LIMIT 3` ใน psql
   Then เห็น 3 แถวของ student-001 เป็น `ok` 1 แถว `forbidden` 2 แถว (cause `already_approved` และ `not_owner`)
 - ยังขาด: ไม่มี
+
+---
+
+## เฟส 18: รูปแบบ error ตาม CON-TECH-03 (CR-006)
+
+### T-33 เปลี่ยนรูปแบบ error เป็น {code, message} และใช้รหัสจากรายการกลาง
+- รองรับ: CON-TECH-03, FR-CXL-02, FR-CXL-03, FR-CXL-08, CR-006
+- ตรวจด้วย: AC-CXL-02, AC-CXL-03, AC-CXL-11, AC-CXL-13, AC-CXL-14, TC-CXL-08-6, 14-4, 14-5, 14-6 (แก้ตาม CR-006)
+- ไฟล์ที่แตะ: `backend/internal/cancelrequest/errors.go` (ใหม่ รหัสและข้อความ), `backend/internal/cancelrequest/dto.go`, `backend/internal/cancelrequest/handler.go`, `backend/internal/cancelrequest/service.go` (สถานะของคำขอใน error 409), test ใน `backend/internal/cancelrequest/` ที่ตรวจรหัสเดิม (รวม tc_ac_cxl_08_test.go, tc_ac_cxl_14_test.go ตาม test-cases.md ที่แก้แล้ว)
+- แบบหน้าจอ: ไม่มี (หน้าจอตัดสินจาก code อยู่แล้ว รหัส 404 / 409 ไม่เปลี่ยน)
+- ต้องทำหลัง: T-09, T-15, T-17, T-19, T-23
+- เสร็จเมื่อ: ทุก error ของ 003 เป็น `{code, message}` (ไม่มี retryable) เจ้าหน้าที่ได้ 403 `FORBIDDEN_ROLE`, เหตุผลผิดได้ 422 `VALIDATION_FAILED` fields reason,
+  409 แนบ `status` ของคำขอ และ test ทั้งหมดของ 003 ผ่าน
+- สถานะ: เสร็จ
+
+---
+
+## เฟส 19: เวลารอส่ง Email (rtm F-04)
+
+### T-34 จำกัดเวลารอส่ง Email หลังยกเลิก
+- รองรับ: FR-CXL-09, NFR-PERF-CXL-01, ASM-10 (rtm F-04)
+- ตรวจด้วย: AC-CXL-16 (ระบบแจ้งเตือน Email ไม่ตอบสนอง)
+- ไฟล์ที่แตะ: `backend/internal/config/config.go` (NotifyTimeout), `backend/internal/cancelrequest/service.go`, `backend/internal/cancelrequest/notifier_test.go`
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: T-28, T-32
+- เสร็จเมื่อ: `TestAC_CXL_16_NotifyHangsStillCancelled` ผ่าน (ตัวส่งค้างไม่ตอบ -> ได้ 200 ภายในเวลาที่จำกัด สถานะ cancelled
+  และมีแถว notify error ใน audit_log) ตัวส่งที่ไม่สนใจ context ก็ต้องหยุดรอได้
+- สถานะ: เสร็จ
 
 ---
 

@@ -136,7 +136,7 @@ Updated: 2569-11-11
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06
 - เสร็จเมื่อ: `TestAC_BRQ_13` ผ่าน — `loanType=normal` ที่ `endAt` เกิน 16:00 น. ของวันเดียวกับ `startAt` ต้องได้ 422 โดยค่า 16 อ่านจาก config ไม่ฝังในโค้ด
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 4
 - test ที่ต้องผ่านทั้งหมด: `TestAC_BRQ_13` และ test ของเฟส 0-3
@@ -154,11 +154,13 @@ Updated: 2569-11-11
 ### T-09 ตรวจสถานะอุปกรณ์ซ้ำในทรานแซกชันเดียวกับการสร้างคำขอ
 - รองรับ: FR-BRQ-01, CON-DATA-01, CON-DATA-03, CON-TECH-03
 - ตรวจด้วย: AC-BRQ-01
-- ไฟล์ที่แตะ: `backend/internal/borrowrequest/repository.go`, `backend/internal/borrowrequest/service.go`
+- ไฟล์ที่แตะ: `backend/internal/borrowrequest/repository.go`, `backend/internal/borrowrequest/service.go`,
+  `backend/internal/borrowrequest/handler.go` (เพิ่มเมื่อ 2569-11-12 ทีมตัดสิน เพราะการแนบสถานะล่าสุดลง response
+  ทำที่ handler เท่านั้น แยกไป task อื่นจะขาดตอน)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-05
 - เสร็จเมื่อ: `TestAC_BRQ_01` ผ่าน — เปลี่ยนสถานะเป็น `borrowed` ก่อนกดส่ง ต้องได้ 409 `ITEM_NOT_AVAILABLE` พร้อมสถานะล่าสุด และไม่มีแถวใหม่
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 5
 - test ที่ต้องผ่านทั้งหมด: `TestAC_BRQ_01` และ test ของเฟส 0-4
@@ -180,7 +182,7 @@ Updated: 2569-11-11
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-09
 - เสร็จเมื่อ: `TestAC_BRQ_07` ผ่าน — `student-101` (ภาควิชา 2) ส่งคำขออุปกรณ์ภาควิชา 1 ต้องได้ 403 `FORBIDDEN_DEPARTMENT` และ body ต้องไม่มีชื่อรุ่น สถานะ หรือข้อมูลอุปกรณ์ใด ๆ
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 6
 - test ที่ต้องผ่านทั้งหมด: `TestAC_BRQ_07` และ test ของเฟส 0-5
@@ -198,11 +200,13 @@ Updated: 2569-11-11
 ### T-11 ปฏิเสธคำขอซ้ำของผู้ขอคนเดิมที่คำขอเก่ายังไม่จบ
 - รองรับ: FR-BRQ-05, DOM-REQ-01, CON-TECH-03
 - ตรวจด้วย: AC-BRQ-11
-- ไฟล์ที่แตะ: `backend/internal/borrowrequest/service.go`, `backend/internal/borrowrequest/repository.go`
+- ไฟล์ที่แตะ: `backend/internal/borrowrequest/service.go`, `backend/internal/borrowrequest/repository.go`,
+  `backend/internal/borrowrequest/handler.go` (เพิ่มเมื่อ 2569-11-12 ทีมตัดสิน เพราะการแปลง error เป็นรหัส
+  `DUPLICATE_REQUEST` และสถานะ 409 ตาม CON-TECH-03 ทำที่ handler เท่านั้น ถ้าไม่แตะจะตกเป็น 503 ซึ่งผิดรหัส)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-09
 - เสร็จเมื่อ: `TestAC_BRQ_11` ผ่าน — ส่งซ้ำขณะสถานะ `requested` หรือ `approved` ได้ 409 `DUPLICATE_REQUEST` / หลังคำขอเดิมเป็น `cancelled` หรือ `rejected` ส่งใหม่ได้ / และเมื่อยิงพร้อมกัน 2 ครั้ง ต้องมีแถวเดียวเพราะ unique index จาก T-01 กันไว้
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 7
 - test ที่ต้องผ่านทั้งหมด: `TestAC_BRQ_11` และ test ของเฟส 0-6
@@ -220,20 +224,24 @@ Updated: 2569-11-11
 ### T-12 เพิ่มนาฬิกาที่ฉีดได้ และกฎปฏิเสธเมื่อมีของคืนเกินกำหนด
 - รองรับ: FR-BRQ-06, DOM-ACCESS-01, CON-TECH-03
 - ตรวจด้วย: AC-BRQ-06
-- ไฟล์ที่แตะ: `backend/internal/borrowrequest/clock.go`, `backend/internal/borrowrequest/service.go`, `backend/internal/borrowrequest/repository.go`
+- ไฟล์ที่แตะ: `backend/internal/borrowrequest/clock.go`, `backend/internal/borrowrequest/service.go`, `backend/internal/borrowrequest/repository.go`,
+  `backend/internal/borrowrequest/handler.go` (เพิ่มเมื่อ 2569-11-12 ทีมอนุญาตล่วงหน้าตอนสั่ง เพราะการแปลง error
+  เป็นรหัส `HAS_OVERDUE_LOAN` และสถานะ 409 ตาม CON-TECH-03 ทำที่ handler เท่านั้น เหมือน T-09 และ T-11)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-11
 - เสร็จเมื่อ: `TestAC_BRQ_06` ผ่าน — ผู้ขอที่มี loan ซึ่ง `returned_at` ว่างและเลย 16:00 น. ของ `due_at` แล้ว ต้องได้ 409 `HAS_OVERDUE_LOAN` และต้องนับเฉพาะอุปกรณ์ของภาควิชาตนเอง
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 ### T-13 กฎปลดล็อกเมื่อถึง 00:00 น. ของวันถัดไปหลังคืน
 - รองรับ: FR-BRQ-06
 - ตรวจด้วย: AC-BRQ-12
-- ไฟล์ที่แตะ: `backend/internal/borrowrequest/service.go`
+- ไฟล์ที่แตะ: `backend/internal/borrowrequest/service.go`,
+  `backend/internal/borrowrequest/repository.go` (เพิ่มเมื่อ 2569-11-12 ทีมตัดสิน เพราะกฎปลดล็อกต้องอ่าน
+  `returned_at` ของใบที่คืนแล้ว แต่ query จาก T-12 กรอง `returned_at IS NULL` ทิ้งไป ใบที่คืนแล้วจึงไม่ถึง service)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-12
 - เสร็จเมื่อ: `TestAC_BRQ_12` ผ่าน — ใช้นาฬิกาที่ตั้งได้ ยิงเวลา 23:59 ของวันที่คืนต้องถูกปฏิเสธ และ 00:01 ของวันถัดไปต้องผ่าน โดยเทียบตามเขตเวลา Asia/Bangkok
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 8
 - test ที่ต้องผ่านทั้งหมด: `TestAC_BRQ_06`, `TestAC_BRQ_12` และ test ของเฟส 0-7
@@ -251,20 +259,27 @@ Updated: 2569-11-11
 ### T-14 รับไฟล์แนบของการยืมค้างคืน พร้อมตรวจชนิดและขนาด
 - รองรับ: FR-BRQ-10, CON-TECH-03
 - ตรวจด้วย: AC-BRQ-10
-- ไฟล์ที่แตะ: `backend/internal/borrowrequest/attachment.go`, `backend/internal/borrowrequest/handler.go`, `backend/internal/borrowrequest/validate.go`
+- ไฟล์ที่แตะ: `backend/internal/borrowrequest/attachment.go`, `backend/internal/borrowrequest/handler.go`,
+  `backend/internal/borrowrequest/validate.go`, `backend/internal/borrowrequest/service.go`,
+  `backend/internal/borrowrequest/repository.go` (2 ไฟล์หลังเพิ่มเมื่อ 2569-11-12 ทีมตัดสิน เพราะช่อง "เสร็จเมื่อ"
+  บังคับให้บันทึก path ลงคอลัมน์ `attachment_path` ซึ่งต้องผ่าน service และ repository)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-07
 - เสร็จเมื่อ: `TestAC_BRQ_10` ผ่าน — `loanType=overnight` ที่ไม่แนบไฟล์ได้ 422, ไฟล์เกิน 10MB หรือชนิดนอก 3 ชนิดได้ 422, และไฟล์ที่ผ่านถูกเก็บลงโฟลเดอร์ตาม config พร้อมบันทึก path ในตาราง
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 ### T-15 สร้าง endpoint เปิดดูไฟล์แนบ จำกัดสิทธิ์
 - รองรับ: FR-BRQ-10, DOM-PRIV-01, IF-IDP-01
 - ตรวจด้วย: AC-BRQ-10
-- ไฟล์ที่แตะ: `backend/internal/borrowrequest/handler.go`, `backend/cmd/server/main.go`
+- ไฟล์ที่แตะ: `backend/internal/borrowrequest/handler.go`, `backend/cmd/server/main.go`,
+  `backend/internal/borrowrequest/service.go`, `backend/internal/borrowrequest/repository.go`
+  (2 ไฟล์หลังเพิ่มเมื่อ 2569-11-12 ทีมตัดสิน เพราะต้องอ่านเจ้าของคำขอและ path ของไฟล์จากฐานข้อมูล)
+  และของกลาง `specs/000-shared/constraints.md` + `specs/changes/CR-007.md` + `specs/CHANGELOG.md`
+  (ลงทะเบียนรหัส `REQUEST_NOT_FOUND` ตามที่ทีมเลือก ดู CR-007)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-14
 - เสร็จเมื่อ: เจ้าหน้าที่และเจ้าของคำขอเปิดไฟล์ได้ 200 ส่วนนักศึกษาคนอื่นได้ 403 โดยมี test ครอบทั้ง 3 กรณี
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 9
 - test ที่ต้องผ่านทั้งหมด: `TestAC_BRQ_10` และ test ของเฟส 0-8

@@ -1354,6 +1354,9 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 ### ผล test
 - `go test ./internal/borrowrequest/ -run "TestAC_BRQ_02|TestAC_BRQ_14" -v`: PASS
 - `go test ./...`: ทุกแพ็กเกจ ok (borrowrequest 4.936s)
+
+---
+
 ## 2569-11-11 เขียน FR ของ UC-08 ใน SRS หัวข้อ 3.1.5
 
 - ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
@@ -4380,6 +4383,739 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 
 ---
 
+## 2569-11-12 /verify specs/003-cancel-request/ (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /verify ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/verify.md แล้วทำตามเอง แก้เฉพาะ rtm.md และ prompt-log.md)
+- ผล test: go test -p 1 ./... ผ่าน 114 (ของ 003 47) ไม่ผ่าน 0, npm test ผ่าน 47 (ของ 003 23) ไม่ผ่าน 0, k6 AC-CXL-17 ผ่าน (รันด้วยมือ)
+- ตารางไปข้างหน้า 22 แถว: ครบ 12, ยังไม่ถึง 3 (FR-CXL-05, FR-CXL-09 ส่วน audit และมี F-04 ด้วย, IF-IDP-01), รอ Q-xx 0,
+  ช่องโหว่ 7 (FR-CXL-03, FR-CXL-10, NFR-SEC-01, NFR-AVAIL-01, NFR-PERF-CXL-01, CON-TECH-02, CON-TECH-03)
+- ข้อค้นพบใหม่: F-01 (CON-TECH-03 รูปแบบและรหัส error), F-02 (ไม่มี test เจ้าหน้าที่ POST cancel ได้ 403), F-03 (ไม่มี HTTPS),
+  F-04 (ส่ง Email แบบรอผลไม่มีเวลาจำกัด), F-05 (ตัวเลขฝังใน k6 script), F-06 (body อ่านไม่ได้ / id ไม่ใช่ตัวเลข AI เลือกเอง),
+  F-07 (FR-CXL-10 ไม่มี AC), F-08 (NFR-AVAIL-01 และ TLS ไม่มี AC)
+- หมายเหตุเอกสาร: Q-SH-05 ใน spec/plan ยังเป็นรอคำตอบ (001 ปิดแล้ว), Status ของ spec ยังเป็น v3.7
+
+---
+
+## 2569-11-12 แก้ข้อค้นพบ F-02 ของ rtm.md (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: F-02 เพิ่ม TestFR_CXL_03_StaffCancelForbidden ใน handler_test.go เจ้าหน้าที่ POST cancel ต้องได้ 403 STUDENT_ONLY และสถานะคำขอไม่เปลี่ยน ไม่ต้องแก้โค้ด
+- ไฟล์ที่แก้: backend/internal/cancelrequest/handler_test.go (เพิ่ม test), specs/003-cancel-request/rtm.md (ช่องทีมตัดสินของ F-02 และหัวข้อแก้แล้ว)
+- ผล test: test ใหม่ผ่าน package cancelrequest ผ่านทั้งหมด
+- ยืนยันว่า test จับปัญหาได้: ปิดบรรทัดตรวจบทบาทใน service.go: Cancel ชั่วคราว test ไม่ผ่าน (404 แทน 403) แล้ว git checkout คืนไฟล์ ไม่มีการแก้โค้ดค้าง
+
+
+---
+
+## 2569-11-12 แก้ข้อค้นพบ F-01 (และ F-06) ของ rtm.md ด้วย CR-006 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: แก้ F-01 ให้ 003 ใช้รูปแบบ error ตาม CON-TECH-03 ถามผลกระทบกับเพื่อนก่อนแก้ แล้วถามเจ้าของ CR-004 (ธัญลักษณ์ 002)
+- คำตอบของเจ้าของ CR-004: ใช้ VALIDATION_FAILED 422, ลงทะเบียน REQUEST_NOT_FOUND แถวเดียวร่วมกับ 004, FORBIDDEN_ROLE มีแล้ว, แนะนำแนบ status, ตัด retryable
+- เจ้าของ 003 ตัดสิน: แยก ALREADY_APPROVED กับ NOT_CANCELLABLE, แนบ status ใน 409, ข้อความ VALIDATION_FAILED ข้อความเดียว "กรุณาระบุเหตุผลการยกเลิกไม่เกิน 200 ตัวอักษร",
+  REQUEST_NOT_FOUND ข้อความ "ไม่พบคำขอ", อนุมัติแก้ 4 แถวใน test-cases.md (TC-CXL-08-6, 14-4, 14-5, 14-6)
+- ไฟล์ที่แก้ (เอกสาร): specs/changes/CR-006.md (ใหม่), specs/000-shared/constraints.md (v5.2 ของกลาง แก้เพราะ 003), specs/003-cancel-request/spec.md (Draft v3.8),
+  plan.md ข้อ 4, test-cases.md 4 แถว, tasks.md (T-33), rtm.md (F-01, F-06), specs/CHANGELOG.md
+- ไฟล์ที่แก้ (โค้ด): backend/internal/cancelrequest/errors.go (ใหม่), dto.go, handler.go, service.go, handler_test.go, notifier_test.go, tc_helpers_test.go,
+  tc_ac_cxl_08_test.go, tc_ac_cxl_14_test.go (TestTC_ แก้ตาม test-cases.md ที่เจ้าของอนุมัติ ไม่ได้แก้ให้ผ่าน)
+- สิ่งที่ AI เลือกเอง: ข้อความของ FORBIDDEN_ROLE, ALREADY_APPROVED, UPSTREAM_UNAVAILABLE, UNAUTHENTICATED (ไม่ได้มาจาก spec), ใช้ StatusError ห่อ error เพื่อแนบสถานะ
+- ผล test: go test -p 1 ./... ผ่านทุก package (ของ 003 48) npm test ผ่าน 47 หน้าจอไม่ต้องแก้
+- ยังต้องทำ: แจ้งเจ้าของ 004 ว่า REQUEST_NOT_FOUND ลงทะเบียนแถวร่วมแล้ว และ 003 ใช้ข้อความ "ไม่พบคำขอ", T-33 รอเจ้าของตรวจ
+
+---
+
+## 2569-11-12 ตรวจ T-33 (CR-006 รูปแบบ error) (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เจ้าของตรวจ: รัน go test และเปิดหน้าเว็บ ตรวจ response ใน Network (409 แนบ status มี message ไม่มี retryable, 403 FORBIDDEN_ROLE ของเจ้าหน้าที่) แจ้งว่า "ผ่าน"
+- เปลี่ยนสถานะ T-33 ใน tasks.md เป็น เสร็จ
+
+---
+
+## 2569-11-12 ตรวจรายงานของ 001 หลัง PR #14 และแก้ plan / T-26 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- ที่มา: 001 ส่งรายงานว่า PR #14 (mock login, 401 {code, message}) กระทบ 003 อย่างไร AI ตรวจเทียบกับโค้ดแล้ว ข้อ "003 ยังไม่ใช้ CON-TECH-03" ตกยุค (ทำแล้วใน CR-006 / T-33 เจ้าของแจ้ง 001 แล้ว)
+- ทีมตัดสิน: (1) แก้ plan ข้อ 4 ให้ตรงกับกลไกจริงของ 001 T-21 (จำชื่อแท็บ + safePageKey ไม่ใช่ returnTo แบบ path)
+  (2) เจ้าหน้าที่เปิดหน้า "คำขอที่รออนุมัติของฉัน" ได้ 403 FORBIDDEN_ROLE -> แสดง message ไม่มีปุ่มลองใหม่ (ทาง ก) รวมไว้ใน T-26
+- ไฟล์ที่แก้: specs/003-cancel-request/plan.md (Draft v1.6), tasks.md (T-26, จำนวน task ในสรุป), specs/CHANGELOG.md ยังไม่แก้โค้ด
+
+---
+
+## 2569-11-12 /implement T-26 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md เอง)
+- สิ่งที่ทำ: 401 ใช้กลไกของ 001 T-21 ที่มีแล้ว ไม่แก้ App.jsx / client.js, หน้า MyPendingRequests ได้ 403 FORBIDDEN_ROLE แสดง serverMessage ไม่มีปุ่มลองใหม่ (ทาง ก)
+- ไฟล์ที่แก้: frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx, __tests__/MyPendingRequests.test.jsx (เพิ่ม AC_CXL_07 redirects to login and back, FR_CXL_03 staff sees forbidden message without retry)
+- สิ่งที่ AI เลือกเอง: ถ้า 403 ไม่มี message ใช้ข้อความ "โหลดรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" แทน, test ของ AC-CXL-07 ทำให้ session หมดอายุระหว่างเปิดหน้าด้วยการลบ token
+- ผล test: npm test ผ่าน 57 (เพิ่ม 2) ลองเปลี่ยนรหัสที่ตรวจเป็นค่าอื่นชั่วคราว test ของเจ้าหน้าที่ไม่ผ่าน คืนโค้ดแล้วผ่าน
+- สถานะ: รอเจ้าของตรวจ
+
+---
+
+## 2569-11-12 ตรวจ T-26 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เจ้าของตรวจบนหน้าเว็บ: ลบ token ใน Session storage แล้วได้หน้าเข้าสู่ระบบจำลองพร้อมข้อความ, staff-001 เห็นข้อความเฉพาะนักศึกษาไม่มีปุ่มลองใหม่,
+  session หมดอายุระหว่างยืนยันยกเลิก ล็อกอินแล้วกลับแท็บเดิม คำขอยังอยู่ แจ้งว่า "ผ่าน"
+- เปลี่ยนสถานะ T-26 ใน tasks.md เป็น เสร็จ
+
+---
+
+## 2569-11-12 /implement T-31 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md เอง)
+- สิ่งที่ทำ: บันทึก audit_log ทุกครั้งที่นักศึกษาพยายามยกเลิก ตามตาราง FR-CXL-05 ใน transaction เดียวกับการยกเลิก ใช้ audit.Write ของ 001 (รับ pgx.Tx)
+  ไม่สำเร็จก็ commit เพื่อเก็บแถว audit, แยก not_found กับ not_owner ด้วย RequestState (แทน OwnStatus) หน้าจอยังได้ 404 เหมือนกัน (FR-CXL-03)
+  ล้างข้อมูลใน test ด้วย SET LOCAL session_replication_role = replica (ทีมเลือก ข)
+- ไฟล์ที่แก้: backend/internal/cancelrequest/service.go, repository.go, handler_test.go (TestAC_CXL_06_AuditLogAttempts ใหม่, TestFR_CXL_05_AuditLogOtherCauses ใหม่, TestAC_CXL_07 ตรวจไม่มีแถวใหม่), tc_helpers_test.go (วิธีล้าง, tcAuditMark, tcAuditSince)
+- สิ่งที่ AI เลือกเอง (ตาราง FR-CXL-05 ไม่ได้บอก):
+  - เหตุผลผิดกับคำขอที่ไม่มีอยู่ -> request_id ว่าง เก็บ id ใน query แบบ not_found (FK ไม่ยอมให้อ้างคำขอที่ไม่มี)
+  - เจ้าหน้าที่สั่งยกเลิก (403) ไม่บันทึก เพราะ FR-CXL-05 กำหนดเฉพาะนักศึกษา
+  - บันทึก audit ไม่สำเร็จ -> 503 และไม่ยกเลิก, เหตุผลผิดต้องเปิด transaction ก่อน (ฐานข้อมูลล่มตอนเหตุผลผิดได้ 503 แทน 422)
+  - id ที่ไม่ใช่ตัวเลข และ body ที่ไม่ใช่ JSON ไม่บันทึก (ตอบใน handler.go ซึ่งไม่อยู่ในไฟล์ที่แตะของ T-31)
+- ผล test: go test -p 1 ./... ผ่านทุก package (ของ 003 ผ่าน 50) ลองเปลี่ยน cause not_owner และลบ commit ของแถว forbidden ชั่วคราว test ไม่ผ่าน คืนโค้ดแล้วผ่าน
+- สถานะ: รอเจ้าของตรวจ
+
+---
+
+## 2569-11-12 ตรวจ T-31 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เจ้าของตรวจแล้วแจ้งว่า "ผ่าน" และรับ 4 เรื่องที่ AI เลือกเอง (เหตุผลผิดกับคำขอที่ไม่มี เก็บ id ใน query, เจ้าหน้าที่ไม่บันทึก,
+  บันทึก audit ไม่ได้ -> 503, id ไม่ใช่ตัวเลขและ body ไม่ใช่ JSON ไม่บันทึก)
+- เปลี่ยนสถานะ T-31 ใน tasks.md เป็น เสร็จ
+
+---
+
+## 2569-11-12 /implement T-32 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md เอง)
+- สิ่งที่ทำ: ยกเลิกสำเร็จแต่ส่ง Email ไม่สำเร็จ (รวมภาควิชาไม่มี Email เจ้าหน้าที่ ErrNoRecipients) บันทึก audit_log action notify outcome error
+  request_id ของคำขอ query {"for":"cancel"} ตามตาราง FR-CXL-05 เขียนหลัง commit นอก transaction รอไม่เกิน dbTimeout
+- ไฟล์ที่แก้: backend/internal/cancelrequest/service.go (auditNotifyFailed), notifier_test.go (TestAC_CXL_16, TestNotify_NoStaffEmailStillCancelled ตรวจแถว notify error)
+- AI ถามก่อนแตะไฟล์นอก task: TestAC_CXL_06 (T-31) นับได้ 4 แถวเพราะภาควิชา 1 ใน test ไม่มี Email จึงมีแถว notify error เพิ่ม
+  เจ้าของเลือกทาง ก: แก้ handler_test.go ให้ TestAC_CXL_06 นับเฉพาะ action cancel
+- สิ่งที่ AI เลือกเอง: บันทึกแถว notify ไม่สำเร็จ แค่ log ไว้ ยังตอบ 200 เพราะยกเลิกสำเร็จแล้ว (spec ไม่บอก)
+- ผล test: go test -p 1 ./... ผ่านทุก package (ของ 003 ผ่าน 50) ลองปิดการบันทึก notify ชั่วคราว 2 test ไม่ผ่าน คืนโค้ดแล้วผ่าน
+- สถานะ: รอเจ้าของตรวจ
+
+---
+
+## 2569-11-12 ตรวจ T-32 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เจ้าของตรวจกับฐานข้อมูลจริง: ลบ Email เจ้าหน้าที่ภาควิชา 1 ชั่วคราว ยกเลิกคำขอบนหน้าเว็บ เห็นแถว notify error ต่อจาก cancel ok แล้วใส่ Email กลับ แจ้งว่า "ผ่าน"
+  (คำสั่งแรกที่ AI ให้ เปลี่ยน department_id เป็น 99 ไม่ผ่าน FK ของ staff_contact จึงเปลี่ยนเป็นลบแล้วใส่กลับ)
+- เปลี่ยนสถานะ T-32 ใน tasks.md เป็น เสร็จ (ครบ 33 task ของ 003)
+
+---
+
+## 2569-11-12 /verify specs/003-cancel-request/ รอบที่ 2 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (พิมพ์ /verify แล้วเรียก skill ตรวจของ Claude Code ไม่ใช่ของรายวิชา AI อ่าน .claude/commands/verify.md แล้วทำตามเอง)
+- ผล test: go test -count=1 -p 1 ./... ผ่าน 129 (ของ 003 50) ไม่ผ่าน 0, npm test ผ่าน 57 (ของ 003 26) ไม่ผ่าน 0 รวม 186
+- ยิงหลังบ้านที่เปิดอยู่ด้วยรหัสคำขอที่ไม่มี (ไม่แตะข้อมูลจริง): body ไม่ใช่ JSON -> 422, id "abc" -> 404, เจ้าหน้าที่ -> 403 FORBIDDEN_ROLE
+- ตารางไปข้างหน้า 22 แถว: ครบ 13, ยังไม่ถึง 0, รอ 0, ช่องโหว่ 9 (FR-CXL-05, FR-CXL-09, FR-CXL-10, NFR-SEC-01, NFR-AVAIL-01, NFR-PERF-CXL-01, CON-TECH-02, CON-TECH-03)
+- แก้แล้ว: F-01, F-02, F-06 (ย้ายไปหัวข้อ 4 คงข้อความทีมตัดสินเดิม) ยังเปิด: F-03, F-04, F-05, F-07, F-08
+- ข้อค้นพบใหม่: F-09 (FR-CXL-05 ไม่บันทึก audit 2 กรณีใน handler และเหตุผลผิดกับคำขอที่ไม่มี), F-10 (คอมเมนต์ client.js ยังเขียน 400 REASON_*)
+- แก้รูปแบบตารางของ rtm.md: ช่องทีมตัดสินของ F-01, F-06 จาก /verify รอบแรกมี "||" เกิน (AI ใส่ผิดตอนบันทึกการตัดสิน) ข้อความทีมตัดสินคงไว้ทุกตัวอักษรในหัวข้อ 4
+- แก้ไขบรรทัดก่อนหน้า (AI นับผิด): ตารางไปข้างหน้า 22 แถว ที่ถูกคือ ครบ 14, ช่องโหว่ 8 (รายการ ID ช่องโหว่ 8 ตัวที่จดไว้ถูกแล้ว)
+
+---
+
+## 2569-11-12 ตัดสินข้อค้นพบ F-05, F-07, F-10 ของ rtm.md (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เจ้าของสั่งให้ทำตามที่ AI แนะนำ: F-05 ไม่ใช่ปัญหา (k6 อ่าน config.go ไม่ได้), F-07 ไม่ใช่ปัญหา (FR-CXL-10 ไม่ทำใน prototype รอ Q-16), F-10 แก้โค้ด
+- F-10: เจ้าของแก้เองแล้วก่อนสั่ง (frontend/src/api/client.js บรรทัด 136 คอมเมนต์สัญญา API, backend/internal/cancelrequest/errors.go msgUnauthenticated = "กรุณาเข้าสู่ระบบก่อนใช้งาน" ตรงของกลาง) AI ไม่ได้แก้โค้ด
+- ไฟล์ที่แก้: specs/003-cancel-request/rtm.md (ช่องทีมตัดสินของ F-05, F-07, F-10 เขียนตามคำสั่งของเจ้าของ)
+
+---
+
+## 2569-11-12 ตัดสิน F-09 (แก้ spec) และ F-04 (แก้โค้ด) และ /implement T-34 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- F-09 ทาง ก (เจ้าของสั่ง "แก้เลย"): spec Draft v3.9 ตาราง FR-CXL-05 เพิ่ม "เหตุผลผิด และไม่มีคำขอนี้" และ "id / ข้อมูลที่ส่งมาอ่านไม่ได้ ไม่บันทึก" ไม่แก้โค้ด
+- F-04 ทาง ข (เจ้าของเลือก): spec ASM-10 รอส่ง Email ไม่เกิน 5 วินาที (AI แนะนำตัวเลข เจ้าของรับ ทีมเลือกเอง ไม่ได้มาจาก spec), plan v1.7 ข้อ 5 เพิ่ม NotifyTimeout, tasks เฟส 19 T-34
+- T-34 ไฟล์ที่แก้: backend/internal/config/config.go (NotifyTimeout), backend/internal/cancelrequest/service.go (notifyTimeout, notify หยุดรอเมื่อหมดเวลาแม้ตัวส่งไม่สนใจ context),
+  notifier_test.go (TestAC_CXL_16_NotifyHangsStillCancelled ตัวส่งค้าง -> 200 สถานะ cancelled มีแถว notify error)
+- สิ่งที่ AI เลือกเอง: ตัวส่งที่ค้างยังทำงานต่อเบื้องหลังจนจบเอง (ไม่มีทางหยุดตัวที่ไม่สนใจ context), test ใช้ notifyTimeout 200 ms
+- ข้อสังเกต: กรณีแย่ที่สุด ฐานข้อมูลช้า 5 วินาที + Email 5 วินาที + บันทึก notify error 5 วินาที = 15 วินาที เท่ากับ CancelPerfP95 พอดี
+- ผล test: go test -p 1 ./... ผ่านทุก package ลองเอาการหยุดรอออกชั่วคราว test ค้างจนหมดเวลา (ไม่ผ่าน) คืนโค้ดแล้วผ่าน
+- ไฟล์เอกสาร: spec.md, plan.md, tasks.md, rtm.md (ทีมตัดสิน F-09, F-04 เขียนตามคำสั่งเจ้าของ), specs/CHANGELOG.md
+- สถานะ T-34: รอเจ้าของตรวจ
+
+---
+
+## 2569-11-12 ใช้แถว REQUEST_NOT_FOUND ของ 004 แทนลงแถวใหม่ (003-cancel-request, แก้ของกลาง constraints.md)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- ที่มา: เจ้าของ 002 ฝากมาว่า "อย่าลงแถว REQUEST_NOT_FOUND ใหม่ มีแล้วในตาราง ให้เติมชื่อฟีเจอร์ในคอลัมน์ใครใช้แล้วของแถวเดิม และระบุใน CR ว่าใช้ร่วมกับ 002 และ 004"
+- สิ่งที่ AI ตรวจ: origin/main ยังไม่มีแถวนี้, origin/004-approve-request ลงทะเบียนไว้แล้ว ("004 (ลงทะเบียน 2569-11-12)"),
+  origin/002-borrow-request ไม่ใช้ REQUEST_NOT_FOUND ทั้งใน spec และโค้ด และไม่มีไฟล์ไหนอ้าง CR-006, รหัสอื่นของ 003 ไม่ซ้ำกับ 002
+- เจ้าของ 003 ตัดสิน: ใช้แถวของ 004 แล้วเติม 003, CR-006 เขียนว่าใช้ร่วมกับ 004 เท่านั้น (ไม่ใส่ 002 เพราะ 002 ไม่ได้ใช้)
+- ไฟล์ที่แก้:
+  - specs/000-shared/constraints.md (ของกลาง แก้เพราะ 003): แถว REQUEST_NOT_FOUND ใช้ข้อความของ 004 ทุกตัวอักษร ช่องใครใช้แล้ว "004 (ลงทะเบียน 2569-11-12), 003 (คำขอของผู้อื่นตอบเหมือนไม่มี CR-006)", บรรทัด Status และตาราง "ใครอ้างใช้บ้าง" แถว CON-TECH-03 (ไม่ขึ้นเวอร์ชัน คงเป็น v5.2)
+  - specs/changes/CR-006.md: เพิ่มบรรทัด "แก้ไข 2569-11-12 (หลังอนุมัติ)", ข้อ 5, รายการรหัส, ผลกระทบ (constraints.md และ 004), ยังต้องแจ้ง
+  - specs/CHANGELOG.md: เพิ่มรายการใหม่ด้านบน ไม่แก้รายการ v5.2 เดิม
+- ไม่ได้แก้: โค้ด test หน้าจอ spec.md plan.md test-cases.md rtm.md (อ้างแค่ v5.2 ซึ่งยังเป็นเวอร์ชันเดิม)
+- ข้อสังเกต: ตอน merge main แถวนี้จะ conflict กับ branch 004 บรรทัดเดียว ให้เก็บช่องใครใช้แล้วที่มีทั้ง 004 และ 003
+- ยังต้องทำ: ตอบเจ้าของ 002, แจ้งเจ้าของ 004
+
+---
+
+## 2569-11-12 ตรวจ T-34 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เจ้าของตรวจแล้วแจ้งว่า "ผ่าน" เปลี่ยนสถานะ T-34 ใน tasks.md เป็น เสร็จ (ครบ 34 task ของ 003)
+
+---
+
+## 2569-11-12 merge main (004 PR #17, 001) และแก้ seed_003 ให้ใช้ now() (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- merge: แก้ conflict 3 ไฟล์ เก็บทั้งสองฝั่ง (constraints.md: รวมรหัสใหม่ 5 ตัวของ 004 กับแถวของ 003 ผู้ใช้แต่ละแถวรวม 003 และ 004, CHANGELOG.md, prompt-log.md) go test ทุก package ผ่าน npm test 81 ผ่าน
+- ผลกระทบที่ AI พบ: approve.AutoRejecter ของ 004 (FR-APV-01 ฉ) ปฏิเสธคำขอ normal ที่ requested และส่งก่อนเที่ยงคืนวันนี้ทันทีที่เปิดเซิร์ฟเวอร์ seed_003 คำขอ 3001, 3002, 3008 (ส่ง 2026-11-10) จะถูกปฏิเสธ
+- เจ้าของสั่ง: seed ให้ใช้ now()
+- ไฟล์ที่แก้: backend/db/seed/seed_003_cancel_request.sql (คำขอ 3001-3004, 3008 ใช้เวลาส่งและเวลายืมเทียบกับ now() เรียงเหมือนเดิม คำขอที่จบแล้ว 3005-3007 คงวันที่เดิม ยังเป็น ON CONFLICT DO NOTHING)
+- สิ่งที่ AI เลือกเอง: เวลาส่งห่างกัน 5-30 นาที ไม่เปลี่ยนเป็น DO UPDATE เพราะโหลดซ้ำอาจชน uq_request_open_per_item ถ้ามีคำขอใหม่จากหน้าของ 002 ฐานข้อมูลเดิมต้องอัปเดตด้วยคำสั่งแยก
+- ผล test: TestSeed003_RequestsAndStaffContact ผ่าน
+- ลบข้อความหลง " 003-cancel-request" ที่ specs/CHANGELOG.md บรรทัด 5 (ค้างมาก่อน merge ไม่ใช่รายการเปลี่ยนแปลง) ตามที่เจ้าของสั่ง
+
+---
+
+## 2569-11-12 สร้างฐานข้อมูลในเครื่องใหม่ (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: ทำทุกขั้นตั้งแต่ข้อ 1 เพื่อให้ข้อมูลทุกตารางตรงกัน (หลัง AutoRejecter ของ 004 ปฏิเสธ 3002, 3008 ในเครื่อง)
+- AI ทำ: ปิด server.exe เดิม, ลบ container salmon-db และ volume salmon-pgdata, สร้างใหม่ (postgres:16 พอร์ต 5433), เปิดหลังบ้าน (migration + seed.sql อัตโนมัติ),
+  โหลด seed_003_cancel_request.sql, approve_dev.sql (004), handover_dev.sql (005) ตามลำดับ ไม่แตะไฟล์ใน repo
+- ผล: คำขอ 20 ใบ (003 8 ใบ เวลาส่งเป็นวันนี้ ไม่ถูกปฏิเสธ) audit_log ว่าง staff_contact 1 แถว GET /v1/my/pending-requests ของ student-001 ได้ 8 รายการ (ของ 003 4 รายการ ของ 004/005 4 รายการ)
+
+---
+
+## 2569-11-12 แก้หัวไฟล์ tasks.md (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: specs/003-cancel-request/tasks.md บรรทัด 2 อ้าง spec Draft v3.9 / plan Draft v1.7 (เดิม v3.2 / v1.1) วันที่แก้ 2569-11-12, บรรทัด 5 จำนวนเฟส 20 (เดิมเขียน 18 ไม่นับเฟส 18, 19 ที่เพิ่มทีหลัง) และเสร็จครบ 34 task
+- ไม่เปลี่ยนเนื้อหา task
+
+---
+
+## 2569-11-12 แก้เอกสารที่ยังอ้างรหัส error ก่อน CR-006 และสถานะเก่า (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- ที่มา: AI ตรวจซ้ำแล้วเจอ 3 จุดที่ตกหล่นตอนทำ CR-006 (AI แก้ plan ข้อ 4 แต่ลืมข้อ 6 และช่องเสร็จเมื่อของ task เก่า)
+- ไฟล์ที่แก้:
+  - specs/003-cancel-request/tasks.md บรรทัด 87 (T-04), 171 (T-09), 401 (T-23): ไม่เขียนทับข้อความเดิม เติมท้ายว่ารหัสเปลี่ยนตาม CR-006 ดู T-33
+  - specs/003-cancel-request/plan.md บรรทัด 186 (ข้อ 6 AC-CXL-14): 400 -> 422 VALIDATION_FAILED
+  - specs/README.md บรรทัด 10 แถว 003: spec v3.9, plan v1.7, tasks เสร็จ 34/34, test-cases, rtm (ไฟล์กลาง แก้เฉพาะแถวของ 003)
+
+## 2569-11-12 /implement T-08 (002-borrow-request) — ปิดเฟส 4
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 4 AC-BRQ-13 กฎเวลาคืนของการยืมปกติ)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-08`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/validate.go` (ตรงกับช่องไฟล์ที่แตะ) เพิ่ม loanWindowProblems และตัวแปร appLoc
+- `backend/internal/config/config.go` เพิ่ม LoanTypeNormal, LoanTypeOvernight
+  (คำสั่ง /implement อนุญาตให้เพิ่ม config ได้โดยไม่ต้องถาม เมื่อเป็นค่าที่มาจาก spec)
+- `backend/internal/borrowrequest/handler_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** ต่อ test ท้ายไฟล์เดิม
+
+### การตัดสินใจ
+- เทียบ "วันเดียวกัน" ด้วยเขตเวลา Asia/Bangkok (glossary) ไม่ใช่เวลาของเครื่องที่รัน
+  ถ้าใช้ UTC คำขอช่วงเย็นของไทยจะกลายเป็นคนละวันทันที
+- "ภายใน 16:00 น." ตีความว่าคืนพอดี 16:00 ผ่านได้ เกินไป 1 นาทีไม่ผ่าน มี test ครอบทั้งสองกรณี
+- กฎนี้ไม่ใช้กับการยืมค้างคืน ตามที่ DOM-LOAN-01 เขียนว่าใช้กับยืมปกติเท่านั้น มี test ยืนยัน
+- ไม่ได้ตรวจว่า endAt มาก่อน startAt หรือไม่ เพราะไม่มี FR ข้อไหนสั่งไว้ (ไม่เพิ่มเอง)
+
+### ขอบเขตที่ tasks.md แบ่งไว้แล้ว ไม่ได้ตัดเอง
+AC-BRQ-13 เขียนว่าต้อง "แจ้งว่าการยืมแบบปกติต้องคืนภายใน 16:00 น." แต่ข้อความอยู่ใน handler.go
+ซึ่งไม่อยู่ในช่องไฟล์ที่แตะของ T-08 — ตรวจแล้วพบว่า **ช่อง "ตรวจด้วย" ของ T-20 ระบุ AC-BRQ-13 ไว้
+พร้อมวงเล็บว่า "ส่วนข้อความที่ผู้ใช้เห็น"** จึงเป็นการแบ่งที่ตั้งใจไว้ตั้งแต่ตอนทำ /tasks
+ตอนนี้ API ตอบ fields: ["endAt"] ส่วนข้อความยังเป็นข้อความรวม รอ T-20 (ซึ่งรอ Q-BRQ-14)
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run "TestAC_BRQ_13|TestLoanWindow" -v`: PASS ทั้ง 2 ตัว
+- `go test ./...`: ทุกแพ็กเกจ ok (config รันใหม่ 0.007s ยืนยันว่าค่าที่เพิ่มไม่ทำ test เดิมพัง)
+
+---
+
+## 2569-11-12 /implement T-09 (002-borrow-request) — ปิดเฟส 5
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 5 AC-BRQ-01 ตรวจสถานะอุปกรณ์ซ้ำ)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-09`
+
+### คำถามที่ AI ถาม และคำตอบของทีม
+1. ช่อง "เสร็จเมื่อ" ต้องการให้ 409 แนบสถานะล่าสุด แต่ response ประกอบที่ handler.go
+   ซึ่งไม่อยู่ในช่องไฟล์ที่แตะของ T-09 จะทำอย่างไร
+   -> **ทีมเลือกทางเลือก ก: เพิ่ม handler.go ในช่องไฟล์ที่แตะของ T-09** (ตัวเลือกที่ AI แนะนำ)
+   เพราะเป็นงานเดียวกัน แยกไป task อื่นจะขาดตอน บันทึกเหตุผลและวันที่ไว้ใน tasks.md แล้ว
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/repository.go` (ตรงกับช่องไฟล์ที่แตะ) อ่านสถานะล่าสุดเมื่อ INSERT ไม่ได้แถว
+- `backend/internal/borrowrequest/service.go` (ตรงกับช่องไฟล์ที่แตะ) เพิ่ม ItemNotAvailableError
+- `backend/internal/borrowrequest/handler.go` (เพิ่มในช่องไฟล์ที่แตะตามคำตอบข้อ 1) แนบ status ลง response
+- `backend/internal/borrowrequest/handler_test.go` และ `service_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ**
+  (test ของ "เสร็จเมื่อ" และการแก้ test เดิมที่ล้ม ดูด้านล่าง)
+
+### test เดิมล้มเพราะการเปลี่ยนแปลงนี้ และวิธีแก้
+- `go test ./...` รอบแรก **FAIL ที่ TestCreate_RejectsItemNotAvailable** ซึ่งเขียนไว้ตอน T-04
+  โดยใช้ `err != ErrItemNotAvailable` เทียบตรง ๆ พอ error กลายเป็นชนิดที่พกสถานะมาด้วย การเทียบจึงไม่ตรง
+- แก้เป็น `errors.Is(err, ...)` ทั้ง 3 จุดในไฟล์นั้น **ไม่ได้ลดเงื่อนไขของ test ให้ผ่าน**
+  แต่เปลี่ยนวิธีเทียบให้ถูกหลักของ Go ซึ่งรองรับ error ที่ถูกห่อ (test เดิมเขียนแบบเปราะไว้ตั้งแต่แรก)
+
+### การตัดสินใจ
+- `ItemNotAvailableError` มีเมท็อด `Is()` ทำให้ `errors.Is(err, ErrItemNotAvailable)` ยังเป็นจริง
+  โค้ดเดิมที่เทียบกับ sentinel จึงไม่พัง
+- response ส่ง **ค่าดิบ** `"status":"borrowed"` ไม่ใช่คำไทย เพราะ 001 ก็ส่งค่าดิบแล้วให้ StatusBadge แปลง
+  ถ้าหลังบ้านส่งคำไทยจะกลายเป็นมีที่แปล 2 ที่
+- รหัสครุภัณฑ์ที่ไม่มีอยู่จริง **ไม่แนบ status** (omitempty) เพื่อไม่เปิดเผยว่ามีรหัสนั้นในระบบไหม มี test คุม
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run "TestAC_BRQ_01|TestCreate_Unknown" -v`: PASS
+- `go test ./...` รอบแรก FAIL (ตามด้านบน) รอบที่สองหลังแก้: **ทุกแพ็กเกจ ok**
+
+---
+
+## 2569-11-12 /implement T-10 (002-borrow-request) — ปิดเฟส 6
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 6 AC-BRQ-07 ขอบเขตภาควิชา)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-10`
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/repository.go` (ตรงกับช่องไฟล์ที่แตะ) เพิ่ม checkDepartment และ ErrForbiddenDepartment
+- `backend/internal/borrowrequest/handler.go` (ตรงกับช่องไฟล์ที่แตะ) แปลงเป็น 403 FORBIDDEN_DEPARTMENT
+- `backend/internal/borrowrequest/handler_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** ต่อ test ท้ายไฟล์เดิม
+
+### การตัดสินใจ
+- ภาควิชาของผู้ขออ่านจาก auth.FromContext เท่านั้น ไม่ใช่ค่าที่ส่งมาใน request
+  ถ้าเชื่อค่าจาก request ผู้ขอจะปลอมภาควิชาได้ทันที (IF-IDP-01, DM-08)
+- repository อ่าน principal จาก context เอง แทนการเพิ่มพารามิเตอร์ที่ service ส่งมา
+  เพราะ service.go ไม่อยู่ในช่องไฟล์ที่แตะของ T-10
+- รหัสครุภัณฑ์ที่ไม่มีอยู่จริงตอบเป็น ItemNotAvailable เหมือนเดิม ไม่เปิดเผยว่ามีรหัสนั้นไหม
+
+### สิ่งที่ AI เลือกไปก่อน เพราะคำถามยังไม่มีคำตอบ (ทีมต้องตรวจ)
+**Q-BRQ-15 ยังเปิดอยู่** ว่าถ้าคนต่างภาควิชาขอยืมอุปกรณ์ที่ไม่ว่าง จะตอบ 403 หรือ 409 ก่อน
+AI วางให้ **ตรวจภาควิชาก่อนเสมอ** พร้อมคอมเมนต์กำกับในโค้ดว่ารอ Q-BRQ-15 (ดู T-21)
+เหตุผล: ถ้าตรวจสถานะก่อน คนต่างภาควิชาจะได้ 409 พร้อม "status":"borrowed"
+ซึ่งรั่วข้อมูลอุปกรณ์ที่เขาไม่มีสิทธิ์เห็น ขัด FR-BRQ-07 ตรง ๆ
+ทางที่เลือกแย่ที่สุดคือบอกน้อยเกินไป ซึ่งแก้ทีหลังได้ถ้าทีมตอบเป็นอย่างอื่น
+
+### งานค้างที่ยังทำไม่ได้
+AI เคยบอกว่า T-10 จะได้เปลี่ยนชื่อ missingFields เป็น invalidFields **ซึ่งผิด**
+การเปลี่ยนชื่อต้องแก้ทั้ง validate.go (ที่ประกาศ) และ handler.go (ที่เรียก)
+แต่ T-10 มีแค่ handler.go ในรายการ ต้องรอ task ที่มีทั้งสองไฟล์
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run "TestAC_BRQ_07|TestDepartmentScope" -v`: PASS ทั้ง 2 ตัว
+  (TestAC_BRQ_07 ไล่หาคำว่า available / borrowed / unavailable / Notebook / CS-NB-0001 ใน body ต้องไม่เจอสักคำ)
+- `go test ./...`: ทุกแพ็กเกจ ok
+
+---
+
+## 2569-11-12 /implement T-11 (002-borrow-request) — ปิดเฟส 7
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 7 AC-BRQ-11 ส่งคำขอซ้ำของตัวเองไม่ได้)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-11`
+
+### คำถามที่ AI ถามก่อนเริ่ม และคำตอบของทีม
+ช่อง "เสร็จเมื่อ" ของ T-11 บังคับให้ตอบ 409 `DUPLICATE_REQUEST` แต่การแปลง error เป็นรหัสและสถานะ HTTP
+อยู่ใน `switch` ของ handler.go ซึ่ง **ไม่มีในช่องไฟล์ที่แตะ** (มีแค่ service.go, repository.go)
+ถ้าแตะแค่ 2 ไฟล์นั้น error ตัวใหม่จะตกลง default กลายเป็น 503 ซึ่งผิดรหัสตาม CON-TECH-03
+→ **ทีมตอบ: ทางเลือก ก** เพิ่ม handler.go ในช่องไฟล์ที่แตะของ T-11 พร้อมเหตุผลลงวันที่ แบบเดียวกับ T-09
+(แก้ tasks.md แล้ว ไม่ได้แก้ task อื่น)
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/repository.go` (ตรงกับช่องไฟล์ที่แตะ)
+  เพิ่ม `ErrDuplicateRequest`, `isDuplicateRequest`, `uniqueOpenRequestIndex`, `uniqueViolationCode`
+- `backend/internal/borrowrequest/handler.go` (เพิ่มในช่องไฟล์ที่แตะวันนี้ ตามคำตอบของทีม)
+  เพิ่ม case แปลงเป็น 409 `DUPLICATE_REQUEST`
+- `backend/internal/borrowrequest/service.go` (ตรงกับช่องไฟล์ที่แตะ)
+  **แก้คอมเมนต์เท่านั้น** เขียนกำกับว่า Create คืน ErrDuplicateRequest เมื่อไหร่ ไม่มีโค้ดเพิ่ม
+- `backend/internal/borrowrequest/service_test.go`, `handler_test.go`
+  **ไม่อยู่ในช่องไฟล์ที่แตะ** (ทุก task ที่ผ่านมาก็ไม่เคยใส่ไฟล์ test ในช่องนี้) ต่อ test ท้ายไฟล์เดิม
+
+### การตัดสินใจ
+- **ไม่** เพิ่ม SELECT ไปอ่านคำขอเก่ามาตรวจก่อนเขียน ใช้การดักจับ unique violation (SQLSTATE 23505)
+  จาก partial unique index `uq_request_open_per_item` ที่ T-01 สร้างไว้แทน
+  เพราะการอ่านมาตรวจก่อนเขียนมีช่องว่างระหว่างอ่านกับเขียน ถ้าสองคำขอมาถึงพร้อมกันจะผ่านไปได้ทั้งคู่
+  ส่วนรายการสถานะที่ถือว่า "ยังไม่จบ" ตาม FR-BRQ-05 ข อยู่ในเงื่อนไข WHERE ของ index นั้นที่เดียว
+- `isDuplicateRequest` ตรวจ **ชื่อ constraint** ด้วย ไม่ได้ดูแต่รหัส 23505
+  เพื่อไม่เหมาเอาว่า unique violation ตัวอื่นในตารางนี้ในอนาคตคือคำขอซ้ำ
+- `ErrDuplicateRequest` ประกาศไว้ใน repository.go เพราะ model.go ไม่อยู่ในช่องไฟล์ที่แตะ
+  (เหมือน ErrForbiddenDepartment ของ T-10 ย้ายไปรวมกันได้ภายหลัง)
+- รหัส `23505` เป็นค่าคงที่ของ PostgreSQL ไม่ใช่ตัวเลขที่มาจาก spec จึงไม่ได้ย้ายไป config.go
+  (AGENTS.md กฎข้อ 9 คุมตัวเลขที่มาจาก spec) แต่ประกาศเป็น const พร้อมคอมเมนต์ ไม่ฝังกลางโค้ด
+- test ใช้ผู้ขอคนละรหัสกับ test อื่น (`student-011`, `student-012`) เพราะกฎกันซ้ำผูกกับคู่ (ผู้ขอ, อุปกรณ์)
+  ถ้าใช้ student-001 ร่วมกับ test อื่นจะชนกันเอง
+- สถานะ approved / cancelled / rejected ที่ test ต้องจำลอง เป็นของฟีเจอร์ 003 ถึง 006
+  test จึงตรวจก่อนว่าค่านั้นอยู่ใน `config.RequestStatuses` จริง ไม่ใช่ค่าที่ test คิดขึ้นเอง
+
+### สิ่งที่เกือบต้องเดาแต่ถามแทน
+- ขอบเขตไฟล์ของ handler.go (ดูหัวข้อคำถามด้านบน) ไม่ได้แตะเองก่อนถาม
+- **ไม่ได้เดา** ข้อความที่หน้าจอจะแสดง นอกเหนือจากข้อความใน response ของหลังบ้าน
+  การแสดงผลเป็นงานของ T-19/T-20 ที่ยังรอ Q-BRQ-14
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run "TestAC_BRQ_11|TestDuplicateRequest_ConcurrentSubmitsKeepOneRow" -v`
+  PASS ทั้ง 3 ตัว (`TestAC_BRQ_11`, `TestAC_BRQ_11_HTTP`, `TestDuplicateRequest_ConcurrentSubmitsKeepOneRow`)
+- `go test ./...`: ทุกแพ็กเกจ ok
+- `go vet ./internal/borrowrequest/`: ไม่มีข้อความเตือน
+- `gofmt -l` ขึ้นชื่อ `backend/internal/borrowrequest/model.go` ซึ่ง **ไม่ใช่ไฟล์ที่ T-11 แตะ**
+  เป็นของเดิมมาก่อน T-11 ยังไม่แก้ เพราะไม่อยู่ในขอบเขต task นี้ (ทีมควรเปิด task เล็กจัดรูปแบบ)
+
+### จุดตรวจเฟส 7 (ทีมลองเองด้วยมือ 2569-11-12)
+
+- ผู้ลอง: ธัญลักษณ์ ด. (@tnyl02) ด้วย `go run ./cmd/server` + curl + psql ใน container
+- ใบแรก `CS-NB-0002` ด้วย `mock-student-001`: **201** requestId 3 สถานะ `requested`
+- ยิงซ้ำขณะสถานะ `requested`: **409** `{"code":"DUPLICATE_REQUEST"}` และ psql ยืนยันว่ายังมีแถวเดียว
+- ยิงซ้ำขณะสถานะ `approved`: **409** `DUPLICATE_REQUEST` (ครึ่งหลังของ AC-BRQ-11)
+- แก้ใบเดิมเป็น `cancelled` แล้วยิงใหม่: **201** requestId 8
+- ข้อสังเกตระหว่างลอง: ครั้งแรกได้ 503 `UPSTREAM_UNAVAILABLE` เพราะหน้าต่างที่รัน `go run` เปิดไว้ตั้งแต่ก่อนแก้โค้ด
+  `go run` คอมไพล์ครั้งเดียวตอนเปิด ต้อง Ctrl+C แล้วเปิดใหม่ทุกครั้งหลังแก้โค้ดก่อนลองด้วยมือ
+  (ตอนนั้นฐานข้อมูลกันแถวซ้ำได้ถูกต้องแล้ว เห็นจาก psql ที่มีแถวเดียว ผิดแค่การแปลงเป็นรหัส HTTP ของ build เก่า)
+- ล้างข้อมูลที่ลองไว้ด้วย `DELETE FROM borrow_request WHERE requester_id = 'student-001';`
+
+---
+
+## 2569-11-12 /implement T-12 (002-borrow-request) — เฟส 8 ครึ่งแรก
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 8 AC-BRQ-06 ปฏิเสธเมื่อมีของคืนเกินกำหนด)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-12 เพิ่ม handler.go ได้` (ทีมอนุญาตขยายช่องไฟล์ที่แตะไว้ล่วงหน้า เหมือน T-09 และ T-11)
+- ทำหลังจาก merge main ลงมาแล้ว (ได้ 005-handover และ 001 รอบล่าสุดติดมาด้วย)
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/clock.go` **ไฟล์ใหม่** (ตรงกับช่องไฟล์ที่แตะ)
+  `Clock`, `SystemClock`, `FixedClock`, `overdueDeadline`
+- `backend/internal/borrowrequest/service.go` (ตรงกับช่องไฟล์ที่แตะ)
+  เปลี่ยนฟิลด์ `now func() time.Time` เป็น `clock Clock`, เพิ่ม `NewServiceWithClock`, `ErrHasOverdueLoan`, `hasOverdueLoan`
+- `backend/internal/borrowrequest/repository.go` (ตรงกับช่องไฟล์ที่แตะ)
+  เพิ่ม `earliestOpenLoanSQL` และ `EarliestOpenLoanDue` (อ่านตาราง `loan` ของ 001 อย่างเดียว)
+- `backend/internal/borrowrequest/handler.go` (เพิ่มในช่องไฟล์ที่แตะวันนี้ ตามที่ทีมอนุญาต)
+  เพิ่ม case แปลงเป็น 409 `HAS_OVERDUE_LOAN`
+- `backend/internal/borrowrequest/service_test.go`, `handler_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ**
+  นอกจาก test ใหม่แล้ว ยังเปลี่ยนวิธีประกอบ service ของ test เดิมทุกตัวให้ใช้นาฬิกาตรึงเวลา (ดูหัวข้อถัดไป)
+
+### การตัดสินใจ
+- **test เดิมทุกตัวเปลี่ยนมาใช้ `NewServiceWithClock(..., testClock())` ตรึงเวลาไว้ที่ 09:00 ของวันนี้**
+  เหตุผล: ข้อมูลตั้งต้น (T-03) ให้ `student-001` ยืม CS-NB-0004 กำหนดคืน 16:00 **ของวันนี้** และยังไม่คืน
+  พอ T-12 บังคับกฎ FR-BRQ-06 แล้ว ถ้า test ยังใช้นาฬิกาจริง test เดิมที่ใช้ student-001 (เช่น TestAC_BRQ_04)
+  จะผ่านตอนเช้าแต่ล้มตอนเย็น ไม่ได้ลดความเข้มของการตรวจ เปลี่ยนแค่เวลาที่ใช้ทดสอบให้แน่นอน
+- ตรวจกฎคืนเกินกำหนด **ก่อน** ตรวจอุปกรณ์ เพราะเป็นเรื่องของตัวผู้ขอเอง คำตอบ `HAS_OVERDUE_LOAN`
+  ไม่เปิดเผยข้อมูลอุปกรณ์ชิ้นใดเลย จึงไม่ขัด FR-BRQ-07 และไม่กระทบ AC-BRQ-07 ที่ผู้ขอภาควิชา 2 ไม่มีของค้าง
+- ใช้ `SELECT min(l.due_at)` แทนการดึงทุกใบมาวนเทียบใน Go ใบที่กำหนดคืนเร็วที่สุดเกินกำหนดก็พอปฏิเสธแล้ว
+- เส้นแบ่ง 16:00 ใช้ `config.LoanNormalReturnHour` ตัวเดียวกับกฎเวลาคืนใน validate.go ไม่ฝังเลข 16 ซ้ำ
+- **ไม่ได้ทำ** กฎปลดล็อก 00:00 ของวันถัดไป (FR-BRQ-06 ข) เพราะเป็น T-13 query จึงกรอง `returned_at IS NULL`
+
+### ข้อผิดพลาดระหว่างทำ และการแก้
+`TestOverdue_OtherDepartmentNotCounted` รอบแรกไม่ผ่าน เพราะ AI เข้าใจข้อมูลตั้งต้นผิด
+คิดว่า `CS-PJ-0001` เป็นของภาควิชา 2 แต่จริง ๆ เป็นรุ่น 2 ซึ่งอยู่ภาควิชา 1 ส่วนชิ้นของภาควิชา 2 คือ `XX-NB-0001`
+แก้ที่ test (ข้อมูลที่ใช้ทดสอบผิด ไม่ใช่โค้ดผิด) และเพิ่มการตรวจภาควิชาของอุปกรณ์ก่อนเริ่ม test กันพลาดซ้ำ
+
+### งานค้างที่ทีมต้องตัดสิน (พบระหว่างทำ T-12)
+**T-13 (AC-BRQ-12) มีแค่ `service.go` ในช่องไฟล์ที่แตะ แต่กฎปลดล็อกต้องรู้ `returned_at` ของใบที่คืนแล้ว**
+ซึ่ง query ปัจจุบันกรองเฉพาะใบที่ยังไม่คืน ตอนทำ T-13 น่าจะต้องขอเพิ่ม `repository.go` ในช่องไฟล์ที่แตะ
+AI ไม่ได้ทำเผื่อไว้ เพราะเป็นกฎของ task อื่น
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run "TestAC_BRQ_06|TestOverdue" -v`: PASS ทั้ง 4 ตัว
+  (`TestAC_BRQ_06`, `TestAC_BRQ_06_HTTP`, `TestOverdue_BoundaryAtReturnHour`, `TestOverdue_OtherDepartmentNotCounted`)
+- `go test ./... -count=1`: ทุกแพ็กเกจ ok รวม `internal/handover` ของ 005 ที่เพิ่ง merge ลงมา
+- `go vet ./internal/borrowrequest/`: ไม่มีข้อความเตือน
+
+### จุดตรวจเฟส 8 ครึ่งแรก (ทีมลองเองด้วยมือ 2569-11-12)
+
+- ผู้ลอง: ธัญลักษณ์ ด. (@tnyl02) ด้วย `go run ./cmd/server` + curl + psql ใน container
+- `mock-student-002` (มีของเกินกำหนดค้าง): **409** `{"code":"HAS_OVERDUE_LOAN"}` และ psql ยืนยันว่าไม่มีคำขอเกิดขึ้น (0 แถว)
+- `mock-student-001` รอบแรก: ได้ 409 เหมือนกัน **ซึ่งถูกต้อง** เพราะข้อมูลในฐานข้อมูลของเครื่องพัฒนาเก่า
+  `due_at` ของ CS-NB-0004 เป็น 16:00 ของ 11 พ.ย. (วันที่ seed) ไม่ใช่ของวันนี้ จึงเลยกำหนดไปแล้วจริง
+- หลัง `UPDATE loan SET due_at = 16:00 ของวันนี้ WHERE borrower_id = 'student-001'` แล้วยิงซ้ำเวลา 09:10 น.: **201** requestId 9
+  ยืนยันเส้นแบ่ง 16:00 บนของจริง ตรงกับ `TestOverdue_BoundaryAtReturnHour` ที่ตรวจ 15:59 กับ 16:01 ด้วยนาฬิกาตรึงเวลา
+- **ข้อควรระวังสำหรับคนที่ลองต่อจากนี้** (001 เคยจดไว้แล้ว เจออีกครั้งตอน T-12)
+  ข้อมูลตั้งต้นคิดกำหนดคืนจาก `now()` ตอน seed ถ้าฐานข้อมูลของเครื่องพัฒนาถูกสร้างไว้หลายวันแล้ว
+  ของทุกคนจะกลายเป็นเกินกำหนดหมด ล้างด้วย `docker compose -f deploy/docker-compose.yml down -v`
+  หรือ `UPDATE loan SET due_at = ...` ก่อนลองกฎที่เทียบกับวันนี้ (test อัตโนมัติไม่เจอปัญหานี้
+  เพราะ testcontainers สร้างฐานข้อมูลใหม่ทุกครั้ง และ T-12 ตรึงเวลาด้วย FixedClock แล้ว)
+- ล้างข้อมูลที่ลองไว้ด้วย `DELETE FROM borrow_request WHERE requester_id IN ('student-001','student-002');`
+
+---
+
+## 2569-11-12 /implement T-13 (002-borrow-request) — ปิดเฟส 8
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 8 AC-BRQ-12 กฎปลดล็อก 00:00 ของวันถัดไป)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-13`
+
+### คำถามที่ AI ถามก่อนเริ่ม และคำตอบของทีม
+T-13 มีแค่ `service.go` ในช่องไฟล์ที่แตะ แต่กฎข้อ ข ต้องรู้ `returned_at` ของใบที่คืนแล้ว
+ส่วน query เดียวที่มีคือ `EarliestOpenLoanDue` จาก T-12 ซึ่งกรอง `returned_at IS NULL` ทิ้งไป
+ใบที่คืนแล้วจึงไม่มีทางถึงมือ service ทำด้วยไฟล์เดียวไม่ได้จริง
+→ **ทีมตอบ: ทางเลือก ก** เพิ่ม `repository.go` ในช่องไฟล์ที่แตะของ T-13 พร้อมเหตุผลลงวันที่
+(เป็นครั้งที่ 4 ที่ช่องไฟล์ที่แตะไม่พอ ต่อจาก T-09 T-11 T-12 ทีมน่าทบทวนวิธีเขียนช่องนี้ตอน retrospective)
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/service.go` (ตรงกับช่องไฟล์ที่แตะ)
+  ขยาย `hasOverdueLoan` ให้ครอบข้อ ข, เพิ่ม `returnedLateToday` และ `startOfDay`
+- `backend/internal/borrowrequest/repository.go` (เพิ่มในช่องไฟล์ที่แตะวันนี้ ตามคำตอบของทีม)
+  เพิ่ม `ReturnedLoan`, `returnedSinceSQL`, `ReturnedSince` และเพิ่ม `Query` ใน interface `Querier`
+- `backend/internal/borrowrequest/service_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** ต่อ test ท้ายไฟล์เดิม
+
+### การตัดสินใจ
+- กฎ "00:00 น. ของวันถัดไป" เขียนเป็น "การคืนช้านั้นเกิดขึ้นในวันเดียวกับวันนี้หรือไม่"
+  โดย service ส่งเวลา 00:00 ของวันนี้ (`startOfDay`) ลงไปเป็นเงื่อนไขของ query
+  กฎจึงอยู่ใน Go ส่วน SQL เป็นแค่ตัวกรองช่วงเวลา และได้ผลพลอยได้คือ query คืนแถวไม่กี่แถวเสมอ
+- "คืนช้า" ใช้ `overdueDeadline` ตัวเดียวกับข้อ ก (16:00 ของกำหนดคืน) ไม่มีนิยามที่สอง
+- ใช้ `config.OverdueBlockUntilNextDayStart` จริงในโค้ด ไม่ใช่ค่าที่ตั้งไว้เฉย ๆ
+  ถ้าทีมเปลี่ยนเป็น false กฎข้อ ข จะปิดทันที (ตรงกับตาราง "ค่าที่ตั้งได้" ใน plan ข้อ 5)
+- เพิ่ม `Query` ใน `Querier` เพราะกฎนี้ต้องอ่านหลายแถว ของเดิมมีแต่ `QueryRow`
+  `*pgxpool.Pool` รองรับทั้งสองอยู่แล้ว ไม่กระทบ main.go และ test
+
+### สิ่งที่เกือบต้องเดาแต่ไม่ได้เดา
+- **"คืนอุปกรณ์แล้ว" หมายถึงคืนใบไหน** spec ข้อ ข เขียนลอย ๆ ว่า "เมื่อคืนอุปกรณ์แล้ว"
+  แต่ AC-BRQ-12 เขียนชัดว่า "คืนอุปกรณ์**ที่เกินกำหนด**แล้ว" และ FR-BRQ-06 ทั้งข้อพูดถึงผู้ที่คืนเกินกำหนด
+  จึงอ่านว่าใบที่คืนตรงเวลาไม่เข้ากฎนี้ ไม่ได้เดาเอง และเขียน test ยืนยันไว้
+  (`TestOverdue_OnTimeReturnDoesNotBlock`) ถ้าทีมอ่านต่างจากนี้ให้บอก
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run "TestAC_BRQ_12|TestOverdue" -v`: PASS ทั้ง 4 ตัว
+  (`TestAC_BRQ_12`, `TestOverdue_BoundaryAtReturnHour`, `TestOverdue_OtherDepartmentNotCounted`,
+  `TestOverdue_OnTimeReturnDoesNotBlock`)
+- `go test ./... -count=1`: ทุกแพ็กเกจ ok
+- `go vet ./internal/borrowrequest/`: ไม่มีข้อความเตือน
+
+### จุดตรวจเฟส 8 ครึ่งหลัง (ทีมลองเองด้วยมือ 2569-11-12)
+
+- ผู้ลอง: ธัญลักษณ์ ด. (@tnyl02) จำลองการคืนด้วย psql แล้วยิง curl ด้วย `mock-student-002`
+- ตั้ง `returned_at` = 14:00 **ของวันนี้** (คืนช้าวันนี้): **409** `{"code":"HAS_OVERDUE_LOAN"}`
+- ตั้ง `returned_at` = 14:00 **ของเมื่อวาน** (ข้ามวันแล้ว): **201** requestId 10
+- ยืนยันกฎ FR-BRQ-06 ข้อ ข บนของจริง ตรงกับ `TestAC_BRQ_12` ที่ใช้นาฬิกาตรึงเวลา 23:59 กับ 00:01
+- หมายเหตุ: ทดสอบด้วยการขยับ `returned_at` แทนการรอข้ามวันจริง ซึ่งเป็นวิธีเดียวที่ทำได้ในเวลาจำกัด
+  ส่วน test อัตโนมัติไม่ต้องใช้วิธีนี้เพราะตั้งนาฬิกาเองได้
+- เฟส 8 ผ่านครบทั้ง AC-BRQ-06 และ AC-BRQ-12
+
+---
+
+## 2569-11-12 /implement T-14 (002-borrow-request) — เฟส 9 ครึ่งแรก
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 9 AC-BRQ-10 ไฟล์แนบใบบันทึกข้อความของการยืมค้างคืน)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-14`
+
+### คำถามที่ AI ถามก่อนเริ่ม และคำตอบของทีม
+ช่อง "เสร็จเมื่อ" บังคับให้ "บันทึก path ในตาราง" แต่ช่องไฟล์ที่แตะมีแค่ attachment.go, handler.go, validate.go
+การเขียนคอลัมน์ `attachment_path` ต้องผ่าน repository และต้องมีทางเรียกจาก service
+→ **ทีมตอบ: ทางเลือก ก** เพิ่ม `service.go` กับ `repository.go` ในช่องไฟล์ที่แตะ (ครั้งที่ 5 ต่อจาก T-09 T-11 T-12 T-13)
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/attachment.go` **ไฟล์ใหม่** — `Upload`, `parseCreateForm`, `AttachmentStore`, `safeFileName`
+- `backend/internal/borrowrequest/validate.go` — `attachmentProblems`, `mediaType`, ช่อง `fieldAttachment`
+- `backend/internal/borrowrequest/handler.go` — รับ multipart, จำกัดขนาด request, รวมกฎไฟล์แนบเข้ากับรายการช่องที่ผิด
+- `backend/internal/borrowrequest/service.go` (เพิ่มในช่องวันนี้) — `CreateWithAttachment` และฟิลด์ `attachments`
+- `backend/internal/borrowrequest/repository.go` (เพิ่มในช่องวันนี้) — `SetAttachmentPath`, `Delete`, เพิ่ม `Exec` ใน `Querier`
+- `backend/internal/borrowrequest/handler_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** — test ใหม่ และแก้ test เดิม 1 ตัว (ดูด้านล่าง)
+
+### การตัดสินใจ
+- ลำดับการทำงานเป็น สร้างคำขอ -> ได้ id -> เขียนไฟล์ `<id>-<ชื่อที่ปลอดภัย>` -> อัปเดต `attachment_path`
+  เพราะ plan.md ข้อ 3 กำหนดให้ชื่อไฟล์มีรหัสคำขออยู่ด้วย จึงต้องรู้ id ก่อน
+  ถ้าเขียนไฟล์หรืออัปเดตไม่สำเร็จ จะลบคำขอใบนั้นทิ้ง ไม่ทิ้งคำขอค้างที่ไม่มีไฟล์แนบ (FR-BRQ-09)
+- ตรวจชนิดไฟล์จาก Content-Type ที่ผู้ส่งแจ้งมา เทียบกับ `config.AttachmentAllowedTypes`
+  **ยังไม่ได้ตรวจเนื้อไฟล์จริง (content sniffing)** spec ไม่ได้สั่ง จึงไม่เพิ่มเอง แต่ทีมควรรู้ว่าเป็นช่องโหว่
+- `safeFileName` ตัดชื่อไฟล์จากผู้ขอให้เหลือเฉพาะอักษรปลอดภัย ชื่ออย่าง `../../etc/passwd` จึงพาไฟล์ออกนอกโฟลเดอร์ไม่ได้
+- การยืมปกติไม่บังคับให้แนบไฟล์ (FR-BRQ-10 ข้อ ก พูดถึงเฉพาะค้างคืน) แต่ถ้าแนบมาก็ตรวจชนิดและขนาดด้วยกฎเดียวกัน
+- โฟลเดอร์ไฟล์แนบอ่านจาก `config.Load().AttachmentDir` ที่เดียว test ใช้ `t.Setenv("ATTACHMENT_DIR", t.TempDir())`
+
+### ข้อผิดพลาดระหว่างทำ และการแก้
+1. `TestSafeFileName` จับได้ว่าชื่อไฟล์ภาษาไทยถูกแปลงเป็น `_` ทุกตัวแล้วถูกตัดจนเหลือ `pdf`
+   คือ **นามสกุลไฟล์หาย** แก้ที่โค้ด (ยุบตัวคั่นซ้ำ และไม่ตัดจุดนำหน้านามสกุลทิ้ง) ไม่ได้แก้ test ให้ผ่าน
+2. `TestLoanWindow_NormalBoundaryAndOvernight` (ของ T-08) ไม่ผ่านหลังเพิ่มกฎ
+   เพราะมันยิงยืมค้างคืนโดยไม่แนบไฟล์ ซึ่งกฎใหม่ปฏิเสธถูกต้องแล้ว
+   แก้ที่ test ให้ส่งแบบ multipart พร้อมไฟล์ PDF เจตนาเดิมของ test (กฎเวลาคืน) ยังอยู่ครบ
+
+### สิ่งที่ยังไม่ได้ทำใน task นี้
+- AC-BRQ-10 ท่อนที่ว่า "ยืมปกติต้องแสดงเงื่อนไขคืนภายใน 16:00 และใช้ในพื้นที่มหาวิทยาลัย" เป็นงานหน้าจอ รอ Q-BRQ-14 (T-19, T-20)
+- endpoint เปิดดูไฟล์แนบเป็นของ T-15
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run "TestAC_BRQ_10|TestSafeFileName"`: PASS
+  (`TestAC_BRQ_10` มี 4 กรณีย่อย: ไม่แนบไฟล์ / ชนิดที่ไม่รับ / ใหญ่เกิน 10MB / แนบ PDF ถูกต้อง)
+- `go test ./... -count=1`: ทุกแพ็กเกจ ok
+- `go vet ./internal/borrowrequest/`: ไม่มีข้อความเตือน
+
+### จุดตรวจเฟส 9 ส่วนของ T-14 (ทีมลองเองด้วยมือ 2569-11-12)
+
+- ผู้ลอง: ธัญลักษณ์ ด. (@tnyl02) ด้วย `curl -F` ผ่าน multipart จริง
+- ยืมค้างคืนไม่แนบไฟล์: **422** `{"code":"VALIDATION_FAILED","fields":["attachment"]}`
+- ยิงใหม่พร้อมแนบ `/tmp/memo.pdf` (79 ไบต์, `type=application/pdf`): **201** requestId 11
+- `ls backend/var/attachments` เห็น `11-memo.pdf` ขนาด 79 ไบต์ เท่าไฟล์ต้นฉบับ
+  และในตารางมี `attachment_path` = `var/attachments/11-memo.pdf` ชี้ไฟล์เดียวกัน
+  ชื่อไฟล์ขึ้นต้นด้วยรหัสคำขอตาม plan.md ข้อ 3
+- ข้อสังเกต: สิทธิ์ไฟล์ขึ้นเป็น `-rwxrwxrwx` ทั้งที่โค้ดเขียนด้วย 0600
+  เพราะโฟลเดอร์อยู่บนไดรฟ์ Windows ที่ WSL mount มา ซึ่งไม่เก็บ mode bits ของ Linux
+  บนเซิร์ฟเวอร์จริงหรือใน container จะได้ 0600 ตามที่เขียน ไม่ใช่ข้อบกพร่องของโค้ด
+- ล้างข้อมูลที่ลองไว้: ลบคำขอของ student-001 และลบโฟลเดอร์ `backend/var/attachments`
+
+---
+
+## 2569-11-12 /implement T-15 (002-borrow-request) — ปิดเฟส 9
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 9 endpoint เปิดดูไฟล์แนบ จำกัดสิทธิ์)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-15`
+
+### คำถามที่ AI ถามก่อนเริ่ม และคำตอบของทีม (3 ข้อ)
+1. ขอบเขตไฟล์: ต้องอ่าน `requester_id` กับ `attachment_path` จากฐานข้อมูล แต่ช่องไฟล์ที่แตะมีแค่ handler.go กับ main.go
+   → **ทีมตอบ ก** เพิ่ม `service.go` กับ `repository.go` (ครั้งที่ 6 ต่อจาก T-09 T-11 T-12 T-13 T-14)
+2. รหัส 403 สำหรับ "ไม่ใช่เจ้าของคำขอ" ซึ่งตารางกลางไม่มี
+   → **ทีมตอบ ก** ใช้ `FORBIDDEN_ROLE` ที่ 004 ลงทะเบียนไว้แล้ว ไม่ตั้งรหัสใหม่
+3. คำขอที่ไม่มีอยู่จริงหรือไม่มีไฟล์แนบ ซึ่งตารางกลางไม่มีรหัส 404 เลย
+   → **ทีมตอบ ก** ลงทะเบียน `REQUEST_NOT_FOUND` (404) เป็นรหัสกลาง ใช้ร่วมกับ 003 และ 004
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/handler.go` (ตรงกับช่อง) — route `GET /v1/loan-requests/{id}/attachment` และการแปลง error
+- `backend/cmd/server/main.go` (ตรงกับช่อง) — ผูก `PathPrefix+"/"` เพิ่ม
+- `backend/internal/borrowrequest/service.go` (เพิ่มในช่องวันนี้) — `OpenAttachment`, `ErrAttachmentNotFound`, `ErrNotRequestOwner`
+- `backend/internal/borrowrequest/repository.go` (เพิ่มในช่องวันนี้) — `AttachmentOf`, `RequestAttachment`
+- `backend/internal/borrowrequest/handler_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** — test ใหม่
+- **ไฟล์ของกลาง (แก้เพราะ T-15 ของฟีเจอร์ 002 ตามที่ AGENTS.md สั่งให้บันทึกเหตุผล)**
+  - `specs/000-shared/constraints.md` v5.1 -> v5.2 เพิ่มแถว `REQUEST_NOT_FOUND` และเติม 002 ในแถว `FORBIDDEN_ROLE`
+  - `specs/changes/CR-007.md` ไฟล์ใหม่ (ข้าม CR-006 ไว้ให้ 003 ซึ่งกำลังเสนอ CR เรื่องรหัส error รอบเดียวกัน)
+  - `specs/CHANGELOG.md` บันทึก shared constraints v5.2
+
+### การตัดสินใจ
+- `main.go` ต้องผูก `PathPrefix+"/"` เพิ่มอีกบรรทัด เพราะ mux ชั้นนอกจับ path แบบเป๊ะ
+  ถ้าไม่ผูก path ลูกอย่าง `/v1/loan-requests/11/attachment` จะไปไม่ถึง router ของฟีเจอร์ (เจอตอนออกแบบ ไม่ได้เจอตอน test ล้ม)
+- `AttachmentOf` รวม "ไม่มีคำขอ" กับ "ไม่มีไฟล์แนบ" เป็นคำตอบเดียว ผู้เรียกแยกไม่ได้ (DOM-PRIV-01)
+- เจ้าหน้าที่เปิดได้ทุกใบ **ไม่ได้จำกัดว่าต้องเป็นภาควิชาเดียวกัน** เพราะ FR-BRQ-10 (ก) เขียนแค่ "เฉพาะเจ้าหน้าที่กับเจ้าของคำขอ"
+  ไม่ได้เขียนเรื่องภาควิชา และ DOM-ACCESS-01 พูดถึงนักศึกษา ถ้าทีมต้องการจำกัดต้องเพิ่มใน spec ก่อน **ไม่ได้เดาเอง**
+- ใช้ `http.ServeFile` ส่งไฟล์ ชนิดไฟล์ให้เดาจากนามสกุลซึ่ง `safeFileName` รักษาไว้ตั้งแต่ T-14
+
+### ข้อจำกัดที่บันทึกไว้ใน CR-007
+คำขอที่มีอยู่จริงและมีไฟล์แนบแต่เป็นของคนอื่น จะได้ 403 ไม่ใช่ 404
+นักศึกษาจึงยังเดาได้ว่าเลขคำขอนั้นมีไฟล์แนบอยู่ แม้ไม่เห็นตัวไฟล์
+เลือกแบบนี้เพราะช่อง "เสร็จเมื่อ" ของ T-15 กำหนดให้นักศึกษาคนอื่นได้ 403
+
+### สภาพแวดล้อม
+รอบแรกรัน test ไม่ได้เพราะ Docker Desktop ถูกปิดอยู่ (`docker` หายไปจาก WSL)
+ทีมเปิดให้แล้วจึงรันต่อได้ ไม่ได้แก้โค้ดใด ๆ ระหว่างนั้น
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run TestAC_BRQ_10 -v`: PASS ทั้งหมด
+  `TestAC_BRQ_10_AttachmentAccess` มี 5 กรณีย่อย: เจ้าหน้าที่ 200 / เจ้าของคำขอ 200 /
+  นักศึกษาคนอื่น 403 `FORBIDDEN_ROLE` และต้องไม่มีเนื้อไฟล์ติดไปใน body / ไม่มีคำขอ 404 `REQUEST_NOT_FOUND` / ไม่มี token 401
+- `go test ./... -count=1`: ทุกแพ็กเกจ ok
+- `go vet ./...`: ไม่มีข้อความเตือน
+
+### 2569-11-12 merge main (001 PR #13-16, 004 PR #17) และปรับ CR-007
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02) ฟีเจอร์ 002-borrow-request
+- ชน 3 ไฟล์: `constraints.md` (เอาของ main ล้วน), `CHANGELOG.md` และ `prompt-log.md` (เก็บทั้งสองฝั่ง)
+- **`config.go` git รวมให้เองแต่ผลลัพธ์คอมไพล์ไม่ผ่าน** 004 ประกาศ `LoanTypeNormal` ซ้ำกับของ 002 ที่มีตั้งแต่ T-02
+  แก้โดยลบตัวซ้ำ และย้ายการอ้างอิง FR-APV-01, Q-APV-01, Q-APV-23, Q-APV-14 ของ 004 ไปไว้ในคอมเมนต์ของบล็อกเดิม
+  (แก้ไฟล์กลางเพราะ merge ของ 002 ไม่ได้เปลี่ยนค่าใด ๆ)
+- **test ของ 002 ล้ม 10 ตัว ไม่เกี่ยวกับ merge** helper `bodyFor`, `bodyWithout`, `bodyWithPurpose`
+  ใช้ "เวลาปัจจุบัน + 2 ชั่วโมง" เป็นเวลาคืน พอรันตอน 14:10 น. เวลาคืนกลายเป็น 16:10 ซึ่งเกิน 16:00
+  จึงถูกกฎ DOM-LOAN-01 ของเราเองปฏิเสธ เป็นจุดอ่อนที่ฝังมาตั้งแต่ T-05 และเพิ่งโผล่เพราะวันนี้รันหลังบ่ายสอง
+  แก้โดยตรึงช่วงเวลาเป็น 09:00 ถึง 15:00 ของวันนี้ (`testLoanWindow`) ไม่ได้ลดเงื่อนไขที่ test ตรวจ
+- ผล: `go build ./...`, `go vet ./...` ผ่าน / `go test ./... -count=1` ทุกแพ็กเกจ ok (10 แพ็กเกจ รวมของ 003 และ 004)
+  / `npm test` 31 ไฟล์ 79 test ผ่าน
+
+### 2569-11-12 ปรับ CR-007 หลังรู้ว่า 004 ลงทะเบียน REQUEST_NOT_FOUND ก่อน
+
+- CR-007 รอบแรกเขียนว่า 002 เป็นผู้ลงทะเบียนรหัสนี้ ซึ่งถูกต้อง ณ เวลาที่เขียน เพราะ main ยังไม่มีรหัส 404 เลย
+- แต่ 004 ลงแถวของเขาไว้บน branch ตัวเองวันเดียวกัน และขึ้น main ก่อน (PR #17)
+- ทีมตัดสินให้ใช้แถวเดียวกัน 002 จึงทิ้งแถวของตัวเองตอน merge แล้วเติมชื่อ 002 ในคอลัมน์ "ใครใช้แล้ว" แทน
+- แก้ `specs/changes/CR-007.md` เพิ่มหัวข้อ "แก้ไขรอบที่ 2" บันทึกว่าใครลงทะเบียนจริง (ไม่ลบข้อความเดิม)
+- ขยายความหมายของแถวให้ครอบกรณีของ 002 คือ "คำขอนั้นไม่มีสิ่งที่ขอ" เช่น คำขอที่ไม่มีไฟล์แนบ
+  **ต้องแจ้ง 004 ว่าแก้ข้อความแถวที่เขาเขียน** และแจ้ง 003 ว่าใช้แถวเดียวกันได้เลย
+- ส่วนที่ยังเป็นของ CR-007 คนเดียว: การใช้ `FORBIDDEN_ROLE` กับไฟล์แนบ, ข้อตกลง DOM-PRIV-01 และเรื่องรหัส 405 ที่ยังไม่มีใครทำ
+
+---
+
+## 2569-11-12 merge main (002 PR #18, CR-007) เข้า 003-cancel-request แก้ conflict ของกลาง (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- ที่มา: `git pull origin main` หยุดเพราะ prompt-log.md ยังไม่ commit เจ้าของสั่งให้ commit งานค้าง pull และแก้ conflict
+- commit ก่อน pull: "003: tasks/plan อ้างรหัส error ตาม CR-006, README อัปเดตสถานะ 003" (prompt-log.md, plan.md, tasks.md, specs/README.md)
+- conflict 3 ไฟล์ แก้โดยเก็บทั้งสองฝั่ง:
+  - specs/000-shared/constraints.md (ของกลาง แก้เพราะ 003): บรรทัด Status รวม CR-006 และ CR-007, `FORBIDDEN_ROLE` ใครใช้แล้วมีทั้ง 002 และ 003,
+    `REQUEST_NOT_FOUND` ใช้ความหมายฉบับขยายของ CR-007 ใครใช้แล้ว "004, 002, 003", เก็บแถว ALREADY_APPROVED และ NOT_CANCELLABLE, แถว CON-TECH-03 ใน "ใครอ้างใช้บ้าง" มีทั้ง 002 และ 003
+  - specs/CHANGELOG.md: เก็บรายการของทั้งสองฝั่ง เพิ่มรายการบนสุดอธิบายการรวม
+  - prompt-log.md: เก็บบันทึกของทั้งสองฝั่ง (ของ 003 ก่อน แล้วตามด้วยของ main) ไม่มีบรรทัดใดถูกลบ (ตรวจด้วย git diff --numstat เทียบทั้ง HEAD และ origin/main)
+- แก้เพิ่ม: specs/changes/CR-006.md เพิ่มบรรทัด "แก้ไขรอบที่ 2" ว่า 002 ใช้ REQUEST_NOT_FOUND ด้วยตาม CR-007 (ที่เขียนเดิมว่า 002 ไม่ได้ใช้ ถูกเฉพาะก่อน 002 ขึ้น main)
+- ผล test หลัง merge: go build/vet ผ่าน, go test -p 1 ./... ผ่านทุก package, vitest 31 ไฟล์ 81 test ผ่าน
+- ยังไม่ได้ push (รอเจ้าของตรวจ)
+- ค้างจากเรื่องก่อนหน้า: ALREADY_APPROVED กับ REQUEST_ALREADY_DECIDED ของ 004 ยังรอเจ้าของ 004 ตอบ
+
+---
+
+## 2569-11-12 ตัดสินคงไว้ทั้ง ALREADY_APPROVED (003) และ REQUEST_ALREADY_DECIDED (004) (003-cancel-request, แก้ของกลาง constraints.md)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- ที่มา: มีคนในทีมทักว่า 2 รหัสนี้ซ้ำกัน ให้บอก 003 และ 004 ก่อน merge
+- สิ่งที่ AI ตรวจ: ความหมายต่างกัน 003 = นักศึกษายกเลิกคำขอที่ approved เท่านั้น (rejected ได้ NOT_CANCELLABLE) แนบ status,
+  004 = เจ้าหน้าที่พิจารณาคำขอที่ถูกพิจารณาแล้ว (approved หรือ rejected) ก่อนหน้าจอโหลด ผูกกับ loadedAt, ไม่มี endpoint ใดตอบทั้ง 2 รหัส,
+  ถ้ารวมต้องแก้ความหมายแถวของ 004 และแก้ TestTC_CXL_01_6 ซึ่งห้ามแก้โดยไม่มีทีมอนุมัติ
+- เจ้าของ 003 ตัดสิน: คงไว้ทั้ง 2 รหัส
+- ไฟล์ที่แก้: specs/000-shared/constraints.md (ของกลาง แก้เพราะ 003: เติมวงเล็บความต่างในแถว ALREADY_APPROVED เท่านั้น ไม่แก้แถวของ 004),
+  specs/changes/CR-006.md (หัวข้อตัดสิน), specs/CHANGELOG.md
+- ไม่ได้แก้: โค้ด test หน้าจอ
+- ยังต้องทำ: แจ้งเจ้าของ 004 ว่าคงไว้ทั้ง 2 รหัส ถ้าต้องการเติมคำอธิบายในแถว REQUEST_ALREADY_DECIDED ให้ 004 แก้เอง
+
+---
+
+## 2569-11-12 รัน load test k6 ซ้ำ AC-CXL-17 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เหตุผล: ผลเดิม (list p95 106.63 ms, cancel p95 38.9 ms) วัดก่อนเพิ่ม audit (T-31, T-32) และ NotifyTimeout (T-34)
+- วิธี: ฐานข้อมูลแยก salmon_load ใน container salmon-db (ตามหัวไฟล์ seed_003_load.sql), หลังบ้านอีกตัวที่ :8001 (migration + seed.sql), โหลด seed_003_load.sql (คำขอ 50001-51000),
+  k6 ผ่าน Docker grafana/k6 BASE_URL=http://host.docker.internal:8001 ไม่แตะฐานข้อมูล salmon ที่ใช้ทดสอบหน้าเว็บ
+- ผล: 50 VU 1,000 iteration checks 100% (2000/2000) http_req_failed 0%
+  list p95 123.39 ms (เดิม 106.63), cancel p95 61.03 ms (เดิม 38.9) ทั้งคู่ต่ำกว่า 15000 ms (CancelPerfP95) มาก
+  audit_log ใน salmon_load: cancel ok 1000 แถว (T-31 ทำงานใต้โหลด) คำขอ 1000 ใบเป็น cancelled
+- ปิดหลังบ้าน :8001 แล้ว ไม่ได้แก้ไฟล์ใน repo (rtm.md จะอัปเดตตัวเลขตอน /verify รอบ 3)
+
+---
+
 ## 2569-11-12 คำสั่ง: /implement T-35 ของ 004-approve-request
 
 - ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
@@ -4456,3 +5192,15 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
   3. ชื่อภาษาไทยในหน้าอนุมัติเป็น ???? -> ตรวจแล้วข้อมูลในฐานข้อมูลเป็น `?` จริง (hex 3f) เพราะคำสั่งที่ AI ให้ไป `Get-Content approve_dev.sql | docker ... psql` บน Windows PowerShell 5.1 แปลงอักษรไทยเป็น ? ก่อนส่ง -> ให้ล้างฐานข้อมูล (`down -v`) แล้วโหลดใหม่ด้วย `docker compose cp` + `psql -f`
 - สิ่งที่แก้: `specs/004-approve-request/tasks.md` (คำสั่งโหลด approve_dev.sql ในหัวไฟล์) และคอมเมนต์หัวไฟล์ `backend/db/seed/approve_dev.sql` ให้ใช้ cp + psql -f และเตือนเรื่อง PowerShell
 - ข้อสังเกต: `handover_dev.sql` ของ 005 เขียนคำสั่งโหลดแบบ `<` เหมือนกัน คนที่ใช้ Windows อาจเจอปัญหาเดียวกัน ควรแจ้ง 005
+
+---
+
+## 2569-11-12 คำสั่ง: merge main (PR #18 ของ 002, PR #19 ของ 003) เข้า 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่งก่อนหน้า: ถามวิธีแก้ข้อความ commit "done" -> AI อธิบายว่าแก้ history ไม่ได้เพราะ commit อยู่ใน main แล้ว (004 ขึ้น main ก่อนใน PR #17) ทีมเพิ่ม commit `004: T-01 ถึง T-36 done and reviewed` แทน
+- คำสั่ง: ทีมรัน `git pull origin main` แล้วได้ conflict ใน prompt-log.md
+- สิ่งที่แก้: `prompt-log.md` เก็บทั้งสองฝั่ง ของ main ก่อนแล้วตามด้วยของ 004 ไม่ลบบันทึกใด (ไฟล์อื่น git รวมให้เองไม่มี conflict)
+- สิ่งที่เข้ามาที่กระทบ 004: CR-006 (003 ใช้ `REQUEST_NOT_FOUND` ของ 004 และลงทะเบียน `ALREADY_APPROVED`, `NOT_CANCELLABLE` แยกจาก `REQUEST_ALREADY_DECIDED` = ปิดเรื่องที่ 002 ทักไว้), CR-007 (002 ใช้ `REQUEST_NOT_FOUND` ร่วม และขยายความหมายของแถว) -> 004 ไม่ต้องแก้โค้ด
+- ตรวจหลัง merge: `go build ./...` และ `go vet ./internal/approve/ ./internal/config/` ผ่าน (AI รัน) / test เต็มยังไม่ได้รัน
