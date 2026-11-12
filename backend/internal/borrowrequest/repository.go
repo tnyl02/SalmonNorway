@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"salmonnorway/backend/internal/auth"
+	"salmonnorway/backend/internal/config"
 )
 
 // ErrForbiddenDepartment เกิดเมื่อผู้ขอพยายามส่งคำขอของอุปกรณ์ต่างภาควิชา (DOM-ACCESS-01, FR-BRQ-07)
@@ -60,8 +61,8 @@ RETURNING id, submitted_at`
 // คืน ErrItemNotAvailable เมื่อไม่มีอุปกรณ์รหัสนั้น หรือสถานะไม่ใช่ "ว่าง" แล้ว (CON-DATA-01)
 func (r *Repository) Create(ctx context.Context, requesterID string, in NewRequest, status string) (Request, error) {
 	// ตรวจขอบเขตภาควิชาก่อนทุกอย่าง เพื่อไม่ให้ผู้ขอต่างภาควิชารู้แม้แต่สถานะของอุปกรณ์ (FR-BRQ-07)
-	// **ลำดับการตรวจเมื่อข้ามภาควิชาและอุปกรณ์ไม่ว่างพร้อมกัน ยังรอ Q-BRQ-15 (ดู T-21)**
-	// ระหว่างรอคำตอบเลือกทางที่ปลอดภัยกว่าคือไม่เปิดเผยอะไรเลย
+	// ลำดับนี้คือคำตอบของ Q-BRQ-15 (ทีมตัดสิน 2569-11-12): ตรวจภาควิชาก่อนเสมอ
+	// คนต่างภาควิชาได้ 403 โดยไม่รู้สถานะอุปกรณ์ FR-BRQ-07 ชนะ FR-BRQ-01 เมื่อสองข้อนี้ชนกัน
 	if err := r.checkDepartment(ctx, in.AssetCode); err != nil {
 		return Request{}, err
 	}
@@ -241,6 +242,43 @@ const deleteRequestSQL = `DELETE FROM borrow_request WHERE id = $1`
 func (r *Repository) Delete(ctx context.Context, requestID int) error {
 	_, err := r.db.Exec(ctx, deleteRequestSQL, requestID)
 	return err
+}
+
+// PendingRequest คือคำขอที่ยังไม่จบ 1 ใบของอุปกรณ์ชิ้นหนึ่ง ใช้สร้างลำดับคำขอให้ 001 (FR-BRQ-05 ข้อ ก, CR-005)
+type PendingRequest struct {
+	RequestID     int
+	SubmittedAt   time.Time // ใช้เรียงลำดับคำขอที่มาก่อน (DOM-REQ-01)
+	RequesterName string    // ชื่อที่ผู้ขอพิมพ์เองในฟอร์ม ระบบไม่ได้ตรวจกับระบบยืนยันตัวตน (FR-BRQ-03 ข้อ ก)
+}
+
+// pendingByItemSQL อ่านคำขอที่ยังไม่จบของอุปกรณ์ชิ้นนั้น เรียงตามเวลาที่ส่ง (FR-BRQ-05 ข้อ ก, DOM-REQ-01)
+// รายการสถานะมาจาก config.OpenRequestStatuses ที่เดียว ไม่เขียนซ้ำใน SQL (AGENTS.md กฎข้อ 9)
+// เรียงด้วย id ต่อท้ายกันกรณีเวลาที่ส่งเท่ากันพอดี เพื่อให้ลำดับคงที่ทุกครั้งที่เรียก
+const pendingByItemSQL = `
+SELECT r.id, r.submitted_at, r.requester_name
+FROM borrow_request r
+JOIN equipment_item i ON i.id = r.item_id
+WHERE i.asset_code = $1 AND r.status = ANY($2)
+ORDER BY r.submitted_at, r.id`
+
+// PendingByItem คืนคำขอที่ยังไม่จบของอุปกรณ์ชิ้นนั้นเรียงตามเวลาที่ส่ง (FR-BRQ-05 ข้อ ก)
+// รหัสครุภัณฑ์ที่ไม่มีอยู่จริงคืนรายการว่าง เหมือนกรณีไม่มีคำขอค้าง (ทีมตัดสิน 2569-11-12 ตามสัญญาใน CR-005)
+func (r *Repository) PendingByItem(ctx context.Context, assetCode string) ([]PendingRequest, error) {
+	rows, err := r.db.Query(ctx, pendingByItemSQL, assetCode, config.OpenRequestStatuses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []PendingRequest{} // ไม่ใช่ nil เพื่อให้ JSON ออกมาเป็น [] ไม่ใช่ null (สัญญา API ใน CR-005)
+	for rows.Next() {
+		var p PendingRequest
+		if err := rows.Scan(&p.RequestID, &p.SubmittedAt, &p.RequesterName); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
 }
 
 // RequestAttachment คือข้อมูลที่ต้องใช้ตัดสินสิทธิ์เปิดดูไฟล์แนบ (FR-BRQ-10 ข้อ ก, DOM-PRIV-01)
