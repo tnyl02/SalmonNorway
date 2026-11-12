@@ -5116,6 +5116,118 @@ T-13 มีแค่ `service.go` ในช่องไฟล์ที่แต�
 
 ---
 
+004-approve-request
+## 2569-11-12 คำสั่ง: /implement T-35 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "เขียน title กับ description ให้หน่อยจะเอาขึ้น main" (AI ร่าง PR title/description และเตือนว่า test ยังไม่ได้รัน), "ต้องทำอะไรต่อ"
+- คำสั่ง: "/implement T-35"
+- ไฟล์ที่แก้: `backend/internal/approve/service_test.go` (`concurrencyDB` สร้างฐานข้อมูลแยกใน container เดิม รัน migration + seed.sql + approve_dev.sql แล้วลบทิ้งตอนจบ, `TestAC_APV_10` 3 กรณี อนุมัติ+อนุมัติ / อนุมัติ+ปฏิเสธ / ปฏิเสธ+ปฏิเสธ ด้วย 2 goroutine เริ่มพร้อมกัน ตรวจสำเร็จ 1 ได้ ErrDecidedConcurrently 1 และมี approval_decision 1 แถว Email 1 ฉบับ), `specs/004-approve-request/tasks.md`
+- ไม่แก้โค้ดหลัก เพราะการล็อกแถว (T-07) และการแยกกรณีกดพร้อมกัน (T-23) ทำไว้แล้ว
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน ตอนรันให้ใช้ `go test ./internal/approve/ -run TestAC_APV_10 -count=20`
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): ใช้ฐานข้อมูลแยกต่อการรัน เพราะ devTx (transaction เดียว) ไม่มีการแย่งกันจริง และข้อมูลที่ commit แล้วลบไม่ได้ (approval_decision / audit_log แก้หรือลบไม่ได้); loadedAt ย้อน 1 ชั่วโมงกันเวลาของ container กับเครื่องไม่ตรงกัน
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-35 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจสอบแล่วผ่าน"
+- สิ่งที่แก้: tasks.md T-35 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-36 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "ตรวจสอบแล่วผ่าน" (T-35 -> เสร็จ)
+- คำสั่ง: "/implement T-36"
+- ไฟล์ที่แก้: `frontend/src/pages/ApproveRequest/ApproveRequests.test.jsx` (2 test `AC-APV-10` ตอนอนุมัติและตอนปฏิเสธ), `specs/004-approve-request/tasks.md`
+- ไม่แก้ `ApproveRequests.jsx` เพราะแสดงข้อความตามรหัสจาก APPROVAL_MESSAGES อยู่แล้วตั้งแต่ T-09
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
+- หลัง T-36: task ที่ทำได้ครบแล้ว เหลือ T-37, T-38 (รอ Q-APV-04) และ T-39 (รอ Q-SH-03)
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-36 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจสอบแล่วผ่าน"
+- สิ่งที่แก้: tasks.md T-36 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+- สถานะรวม: T-01 ถึง T-36 เสร็จ (เฟส 0 ถึง 18) เหลือ T-37, T-38 รอ Q-APV-04 และ T-39 รอ Q-SH-03 / test ทั้งหมดยังไม่ได้รัน
+
+---
+
+## 2569-11-12 คำสั่ง: ติดตั้งเครื่องมือและรัน test รวมของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ติดตั้งอะไรยังไงบ้าง", "go mod download แล้วไม่มีอะไรเกิดขึ้น", ทีมรัน test เองในเทอร์มินัลแล้ววางผลในแชต (AI เริ่มรันให้แต่ทีมหยุดไว้ และรันเอง)
+- เครื่อง: Go 1.27.4 (ติดตั้งด้วย winget), Docker 29.9.2, Node v24
+- ผล test (รันครั้งแรกหลัง implement T-01 ถึง T-36 ตามลำดับการทดสอบที่ทีมตัดสิน):
+  - `go build ./...` ผ่าน
+  - `go test ./internal/config/ ./internal/platform/ ./internal/approve/` ok ทั้ง 3 package (platform / approve ใช้ ~498 วินาที รอบแรกเพราะ Docker โหลด postgres:16)
+  - `go test ./internal/approve/ -run TestAC_APV_10 -count=20` ok (8.2 วินาที)
+  - `go test ./...` ok ทุก package (approve, audit, auth, borrowrequest, cancelrequest, cancelrequest/migrationtest, config, equipment, handover, platform)
+  - `npm test` 31 ไฟล์ 81 test ผ่าน
+- ไม่มี test ไหนไม่ผ่าน จึงไม่ได้แก้โค้ด
+- สิ่งที่แก้: tasks.md สถานะ T-01 ถึง T-36 เปลี่ยนหมายเหตุ "ยังไม่ได้รัน" เป็น "test ผ่าน 2569-11-12" และเพิ่มผลรวมในหัวไฟล์
+- ยังไม่ได้ทำ: ลองจุดตรวจด้วยมือ (หน้าจอจริง, curl, โหลด approve_dev.sql ด้วย psql) / T-37, T-38 รอ Q-APV-04 / T-39 รอ Q-SH-03
+
+---
+
+## 2569-11-12 คำสั่ง: เปิดระบบจริงเพื่อลองหน้าจอของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ถ้าจะดูหน้าจริงของระบบที่เขียนใช้คำสั่งอะไร" แล้วแจ้งปัญหาระหว่างเปิดระบบ
+- ปัญหาที่พบและวิธีแก้:
+  1. `go run ./cmd/server` ได้ password authentication failed -> พอร์ต 5432 ถูก container ของโปรเจกต์อื่นในเครื่อง (grocery-store-backend-db-1) ใช้อยู่ ทีมหยุด container นั้นเอง
+  2. db ของ SalmonNorway ค้างสถานะ Created และไม่ได้เปิดพอร์ตออกมา (สร้างตอนพอร์ตชน) -> `docker compose ... up -d --force-recreate db`
+  3. ชื่อภาษาไทยในหน้าอนุมัติเป็น ???? -> ตรวจแล้วข้อมูลในฐานข้อมูลเป็น `?` จริง (hex 3f) เพราะคำสั่งที่ AI ให้ไป `Get-Content approve_dev.sql | docker ... psql` บน Windows PowerShell 5.1 แปลงอักษรไทยเป็น ? ก่อนส่ง -> ให้ล้างฐานข้อมูล (`down -v`) แล้วโหลดใหม่ด้วย `docker compose cp` + `psql -f`
+- สิ่งที่แก้: `specs/004-approve-request/tasks.md` (คำสั่งโหลด approve_dev.sql ในหัวไฟล์) และคอมเมนต์หัวไฟล์ `backend/db/seed/approve_dev.sql` ให้ใช้ cp + psql -f และเตือนเรื่อง PowerShell
+- ข้อสังเกต: `handover_dev.sql` ของ 005 เขียนคำสั่งโหลดแบบ `<` เหมือนกัน คนที่ใช้ Windows อาจเจอปัญหาเดียวกัน ควรแจ้ง 005
+
+---
+
+## 2569-11-12 คำสั่ง: merge main (PR #18 ของ 002, PR #19 ของ 003) เข้า 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่งก่อนหน้า: ถามวิธีแก้ข้อความ commit "done" -> AI อธิบายว่าแก้ history ไม่ได้เพราะ commit อยู่ใน main แล้ว (004 ขึ้น main ก่อนใน PR #17) ทีมเพิ่ม commit `004: T-01 ถึง T-36 done and reviewed` แทน
+- คำสั่ง: ทีมรัน `git pull origin main` แล้วได้ conflict ใน prompt-log.md
+- สิ่งที่แก้: `prompt-log.md` เก็บทั้งสองฝั่ง ของ main ก่อนแล้วตามด้วยของ 004 ไม่ลบบันทึกใด (ไฟล์อื่น git รวมให้เองไม่มี conflict)
+- สิ่งที่เข้ามาที่กระทบ 004: CR-006 (003 ใช้ `REQUEST_NOT_FOUND` ของ 004 และลงทะเบียน `ALREADY_APPROVED`, `NOT_CANCELLABLE` แยกจาก `REQUEST_ALREADY_DECIDED` = ปิดเรื่องที่ 002 ทักไว้), CR-007 (002 ใช้ `REQUEST_NOT_FOUND` ร่วม และขยายความหมายของแถว) -> 004 ไม่ต้องแก้โค้ด
+- ตรวจหลัง merge: `go build ./...` และ `go vet ./internal/approve/ ./internal/config/` ผ่าน (AI รัน) / test เต็มยังไม่ได้รัน
+
+---
+
+## 2569-11-12 คำสั่ง: รัน test หลัง merge main และทำหน้าสรุปสถานะ 004 ให้ทีม
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "รัน test หลัง merge แล้ว pass หมด ช่วยทำสรุปงานที่เสร็จแล้ว งานที่ยังทำไม่ได้เพราะอะไร และเหลืออะไรบ้าง ทำเป็น html ให้เพื่อนอ่าน"
+- ผล test (ทีมรันเองหลัง merge `99e80ae`): `go test ./...` และ `npm test` ผ่านหมด
+- ผลลัพธ์: หน้าเว็บสรุปสถานะ https://claude.ai/artifact/AnD8wzdrrdFFucUeagSjUr (งานที่เสร็จรายเฟส, ผลทดสอบ, T-37 ถึง T-39 และเรื่องที่รอทีมพร้อมเหตุผล, งานที่เหลือ, เรื่องที่ฟีเจอร์อื่นควรรู้, คำสั่งลองระบบ)
+
+---
+
+## 2569-11-12 คำสั่ง: ตัดสินใช้ Email จำลองใน prototype ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำถามของทีม: "ของเพื่อนได้ใช้ email จริงมั้ย", "ถ้าไม่ใช้ email จริงจะเป็นอะไรมั้ย", "แล้วจะกระทบใครมั้ย", "งั้นถ้าใช้ email จำลองแทนต้องแจ้งใครบ้าง"
+- สิ่งที่ AI ตรวจและตอบ: ไม่มีฟีเจอร์ไหนส่ง Email จริง (003 ใช้ LogNotifier + staff_contact ที่อยู่ example.test, 004 ใช้ LogMailer + example.com, 002 / 005 ไม่มี Email); ไม่มีฟีเจอร์อื่น import package approve หรืออ้างตาราง approval_email / approval_decision จึงไม่กระทบโค้ดใคร; ผลที่มีคือนักศึกษาไม่ได้รับ Email จริงตอน demo ต้องดู log; แนะนำแจ้งทีม, 003 (IF-NOT-01 ร่วม), 002 (Q-APV-04)
+- คำสั่ง: "แจ้ง 002 แล้วว่าใช้ email จำลองแทน"
+- สิ่งที่แก้: spec.md Q-APV-04 บันทึกว่าแจ้ง 002 แล้ว คำขอให้ 002 เก็บ Email พักไว้ คำถามยังเปิดสำหรับการส่งจริง
+- ยังไม่ได้ทำ: แจ้งทั้งทีมและ 003 / เพิ่ม Assumption เรื่อง Email จำลองใน spec (รอทีมไม่ค้าน)
+=======
 ## 2569-11-12 ลงทะเบียน ITEM_NOT_FOUND และตัดสินเรื่อง 404 / 405 (plan v1.9, tasks v2.4)
 
 - ผู้สั่ง: Pannathorn J
@@ -5219,3 +5331,4 @@ T-13 มีแค่ `service.go` ในช่องไฟล์ที่แต�
   - ข้อความบนปุ่ม "ส่งคำขอยืม" ใช้คำจาก FR-EQS-04 และ AC ไม่มี mockup หัวคอลัมน์ของปุ่มในตารางเว้นว่าง
   - canRequestLoan ส่งเป็น false ชัด ๆ (ไม่ omitempty) และหน้าจอแสดงปุ่มเฉพาะเมื่อได้ true จากหลังบ้าน ไม่ดูสถานะเอง (plan ข้อ 6.7)
 - ยังขาด: ต่อ onRequestLoan กับฟอร์มของ 002 ใน App.jsx (รอ 002 สร้างฟอร์มและตกลงวิธีเปิด) / test-cases ชุด ค (AC-EQS-04, 05, 06, 14) ทำได้แล้ว
+main
