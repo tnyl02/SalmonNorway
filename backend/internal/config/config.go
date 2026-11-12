@@ -51,6 +51,15 @@ const OverdueBlockUntilNextDayStart = true
 // AttachmentMaxBytes คือขนาดสูงสุดของใบบันทึกข้อความที่แนบกับการยืมค้างคืน (FR-BRQ-10 ข้อ ก)
 const AttachmentMaxBytes = 10 << 20 // 10MB
 
+// ประเภทการยืม 2 ค่าตาม DM-05 (FR-BRQ-10) กฎ DOM-LOAN-01 ใช้กับการยืมปกติเท่านั้น
+// ค่าเดียวกับ CHECK ของ borrow_request ใน migration 0003
+// 004 พิจารณาเฉพาะการยืมปกติ (FR-APV-01, Q-APV-01) ลำดับคำขอแรกและงานเที่ยงคืนก็นับเฉพาะประเภทนี้ (Q-APV-23, Q-APV-14)
+// (รวมคำประกาศซ้ำของ 004 เข้ากับของเดิมตอน merge main 2569-11-12)
+const (
+	LoanTypeNormal    = "normal"
+	LoanTypeOvernight = "overnight"
+)
+
 // StatusRequested คือสถานะเดียวที่ฟีเจอร์ 002 ตั้งได้ (FR-BRQ-04, data-model.md v9)
 const StatusRequested = "requested"
 
@@ -98,10 +107,6 @@ const StatusCancelled = "cancelled"
 // ItemStatusAvailable คือสถานะอุปกรณ์ "ว่าง" (CON-DATA-01, data-model.md) อนุมัติได้เฉพาะอุปกรณ์สถานะนี้ (FR-APV-01 ค, T-19)
 // ค่าเดียวกับ equipment.StatusAvailable ของ 001 004 ไม่ import package ของ 001
 const ItemStatusAvailable = "available"
-
-// LoanTypeNormal คือประเภทการยืมแบบปกติ (DM-05, DM-06) 004 พิจารณาเฉพาะประเภทนี้ (FR-APV-01, Q-APV-01)
-// ลำดับคำขอแรกและงานเที่ยงคืนนับเฉพาะประเภทนี้ (Q-APV-23, Q-APV-14) ค่าเดียวกับ CHECK ของ borrow_request ใน 0003
-const LoanTypeNormal = "normal"
 
 // ApprovalEmailDeadline คือเวลาที่ต้องส่ง Email แจ้งผลให้ผู้ขอหลังบันทึกผล (FR-APV-02)
 const ApprovalEmailDeadline = 60 * time.Second
