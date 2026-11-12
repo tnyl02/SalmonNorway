@@ -3111,3 +3111,165 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
   - tasks v2.2: เฟส 15 ใหม่ T-38 (หน้าจอเท่านั้น หลังบ้านเป็นของ 002), เฟสรอคำตอบเลื่อนเป็น 16, ตาราง AC / Constraint / FR
 - สิ่งที่ AI ไม่ได้ทำ: ไม่แก้โค้ด ไม่ commit ไม่ได้แก้บรรทัด " 003-cancel-request" ที่เหลือค้างใน CHANGELOG (มาจาก commit ของ 003)
 - เรื่องที่ spec ยังไม่บอก (เสนอทีม): ไม่มีคำขอค้าง หรือ 002 ไม่ตอบ หน้าจอแสดงข้อความอะไร (ตอนนี้ไม่แสดงส่วนนี้)
+
+---
+
+## 2569-11-12 /implement T-37 ตอบ error ทุกตัวด้วย {code, message} ตาม CON-TECH-03
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `backend/internal/platform/` และ `backend/internal/auth/middleware.go` เพราะ T-37 ของ 001)
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement T-37`
+- ก่อนเริ่ม: ดึง main ล่าสุดแบบ rebase (commit README ของผู้สั่งยังไม่ได้ push)
+- ไฟล์ที่สร้าง: `backend/internal/platform/apierror.go` (รหัส 4 ตัว, ข้อความภาษาไทยตาม plan ข้อ 5, ErrorBody, ErrorMessage, WriteError),
+  `backend/internal/platform/apierror_test.go`
+- ไฟล์ที่แก้: `backend/internal/auth/middleware.go` (ใช้ platform.WriteError ลบ writeError เดิม),
+  `backend/internal/auth/middleware_test.go` (ตรวจ code และ message ใน 401, 403), `backend/internal/equipment/handler.go` (503 ใช้ platform.WriteError เลิกใช้ retryable)
+- ไม่ได้แตะ `backend/internal/equipment/handler_test.go` (อยู่ในช่องไฟล์ที่แตะ แต่ test 503 อยู่ใน apierror_test.go แล้ว)
+- test: `TestCON_TECH_03_ErrorBodyHasCodeAndMessage` ผ่าน (401 x2, 403 PRINCIPAL_INCOMPLETE, 503 รายการรุ่น และ 503 รายละเอียด
+  ทุกกรณี body มีแค่ code และ message และ message ไม่ว่าง), `TestErrorMessage_AllCodesHaveMessage` ผ่าน, test ของ auth เดิม 3 ตัวผ่าน
+  test หลังบ้านทั้งระบบผ่าน (รวม borrowrequest, cancelrequest ที่มี TestTC_, handover) หน้าจอ 23 test ผ่าน
+- ผลต่อฟีเจอร์อื่น: auth.Middleware ใช้ร่วมโดย 002, 003, 005 ตอนนี้ 401/403 มี message เพิ่ม test ของทุกฟีเจอร์ตรวจแค่ code จึงยังผ่าน
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้):
+  - test 503 ใช้ฐานข้อมูลจำลองที่ตอบ error ทุก query ไม่ต้องหยุด Docker
+  - รหัสที่ยังไม่มีข้อความ ErrorMessage คืนรหัสเองแทน เพื่อให้ message ไม่ว่าง และ log เตือน
+  - ไม่ลบ `ErrorDTO` ใน `equipment/dto.go` ที่เลิกใช้แล้ว เพราะ dto.go ไม่อยู่ในไฟล์ที่แตะของ T-37 (ลบได้ใน task ถัดไปที่แตะ dto.go)
+- ข้อค้นพบ: ข้อความของ UPSTREAM_UNAVAILABLE ของ 005 ("ระบบไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาลองใหม่") ต่างจากของ 001
+  รหัสเดียวกันควรใช้ข้อความเดียวกัน 002, 005 เรียก platform.WriteError ได้ถ้าทีมตกลง / 404, 405 ยังตอบข้อความธรรมดา (รอรหัสในรายการกลาง)
+
+---
+
+## 2569-11-12 /implement-all เฟส 9: T-17 แยก DTO ให้นักศึกษาไม่มีข้อมูลผู้ยืม และ API สรุปจำนวนตามสถานะสำหรับเจ้าหน้าที่
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `backend/internal/platform/apierror.go` เพิ่มรหัส FORBIDDEN_ROLE เพราะ T-17)
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement-all ... เฟส 9` (task เดียวของเฟส)
+- คำถามที่ AI ถามก่อนทำ และคำตอบของทีม (Pannathorn J):
+  1. นักศึกษาเรียกสรุปได้ 403 รหัสอะไร plan ไม่ได้บอก -> ทีมตอบ: FORBIDDEN_ROLE จากรายการกลาง CON-TECH-03
+     ข้อความ "เฉพาะเจ้าหน้าที่เท่านั้นที่ดูข้อมูลนี้ได้" (ทีมเลือกเอง ไม่ได้มาจาก spec) เพิ่มใน platform/apierror.go
+  2. query สรุปต้องอยู่ใน repository.go ซึ่งไม่อยู่ในไฟล์ที่แตะ -> ทีมตอบ: เพิ่ม repository.go และ service.go
+  เพิ่ม 3 ไฟล์นี้ในช่องไฟล์ที่แตะของ T-17 แล้ว
+- ไฟล์ที่แก้: `backend/internal/equipment/dto.go` (StatusSummaryDTO, ลบ ErrorDTO ที่เลิกใช้ตั้งแต่ T-37),
+  `repository.go` (CountByStatus), `service.go` (Summary ตรวจบทบาทที่ server, ErrStaffOnly), `handler.go` (GET /v1/equipment/summary),
+  `handler_test.go`, `backend/internal/platform/apierror.go` (CodeForbiddenRole)
+- test: `TestAC_EQS_07_StudentNoBorrower` ผ่าน (student-002 เปิดรายละเอียด CS-NB-0004, รายชิ้น และรายการรุ่น ไม่มีคำว่า borrower หรือ student-001),
+  `TestFR_EQS_07_StaffSummaryByStatus` ผ่าน (เจ้าหน้าที่ได้ 3 สถานะ + total ตรงกับฐานข้อมูล / นักศึกษาได้ 403 FORBIDDEN_ROLE มีแค่ code และ message)
+  test หลังบ้านทั้งระบบผ่าน หน้าจอ 47 test ผ่าน
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้):
+  - response สรุปเป็น `{available, borrowed, unavailable, total}` plan ไม่ได้กำหนดรูปแบบ
+  - สรุปนับทุกภาควิชา ตาม plan ข้อ 6.1 (ขอบเขตของเจ้าหน้าที่รอ Q-P3 ดู T-28)
+  - ส่วนนักศึกษาไม่เห็นผู้ยืม: DTO ของนักศึกษาไม่มีช่องผู้ยืมอยู่แล้วตั้งแต่ T-05, T-12 task นี้เพิ่ม test ยืนยันทั้ง 3 endpoint
+  - ยังไม่มีหน้าจอของสรุป (T-17 เป็นงานหลังบ้าน และ FR-EQS-07 ส่วนสรุปยังไม่มี AC)
+
+---
+
+## 2569-11-12 /implement-all เฟส 10: T-18 จำกัดทุก query ของนักศึกษาด้วยภาควิชา และตอบ 403 เมื่อขอข้ามภาควิชา
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ `frontend/src/api/client.js` ที่ 003 ใช้ร่วม เพิ่ม serverMessage แบบเดียวกับ api/handover.js ของ 005)
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement-all ... เฟส 10` (task เดียวของเฟส)
+- คำถามที่ AI ถามก่อนทำ และคำตอบของทีม (Pannathorn J):
+  1. ต้องแตะ service.go, client.js, EquipmentDetail.jsx เพิ่ม -> ทีมตอบ: เพิ่มทั้ง 3 ไฟล์ (เพิ่มในช่องไฟล์ที่แตะแล้ว)
+  2. เจ้าหน้าที่ส่ง ?department= มาต้องทำอะไร -> ทีมตอบ: ยังไม่ทำ เจ้าหน้าที่เห็นทุกภาควิชาตาม plan 6.1 รอ Q-P3
+- ไฟล์ที่แก้:
+  - `backend/internal/equipment/repository.go`: Filter.DepartmentID, เงื่อนไขภาควิชาในทุก query รายการ ($4), GetItem คืน department_id, ModelDepartment
+  - `backend/internal/equipment/service.go`: scopeFor (นโยบายเดียว นักศึกษา = ภาควิชาตน / เจ้าหน้าที่ = ทุกภาควิชา / ไม่มีผู้ใช้ = ปฏิเสธ),
+    ErrForbiddenDepartment, ListModels รับ requestedDept, ListItems และ GetItem ตรวจภาควิชาก่อนสร้าง DTO
+  - `backend/internal/equipment/handler.go`: requestedDepartment, writeServiceError (403 FORBIDDEN_DEPARTMENT / 503)
+  - `backend/internal/equipment/handler_test.go`, `frontend/src/api/client.js` (ApiError.serverMessage), `frontend/src/pages/EquipmentDetail/EquipmentDetail.jsx` (ใช้ ErrorState)
+- ไฟล์ที่สร้าง: `frontend/src/components/ErrorState.jsx`, `frontend/src/__tests__/AC-EQS-13.test.jsx`
+- test: `TestAC_EQS_13_OtherDepartment403` ผ่าน (นักศึกษาภาควิชา 2: รายการเห็นแค่รุ่น 3 / รายละเอียด CS-NB-0001, รายชิ้นรุ่น 1,
+  ?department=1, ?department=abc ได้ 403 FORBIDDEN_DEPARTMENT ไม่มีข้อมูลอุปกรณ์ใน body / ของภาควิชาตนยังเปิดได้),
+  `TestFR_EQS_10_ScopeByRole` ผ่าน (นักศึกษาภาควิชา 1 ไม่เห็นรุ่น 3 / เจ้าหน้าที่เห็นทุกภาควิชา),
+  `AC-EQS-13.test.jsx` 3 test ผ่าน / test หลังบ้านทั้งระบบผ่าน หน้าจอ 26 ไฟล์ 50 test ผ่าน (รวม TC-CXL ของ 003) `vite build` ผ่าน
+- ลองจริง: หลังบ้านที่ port 8010 mock-student-101 เปิด CS-NB-0001 ได้ 403 + ข้อความไทย / รายการเห็นแค่รุ่น C / XX-NB-0001 ได้ 200
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้):
+  - รุ่นหรือรหัสครุภัณฑ์ที่ไม่มีอยู่จริงยังได้รายการว่าง / 404 แบบเดิม ตรวจภาควิชาเฉพาะของที่มีอยู่
+    (ข้อแลกเปลี่ยนตาม plan 6.1: 403 บอกได้ว่ารหัสนั้นมีอยู่จริง แต่ spec สั่งให้แจ้งไม่มีสิทธิ์)
+  - หน้าจอแสดง message จากหลังบ้านผ่าน ErrorState ถ้าไม่มี message ใช้ "ดึงข้อมูลอุปกรณ์ไม่สำเร็จ" เดิม
+  - หน้ารายการ (EquipmentList.jsx) ยังใช้ข้อความ error เดิม ไม่อยู่ในไฟล์ของ T-18 นักศึกษาจะไม่ได้ 403 จากรายการเว้นแต่ส่ง department เอง (T-20 แตะไฟล์นี้)
+
+---
+
+## 2569-11-12 /implement-all เฟส 11: T-19 บันทึก audit log เมื่อเปิดรายละเอียด
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (สร้างของกลาง `backend/internal/audit/` ที่ 003 รอใช้)
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement-all ... เฟส 11` (task เดียวของเฟส)
+- ไฟล์ที่สร้าง: `backend/internal/audit/writer.go` (Write, Entry, ค่าคงที่ action และ outcome, interface DB ที่ใช้ได้ทั้ง pool และ pgx.Tx),
+  `backend/internal/audit/writer_test.go`
+- ไฟล์ที่แก้: `backend/internal/equipment/handler.go` (getItem บันทึก audit ทุกการเปิดรายละเอียด, auditDetail)
+- test: `TestAC_EQS_11_DetailWritesAudit` ผ่าน (มีแถว actor student-001, actor_role student, เวลาใกล้ปัจจุบัน, asset_code CS-NB-0002, outcome ok),
+  `TestAudit_ForbiddenDetailIsRecorded` ผ่าน (403 ภาควิชาอื่นบันทึก outcome forbidden), `TestAudit_WriteFailsThenNoData` ผ่าน
+  (เขียน audit ไม่สำเร็จได้ 503 ไม่มีข้อมูลอุปกรณ์), `TestWrite_WorksInTransaction` ผ่าน (ยกเลิก transaction แล้วไม่มีแถวค้าง / ช่องว่างเป็น NULL)
+  test หลังบ้านทั้งระบบผ่าน หน้าจอ 50 test ผ่าน
+- ลองจริง: หลังบ้านที่ port 8010 student-002 เปิด CS-NB-0004 ได้ 200 แล้วตาราง audit_log มีแถว detail ok ของ student-002
+- ทำภายในไฟล์ที่กำหนดได้: test ของ AC-EQS-11 อยู่ใน audit/writer_test.go เรียกผ่าน handler จริง (แยก package audit_test)
+  handler ได้ฐานข้อมูลสำหรับ audit จาก repository ใน NewHandler ไม่ต้องแก้ main.go
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้):
+  - เขียน audit ไม่สำเร็จตอบ 503 ไม่ส่งข้อมูล (fail closed) ตามที่ plan ข้อ 6.4 เสนอ ยังรอยืนยัน Q-P4 (T-29 แก้ได้จุดเดียวใน getItem)
+  - รหัสครุภัณฑ์ที่ไม่มีอยู่ (404) ไม่บันทึก เพราะไม่มีข้อมูลอุปกรณ์ถูกเข้าถึง plan ไม่ได้บอกกรณีนี้
+  - Write ใช้ INSERT ... RETURNING ผ่าน QueryRow ทำให้ใช้ได้ทั้ง pool และ transaction โดยไม่ต้องเพิ่มเมธอด Exec ให้ repository
+  - การดูรายการและการค้นหายังไม่บันทึก (รอ Q-11 ดู T-29) แต่มีค่าคงที่ ActionList, ActionSearch ไว้แล้ว
+
+---
+
+## 2569-11-12 /implement-all เฟส 12: T-20 ตอบ 503 เมื่อต่อฐานข้อมูลไม่ได้ และหน้าจอแสดงปุ่มลองใหม่โดยไม่แสดงข้อมูลเก่า
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement-all ... เฟส 12` (T-37 ในเฟสนี้เสร็จไปก่อนแล้ว ทำแค่ T-20)
+- ไฟล์ที่แก้: `backend/internal/equipment/handler_test.go`, `frontend/src/components/ErrorState.jsx` (ปุ่ม "ลองใหม่" เมื่อส่ง onRetry),
+  `frontend/src/pages/EquipmentList/EquipmentList.jsx` (เก็บ error, ล้างรายการรุ่นและรายชิ้นเมื่อพลาด, retry โหลดใหม่ตามตัวกรองเดิม)
+- ไฟล์ที่สร้าง: `frontend/src/__tests__/AC-EQS-08.test.jsx`
+- ไม่ได้แตะ `backend/internal/platform/http.go` (อยู่ในช่องไฟล์ที่แตะ) เพราะ 503 ตามรูปแบบกลางทำไว้แล้วใน T-37 ไม่ต้องแก้เพิ่ม
+- test: `TestAC_EQS_08_DBDown503` ผ่าน (pool ที่ชี้ไปฐานข้อมูลที่ไม่มีอยู่: รายการรุ่น รายชิ้น รายละเอียด ได้ 503 UPSTREAM_UNAVAILABLE
+  มีแค่ code และ message ไม่มีข้อมูลอุปกรณ์ และมี Cache-Control: no-store), `AC-EQS-08.test.jsx` 2 test ผ่าน
+  (เปิดหน้าตอนฐานข้อมูลล่มเห็นข้อความ + ปุ่มลองใหม่ ไม่ค้างที่กำลังโหลด / ล่มระหว่างใช้งานแล้วรายการเก่าหายไป กดลองใหม่กลับมาได้)
+  test หลังบ้านทั้งระบบผ่าน หน้าจอ 27 ไฟล์ 52 test ผ่าน `vite build` ผ่าน
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้):
+  - ป้ายปุ่ม "ลองใหม่" ใช้คำตาม AC-EQS-08 / ข้อความแสดง message จากหลังบ้าน ถ้าไม่มีใช้ "ดึงข้อมูลอุปกรณ์ไม่สำเร็จ" เดิม
+  - หน้ารายละเอียดยังไม่มีปุ่มลองใหม่ (AC-EQS-08 พูดถึงหน้ารายการ) กดกลับไปรายการแล้วเปิดใหม่ได้
+  - "ไม่แสดงหน้าจอค้าง" ตอนนี้ครอบคลุมกรณีหลังบ้านตอบ error ทันที กรณีหลังบ้านช้าจนไม่ตอบต้องมี timeout รอ Q-08 (T-26)
+
+---
+
+## 2569-11-12 /implement-all เฟส 13: T-21 จัดการ 401 บนหน้าจอ ไปหน้าล็อกอินจำลองพร้อมข้อความ แล้วกลับหน้าเดิม
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ `frontend/src/api/client.js` และ `frontend/src/App.jsx` ที่ 003 ใช้ร่วม)
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement-all ... เฟส 13` (task เดียวของเฟส)
+- คำถามที่ AI ถามก่อนทำ และคำตอบของทีม (Pannathorn J):
+  1. token มาจากไหน -> ทีมตอบ: เก็บใน browser (sessionStorage) เปิดครั้งแรกใช้ MOCK_TOKEN / VITE_MOCK_TOKEN เดิม ฟีเจอร์อื่นไม่ต้องเปลี่ยนวิธีลอง
+  2. ไม่มี router จะกลับหน้าเดิมอย่างไร -> ทีมตอบ: จำหน้าไว้ในหน่วยความจำ returnTo รับเฉพาะชื่อหน้าในตาราง PAGES
+  เพิ่ม App.jsx ในช่องไฟล์ที่แตะของ T-21 แล้ว (คำถามระบุไว้ว่าต้องแก้ App.jsx)
+- ไฟล์ที่แก้: `frontend/src/api/client.js` (getToken, setToken, onUnauthorized, ส่ง token จาก session, แจ้งผู้ฟังเมื่อได้ 401 ทั้ง getJSON และ postJSON ของ 003),
+  `frontend/src/App.jsx` (safePageKey, แสดง MockLogin เมื่อ 401 แล้วกลับหน้าเดิม), `backend/internal/auth/middleware_test.go`
+- ไฟล์ที่สร้าง: `frontend/src/pages/Login/MockLogin.jsx` (เลือกผู้ใช้จำลอง 4 คนตาม mock_provider.go), `frontend/src/__tests__/AC-EQS-09.test.jsx`
+- ไม่ได้แตะ `frontend/src/api/handover.js` ของ 005 ซึ่งยังใช้ MOCK_TOKEN ตายตัว (หน้าของ 005 ยังไม่อยู่ใน App) ควรแจ้ง 005 ให้เปลี่ยนไปใช้ getToken
+- test: `AC-EQS-09.test.jsx` 3 test ผ่าน (ไม่มี token -> หน้าเข้าสู่ระบบพร้อมข้อความ "กรุณาเข้าสู่ระบบก่อนใช้งาน" -> เลือก student-001 -> เห็นรายการและส่ง token ใหม่ /
+  หมดอายุตอนอยู่หน้า "คำขอที่รออนุมัติของฉัน" ล็อกอินแล้วกลับหน้านั้น / safePageKey ปฏิเสธ URL ภายนอก),
+  `TestAC_EQS_09_ExpiredSessionIs401` ผ่าน / test หลังบ้านทั้งระบบผ่าน หน้าจอ 28 ไฟล์ 55 test ผ่าน `vite build` ผ่าน
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้):
+  - ข้อความบนหน้าเข้าสู่ระบบใช้ message ของ 401 จากหลังบ้าน (CON-TECH-03) ถ้าไม่มีใช้ "กรุณาเข้าสู่ระบบก่อนใช้งาน" ข้อความเดียวกัน
+  - หัวข้อ "เข้าสู่ระบบ (จำลอง)" และรายชื่อผู้ใช้จำลองเป็นของ prototype เท่านั้น ระบบจริงไปหน้าของมหาวิทยาลัย (Q-SH-03, T-30)
+  - กลับหน้าเดิม = กลับแท็บเดิมใน App สถานะภายในหน้า (เช่น ตัวกรองที่เลือก) เริ่มใหม่ เพราะหน้าถูกสร้างใหม่หลังล็อกอิน
+
+---
+
+## 2569-11-12 ตรวจก่อนเปิด PR (T-37, T-17 ถึง T-21) และลงชื่อ 001 ในผู้ใช้ FORBIDDEN_ROLE
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `specs/000-shared/constraints.md` เพราะ T-17 ของ 001 ตอบ 403 `FORBIDDEN_ROLE`)
+- เครื่องมือ: Claude Code
+- คำสั่ง: "เปิด PR เข้า main ต้องใส่อะไรบ้าง"
+- สิ่งที่ AI ตรวจ: PR ไม่ชนกับ main, `go vet` และ `go test ./...` ผ่าน, หน้าจอ 28 ไฟล์ 55 test ผ่าน
+- สิ่งที่ AI พบ: ช่อง "ใครใช้แล้ว" ของ `FORBIDDEN_ROLE` มีแค่ 004 แต่ 001 ใช้แล้วตั้งแต่ T-17 (API สรุปตามสถานะ)
+- ไฟล์ที่แก้ (คนแก้เอง): `specs/000-shared/constraints.md` แถว `FORBIDDEN_ROLE` (เพิ่ม 001) และแถว CON-TECH-03 ในตาราง "ใครอ้างใช้บ้าง"
+- ไม่เปลี่ยนเนื้อหา Constraint จึงไม่ทำ CR และไม่ขึ้นเวอร์ชัน (แบบเดียวกับที่ 005 ลงชื่อใน v5.1)
+- ต้องแจ้ง 003, 005: body ของ 401 / 403 มี `message` แล้ว (T-37) และหน้าจอไปหน้าล็อกอินจำลองเมื่อได้ 401 (T-21)

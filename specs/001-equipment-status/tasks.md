@@ -302,11 +302,11 @@ Spec: SPEC-EQS-001 (spec.md Draft v5) | Plan: plan.md Draft v1.7 | tasks v2.2: 2
 ### T-17 แยก DTO ให้นักศึกษาไม่มีข้อมูลผู้ยืม และ API สรุปจำนวนตามสถานะสำหรับเจ้าหน้าที่
 - รองรับ: FR-EQS-07 (ส่วนนักศึกษาไม่เห็นผู้ยืม และสรุปตามสถานะ), DOM-PRIV-01
 - ตรวจด้วย: AC-EQS-07 (ส่วนนักศึกษา)
-- ไฟล์ที่แตะ: `backend/internal/equipment/dto.go`, `backend/internal/equipment/handler.go`, `backend/internal/equipment/handler_test.go`
+- ไฟล์ที่แตะ: `backend/internal/equipment/dto.go`, `backend/internal/equipment/handler.go`, `backend/internal/equipment/handler_test.go`, `backend/internal/equipment/repository.go`, `backend/internal/equipment/service.go` (query สรุปตามสถานะ), `backend/internal/platform/apierror.go` (รหัส FORBIDDEN_ROLE) เพิ่มตามที่ทีมตัดสิน 2569-11-12
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-12
 - เสร็จเมื่อ: `TestAC_EQS_07_StudentNoBorrower` ผ่าน (response ของนักศึกษาไม่มีคำว่า borrower เลย) และ `TestFR_EQS_07_StaffSummaryByStatus` ผ่าน (เจ้าหน้าที่ได้จำนวนแยก 3 สถานะ นักศึกษาเรียกได้ 403)
-- สถานะ: พร้อมทำ (ชื่อผู้ยืมฝั่งเจ้าหน้าที่ย้ายไป T-36 รอ Q-20)
+- สถานะ: เสร็จ 
 
 #### จุดตรวจเฟส 9
 - คนลองเองตาม AC-EQS-07:
@@ -322,11 +322,11 @@ Spec: SPEC-EQS-001 (spec.md Draft v5) | Plan: plan.md Draft v1.7 | tasks v2.2: 2
 ### T-18 จำกัดทุก query ของนักศึกษาด้วยภาควิชา และตอบ 403 เมื่อขอข้ามภาควิชา
 - รองรับ: FR-EQS-10, DOM-ACCESS-01, IF-IDP-01
 - ตรวจด้วย: AC-EQS-13
-- ไฟล์ที่แตะ: `backend/internal/equipment/repository.go`, `backend/internal/equipment/handler.go`, `backend/internal/equipment/handler_test.go`, `frontend/src/components/ErrorState.jsx`, `frontend/src/__tests__/AC-EQS-13.test.jsx`
+- ไฟล์ที่แตะ: `backend/internal/equipment/repository.go`, `backend/internal/equipment/handler.go`, `backend/internal/equipment/handler_test.go`, `frontend/src/components/ErrorState.jsx`, `frontend/src/__tests__/AC-EQS-13.test.jsx`, `backend/internal/equipment/service.go` (scopeFor ส่งภาควิชาผ่าน service), `frontend/src/api/client.js` (เก็บ message), `frontend/src/pages/EquipmentDetail/EquipmentDetail.jsx` (แสดง ErrorState) เพิ่มตามที่ทีมตัดสิน 2569-11-12
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `TestAC_EQS_13_OtherDepartment403` ผ่าน ทั้งจาก list และเรียกรายละเอียดตรง body ไม่มีข้อมูลอุปกรณ์
-- สถานะ: พร้อมทำ (ขอบเขตของเจ้าหน้าที่รอ Q-P3 ดู T-28 / ภาควิชาเดียวหรือหลายภาควิชา Q-19 ไม่กระทบวิธีตรวจ เพราะเทียบภาควิชาของผู้ใช้กับของอุปกรณ์เหมือนกัน)
+- สถานะ: เสร็จ 
 
 #### จุดตรวจเฟส 10
 - คนลองเองตาม AC-EQS-13:
@@ -346,7 +346,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v5) | Plan: plan.md Draft v1.7 | tasks v2.2: 2
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10, T-31
 - เสร็จเมื่อ: `TestAC_EQS_11_DetailWritesAudit` ผ่าน (มีแถว action=detail ที่มีผู้เข้าถึง เวลา รหัสครุภัณฑ์)
-- สถานะ: พร้อมทำ (การดูรายการ/ค้นหารอ Q-11 ดู T-29, ถ้าเขียน audit ไม่สำเร็จทำอย่างไรรอ Q-P4 ดู T-29)
+- สถานะ: เสร็จ 
 
 #### จุดตรวจเฟส 11
 - คนลองเองตาม AC-EQS-11:
@@ -366,7 +366,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v5) | Plan: plan.md Draft v1.7 | tasks v2.2: 2
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-03, T-10
 - เสร็จเมื่อ: `TestCON_TECH_03_ErrorBodyHasCodeAndMessage` ผ่าน (401, 403 PRINCIPAL_INCOMPLETE และ 503 มีทั้ง code และ message ไม่มีช่องอื่น) และ test ของ auth เดิมยังผ่าน
-- สถานะ: พร้อมทำ (ข้อความ message เป็นข้อเสนอใน plan ข้อ 5 ทีมตรวจก่อนทำ / 404, 405 ยังไม่มีรหัสในรายการกลาง ดู "สิ่งที่ยังไม่ทำ")
+- สถานะ: เสร็จ 
 
 ### T-20 ตอบ 503 เมื่อต่อฐานข้อมูลไม่ได้ และหน้าจอแสดงปุ่มลองใหม่โดยไม่แสดงข้อมูลเก่า
 - รองรับ: FR-EQS-08
@@ -375,7 +375,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v5) | Plan: plan.md Draft v1.7 | tasks v2.2: 2
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06, T-37
 - เสร็จเมื่อ: `TestAC_EQS_08_DBDown503` ผ่าน (ปิดการเชื่อมต่อ -> 503 `UPSTREAM_UNAVAILABLE` พร้อม message ตาม CON-TECH-03) และ `AC-EQS-08.test.jsx` ผ่าน (รายการเดิมถูกล้างก่อนแสดง error)
-- สถานะ: พร้อมทำ (กรณีต่อได้แต่ช้า ต้องรอกี่วินาทีรอ Q-08 ดู T-26)
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 12
 - คนลองเองตาม AC-EQS-08:
@@ -391,11 +391,11 @@ Spec: SPEC-EQS-001 (spec.md Draft v5) | Plan: plan.md Draft v1.7 | tasks v2.2: 2
 ### T-21 จัดการ 401 บนหน้าจอ: ไปหน้าล็อกอินจำลองพร้อมข้อความ แล้วกลับหน้าเดิม
 - รองรับ: IF-IDP-01, NFR-SEC-01
 - ตรวจด้วย: AC-EQS-09
-- ไฟล์ที่แตะ: `frontend/src/api/client.js`, `frontend/src/pages/Login/MockLogin.jsx`, `frontend/src/__tests__/AC-EQS-09.test.jsx`, `backend/internal/auth/middleware_test.go`
+- ไฟล์ที่แตะ: `frontend/src/api/client.js`, `frontend/src/pages/Login/MockLogin.jsx`, `frontend/src/__tests__/AC-EQS-09.test.jsx`, `backend/internal/auth/middleware_test.go`, `frontend/src/App.jsx` (แสดงหน้าล็อกอินเมื่อได้ 401 และจำหน้าเดิม) เพิ่มตามที่ทีมตัดสิน 2569-11-12
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-03, T-06
 - เสร็จเมื่อ: `AC-EQS-09.test.jsx` ผ่าน (401 -> ไปหน้าล็อกอินพร้อมข้อความ -> กลับ path เดิม) และ returnTo ภายนอกระบบถูกปฏิเสธ
-- สถานะ: พร้อมทำ (หน้าล็อกอินเป็นแบบจำลอง เพราะการยืนยันตัวตนเป็นระบบภายนอก IF-IDP-01 ไม่ใช่ use case ของระบบนี้)
+- สถานะ: เสร็จ 
 
 #### จุดตรวจเฟส 13
 - คนลองเองตาม AC-EQS-09:

@@ -7,23 +7,79 @@ import { MOCK_TOKEN } from '../config.js'
 export const BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
 // ApiError บอกว่าหลังบ้านตอบไม่สำเร็จ status คือ HTTP status code ส่วน code มาจาก Error contract ใน plan.md
+// serverMessage คือข้อความภาษาไทยจากหลังบ้าน (CON-TECH-03) ใช้ชื่อเดียวกับ api/handover.js ของ 005
+// หน้าจอแสดง serverMessage ได้ แต่ตัดสินใจจาก code เท่านั้น
 export class ApiError extends Error {
-  constructor(status, code) {
+  constructor(status, code, serverMessage) {
     super(`API ${status} ${code ?? ''}`.trim())
     this.status = status
     this.code = code
+    this.serverMessage = serverMessage
   }
 }
 
-// ทุก request ต้องยืนยันตัวตน (IF-IDP-01, NFR-SEC-01) ส่ง token จำลองจาก config.js ไปก่อน (T-21 จะเปลี่ยนเป็นหน้าล็อกอินจำลอง)
+// ---- session จำลอง (IF-IDP-01, AC-EQS-09, T-21 ของ 001) ทีมเลือกเอง ไม่ได้มาจาก spec รอ Q-SH-03 ----
+// token เก็บใน sessionStorage ของ browser ลบ token ทิ้ง = session หมดอายุ (request ถัดไปได้ 401)
+// เปิดระบบครั้งแรกใช้ MOCK_TOKEN จาก config.js (VITE_MOCK_TOKEN หรือค่าเริ่มต้น) เหมือนเดิม ฟีเจอร์อื่นไม่ต้องเปลี่ยนวิธีลอง
+const TOKEN_KEY = 'salmon.mockToken'
+let memoryToken = null // ใช้แทนเมื่อ browser ไม่ให้ใช้ sessionStorage
+
+function tokenStore() {
+  try {
+    return window.sessionStorage
+  } catch {
+    return null
+  }
+}
+
+// getToken คืน token ปัจจุบัน null = ไม่มี session
+export function getToken() {
+  const s = tokenStore()
+  return s ? s.getItem(TOKEN_KEY) : memoryToken
+}
+
+// setToken ตั้ง token หลังล็อกอินจำลอง ส่ง null = ลบ session
+export function setToken(token) {
+  const s = tokenStore()
+  if (!s) {
+    memoryToken = token
+  } else if (token) {
+    s.setItem(TOKEN_KEY, token)
+  } else {
+    s.removeItem(TOKEN_KEY)
+  }
+}
+
+if (getToken() == null) setToken(MOCK_TOKEN)
+
+function authHeaders() {
+  const token = getToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+// onUnauthorized ลงทะเบียนให้ถูกเรียกทุกครั้งที่หลังบ้านตอบ 401 (App ใช้แสดงหน้าล็อกอินจำลอง) คืนฟังก์ชันยกเลิก
+const unauthorizedListeners = new Set()
+export function onUnauthorized(listener) {
+  unauthorizedListeners.add(listener)
+  return () => unauthorizedListeners.delete(listener)
+}
+
+// failed แปลง response ที่ไม่สำเร็จเป็น ApiError และแจ้งผู้ฟังเมื่อเป็น 401 (AC-EQS-09)
+async function failed(res) {
+  const err = await apiError(res)
+  if (res.status === 401) unauthorizedListeners.forEach((listener) => listener(err))
+  return err
+}
+
+// ทุก request ต้องยืนยันตัวตน (IF-IDP-01, NFR-SEC-01) ส่ง token จาก session จำลอง
 // cache: 'no-store' ให้เบราว์เซอร์ถามหลังบ้านทุกครั้ง ไม่ใช้ข้อมูลเก่า (NFR-DATA-01, plan.md ข้อ 6.2)
 // หลังบ้านส่ง Cache-Control: no-store มาด้วย (platform.NoStore)
 async function getJSON(path) {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+    headers: authHeaders(),
     cache: 'no-store',
   })
-  if (!res.ok) throw await apiError(res)
+  if (!res.ok) throw await failed(res)
   return res.json()
 }
 
@@ -31,23 +87,23 @@ async function getJSON(path) {
 async function postJSON(path, body) {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${MOCK_TOKEN}`, 'Content-Type': 'application/json' },
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
     cache: 'no-store',
     body: JSON.stringify(body),
   })
-  if (!res.ok) throw await apiError(res)
+  if (!res.ok) throw await failed(res)
   return res.json()
 }
 
 // apiError อ่าน code จาก Error contract ใน plan.md (ถ้าอ่านไม่ได้ code เป็น undefined)
 async function apiError(res) {
-  let code
+  let body
   try {
-    code = (await res.json()).code
+    body = await res.json()
   } catch {
-    code = undefined
+    body = undefined
   }
-  return new ApiError(res.status, code)
+  return new ApiError(res.status, body?.code, body?.message)
 }
 
 // 001 FR-EQS-02: แปลงตัวกรอง { categories: [...], statuses: [...] } เป็น query string
