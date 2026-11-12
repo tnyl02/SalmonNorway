@@ -4598,3 +4598,14 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - สิ่งที่ AI เลือกเอง: เวลาส่งห่างกัน 5-30 นาที ไม่เปลี่ยนเป็น DO UPDATE เพราะโหลดซ้ำอาจชน uq_request_open_per_item ถ้ามีคำขอใหม่จากหน้าของ 002 ฐานข้อมูลเดิมต้องอัปเดตด้วยคำสั่งแยก
 - ผล test: TestSeed003_RequestsAndStaffContact ผ่าน
 - ลบข้อความหลง " 003-cancel-request" ที่ specs/CHANGELOG.md บรรทัด 5 (ค้างมาก่อน merge ไม่ใช่รายการเปลี่ยนแปลง) ตามที่เจ้าของสั่ง
+
+---
+
+## 2569-11-12 สร้างฐานข้อมูลในเครื่องใหม่ (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: ทำทุกขั้นตั้งแต่ข้อ 1 เพื่อให้ข้อมูลทุกตารางตรงกัน (หลัง AutoRejecter ของ 004 ปฏิเสธ 3002, 3008 ในเครื่อง)
+- AI ทำ: ปิด server.exe เดิม, ลบ container salmon-db และ volume salmon-pgdata, สร้างใหม่ (postgres:16 พอร์ต 5433), เปิดหลังบ้าน (migration + seed.sql อัตโนมัติ),
+  โหลด seed_003_cancel_request.sql, approve_dev.sql (004), handover_dev.sql (005) ตามลำดับ ไม่แตะไฟล์ใน repo
+- ผล: คำขอ 20 ใบ (003 8 ใบ เวลาส่งเป็นวันนี้ ไม่ถูกปฏิเสธ) audit_log ว่าง staff_contact 1 แถว GET /v1/my/pending-requests ของ student-001 ได้ 8 รายการ (ของ 003 4 รายการ ของ 004/005 4 รายการ)
