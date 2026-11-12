@@ -4945,3 +4945,50 @@ T-17 จึงเป็นงาน **พิสูจน์ด้วย test** �
 - `SELECT ... WHERE requester_id='student-001'` ได้ **1 row** เท่านั้น ไม่มีคำขอซ้ำซ้อน ตรงตาม AC-BRQ-09
 - ยืนยันว่า pool ของ pgx ต่อฐานข้อมูลกลับเองได้หลัง container กลับมา ไม่ต้องรีสตาร์ตหลังบ้าน
 - ล้างข้อมูล: ลบคำขอของ student-001
+
+---
+
+## 2569-11-12 /implement T-18 (002-borrow-request) — ปิดเฟส 12 และปลดบล็อก 001
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 12 AC-BRQ-05 endpoint ลำดับคำขอให้ 001 เรียก)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-18`
+
+### คำถามที่ AI ถามก่อนเริ่ม และคำตอบของทีม
+CR-005 เขียนสัญญา API ไว้ครบ ยกเว้นกรณี "เรียกด้วยรหัสครุภัณฑ์ที่ไม่มีอยู่จริง"
+→ **ทีมตอบ: ตอบ `[]` เหมือนกรณีไม่มีคำขอค้าง** ไม่ลงทะเบียนรหัส error ใหม่
+เหตุผลที่ทีมเลือก: หน้าจอของ 001 เรียก endpoint นี้หลังจากแสดงอุปกรณ์ชิ้นนั้นแล้ว รหัสที่ส่งมาจึงมีอยู่จริงเสมอ
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/repository.go` (ตรงกับช่อง) — `PendingRequest`, `pendingByItemSQL`, `PendingByItem`
+- `backend/internal/borrowrequest/handler.go` (ตรงกับช่อง) — `QueuePath`, `queueItemDTO`, `itemRequests`
+- `backend/cmd/server/main.go` (ตรงกับช่อง) — ผูก `GET /v1/equipment/items/{assetCode}/requests` ที่ mux ชั้นนอก
+- `backend/internal/config/config.go` **เพิ่มเองได้ตามกติกาของคำสั่ง /implement** (ตาราง "ค่าที่ตั้งได้")
+  เพิ่ม `StatusApprovedByOfficer`, `StatusPendingAdvisorApproval`, `OpenRequestStatuses`
+  และให้ `RequestStatuses` อ้างค่าคงที่แทนการเขียนสตริงซ้ำ
+- `backend/internal/borrowrequest/handler_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** เพิ่ม `getQueue` และ `TestAC_BRQ_05`
+
+### การตัดสินใจ
+- รายการสถานะที่ถือว่า "ยังไม่จบ" ย้ายไปอยู่ที่ `config.OpenRequestStatuses` ที่เดียว
+  แล้ว SQL ใช้ `status = ANY($2)` แทนการเขียนรายการสถานะซ้ำใน SQL (AGENTS.md กฎข้อ 9)
+  ค่าต้องตรงกับ WHERE ของ unique index ใน migration 0003 เสมอ เขียนกำกับไว้ในคอมเมนต์แล้ว
+- **เกือบประกาศ `StatusApproved` ซ้ำกับของ 004** คอมไพล์ไม่ผ่านจึงรู้ตัว แก้เป็นใช้ของเขาร่วม
+  (บทเรียนเดียวกับ `LoanTypeNormal` ที่เจอตอน merge เมื่อเช้า)
+- handler เรียก `h.svc.repo.PendingByItem` โดยตรง เพราะ `service.go` ไม่อยู่ในช่องไฟล์ที่แตะของ T-18
+  และงานนี้ไม่มีกฎของฟีเจอร์นอกจากการเรียงลำดับ เขียนคอมเมนต์กำกับว่าย้ายเป็น method ของ service ได้ภายหลัง
+- เรียงด้วย `ORDER BY submitted_at, id` เพิ่ม `id` ต่อท้ายกันกรณีเวลาที่ส่งเท่ากันพอดี ให้ลำดับคงที่ทุกครั้ง
+- `PendingByItem` คืน `[]PendingRequest{}` ไม่ใช่ nil เพื่อให้ JSON ออกมาเป็น `[]` ไม่ใช่ `null` ตามสัญญาใน CR-005
+
+### เรื่องที่ไม่ได้ทำ เพราะ spec ไม่ได้สั่ง
+**ไม่ได้จำกัดว่าเจ้าหน้าที่ต้องเป็นภาควิชาเดียวกับอุปกรณ์** CR-005 เขียนแค่ "เฉพาะเจ้าหน้าที่ นักศึกษาได้ 403"
+ส่วน DOM-ACCESS-01 พูดถึงนักศึกษา ถ้าทีมต้องการจำกัดเจ้าหน้าที่ด้วย ต้องเพิ่มใน spec ก่อน **ไม่ได้เดาเอง**
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run TestAC_BRQ_05 -v`: PASS ทั้ง 3 กรณี
+  (ลำดับ 1 และ 2 เรียงตามเวลาที่ส่งพร้อมชื่อผู้ขอ / นักศึกษาได้ 403 `FORBIDDEN_ROLE` และไม่มีชื่อผู้ขอรายอื่นใน body /
+  รหัสครุภัณฑ์ที่ไม่มีอยู่จริงได้ `[]`)
+- `go test ./... -count=1`: ทุกแพ็กเกจ ok (10 แพ็กเกจ)
+- `go vet ./...`: ไม่มีข้อความเตือน
+- `gofmt -l` ขึ้นหลายไฟล์ รวม `config.go` แต่เป็นการจัดระยะคอมเมนต์ในตารางข้อความของ 004 (บรรทัด 240)
+  ไม่เกี่ยวกับส่วนที่ 002 แก้ และเป็นของเดิมที่ติดมาจาก main จึงไม่แตะ

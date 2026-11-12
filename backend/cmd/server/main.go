@@ -66,6 +66,9 @@ func main() {
 	// path ลูกของฟีเจอร์นี้ เช่น /v1/loan-requests/{id}/attachment (T-15, FR-BRQ-10 ข้อ ก)
 	// mux ชั้นนอกจับ path แบบเป๊ะ ๆ ถ้าไม่ผูกตัวที่ลงท้ายด้วย / ไว้ด้วย path ลูกจะไปไม่ถึง router ของฟีเจอร์
 	mux.Handle(borrowrequest.PathPrefix+"/", auth.Middleware(provider, br.Routes()))
+	// ลำดับคำขอที่ค้างอยู่ของอุปกรณ์ชิ้นนั้น เจ้าของคือ 002 แม้ path จะอยู่ใต้ /v1/equipment/ ของ 001
+	// (สัญญา API ใน specs/changes/CR-005.md, T-18 ของ 002) Go 1.22 ส่งให้ pattern ที่เจาะจงกว่า จึงไม่ชนกัน
+	mux.Handle("GET "+borrowrequest.QueuePath, auth.Middleware(provider, br.Routes()))
 
 	// ฟีเจอร์ 004 อนุมัติคำขอยืมปกติ (T-05) ต้องยืนยันตัวตนและเป็นเจ้าหน้าที่ (IF-IDP-01, NFR-SEC-01, AC-APV-05)
 	ap := approve.NewHandler(approve.NewService(approve.NewRepository(db)))

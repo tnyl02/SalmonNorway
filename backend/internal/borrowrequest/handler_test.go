@@ -1016,3 +1016,107 @@ func TestAC_BRQ_09(t *testing.T) {
 		t.Errorf("ต้องมีคำขอเพียง 1 รายการ แต่พบ %d ใบ", n)
 	}
 }
+
+// getQueue ยิง GET /v1/equipment/items/{assetCode}/requests ด้วย token ที่ให้
+func getQueue(t *testing.T, srv http.Handler, token, assetCode string) *httptest.ResponseRecorder {
+	t.Helper()
+	r := httptest.NewRequest(http.MethodGet, "/v1/equipment/items/"+assetCode+"/requests", nil)
+	if token != "" {
+		r.Header.Set("Authorization", "Bearer "+token)
+	}
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, r)
+	return w
+}
+
+// AC-BRQ-05 (FR-BRQ-05 ข้อ ก)
+// Given อุปกรณ์ชิ้นหนึ่งมีคำขอค้างอยู่แล้ว 1 คำขอจากนักศึกษาคนอื่น
+// When  นักศึกษาอีกคนส่งคำขอของอุปกรณ์ชิ้นเดียวกัน
+// Then  ระบบต้องรับคำขอไว้ และเมื่อเรียกข้อมูลลำดับของอุปกรณ์ชิ้นนั้นผ่าน API
+//
+//	ต้องได้คำขอเดิมเป็นลำดับที่ 1 และคำขอใหม่เป็นลำดับที่ 2 เรียงตามเวลาที่ส่ง
+//	โดยนักศึกษาต้องไม่เห็นข้อมูลคำขอของผู้อื่น
+func TestAC_BRQ_05(t *testing.T) {
+	pool := testPool(t)
+	const assetCode = "CS-NB-0003"
+	const firstRequester = "student-031"
+	const secondRequester = "student-032"
+	svc := NewServiceWithClock(NewRepository(pool), testClock())
+	srv := auth.Middleware(auth.NewMockProvider(), NewHandler(svc).Routes())
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(),
+			`DELETE FROM borrow_request WHERE requester_id = ANY($1)`,
+			[]string{firstRequester, secondRequester})
+	})
+
+	// Given: คำขอใบแรกจากนักศึกษาคนหนึ่ง
+	first := newTestRequest(assetCode)
+	first.RequesterName = "ผู้ขอคนแรก ทดสอบ"
+	firstReq, err := svc.CreateWithAttachment(studentCtx(firstRequester), first, nil)
+	if err != nil {
+		t.Fatalf("คำขอใบแรกต้องสำเร็จ แต่ได้ error: %v", err)
+	}
+
+	// When: นักศึกษาอีกคนส่งคำขอของอุปกรณ์ชิ้นเดียวกัน ระบบต้องรับไว้ (ส่งซ้อนได้ DOM-REQ-01)
+	second := newTestRequest(assetCode)
+	second.RequesterName = "ผู้ขอคนที่สอง ทดสอบ"
+	secondReq, err := svc.CreateWithAttachment(studentCtx(secondRequester), second, nil)
+	if err != nil {
+		t.Fatalf("คำขอซ้อนของผู้อื่นต้องสำเร็จ แต่ได้ error: %v", err)
+	}
+
+	// Then: เจ้าหน้าที่เรียกลำดับได้ เรียงตามเวลาที่ส่ง
+	w := getQueue(t, srv, tokenStaff, assetCode)
+	if w.Code != http.StatusOK {
+		t.Fatalf("เจ้าหน้าที่ต้องได้ 200 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	var got []queueItemDTO
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatalf("อ่าน JSON ไม่ได้: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("ต้องได้คำขอ 2 ใบ แต่ได้ %d ใบ body=%s", len(got), w.Body.String())
+	}
+	if got[0].RequestID != firstReq.ID || got[0].QueuePosition != 1 {
+		t.Errorf("ลำดับที่ 1 ต้องเป็นคำขอ %d แต่ได้ %d (ลำดับ %d)", firstReq.ID, got[0].RequestID, got[0].QueuePosition)
+	}
+	if got[1].RequestID != secondReq.ID || got[1].QueuePosition != 2 {
+		t.Errorf("ลำดับที่ 2 ต้องเป็นคำขอ %d แต่ได้ %d (ลำดับ %d)", secondReq.ID, got[1].RequestID, got[1].QueuePosition)
+	}
+	// Then: มีชื่อผู้ขอและเวลาที่ส่งให้เจ้าหน้าที่เห็น (สัญญา API ใน CR-005)
+	if got[0].RequesterName != first.RequesterName || got[1].RequesterName != second.RequesterName {
+		t.Errorf("ชื่อผู้ขอไม่ตรง: ได้ %q และ %q", got[0].RequesterName, got[1].RequesterName)
+	}
+	if got[0].SubmittedAt.After(got[1].SubmittedAt) {
+		t.Error("ต้องเรียงตามเวลาที่ส่ง ใบแรกต้องมาก่อนใบที่สอง")
+	}
+
+	// Then: นักศึกษาเรียกไม่ได้ ต้องไม่เห็นคำขอของผู้อื่น (DOM-PRIV-01)
+	t.Run("นักศึกษาเรียกไม่ได้", func(t *testing.T) {
+		w := getQueue(t, srv, tokenStudentDept1, assetCode)
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("นักศึกษาต้องได้ 403 แต่ได้ %d body=%s", w.Code, w.Body.String())
+		}
+		var e ErrorDTO
+		if err := json.Unmarshal(w.Body.Bytes(), &e); err != nil {
+			t.Fatalf("อ่าน JSON ไม่ได้: %v", err)
+		}
+		if e.Code != "FORBIDDEN_ROLE" {
+			t.Errorf("รหัสต้องเป็น FORBIDDEN_ROLE ตาม CR-005 แต่ได้ %q", e.Code)
+		}
+		if strings.Contains(w.Body.String(), first.RequesterName) {
+			t.Error("คำตอบต้องไม่มีชื่อผู้ขอรายอื่นติดไปด้วย (DOM-PRIV-01)")
+		}
+	})
+
+	// Then: ไม่มีคำขอค้าง หรือไม่มีรหัสครุภัณฑ์นั้น ต้องได้ [] (ทีมตัดสิน 2569-11-12 ตาม CR-005)
+	t.Run("รหัสที่ไม่มีอยู่จริงได้รายการว่าง", func(t *testing.T) {
+		w := getQueue(t, srv, tokenStaff, "NO-SUCH-0001")
+		if w.Code != http.StatusOK {
+			t.Fatalf("ต้องได้ 200 แต่ได้ %d", w.Code)
+		}
+		if body := strings.TrimSpace(w.Body.String()); body != "[]" {
+			t.Errorf("ต้องได้รายการว่าง [] แต่ได้ %s", body)
+		}
+	})
+}
