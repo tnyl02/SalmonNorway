@@ -1,5 +1,5 @@
 # Implementation Plan: ยกเลิกคำขอยืม (Cancel Borrow Request)
-Spec: SPEC-CXL-003 (specs/003-cancel-request/spec.md, Draft v3.7) | Plan status: Draft v1.5 | Updated: 2569-11-11 (001 รับ action notify และ writer.go รับ pgx.Tx)
+Spec: SPEC-CXL-003 (specs/003-cancel-request/spec.md, Draft v3.9) | Plan status: Draft v1.7 | Updated: 2569-11-12 (ข้อ 5 เพิ่ม NotifyTimeout ตาม rtm F-04)
 Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
 
 ## 1. สรุปแนวทาง
@@ -85,25 +85,24 @@ staff_contact(department_id INT REFERENCES department(id), email TEXT NOT NULL)
 
 | Method / path | รองรับ | input / output หลัก |
 |---|---|---|
-| `GET /api/v1/my/pending-requests` | FR-CXL-06, FR-CXL-03 | out: `{items:[{requestId, modelName, assetCode, submittedAt}]}` เฉพาะ `requester_id = UserID` และสถานะที่ยกเลิกได้ เรียง `submitted_at DESC, id DESC` (ASM-13) ไม่มีรายการ = `items: []` เจ้าหน้าที่ -> 403 `STUDENT_ONLY` (ASM-13) |
+| `GET /api/v1/my/pending-requests` | FR-CXL-06, FR-CXL-03 | out: `{items:[{requestId, modelName, assetCode, submittedAt}]}` เฉพาะ `requester_id = UserID` และสถานะที่ยกเลิกได้ เรียง `submitted_at DESC, id DESC` (ASM-13) ไม่มีรายการ = `items: []` เจ้าหน้าที่ -> 403 `FORBIDDEN_ROLE` (ASM-13, CR-006) |
 | `POST /api/v1/borrow-requests/{id}/cancel` | FR-CXL-01..05, 08, 09 | in: `{reason}` / out 200: `{requestId, status:"cancelled"}` |
 
-ตาราง error ของ `POST .../cancel`
+ตาราง error ของ `POST .../cancel` (รูปแบบ `{code, message}` ตาม CON-TECH-03 แก้ตาม CR-006 2569-11-12 message ของแต่ละรหัสอยู่ใน CR-006)
 
 | กรณี | HTTP | body | อ้างอิง |
 |---|---|---|---|
-| เหตุผลว่างหรือมีแต่ช่องว่าง | 400 | `{code:"REASON_REQUIRED"}` | FR-CXL-08, AC-CXL-14 |
-| เหตุผลเกิน 200 ตัวอักษร | 400 | `{code:"REASON_TOO_LONG"}` | FR-CXL-08, AC-CXL-14 |
-| ไม่มีคำขอนี้ หรือเป็นคำขอของผู้อื่น | 404 | `{code:"REQUEST_NOT_FOUND"}` หน้าจอแสดง "ไม่พบคำขอ" | FR-CXL-03, AC-CXL-03 |
-| คำขอเป็น `approved` | 409 | `{code:"ALREADY_APPROVED"}` หน้าจอแจ้งว่าได้รับการอนุมัติแล้ว | FR-CXL-02, FR-CXL-04, AC-CXL-02, 04 |
-| `rejected`, `handed_over`, `returned`, `cancelled` | 409 | `{code:"NOT_CANCELLABLE"}` หน้าจอแสดง "คำขอนี้ยกเลิกไม่ได้" | FR-CXL-02, AC-CXL-11 |
+| เหตุผลว่าง มีแต่ช่องว่าง หรือเกิน 200 ตัวอักษร หรือ body อ่านไม่ได้ | 422 | `{code:"VALIDATION_FAILED", message, fields:["reason"]}` | FR-CXL-08, AC-CXL-14, CR-006 |
+| ไม่มีคำขอนี้ หรือเป็นคำขอของผู้อื่น | 404 | `{code:"REQUEST_NOT_FOUND", message}` หน้าจอแสดง "ไม่พบคำขอ" | FR-CXL-03, AC-CXL-03 |
+| คำขอเป็น `approved` | 409 | `{code:"ALREADY_APPROVED", message, status:"approved"}` หน้าจอแจ้งว่าได้รับการอนุมัติแล้ว | FR-CXL-02, FR-CXL-04, AC-CXL-02, 04 |
+| `rejected`, `handed_over`, `returned`, `cancelled` | 409 | `{code:"NOT_CANCELLABLE", message, status}` หน้าจอแสดง "คำขอนี้ยกเลิกไม่ได้" | FR-CXL-02, AC-CXL-11 |
 | session หมดอายุ / ไม่มี token | 401 | `{code:"UNAUTHENTICATED"}` (จาก middleware กลาง) | AC-CXL-07 |
-| ผู้ใช้บทบาทเจ้าหน้าที่ | 403 | `{code:"STUDENT_ONLY"}` ใช้ทั้ง GET และ POST | FR-CXL-03, ASM-13 |
-| ฐานข้อมูลไม่ตอบสนอง | 503 | `{code:"UPSTREAM_UNAVAILABLE", retryable:true}` | FR-CXL-01, ASM-06, AC-CXL-13 |
+| ผู้ใช้บทบาทเจ้าหน้าที่ | 403 | `{code:"FORBIDDEN_ROLE", message}` ใช้ทั้ง GET และ POST | FR-CXL-03, ASM-13 |
+| ฐานข้อมูลไม่ตอบสนอง | 503 | `{code:"UPSTREAM_UNAVAILABLE", message}` (ตัด retryable ตาม CR-006 503 ลองใหม่ได้เสมอ) | FR-CXL-01, ASM-06, AC-CXL-13 |
 | Email ส่งไม่สำเร็จ | 200 | ยกเลิกสำเร็จตามปกติ | FR-CXL-09, AC-CXL-16 |
 
 ### ลำดับการทำงานของการยกเลิก (FR-CXL-04, FR-CXL-05, FR-CXL-09)
-1. ตรวจเหตุผล (trim แล้วไม่ว่าง และไม่เกิน `CancelReasonMaxLen`) ไม่ผ่าน -> 400 (ยังไม่แตะฐานข้อมูล)
+1. ตรวจเหตุผล (trim แล้วไม่ว่าง และไม่เกิน `CancelReasonMaxLen`) ไม่ผ่าน -> 422 VALIDATION_FAILED (ยังไม่แตะฐานข้อมูล)
 2. เปิด transaction แล้วรัน
    `UPDATE borrow_request SET status='cancelled', cancel_reason=$reason, cancelled_at=now() WHERE id=$id AND requester_id=$uid AND status = ANY($cancellable) RETURNING ...`
    - ได้ 1 แถว = ยกเลิกสำเร็จ (ฐานข้อมูลตัดสินจากสถานะ ณ เวลาที่บันทึก ถ้า 004 อนุมัติไปก่อน คำสั่งนี้จะไม่เจอแถว)
@@ -124,9 +123,12 @@ staff_contact(department_id INT REFERENCES department(id), email TEXT NOT NULL)
 
 - ยกเลิกสำเร็จ: แสดง "ยกเลิกคำขอยืม {ชื่อรุ่น} ({รหัสครุภัณฑ์}) เรียบร้อยแล้ว" แล้วเอาแถวออกจากรายการ (FR-CXL-01, FR-CXL-07)
 - โหลดรายการไม่สำเร็จ: แสดง "โหลดรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" พร้อมปุ่ม "ลองใหม่" ไม่แสดงข้อความว่าไม่มีคำขอ (FR-CXL-06)
+- 403 `FORBIDDEN_ROLE` (เจ้าหน้าที่เปิดหน้านี้ ASM-13): แสดง `message` จากหลังบ้าน ไม่แสดงปุ่ม "ลองใหม่" เพราะลองใหม่ก็ไม่สำเร็จ หน้าจอตัดสินจาก `code` (ทีมตัดสิน 2569-11-12 ทำใน T-26 ทีมเลือกเอง ไม่ได้มาจาก spec)
 - 409 / 404: แสดงข้อความตามตาราง error แล้วโหลดรายการใหม่ (FR-CXL-02, FR-CXL-03)
 - 503: แสดงข้อผิดพลาดพร้อมปุ่มลองใหม่ แถวยังอยู่ (ASM-06, AC-CXL-13)
-- 401: ไปหน้าเข้าสู่ระบบพร้อม `returnTo=/my/pending-requests` กลับมาแล้วไม่ยกเลิกให้อัตโนมัติ (AC-CXL-07) ตรวจ `returnTo` เป็น path ภายในเท่านั้น (แบบ plan 6.5 ของ 001)
+- 401: ใช้กลไกกลางของ 001 (T-21: `onUnauthorized` ใน `api/client.js`, `App.jsx`, `MockLogin.jsx`) แสดงหน้าเข้าสู่ระบบจำลองพร้อม `message` ของ 401
+  แล้วกลับมาแท็บ `my-pending` กลับมาแล้วไม่ยกเลิกให้อัตโนมัติ เหตุผลที่พิมพ์ค้างไว้หายไปด้วย (AC-CXL-07 ให้กดยกเลิกใหม่)
+  ยังไม่มี router จึงจำชื่อแท็บไว้ในหน่วยความจำแทน `returnTo` แบบ path และรับเฉพาะชื่อแท็บที่มีในระบบ (`safePageKey` กัน open redirect แบบ plan 6.5 ของ 001, ทีมตัดสิน 2569-11-12)
 - ไม่มี endpoint และหน้าจอของเจ้าหน้าที่ (FR-CXL-10 ไม่ทำใน prototype)
 
 ## 5. ตารางตรวจ Constraints
@@ -160,6 +162,7 @@ Quality Requirements: NFR-SEC-01 (middleware กลาง + HTTPS), NFR-AVAIL-01
 | ข้อความ "โหลดรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" และปุ่ม "ลองใหม่" | FR-CXL-06, ASM-13 | `MSG_LOAD_FAILED`, `LABEL_RETRY` ใน config.js |
 | ข้อความว่าอนุมัติแล้ว | FR-CXL-02 | `MSG_ALREADY_APPROVED` ใน config.js |
 | timeout ของคำสั่งฐานข้อมูลตอนยกเลิก | ASM-06 (ตัวเลขทีมเลือกเอง ไม่ได้มาจาก spec) | `CancelDBTimeout` ใน config.go ต้องน้อยกว่า 15 วินาที (NFR-PERF-CXL-01) |
+| เวลารอส่ง Email หลังยกเลิก | ASM-10, FR-CXL-09, NFR-PERF-CXL-01 (5 วินาที ทีมเลือกเอง ไม่ได้มาจาก spec rtm F-04 2569-11-12) | `NotifyTimeout` ใน config.go ส่งไม่ทันนับเป็นส่งไม่สำเร็จ (บันทึก notify error) |
 
 ## 6. แผนทดสอบจาก Acceptance Criteria
 backend: go test + testcontainers (PostgreSQL จริง) ในไฟล์ `*_test.go` ของ `backend/internal/cancelrequest/`
@@ -180,7 +183,7 @@ frontend: vitest ใน `frontend/src/pages/MyPendingRequests/__tests__/` ใช
 | AC-CXL-11 | `TestAC_CXL_11_RejectedAndCancelledNotCancellable` | `rejected` และ `cancelled` -> 409 `NOT_CANCELLABLE` ทั้งคู่ สถานะคงเดิม |
 | AC-CXL-12 | `TestAC_CXL_12_EmptyList` (Go) + `AC_CXL_12 shows empty message` (vitest) | ไม่มีคำขอที่ยกเลิกได้ -> `items: []` / หน้าจอแสดง "ไม่มีคำขอที่รออนุมัติ" |
 | AC-CXL-13 | `TestAC_CXL_13_DBDownReturns503` (Go) + `AC_CXL_13 shows retry` (vitest) | หยุด container ฐานข้อมูลก่อน POST -> 503 retryable / หน้าจอแสดงข้อผิดพลาดและปุ่มลองใหม่ แถวยังอยู่ เมื่อฐานข้อมูลกลับมา สถานะยังเป็น `requested` |
-| AC-CXL-14 | `TestAC_CXL_14_ReasonValidation` (Go) + `AC_CXL_14 confirm disabled` (vitest) | เหตุผลว่าง, ช่องว่างล้วน, 201 ตัวอักษร -> 400 สถานะไม่เปลี่ยน / "ไม่ต้องใช้อุปกรณ์แล้ว" -> 200 และ `cancel_reason` ตรงกัน / หน้าจอปุ่มยืนยันกดไม่ได้ 2 กรณีแรก |
+| AC-CXL-14 | `TestAC_CXL_14_ReasonValidation` (Go) + `AC_CXL_14 confirm disabled` (vitest) | เหตุผลว่าง, ช่องว่างล้วน, 201 ตัวอักษร -> 422 `VALIDATION_FAILED` (CR-006) สถานะไม่เปลี่ยน / "ไม่ต้องใช้อุปกรณ์แล้ว" -> 200 และ `cancel_reason` ตรงกัน / หน้าจอปุ่มยืนยันกดไม่ได้ 2 กรณีแรก |
 | AC-CXL-15 | `TestAC_CXL_15_NotifyDepartmentStaff` | ใช้ Notifier ปลอมใน test -> ยกเลิกสำเร็จ -> ได้ 1 ข้อความถึง Email เจ้าหน้าที่ภาควิชาของอุปกรณ์ (จาก staff_contact) มีผู้ยกเลิก ชื่อรุ่น รหัสครุภัณฑ์ เวลา และเหตุผล |
 | AC-CXL-16 | `TestAC_CXL_16_NotifyFailureStillCancelled` | Notifier ปลอมคืน error -> 200 สถานะ `cancelled` และ audit_log มีแถว action `notify` outcome `error` |
 | AC-CXL-17 | `AC_CXL_17` (สคริปต์ k6 `tests/load/cancel_request.js`) | 50 VU เปิดรายการและยกเลิก (seed คำขอพอสำหรับทุก VU) threshold `http_req_duration p(95) < 15000` |
@@ -209,7 +212,7 @@ frontend: vitest ใน `frontend/src/pages/MyPendingRequests/__tests__/` ใช
 - **Q-16** (จาก FR-CXL-10 ตอบเมื่อนำเข้า scope) เจ้าหน้าที่ยกเลิกจากหน้าไหน ต้องระบุเหตุผลไหม ต้องแจ้งนักศึกษาไหม และยกเลิกได้เฉพาะคำขอของภาควิชาตนเองใช่ไหม? -> ถามเจ้าหน้าที่
   ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ: FR-CXL-10 ทั้งหมด (ไม่ทำใน prototype)
 - **Q-SH-03** auth service ใช้โปรโตคอลอะไร และส่ง role + ภาควิชามาในรูปแบบใด -> ใช้ auth จำลองของกลางไปก่อน ไม่เขียน Provider ตัวจริง
-- **Q-SH-05** ลำดับและเวลาของคำขอที่มาก่อน แสดงให้ใครเห็น -> หน้า "คำขอที่รออนุมัติของฉัน" ไม่แสดงลำดับคิวจนกว่าจะได้คำตอบ
+- ~~Q-SH-05~~ ปิดแล้วโดย CR-005 ของ 001 (เจ้าหน้าที่เห็นลำดับคำขอ นักศึกษาไม่เห็น) ลำดับและเวลาของคำขอที่มาก่อน แสดงให้ใครเห็น -> หน้า "คำขอที่รออนุมัติของฉัน" ไม่แสดงลำดับคิวจนกว่าจะได้คำตอบ
 - ~~Q-SH-06~~ ปิดแล้ว: คำขออื่นของชิ้นเดียวกันถูก 004 ปฏิเสธอัตโนมัติเป็น `rejected` 003 ไม่เปลี่ยนคำขออื่นเอง และตอบ `NOT_CANCELLABLE` ตาม AC-CXL-11
 - **Q-SH-08** ระบบยืนยันตัวตนเชื่อมต่อไม่ได้ ต้องทำอย่างไร -> ใช้พฤติกรรม 401 ของ middleware กลางไปก่อน
 

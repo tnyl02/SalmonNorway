@@ -4,6 +4,7 @@ package cancelrequest
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -28,7 +29,7 @@ const (
 //	      approved, rejected, cancelled อย่างละ 1 และ B มีคำขอ requested 1
 //	When  A เปิดหน้า "คำขอที่รออนุมัติของฉัน" (GET /v1/my/pending-requests)
 //	Then  ได้เฉพาะคำขอของ A ที่ยังยกเลิกได้ 4 รายการ เรียงใหม่ไปเก่า เวลาเท่ากันเรียง requestId มากไปน้อย
-//	      แต่ละรายการมี requestId, modelName, assetCode, submittedAt และเจ้าหน้าที่ได้ 403 STUDENT_ONLY
+//	      แต่ละรายการมี requestId, modelName, assetCode, submittedAt และเจ้าหน้าที่ได้ 403 FORBIDDEN_ROLE (CR-006)
 func TestAC_CXL_08_ListOwnPendingSorted(t *testing.T) {
 	srv := tcServer(t)
 	base := time.Date(2026, 11, 10, 2, 0, 0, 0, time.UTC)
@@ -70,11 +71,11 @@ func TestAC_CXL_08_ListOwnPendingSorted(t *testing.T) {
 		t.Errorf("submittedAt = %q ต้องเป็นเวลา %v แบบ RFC3339", first.SubmittedAt, base)
 	}
 
-	// เจ้าหน้าที่ได้ 403 STUDENT_ONLY
+	// เจ้าหน้าที่ได้ 403 FORBIDDEN_ROLE (CR-006)
 	staff := tcGet(t, srv, tcPathMine, tcTokenStaff)
 	tcWantStatus(t, staff, http.StatusForbidden)
-	if code := tcDecode[tcErrorBody](t, staff).Code; code != "STUDENT_ONLY" {
-		t.Errorf("code = %q ต้องเป็น STUDENT_ONLY", code)
+	if code := tcDecode[tcErrorBody](t, staff).Code; code != "FORBIDDEN_ROLE" {
+		t.Errorf("code = %q ต้องเป็น FORBIDDEN_ROLE", code)
 	}
 }
 
@@ -140,27 +141,27 @@ func TestCancel_SecondTimeDoesNotOverwrite(t *testing.T) {
 //
 //	Given A มีคำขอ requested
 //	When  ยกเลิกด้วยเหตุผลว่าง / ช่องว่างล้วน / 201 ตัวอักษร / ภาษาไทย 201 code point
-//	Then  ได้ 400 REASON_REQUIRED หรือ REASON_TOO_LONG สถานะยัง requested
+//	Then  ได้ 422 VALIDATION_FAILED fields [reason] ข้อความบอกจำนวนตัวอักษรสูงสุด สถานะยัง requested (CR-006)
 //	When  ยกเลิกด้วย "ไม่ต้องใช้อุปกรณ์แล้ว"
 //	Then  ได้ 200 และ cancel_reason ตรงกัน
 func TestAC_CXL_14_ReasonValidation(t *testing.T) {
 	srv := tcServer(t)
 	id := tcInsert(t, tcUserA, tcItemAvailable, "normal", "requested", time.Now())
 
-	cases := []struct {
-		reason, code string
-	}{
-		{"", "REASON_REQUIRED"},
-		{"   ", "REASON_REQUIRED"},
-		{"\t\n ", "REASON_REQUIRED"},
-		{strings.Repeat("a", config.CancelReasonMaxLen+1), "REASON_TOO_LONG"},
-		{strings.Repeat("ที่", 67), "REASON_TOO_LONG"}, // 201 code point
+	wantMsg := fmt.Sprintf("กรุณาระบุเหตุผลการยกเลิกไม่เกิน %d ตัวอักษร", config.CancelReasonMaxLen)
+	reasons := []string{
+		"",
+		"   ",
+		"\t\n ",
+		strings.Repeat("a", config.CancelReasonMaxLen+1),
+		strings.Repeat("ที่", 67), // 201 code point
 	}
-	for _, c := range cases {
-		rec := tcCancel(t, srv, id, c.reason, tcTokenA)
-		tcWantStatus(t, rec, http.StatusBadRequest)
-		if code := tcDecode[tcErrorBody](t, rec).Code; code != c.code {
-			t.Errorf("เหตุผลยาว %d: code = %q ต้องเป็น %s", len(c.reason), code, c.code)
+	for _, reason := range reasons {
+		rec := tcCancel(t, srv, id, reason, tcTokenA)
+		tcWantStatus(t, rec, http.StatusUnprocessableEntity)
+		b := tcDecode[tcErrorBody](t, rec)
+		if b.Code != "VALIDATION_FAILED" || b.Message != wantMsg || len(b.Fields) != 1 || b.Fields[0] != "reason" {
+			t.Errorf("เหตุผลยาว %d: body = %+v ต้องเป็น VALIDATION_FAILED %q fields [reason]", len(reason), b, wantMsg)
 		}
 	}
 	if s := tcRow(t, id).Status; s != "requested" {
@@ -197,8 +198,8 @@ func TestAC_CXL_02_ApprovedNotCancellable(t *testing.T) {
 	rec := tcCancel(t, srv, id, "ไม่ต้องใช้อุปกรณ์แล้ว", tcTokenA)
 
 	tcWantStatus(t, rec, http.StatusConflict)
-	if code := tcDecode[tcErrorBody](t, rec).Code; code != "ALREADY_APPROVED" {
-		t.Errorf("code = %q ต้องเป็น ALREADY_APPROVED", code)
+	if b := tcDecode[tcErrorBody](t, rec); b.Code != "ALREADY_APPROVED" || b.Status != "approved" || b.Message == "" {
+		t.Errorf("body = %+v ต้องเป็น ALREADY_APPROVED status approved มี message (CR-006)", b)
 	}
 	r := tcRow(t, id)
 	if r.Status != "approved" || r.CancelReason != nil || r.CancelledAt != nil {
@@ -218,8 +219,8 @@ func TestAC_CXL_03_OthersRequestNotFound(t *testing.T) {
 	for _, id := range []int{ofB, 999999} {
 		rec := tcCancel(t, srv, id, "ไม่ต้องใช้อุปกรณ์แล้ว", tcTokenA)
 		tcWantStatus(t, rec, http.StatusNotFound)
-		if got := rec.Body.String(); got != "{\"code\":\"REQUEST_NOT_FOUND\"}\n" {
-			t.Errorf("id %d: body = %q ต้องมีแค่ code REQUEST_NOT_FOUND", id, got)
+		if got := rec.Body.String(); got != "{\"code\":\"REQUEST_NOT_FOUND\",\"message\":\"ไม่พบคำขอ\"}\n" {
+			t.Errorf("id %d: body = %q ต้องมีแค่ code REQUEST_NOT_FOUND และ message ไม่พบคำขอ (CR-006)", id, got)
 		}
 	}
 	r := tcRow(t, ofB)
@@ -314,8 +315,8 @@ func TestAC_CXL_11_RejectedAndCancelledNotCancellable(t *testing.T) {
 	for id, status := range ids {
 		rec := tcCancel(t, srv, id, "ไม่ต้องใช้อุปกรณ์แล้ว", tcTokenA)
 		tcWantStatus(t, rec, http.StatusConflict)
-		if code := tcDecode[tcErrorBody](t, rec).Code; code != "NOT_CANCELLABLE" {
-			t.Errorf("%s: code = %q ต้องเป็น NOT_CANCELLABLE", status, code)
+		if b := tcDecode[tcErrorBody](t, rec); b.Code != "NOT_CANCELLABLE" || b.Status != status || b.Message == "" {
+			t.Errorf("%s: body = %+v ต้องเป็น NOT_CANCELLABLE status %s มี message (CR-006)", status, b, status)
 		}
 		if got := tcRow(t, id).Status; got != status {
 			t.Errorf("%s: สถานะเปลี่ยนเป็น %s", status, got)
@@ -343,8 +344,8 @@ func TestAC_CXL_04_ApprovedBeforeConfirm(t *testing.T) {
 	rec := tcCancel(t, srv, id, "ไม่ต้องใช้อุปกรณ์แล้ว", tcTokenA)
 
 	tcWantStatus(t, rec, http.StatusConflict)
-	if code := tcDecode[tcErrorBody](t, rec).Code; code != "ALREADY_APPROVED" {
-		t.Errorf("code = %q ต้องเป็น ALREADY_APPROVED", code)
+	if b := tcDecode[tcErrorBody](t, rec); b.Code != "ALREADY_APPROVED" || b.Status != "approved" || b.Message == "" {
+		t.Errorf("body = %+v ต้องเป็น ALREADY_APPROVED status approved มี message (CR-006)", b)
 	}
 	r := tcRow(t, id)
 	if r.Status != "approved" || r.CancelReason != nil {
@@ -352,14 +353,15 @@ func TestAC_CXL_04_ApprovedBeforeConfirm(t *testing.T) {
 	}
 }
 
-// AC-CXL-07 (IF-IDP-01, NFR-SEC-01) T-25 ส่วนหลังบ้าน (ส่วน audit_log อยู่ใน T-31 ส่วนหน้าจออยู่ใน T-26)
+// AC-CXL-07 (IF-IDP-01, NFR-SEC-01) T-25 ส่วนหลังบ้าน, T-31 ส่วน audit_log (ส่วนหน้าจออยู่ใน T-26)
 //
 //	Given A มีคำขอ requested และ session หมดอายุ (ไม่มี token หรือ token ที่ระบบไม่รู้จัก)
 //	When  ส่งคำสั่งยกเลิก
-//	Then  ได้ 401 UNAUTHENTICATED และสถานะไม่เปลี่ยน
+//	Then  ได้ 401 UNAUTHENTICATED สถานะไม่เปลี่ยน และไม่มีบันทึกใน audit_log (ASM-07)
 func TestAC_CXL_07_ExpiredSessionNoCancel(t *testing.T) {
 	srv := tcServer(t)
 	id := tcInsert(t, tcUserA, tcItemAvailable, "normal", "requested", time.Now())
+	mark := tcAuditMark(t)
 
 	for _, token := range []string{"", "mock-expired-token"} {
 		rec := tcCancel(t, srv, id, "ไม่ต้องใช้อุปกรณ์แล้ว", token)
@@ -371,6 +373,108 @@ func TestAC_CXL_07_ExpiredSessionNoCancel(t *testing.T) {
 	r := tcRow(t, id)
 	if r.Status != "requested" || r.CancelReason != nil {
 		t.Errorf("แถว = %+v ต้องยังเป็น requested", r)
+	}
+	if rows := tcAuditSince(t, mark); len(rows) != 0 {
+		t.Errorf("audit_log มีแถวใหม่ %d แถว ต้องไม่มี (ASM-07): %+v", len(rows), rows)
+	}
+}
+
+// AC-CXL-06 (FR-CXL-05) T-31
+//
+//	Given นักศึกษา A ยกเลิกคำขอของตนเอง 1 ครั้งสำเร็จ พยายามยกเลิกคำขอที่อนุมัติแล้ว 1 ครั้ง
+//	      และพยายามยกเลิกคำขอของนักศึกษา B 1 ครั้ง
+//	When  ตรวจ audit_log
+//	Then  มีบันทึก 3 รายการ ระบุผู้ยกเลิก (นักศึกษา A) เวลา คำขอ และผลลัพธ์ (สำเร็จ 1 รายการ ไม่สำเร็จ 2 รายการ)
+//	      รูปแบบตามตาราง FR-CXL-05: action cancel, query reason_len / cause
+func TestAC_CXL_06_AuditLogAttempts(t *testing.T) {
+	srv := tcServer(t)
+	own := tcInsert(t, tcUserA, tcItemAvailable, "normal", "requested", time.Now())
+	approved := tcInsert(t, tcUserA, tcItemAvailable2, "normal", "approved", time.Now())
+	others := tcInsert(t, tcUserB, tcItemAvailable, "normal", "requested", time.Now())
+	mark := tcAuditMark(t)
+
+	reason := "ไม่ต้องใช้อุปกรณ์แล้ว"
+	tcWantStatus(t, tcCancel(t, srv, own, reason, tcTokenA), http.StatusOK)
+	tcWantStatus(t, tcCancel(t, srv, approved, reason, tcTokenA), http.StatusConflict)
+	tcWantStatus(t, tcCancel(t, srv, others, reason, tcTokenA), http.StatusNotFound)
+
+	// นับเฉพาะ action cancel: แถว notify error (ส่ง Email ไม่สำเร็จ) เป็นของ AC-CXL-16 ตรวจใน notifier_test.go (T-32, ทีมตัดสิน ทาง ก)
+	var rows []tcAuditRow
+	for _, r := range tcAuditSince(t, mark) {
+		if r.Action == "cancel" {
+			rows = append(rows, r)
+		}
+	}
+	if len(rows) != 3 {
+		t.Fatalf("audit_log มีแถว cancel %d แถว ต้องมี 3: %+v", len(rows), rows)
+	}
+	want := []struct {
+		outcome string
+		reqID   int
+		key     string
+		value   any
+	}{
+		{"ok", own, "reason_len", float64(len([]rune(reason)))},
+		{"forbidden", approved, "cause", "already_approved"},
+		{"forbidden", others, "cause", "not_owner"},
+	}
+	for i, w := range want {
+		r := rows[i]
+		if r.ActorID != tcUserA || r.ActorRole != "student" || r.Action != "cancel" || !r.HasTime {
+			t.Errorf("แถว %d: %+v ต้องเป็นของ %s บทบาท student action cancel และมีเวลา", i, r, tcUserA)
+		}
+		if r.Outcome != w.outcome || r.RequestID == nil || *r.RequestID != w.reqID || r.Query[w.key] != w.value {
+			t.Errorf("แถว %d: %+v ต้องเป็น outcome %s request_id %d query %s=%v", i, r, w.outcome, w.reqID, w.key, w.value)
+		}
+	}
+}
+
+// FR-CXL-05 ตารางกรณีที่เหลือ (T-31): ไม่มีคำขอนี้, สถานะยกเลิกไม่ได้, เหตุผลผิด, และเจ้าหน้าที่ไม่ถูกบันทึก
+//
+//	ไม่มีคำขอนี้ -> request_id ว่าง query {"cause":"not_found","id":…}
+//	rejected -> {"cause":"not_cancellable"}, เหตุผลว่าง -> {"cause":"reason_invalid"} มี request_id
+//	เหตุผลผิดกับคำขอที่ไม่มี -> request_id ว่าง เก็บ id ใน query (ทีมเลือกเอง)
+func TestFR_CXL_05_AuditLogOtherCauses(t *testing.T) {
+	srv := tcServer(t)
+	rejected := tcInsert(t, tcUserA, tcItemAvailable, "normal", "rejected", time.Now())
+	pending := tcInsert(t, tcUserA, tcItemAvailable2, "normal", "requested", time.Now())
+	missing := rejected + 100000
+	mark := tcAuditMark(t)
+
+	tcWantStatus(t, tcCancel(t, srv, missing, "เหตุผล", tcTokenA), http.StatusNotFound)
+	tcWantStatus(t, tcCancel(t, srv, rejected, "เหตุผล", tcTokenA), http.StatusConflict)
+	tcWantStatus(t, tcCancel(t, srv, pending, "   ", tcTokenA), http.StatusUnprocessableEntity)
+	tcWantStatus(t, tcCancel(t, srv, missing, "", tcTokenA), http.StatusUnprocessableEntity)
+	tcWantStatus(t, tcCancel(t, srv, pending, "เหตุผล", tcTokenStaff), http.StatusForbidden) // ไม่บันทึก
+
+	rows := tcAuditSince(t, mark)
+	if len(rows) != 4 {
+		t.Fatalf("audit_log มี %d แถว ต้องมี 4 (เจ้าหน้าที่ไม่บันทึก): %+v", len(rows), rows)
+	}
+	want := []struct {
+		reqID *int
+		cause string
+	}{
+		{nil, "not_found"},
+		{&rejected, "not_cancellable"},
+		{&pending, "reason_invalid"},
+		{nil, "reason_invalid"},
+	}
+	for i, w := range want {
+		r := rows[i]
+		if r.ActorID != tcUserA || r.Outcome != "forbidden" || r.Query["cause"] != w.cause {
+			t.Errorf("แถว %d: %+v ต้องเป็นของ %s outcome forbidden cause %s", i, r, tcUserA, w.cause)
+		}
+		if w.reqID == nil {
+			if r.RequestID != nil || r.Query["id"] != float64(missing) {
+				t.Errorf("แถว %d: %+v ต้องไม่มี request_id และ query id = %d", i, r, missing)
+			}
+		} else if r.RequestID == nil || *r.RequestID != *w.reqID {
+			t.Errorf("แถว %d: %+v ต้องมี request_id %d", i, r, *w.reqID)
+		}
+	}
+	if s := tcRow(t, pending).Status; s != "requested" {
+		t.Errorf("สถานะ = %s ต้องยังเป็น requested", s)
 	}
 }
 
@@ -402,7 +506,7 @@ func (hangingDB) Begin(ctx context.Context) (pgx.Tx, error) {
 //	Given A มีคำขอ requested และฐานข้อมูลไม่ตอบสนองตอนบันทึกการยกเลิก
 //	      (จำลอง 2 แบบ: ต่อฐานข้อมูลไม่ได้ และฐานข้อมูลค้างจนเกินเวลารอ แทนการหยุด container ที่ test อื่นใช้ร่วม)
 //	When  A ยกเลิกคำขอนั้น
-//	Then  ได้ 503 UPSTREAM_UNAVAILABLE retryable ไม่ส่งรายละเอียดภายใน และเมื่อฐานข้อมูลใช้ได้ สถานะยังเป็น requested
+//	Then  ได้ 503 UPSTREAM_UNAVAILABLE {code, message} ไม่ส่งรายละเอียดภายใน และเมื่อฐานข้อมูลใช้ได้ สถานะยังเป็น requested
 func TestAC_CXL_13_DBDownReturns503(t *testing.T) {
 	tcServer(t) // ล้างคำขอเดิม
 	id := tcInsert(t, tcUserA, tcItemAvailable, "normal", "requested", time.Now())
@@ -424,8 +528,8 @@ func TestAC_CXL_13_DBDownReturns503(t *testing.T) {
 			t.Errorf("%s: ใช้เวลา %v เกิน CancelDBTimeout", name, time.Since(start))
 		}
 		tcWantStatus(t, rec, http.StatusServiceUnavailable)
-		if got := rec.Body.String(); got != "{\"code\":\"UPSTREAM_UNAVAILABLE\",\"retryable\":true}\n" {
-			t.Errorf("%s: body = %q ต้องเป็น UPSTREAM_UNAVAILABLE retryable", name, got)
+		if got := rec.Body.String(); got != "{\"code\":\"UPSTREAM_UNAVAILABLE\",\"message\":\"ระบบไม่ตอบสนอง กรุณาลองใหม่อีกครั้ง\"}\n" {
+			t.Errorf("%s: body = %q ต้องเป็น UPSTREAM_UNAVAILABLE {code, message} ไม่มี retryable (CR-006)", name, got)
 		}
 	}
 
@@ -436,3 +540,23 @@ func TestAC_CXL_13_DBDownReturns503(t *testing.T) {
 	tcWantStatus(t, tcCancel(t, downServer(t, tcPool(t), config.CancelDBTimeout), id, "ไม่ต้องใช้อุปกรณ์แล้ว", tcTokenA), http.StatusOK)
 }
 
+// FR-CXL-03 (ASM-13) ปิดข้อค้นพบ F-02 ใน rtm.md
+//
+//	Given A มีคำขอ requested
+//	When  เจ้าหน้าที่ (staff-001) สั่งยกเลิกคำขอนั้น
+//	Then  ได้ 403 FORBIDDEN_ROLE (CR-006) และสถานะคำขอยังเป็น requested ไม่มีเหตุผลหรือเวลายกเลิก
+func TestFR_CXL_03_StaffCancelForbidden(t *testing.T) {
+	srv := tcServer(t)
+	id := tcInsert(t, tcUserA, tcItemAvailable, "normal", "requested", time.Now())
+
+	rec := tcCancel(t, srv, id, "เจ้าหน้าที่ยกเลิกแทน", tcTokenStaff)
+
+	tcWantStatus(t, rec, http.StatusForbidden)
+	if code := tcDecode[tcErrorBody](t, rec).Code; code != "FORBIDDEN_ROLE" {
+		t.Errorf("code = %q ต้องเป็น FORBIDDEN_ROLE", code)
+	}
+	r := tcRow(t, id)
+	if r.Status != "requested" || r.CancelReason != nil || r.CancelledAt != nil {
+		t.Errorf("แถว = %+v ต้องยังเป็น requested ไม่มีเหตุผลและเวลายกเลิก", r)
+	}
+}

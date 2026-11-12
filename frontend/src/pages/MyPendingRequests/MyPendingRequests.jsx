@@ -32,9 +32,16 @@ const CANCEL_REJECTED = {
   REQUEST_NOT_FOUND: MSG_REQUEST_NOT_FOUND, // 404 FR-CXL-03 ไม่มีคำขอนี้ หรือเป็นของผู้อื่น (T-20)
 }
 
+// CODE_FORBIDDEN_ROLE คือรหัสที่หลังบ้านตอบเมื่อเจ้าหน้าที่เปิดหน้านี้ (403, ASM-13, CON-TECH-03 CR-006)
+// ลองใหม่ก็ไม่สำเร็จ จึงแสดง message จากหลังบ้านโดยไม่มีปุ่มลองใหม่ (plan.md ข้อ 4, ทีมตัดสิน 2569-11-12 ทาง ก, T-26)
+const CODE_FORBIDDEN_ROLE = 'FORBIDDEN_ROLE'
+
+// 401 ไม่ต้องจัดการที่หน้านี้: api/client.js แจ้ง App ให้แสดงหน้าเข้าสู่ระบบจำลอง แล้วกลับมาแท็บนี้ (IF-IDP-01, AC-CXL-07, T-21 ของ 001)
+
 export default function MyPendingRequests({ client = api }) {
   const [items, setItems] = useState(null)
   const [loadFailed, setLoadFailed] = useState(false)
+  const [forbidden, setForbidden] = useState(null) // message ของ 403 FORBIDDEN_ROLE (T-26)
   const [reloadKey, setReloadKey] = useState(0) // เพิ่มค่าเมื่อกดลองใหม่ ให้โหลดรายการอีกครั้ง
   const [target, setTarget] = useState(null) // คำขอที่เปิดกล่องยืนยันอยู่
   const [busy, setBusy] = useState(false)
@@ -46,12 +53,19 @@ export default function MyPendingRequests({ client = api }) {
     let active = true
     setItems(null)
     setLoadFailed(false)
+    setForbidden(null)
     client
       .listMyPendingRequests()
       .then((res) => active && setItems(res.items))
-      .catch(() => {
+      .catch((err) => {
+        if (!active) return
+        if (err?.code === CODE_FORBIDDEN_ROLE) {
+          // เจ้าหน้าที่: แสดง message จากหลังบ้าน ไม่มีปุ่มลองใหม่ (ASM-13, T-26) ไม่มี message ใช้ข้อความโหลดไม่สำเร็จแทน
+          setForbidden(err.serverMessage || MSG_LOAD_FAILED)
+          return
+        }
         // โหลดไม่สำเร็จ: ไม่แสดงรายการเก่าและไม่แสดงว่าไม่มีคำขอ (FR-CXL-06)
-        if (active) setLoadFailed(true)
+        setLoadFailed(true)
       })
     return () => {
       active = false
@@ -105,7 +119,11 @@ export default function MyPendingRequests({ client = api }) {
           {cancelError}
         </p>
       )}
-      {loadFailed ? (
+      {forbidden ? (
+        <p role="alert" className="text-red-700">
+          {forbidden}
+        </p>
+      ) : loadFailed ? (
         <div className="grid justify-items-start gap-2">
           <p role="alert" className="text-red-700">
             {MSG_LOAD_FAILED}

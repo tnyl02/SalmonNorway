@@ -2,6 +2,52 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [constraints v5.2 แยก ALREADY_APPROVED กับ REQUEST_ALREADY_DECIDED] - 2569-11-12
+เจ้าของ 003 ตัดสินคงไว้ทั้ง 2 รหัส (CR-006 หัวข้อตัดสิน)
+### Changed
+- constraints.md: แถว `ALREADY_APPROVED` เติมวงเล็บว่าต่างจาก `REQUEST_ALREADY_DECIDED` ของ 004 อย่างไร ไม่แก้แถวของ 004
+- CR-006: เพิ่มคำตัดสินในหัวข้อตัดสิน
+- ไม่กระทบโค้ด test และหน้าจอ
+
+## [constraints v5.2 รวม 003 กับ 002 หลัง merge main] - 2569-11-12
+003 merge main หลัง 002 (PR #18, CR-007) เก็บแถวและชื่อฟีเจอร์ของทั้งสองฝั่งในตาราง CON-TECH-03
+### Changed
+- constraints.md: แถว `REQUEST_NOT_FOUND` ใช้ความหมายฉบับขยายของ CR-007 ช่องใครใช้แล้ว "004, 002, 003", `FORBIDDEN_ROLE` มีทั้ง 002 และ 003, แถว CON-TECH-03 ใน "ใครอ้างใช้บ้าง" มีทั้ง 002 และ 003
+- CR-006: แก้ว่า 002 ใช้ `REQUEST_NOT_FOUND` ด้วยตาม CR-007 (รายการข้างล่างที่เขียนว่า "ฟีเจอร์ 002 ไม่ใช้รหัสนี้" ถูกเฉพาะก่อน 002 ขึ้น main)
+
+## [constraints v5.2 + CR-006 แก้หลังอนุมัติ] - 2569-11-12
+เจ้าของ 002 ทักว่า `REQUEST_NOT_FOUND` มีแถวอยู่แล้ว (004 ลงทะเบียนใน branch ของ 004)
+### Changed
+- constraints.md: แถว `REQUEST_NOT_FOUND` ใช้ข้อความของ 004 ทุกตัวอักษร ช่องใครใช้แล้ว "004 (ลงทะเบียน 2569-11-12), 003 (คำขอของผู้อื่นตอบเหมือนไม่มี CR-006)" แทนแถวที่ 003 ลงใหม่ (ไม่ขึ้นเวอร์ชัน รายการ v5.2 ข้างล่างที่เขียนว่า "ลงทะเบียน REQUEST_NOT_FOUND (003, 004)" ให้อ่านตามบรรทัดนี้)
+- CR-006: เพิ่มบรรทัดแก้ไขหลังอนุมัติ แก้ข้อ 5 รายการรหัส และผลกระทบของ 004
+- ไม่กระทบโค้ด test และหน้าจอ ฟีเจอร์ 002 ไม่ใช้รหัสนี้
+
+## [SPEC-CXL-003 Draft v3.9 + plan v1.7 + tasks T-34] - 2569-11-12
+ตามคำตัดสินของเจ้าของ 003 ต่อข้อค้นพบ F-09 และ F-04 ของ /verify รอบ 2
+### Changed
+- spec 003 FR-CXL-05: ตาราง audit เพิ่ม "เหตุผลผิด และไม่มีคำขอนี้" (request_id ว่าง เก็บ id ใน query) และ "id / ข้อมูลที่ส่งมาอ่านไม่ได้ ไม่บันทึก" (F-09)
+- spec 003 ASM-10: ส่ง Email แบบรอผลแต่รอไม่เกิน 5 วินาที (ทีมเลือกเอง) ส่งไม่ทันนับเป็นส่งไม่สำเร็จ (F-04)
+- plan 003 ข้อ 5: เพิ่มค่าที่ตั้งได้ NotifyTimeout
+### Added
+- tasks 003 เฟส 19 T-34 จำกัดเวลารอส่ง Email
+
+## [003 plan Draft v1.6 + tasks T-26] - 2569-11-12
+### Changed
+- plan ข้อ 4: 401 ใช้กลไกกลางของ 001 T-21 (จำชื่อแท็บ + safePageKey แทน returnTo แบบ path), เพิ่มหน้าจอเมื่อเจ้าหน้าที่ได้ 403 FORBIDDEN_ROLE (แสดง message ไม่มีปุ่มลองใหม่ ทีมตัดสิน ทาง ก), หัวไฟล์อ้าง spec v3.8
+- tasks T-26: รวมงานหน้าจอ 403 ของเจ้าหน้าที่ และแก้เสร็จเมื่อให้ตรงกับกลไกจริง
+
+## [SPEC-CXL-003 Draft v3.8 + constraints v5.2 + plan + test-cases + tasks T-33] - 2569-11-12
+ตาม CR-006 (แก้ไขต่อจาก CR-004) ข้อค้นพบ F-01 ของ /verify
+
+### Changed
+- spec 003: เพิ่ม CON-TECH-03 ในรายการใช้ร่วม, ASM-10 รายละเอียด Email ที่ทีมตัดสินตอนทำ T-27 (บันทึกแล้วแต่ยังไม่ได้ขึ้นเวอร์ชัน), Q-SH-05 ปิดแล้วโดย CR-005
+- constraints.md v5.2: ลงทะเบียน REQUEST_NOT_FOUND (003, 004), ALREADY_APPROVED, NOT_CANCELLABLE และเติม 003 ใน UNAUTHENTICATED, UPSTREAM_UNAVAILABLE, VALIDATION_FAILED, FORBIDDEN_ROLE
+- plan 003 ข้อ 4: ตาราง error เป็น {code, message} STUDENT_ONLY -> FORBIDDEN_ROLE, REASON_* -> 422 VALIDATION_FAILED, 409 แนบ status, ตัด retryable
+- test-cases 003: TC-CXL-08-6, 14-4, 14-5, 14-6 เปลี่ยนรหัสและ HTTP ที่ตรวจ (เจ้าของ 003 อนุมัติ)
+
+### Added
+- specs/changes/CR-006.md, tasks.md T-33 (เฟส 18)
+
 ## [shared constraints v5.2] - 2569-11-12
 ตาม CR-007 ระหว่างที่ 002 ทำ T-15 (endpoint เปิดดูไฟล์แนบ) ไม่ได้เปลี่ยน FR หรือ AC ของฟีเจอร์ใด
 **ปรับหลัง merge main**: 004 ขึ้น main ก่อนพร้อมแถว `REQUEST_NOT_FOUND` ของเขา 002 จึงทิ้งแถวของตัวเองแล้วใช้แถวของ 004 ร่วม
