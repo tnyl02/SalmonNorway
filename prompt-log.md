@@ -3338,3 +3338,25 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ทีมตัดสิน: (1) แก้ plan ข้อ 4 ให้ตรงกับกลไกจริงของ 001 T-21 (จำชื่อแท็บ + safePageKey ไม่ใช่ returnTo แบบ path)
   (2) เจ้าหน้าที่เปิดหน้า "คำขอที่รออนุมัติของฉัน" ได้ 403 FORBIDDEN_ROLE -> แสดง message ไม่มีปุ่มลองใหม่ (ทาง ก) รวมไว้ใน T-26
 - ไฟล์ที่แก้: specs/003-cancel-request/plan.md (Draft v1.6), tasks.md (T-26, จำนวน task ในสรุป), specs/CHANGELOG.md ยังไม่แก้โค้ด
+
+---
+
+## 2569-11-12 /implement T-26 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (คำสั่ง /implement ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/implement.md เอง)
+- สิ่งที่ทำ: 401 ใช้กลไกของ 001 T-21 ที่มีแล้ว ไม่แก้ App.jsx / client.js, หน้า MyPendingRequests ได้ 403 FORBIDDEN_ROLE แสดง serverMessage ไม่มีปุ่มลองใหม่ (ทาง ก)
+- ไฟล์ที่แก้: frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx, __tests__/MyPendingRequests.test.jsx (เพิ่ม AC_CXL_07 redirects to login and back, FR_CXL_03 staff sees forbidden message without retry)
+- สิ่งที่ AI เลือกเอง: ถ้า 403 ไม่มี message ใช้ข้อความ "โหลดรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" แทน, test ของ AC-CXL-07 ทำให้ session หมดอายุระหว่างเปิดหน้าด้วยการลบ token
+- ผล test: npm test ผ่าน 57 (เพิ่ม 2) ลองเปลี่ยนรหัสที่ตรวจเป็นค่าอื่นชั่วคราว test ของเจ้าหน้าที่ไม่ผ่าน คืนโค้ดแล้วผ่าน
+- สถานะ: รอเจ้าของตรวจ
+
+---
+
+## 2569-11-12 ตรวจ T-26 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เจ้าของตรวจบนหน้าเว็บ: ลบ token ใน Session storage แล้วได้หน้าเข้าสู่ระบบจำลองพร้อมข้อความ, staff-001 เห็นข้อความเฉพาะนักศึกษาไม่มีปุ่มลองใหม่,
+  session หมดอายุระหว่างยืนยันยกเลิก ล็อกอินแล้วกลับแท็บเดิม คำขอยังอยู่ แจ้งว่า "ผ่าน"
+- เปลี่ยนสถานะ T-26 ใน tasks.md เป็น เสร็จ

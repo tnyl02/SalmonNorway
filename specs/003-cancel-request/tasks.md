@@ -441,7 +441,7 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - เสร็จเมื่อ: (แก้ 2569-11-12 ตาม plan v1.6 ข้อ 4)
   (1) vitest `AC_CXL_07 redirects to login and back` ผ่าน: render `App` กับ client จริง mock `fetch` ให้ยกเลิกได้ 401 -> เห็นหน้าเข้าสู่ระบบพร้อมข้อความ ล็อกอินแล้วกลับมาแท็บ "คำขอที่รออนุมัติของฉัน" ไม่เรียกยกเลิกซ้ำอัตโนมัติ
   (2) vitest เจ้าหน้าที่เปิดหน้านี้ได้ 403 `FORBIDDEN_ROLE` -> แสดง message จากหลังบ้าน ไม่มีปุ่ม "ลองใหม่" (ทีมตัดสิน ทาง ก)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 13
 - test ที่ต้องผ่านทั้งหมด: `TestAC_CXL_07_ExpiredSessionNoCancel`, vitest `AC_CXL_07 ...` และ test ของเฟส 0-12
