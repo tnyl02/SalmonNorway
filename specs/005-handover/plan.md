@@ -28,11 +28,11 @@ Owner: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn10121
 |---|---|---|
 | `loan` (DM-05) **ไม่แก้โครงตาราง** | INSERT ด้วยคอลัมน์เดิม `item_id`, `borrower_id` (รหัสนักศึกษาที่ยืนยันแล้ว), `loan_type`, `due_at` | FR-HND-07 |
 | `handover` (ใหม่ เฉพาะ 005 ผูก 1:1 กับ `loan`) | `loan_id` PK/FK -> `loan`, `request_id` FK -> `borrow_request` UNIQUE, `handed_over_at TIMESTAMPTZ`, `handed_over_by` (รหัสเจ้าหน้าที่), `borrower_student_id`, `borrower_first_name`, `borrower_last_name`, `identity_method` CHECK IN (`auth_api`, `card_only`), `card_checked BOOLEAN NOT NULL CHECK (card_checked)` | FR-HND-02, 03, 05, 07 (ชื่อ-นามสกุลเจ้าหน้าที่พิมพ์ตามบัตร ASM-HND-10, รหัสนักศึกษา = รหัสผู้ใช้จากการยืนยัน ASM-HND-09) |
-| `loan.due_at` (มีแล้ว) | ยืมปกติ = 16:00 ของวันส่งมอบ / ค้างคืน = 16:00 ของวันที่สิ้นสุดการยืมในคำขอ (Q-SH-04, CR-003) คำนวณใน 005 เอง ไม่อ่านค่าจากตารางของ 004 | FR-HND-05 (ส่งมอบหลัง 16:00 รอ Q-HND-03, ค้างคืนรอ Q-HND-07) |
+| `loan.due_at` (มีแล้ว) | ยืมปกติ = 16:00 ของวันส่งมอบ / ค้างคืน = 16:00 ของวันที่สิ้นสุดการยืมในคำขอ (Q-SH-04, CR-003) คำนวณใน 005 เอง ไม่อ่านค่าจากตารางของ 004 | FR-HND-05 (ส่งมอบหลัง 16:00 = 16:00 ของวันถัดไป Q-HND-03 ปิด 2569-11-12, ค้างคืนรอ Q-HND-07) |
 | `handover_photo` (ใหม่) | `id`, `loan_id` FK -> `handover`, `file_path`, `content_type` CHECK IN (`image/jpeg`, `image/png`), `size_bytes`, `uploaded_at` | FR-HND-06 |
 | `equipment_item.status` (มีแล้ว) | `available` -> `borrowed` | FR-HND-04, 07, CON-DATA-01 |
 | `borrow_request.status` (ของ 002) | `approved` -> `handed_over` (data-model v9 ยืนยันแล้ว) อ่านค่าที่ส่งมอบได้จาก config | FR-HND-01, 07 |
-| `audit_log.action` เพิ่มค่าใน CHECK (migration แยก) | ค่าสำหรับการส่งมอบ ชื่อรอ Q-HND-06 (ชื่อชั่วคราว `handover`) ใช้ `asset_code`, `request_id`, `outcome` เดิม | FR-HND-08 |
+| `audit_log.action` เพิ่มค่าใน CHECK (migration แยก) | ค่า `handover` (Q-HND-06 ปิด 2569-11-12) ใช้ `asset_code`, `request_id`, `outcome` เดิม บันทึกทั้งสำเร็จและไม่สำเร็จ (Q-HND-14 ปิด 2569-11-12) | FR-HND-08 |
 
 สิ่งที่ **ไม่มีฟิลด์** โดยตั้งใจ: เลขบัตรประชาชน และเลขบัตรนักศึกษา FR-HND-03 สั่งให้บันทึกแค่ชื่อ นามสกุล รหัสนักศึกษา และเวลา การตรวจบัตรเก็บเป็น `card_checked` อย่างเดียว
 
@@ -102,7 +102,7 @@ audit log: ถ้า `backend/internal/audit/writer.go` ของ 001 (T-19 ข�
 | สถานะคำขอที่ส่งมอบได้ | FR-HND-01, data-model v9 | `HandoverReadyStatuses()` ใน `config.go` = `approved` |
 | Asia/Bangkok | glossary, FR-HND-05 | `TimeZone` ใน `config.go` (มีแล้ว), `TIME_ZONE` ใน `frontend/src/config.js` (มีแล้ว) |
 | อย่างน้อย 2 รูป | FR-HND-06, ASM-HND-07 | `HandoverMinPhotos` ใน `config.go`, `HANDOVER_MIN_PHOTOS` ใน `frontend/src/config.js` |
-| ไม่เกิน 10 MB | FR-HND-06, ASM-HND-07 | `HandoverPhotoMaxBytes` ใน `config.go`, `HANDOVER_PHOTO_MAX_BYTES` ใน `config.js` (ต่อรูปหรือรวม รอ Q-HND-10) |
+| ไม่เกิน 10 MB | FR-HND-06, ASM-HND-07 | `HandoverPhotoMaxBytes` ใน `config.go`, `HANDOVER_PHOTO_MAX_BYTES` ใน `config.js` (ต่อรูป ไม่จำกัดจำนวน Q-HND-10 ปิด 2569-11-12) |
 | JPG, PNG | FR-HND-06, ASM-HND-07 | `HandoverPhotoTypes` ใน `config.go`, `HANDOVER_PHOTO_TYPES` ใน `config.js` |
 | ที่เก็บไฟล์รูป | ทีมเลือกเอง ไม่ได้มาจาก spec (Q-P1) | `PhotoDir` ใน `config.go` อ่านจาก env |
 
@@ -119,10 +119,10 @@ test หลังบ้านอยู่ที่ `backend/internal/handover/ha
 | AC-HND-05 | `TestAC_HND_05_DueAt1600SameDay` | clock = 2569-11-12 10:00 Asia/Bangkok ได้ `handed_over_at` 10:00 และ `due_at` 16:00 วันเดียวกัน |
 | AC-HND-06 | `TestAC_HND_06_TwoJpgPhotosSaved` | แนบ JPG 2 รูป รูปละ 2 MB ได้ 201 มี `handover_photo` 2 แถวผูก Loan และมีไฟล์บนดิสก์ |
 | AC-HND-07 | `TestAC_HND_07_HandoverCreatesLoan` | ได้ Loan 1 แถว `returned_at` ว่าง อุปกรณ์ `borrowed` คำขอเป็นสถานะส่งมอบแล้ว |
-| AC-HND-08 | `TestAC_HND_08_AuditLogged` | หลังบันทึกสำเร็จ มี audit log ระบุผู้ทำ เวลา รหัสครุภัณฑ์ รหัสคำขอ ผลลัพธ์ (กรณีไม่สำเร็จรอ Q-HND-14) |
+| AC-HND-08 | `TestAC_HND_08_AuditLogged` | หลังบันทึกสำเร็จและไม่สำเร็จ มี audit log ระบุผู้ทำ เวลา รหัสครุภัณฑ์ รหัสคำขอ ผลลัพธ์ (Q-HND-14 ปิด 2569-11-12) |
 | AC-HND-09 | `TestAC_HND_09_StudentForbidden` | token นักศึกษา ได้ 403 ไม่มี Loan |
 | AC-HND-10 | `TestAC_HND_10_BorrowerMismatch` | verifier คืนนักศึกษา B สำหรับคำขอของ A ได้ 409 อุปกรณ์ยัง `available` |
-| AC-HND-11 | `TestAC_HND_11_HandoverAfter1600` | clock = 16:30 ได้ 201 `handed_over_at` 16:30 อุปกรณ์ `borrowed` **ไม่ตรวจ `due_at`** จนกว่าจะตอบ Q-HND-03 |
+| AC-HND-11 | `TestAC_HND_11_HandoverAfter1600` | clock = 16:30 ได้ 201 `handed_over_at` 16:30 อุปกรณ์ `borrowed` และ `due_at` 16:00 ของวันถัดไป (Q-HND-03 ปิด 2569-11-12) |
 | AC-HND-12 | `TestAC_HND_12_InvalidPhotos` | (ก) 1 รูป (ข) GIF (ค) 11 MB ทุกกรณีได้ 422 ไม่มี Loan และไม่มีไฟล์ค้างบนดิสก์ |
 | AC-HND-13 | `TestAC_HND_13_OtherRequestUntouched` | คำขอ X ส่งมอบสำเร็จ คำขอ Y สถานะไม่เปลี่ยน แล้วส่งมอบ Y ได้ 409 `ITEM_NOT_AVAILABLE`  (Given ไม่เกิดในระบบจริงหลัง Q-SH-06 ปิดบางส่วน รอทีมตัดสิน) |
 | AC-HND-14 | `TestAC_HND_14_ListApprovedOnly` + `frontend/src/__tests__/AC-HND-14.test.jsx` | API คืนเฉพาะ 2 คำขอที่อนุมัติแล้วและยังไม่ส่งมอบ / หน้าจอแสดง 2 แถว |

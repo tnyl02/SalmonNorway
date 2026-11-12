@@ -3,8 +3,8 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 
 สรุป
 - 14 เฟส (ฐานราก + 12 เฟสตาม AC + รอคำตอบ) รวม 31 task
-- รอ Q-xx 7 task (T-25 ถึง T-31 ในเฟสรอคำตอบ) เส้นทางหลักไม่ติดคำถามแล้ว (Q-HND-11, Q-HND-13, Q-P4 ปิด 2569-11-11)
-  เสร็จแล้ว: T-01, T-02, T-06, T-07, T-08, T-18 ถัดไป: T-03 -> T-04 -> T-05 และ T-09 -> T-10 -> ที่เหลือ
+- รอ Q-xx 3 task (T-29, T-30, T-31) T-25 ถึง T-28 พร้อมทำแล้ว (Q-HND-03, 06, 10, 14 ปิด 2569-11-12 spec v2.7)
+  เสร็จแล้ว: T-01 ถึง T-24 ถัดไป: T-25 -> T-28 -> T-26 -> T-27
 - เฟสแรกที่ลองใช้งานได้จริง: เฟส 1 (เห็นรายการคำขอที่รอส่งมอบ) migration 0003 ของ 002 merge แล้ว
 
 เทคโนโลยีตาม plan.md ข้อ 2: Go (net/http + pgx), PostgreSQL 16, React + Vite, เก็บรูปบน Docker volume
@@ -427,8 +427,8 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - ไฟล์ที่แตะ: `backend/internal/handover/service.go`, `backend/internal/config/config.go` (ถ้าคำตอบมีค่าใหม่), `backend/internal/handover/handler_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-24
-- เสร็จเมื่อ: `TestAC_HND_11_HandoverAfter1600` ตรวจ `due_at` ตามคำตอบ Q-HND-03 และผ่าน
-- สถานะ: รอ Q-HND-03
+- เสร็จเมื่อ: `TestAC_HND_11_HandoverAfter1600` ตรวจ `due_at` = 2569-11-13 16:00 (16:00 ของวันถัดไป ตาม Q-HND-03) และผ่าน `TestAC_HND_05_DueAt1600SameDay` ยังผ่าน
+- สถานะ: พร้อมทำ (Q-HND-03 ปิด 2569-11-12)
 
 ### T-26 เขียน audit log เมื่อส่งมอบสำเร็จ
 - รองรับ: FR-HND-08, DOM-AUDIT-01, CON-DATA-03
@@ -437,7 +437,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `TestAC_HND_08_AuditLogged` ผ่านกรณีสำเร็จ (มีแถวระบุผู้ทำ เวลา รหัสครุภัณฑ์ รหัสคำขอ ผลลัพธ์) และ `TestMigration_AuditLogAction` ของ 001 กับ test ของ 003 ที่ใช้ action `cancel`, `notify` ยังผ่าน
-- สถานะ: รอ Q-HND-06
+- สถานะ: พร้อมทำ (Q-HND-06 ปิด 2569-11-12 action = `handover`)
 
 ### T-27 เขียน audit log เมื่อส่งมอบไม่สำเร็จ
 - รองรับ: FR-HND-08, DOM-AUDIT-01
@@ -445,8 +445,8 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - ไฟล์ที่แตะ: `backend/internal/handover/service.go`, `backend/internal/handover/handler_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-26
-- เสร็จเมื่อ: `TestAC_HND_08_AuditLogged` กรณีไม่สำเร็จผ่าน ตามคำตอบ Q-HND-14
-- สถานะ: รอ Q-HND-14
+- เสร็จเมื่อ: `TestAC_HND_08_AuditLogged` กรณีไม่สำเร็จผ่าน (Q-HND-14: บันทึกทั้งสำเร็จและไม่สำเร็จ)
+- สถานะ: พร้อมทำ (Q-HND-14 ปิด 2569-11-12)
 
 ### T-28 ตรวจขนาดรูปไม่เกิน 10 MB
 - รองรับ: FR-HND-06
@@ -454,8 +454,8 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - ไฟล์ที่แตะ: `backend/internal/handover/photos.go`, `backend/internal/handover/handler_test.go`, `frontend/src/pages/Handover/HandoverForm.jsx`, `frontend/src/__tests__/AC-HND-12.test.jsx`
 - แบบหน้าจอ: ไม่มี (ไม่มี mockup ทีมออกแบบเอง)
 - ต้องทำหลัง: T-21, T-22
-- เสร็จเมื่อ: `TestAC_HND_12_InvalidPhotos` กรณี (ค) 11 MB ผ่าน และ `AC-HND-12.test.jsx` กรณีขนาดผ่าน (ต่อรูปหรือรวมตามคำตอบ)
-- สถานะ: รอ Q-HND-10
+- เสร็จเมื่อ: `TestAC_HND_12_InvalidPhotos` กรณี (ค) 11 MB ผ่าน และ `AC-HND-12.test.jsx` กรณีขนาดผ่าน (10 MB ต่อรูป ไม่จำกัดจำนวน ตาม Q-HND-10)
+- สถานะ: พร้อมทำ (Q-HND-10 ปิด 2569-11-12)
 
 ### T-29 เชื่อม Auth API จริงแทนตัวจำลอง
 - รองรับ: FR-HND-02, IF-IDP-01
@@ -539,16 +539,16 @@ FR ทุกข้อมี AC แต่ส่วนยืมแบบค้า�
 ## สิ่งที่ยังไม่ทำ (Open Questions จาก spec และของกลาง)
 | คำถาม | task ที่รอ |
 |---|---|
-| Q-HND-03 ส่งมอบยืมปกติหลัง 16:00 กำหนดคืนคือเวลาไหน (ถ้า 16:00 วันเดียวกัน ผู้ยืมเกินกำหนดทันทีและ FR-BRQ-06 ของ 002 ปฏิเสธคำขอใหม่) -> นักคอมพิวเตอร์ | T-25 |
+| Q-HND-03 [ปิดแล้ว 2569-11-12] กำหนดคืน = 16:00 ของวันถัดไป | T-25 พร้อมทำ |
 | Q-HND-04 "ใช้งานได้เฉพาะภายในพื้นที่มหาวิทยาลัย" ระบบต้องทำอะไร -> นักคอมพิวเตอร์ | T-31 |
 | Q-HND-05 [ปิดแล้ว] `approved` -> `handed_over`, `requester_id`, `item_id`, `end_at` มีใน migration 0003 | ไม่มี task รอ |
-| Q-HND-06 ค่า `action` ของ audit log สำหรับการส่งมอบ -> จองในกลุ่ม | T-26 |
+| Q-HND-06 [ปิดแล้ว 2569-11-12] action = `handover` | T-26 พร้อมทำ |
 | Q-HND-07 ต้องทดสอบยืมแบบค้างคืนเทอมนี้ไหม (ขึ้นกับว่า 004 ทำ UC-14 ไหม) -> ทีม + เจ้าของ 004 | T-30 |
 | Q-HND-09 เวลาตอบสนองของการบันทึกการส่งมอบ -> เจ้าหน้าที่ | ไม่มี task (ไม่มี NFR ID รองรับ จะเสนอเป็น NFR เมื่อได้คำตอบ) |
-| Q-HND-10 10 MB ต่อรูปหรือรวม และมากสุดกี่รูป -> เจ้าหน้าที่ | T-28 |
+| Q-HND-10 [ปิดแล้ว 2569-11-12] 10 MB ต่อรูป ไม่จำกัดจำนวน | T-28 พร้อมทำ |
 | Q-HND-11 [ปิดแล้ว] ผู้ยืมล็อกอินบนเครื่องเจ้าหน้าที่ (ASM-HND-09) | ไม่มี task รอ |
 | Q-HND-13 [ปิดแล้ว] เจ้าหน้าที่พิมพ์ชื่อตามบัตร (ASM-HND-10) | ไม่มี task รอ |
-| Q-HND-14 ส่งมอบไม่สำเร็จต้องบันทึก audit log ไหม -> เจ้าหน้าที่ | T-27 |
+| Q-HND-14 [ปิดแล้ว 2569-11-12] บันทึกทั้งสำเร็จและไม่สำเร็จ | T-27 พร้อมทำ |
 | Q-HND-15 ย้าย CON-HND-01 ไป constraints.md ไหม -> ทีม | ไม่มี task (ไม่กระทบโค้ด) |
 | Q-SH-03 auth จริง (ของกลาง) | T-29 |
 | Q-SH-04 [ปิดแล้ว] กำหนดคืนยืมค้างคืน = 16:00 ของวันสิ้นสุดการยืม | ไม่มี task รอ (T-30 ใช้คำตอบนี้) |
