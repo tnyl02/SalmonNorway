@@ -2,6 +2,13 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [constraints v5.2 แยก ALREADY_APPROVED กับ REQUEST_ALREADY_DECIDED] - 2569-11-12
+เจ้าของ 003 ตัดสินคงไว้ทั้ง 2 รหัส (CR-006 หัวข้อตัดสิน)
+### Changed
+- constraints.md: แถว `ALREADY_APPROVED` เติมวงเล็บว่าต่างจาก `REQUEST_ALREADY_DECIDED` ของ 004 อย่างไร ไม่แก้แถวของ 004
+- CR-006: เพิ่มคำตัดสินในหัวข้อตัดสิน
+- ไม่กระทบโค้ด test และหน้าจอ
+
 ## [constraints v5.2 รวม 003 กับ 002 หลัง merge main] - 2569-11-12
 003 merge main หลัง 002 (PR #18, CR-007) เก็บแถวและชื่อฟีเจอร์ของทั้งสองฝั่งในตาราง CON-TECH-03
 ### Changed
