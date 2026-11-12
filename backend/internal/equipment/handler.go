@@ -67,7 +67,9 @@ func (h *Handler) listModels(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) listItems(w http.ResponseWriter, r *http.Request) {
 	modelID, err := strconv.Atoi(r.PathValue("modelId"))
 	if err != nil || modelID <= 0 {
-		http.NotFound(w, r) // รหัสรุ่นที่ไม่ใช่ตัวเลข ถือว่าไม่มี path นี้
+		// รหัสรุ่นที่ไม่ใช่ตัวเลข ถือว่าไม่มีรุ่นนี้ ตอบ 404 ITEM_NOT_FOUND (CON-TECH-03, T-39)
+		// ส่วนรุ่นที่เป็นตัวเลขแต่ไม่มีอยู่ ได้ 200 รายการว่างตาม plan.md ข้อ 5
+		platform.WriteError(w, http.StatusNotFound, platform.CodeItemNotFound)
 		return
 	}
 	items, err := h.svc.ListItems(r.Context(), modelID, filterFrom(r))
@@ -96,7 +98,9 @@ func (h *Handler) getItem(w http.ResponseWriter, r *http.Request) {
 		writeServiceError(w, err)
 		return
 	case !found:
-		http.NotFound(w, r) // ไม่มีรหัสครุภัณฑ์นี้ ไม่มีข้อมูลอุปกรณ์ถูกเข้าถึง จึงไม่บันทึก (plan ไม่ได้กำหนด error code ของกรณีนี้)
+		// ไม่มีรหัสครุภัณฑ์นี้ ตอบ 404 ITEM_NOT_FOUND (CON-TECH-03, T-39)
+		// ไม่มีข้อมูลอุปกรณ์ถูกเข้าถึง จึงไม่บันทึก audit (เหมือนเดิม)
+		platform.WriteError(w, http.StatusNotFound, platform.CodeItemNotFound)
 		return
 	}
 	// เขียน audit ไม่สำเร็จ = ไม่ส่งข้อมูล ตอบ 503 (fail closed ตาม plan.md ข้อ 6.4 เพราะ spec ระบุ "ทุกครั้ง" รอยืนยัน Q-P4 ดู T-29)

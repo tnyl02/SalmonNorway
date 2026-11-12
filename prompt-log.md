@@ -5113,3 +5113,82 @@ T-13 มีแค่ `service.go` ในช่องไฟล์ที่แต�
   list p95 123.39 ms (เดิม 106.63), cancel p95 61.03 ms (เดิม 38.9) ทั้งคู่ต่ำกว่า 15000 ms (CancelPerfP95) มาก
   audit_log ใน salmon_load: cancel ok 1000 แถว (T-31 ทำงานใต้โหลด) คำขอ 1000 ใบเป็น cancelled
 - ปิดหลังบ้าน :8001 แล้ว ไม่ได้แก้ไฟล์ใน repo (rtm.md จะอัปเดตตัวเลขตอน /verify รอบ 3)
+
+---
+
+## 2569-11-12 ลงทะเบียน ITEM_NOT_FOUND และตัดสินเรื่อง 404 / 405 (plan v1.9, tasks v2.4)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `specs/000-shared/constraints.md` เพิ่มแถวรหัส error เพราะ 001)
+- เครื่องมือ: Claude Code
+- ที่มา: 002 ตอบในกลุ่มว่า 404 ใช้ `REQUEST_NOT_FOUND` ได้ และ 405 ยังไม่ตัดสินใน CR-007
+- คำถามและการตัดสินของผู้สั่ง:
+  1. ไม่ทำ 405 ได้ไหม -> AI ตอบว่าได้ ถ้าบันทึกเหตุผล (router ของ Go, ไม่มี FR/AC, ผู้ใช้ไม่เจอ, ยังปฏิเสธการเขียนตาม CON-DATA-02)
+     ผู้สั่งไม่ได้สั่งให้ทำ 405 ต่อ AI จึงบันทึกว่า "ไม่ทำ"
+  2. AI อธิบายขั้นตอนถ้าใช้ REQUEST_NOT_FOUND ตามที่ 002 บอก เทียบกับลงทะเบียน ITEM_NOT_FOUND -> ผู้สั่งเลือก ITEM_NOT_FOUND
+- สิ่งที่ AI พบเพิ่ม: CON-TECH-03 ให้ลงทะเบียนรหัสใหม่ด้วยการเพิ่มแถวได้เลย (004, 005 ทำแบบนี้) จึงไม่ต้องทำ CR ตามที่ AI บอกไว้ก่อนหน้า
+- สิ่งที่ AI แก้:
+  - constraints.md v5.3: แถว `ITEM_NOT_FOUND` (404) และแถว CON-TECH-03 ในตาราง "ใครอ้างใช้บ้าง"
+  - plan v1.9 (ต่อจาก v1.8 ที่ผู้สั่งแก้เรื่อง Q-08): ข้อ 5 แถว 404, ข้อ 10 ผลการตัดสิน 404 / 405
+  - tasks v2.4 (ต่อจาก v2.3): T-39 พร้อมทำ, ตาราง Constraint, ลบเรื่อง 404/405 ออกจาก "สิ่งที่ยังไม่ทำ", สรุปจำนวน task ใหม่ (39: เสร็จ 26, พร้อมทำ 2, รอ Q 9, ยกเลิก 2)
+  - CHANGELOG
+- สิ่งที่ AI ไม่ได้ทำ: ไม่แก้โค้ด (ทำใน `/implement T-39`) ไม่ commit
+- ข้อความ "ไม่พบอุปกรณ์รหัสนี้" ของ ITEM_NOT_FOUND AI เสนอเอง ไม่ได้มาจาก spec
+
+---
+
+## 2569-11-12 เปลี่ยนการตัดสิน: ทำ 405 ทั้งระบบ (ลงทะเบียน METHOD_NOT_ALLOWED, เพิ่ม T-40)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `specs/000-shared/constraints.md` และวางแผนแก้ `platform/`, `cmd/server/main.go` ที่ทุกฟีเจอร์ใช้)
+- เครื่องมือ: Claude Code
+- ที่มา: ผู้สั่งถามว่าถ้าจะทำ 405 ต้องทำอะไร AI เสนอ 2 ทาง (A ตัวครอบกลางแก้ทั้งระบบ / B ทำเฉพาะ 001) ผู้สั่งเลือก A
+- เปลี่ยนจากบันทึกก่อนหน้า (405 "ไม่ทำ") ซึ่งยังไม่ได้ commit จึงแก้รวมในเวอร์ชันเดิม ไม่ขึ้นเวอร์ชันใหม่:
+  - constraints.md v5.3: เพิ่มแถว `METHOD_NOT_ALLOWED` (405) ใช้ร่วมทุกฟีเจอร์ผ่าน platform
+  - plan v1.9: ข้อ 5 แถว 405 และวิธีทำ (platform.MethodNotAllowedJSON ครอบใน main.go) / ข้อ 10 405 ทำใน T-40
+  - tasks v2.4: เพิ่ม T-40 ในเฟส 12, ตาราง Constraint, สรุปจำนวน task (40: เสร็จ 26, พร้อมทำ 3, รอ Q 9, ยกเลิก 2)
+  - CHANGELOG: รายการเดิมของรอบนี้เปลี่ยนจาก "ไม่ทำ 405" เป็นทำทั้งระบบ
+- สิ่งที่ต้องทำก่อนเริ่ม T-40: แจ้งทีมในกลุ่ม เพราะ 405 ของทุกฟีเจอร์จะเปลี่ยน (test ที่มีอยู่ตรวจแค่ status ของ 001 และ 002 จึงไม่พัง)
+- ข้อความ "ไม่รองรับการเรียกแบบนี้" ของ METHOD_NOT_ALLOWED AI เสนอเอง ไม่ได้มาจาก spec
+- สิ่งที่ AI ไม่ได้ทำ: ไม่แก้โค้ด ไม่ commit
+
+---
+
+## 2569-11-12 /implement T-39 ตอบ 404 ด้วย {code, message} รหัส ITEM_NOT_FOUND (CON-TECH-03)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `backend/internal/platform/apierror.go` เพิ่มรหัส ITEM_NOT_FOUND ที่ 001 ลงทะเบียนใน constraints.md v5.3)
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement T-39`
+- ไฟล์ที่แก้: `backend/internal/platform/apierror.go` (CodeItemNotFound และข้อความ "ไม่พบอุปกรณ์รหัสนี้" ตาม plan ข้อ 5),
+  `backend/internal/platform/apierror_test.go` (เพิ่ม CodeItemNotFound ใน TestErrorMessage_AllCodesHaveMessage และ TestCON_TECH_03_ItemNotFoundBody),
+  `backend/internal/equipment/handler.go` (2 จุดที่เคยใช้ http.NotFound: รหัสรุ่นไม่ใช่ตัวเลข และไม่มีรหัสครุภัณฑ์),
+  `backend/internal/equipment/handler_test.go` (TestCON_TECH_03_ItemNotFound), `specs/001-equipment-status/tasks.md` (สถานะ T-39)
+- test: `TestCON_TECH_03_ItemNotFound` ผ่าน (รหัสครุภัณฑ์ที่ไม่มี และรหัสรุ่น "abc" ได้ 404 body มีแค่ code ITEM_NOT_FOUND กับ message /
+  รุ่น 9999 ได้ 200 items []) / `TestCON_TECH_03_ItemNotFoundBody` ผ่าน / test เดิม TestItems_UnknownModel, TestItemDetail_...Is404 ยังผ่าน
+  หลังบ้านทั้งระบบ `go test ./...` ผ่าน 10 package หน้าจอ 31 ไฟล์ 81 test ผ่าน
+- สิ่งที่ไม่ได้ทำ: 405 METHOD_NOT_ALLOWED เป็นของ T-40 / ไม่แก้หน้าจอ (ErrorState แสดง serverMessage ของ 404 ได้อยู่แล้ว)
+- ไม่มีเรื่องที่ต้องเดา: รหัส ข้อความ และกรณีรุ่นตัวเลขที่ไม่มีอยู่ (200 รายการว่าง) มีใน plan ข้อ 5 และช่อง "เสร็จเมื่อ" ครบ
+
+---
+
+## 2569-11-12 /implement T-40 ตอบ 405 ด้วย {code, message} ทั้งระบบ (CON-TECH-03)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `backend/cmd/server/main.go`, `backend/internal/platform/http.go`, `apierror.go`
+  เพราะ T-40 ของ 001: 405 ของทุกฟีเจอร์เปลี่ยน body เป็น {code: METHOD_NOT_ALLOWED, message})
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement T-40`
+- คำถามที่ AI ถามก่อนทำ และคำตอบของทีม (Pannathorn J):
+  1. ช่องสถานะของ T-40 บอกให้แจ้งทีมในกลุ่มก่อนแก้ main.go แจ้งแล้วหรือยัง -> ทีมตอบ: แจ้งแล้ว ทำได้เลย
+- ไฟล์ที่แก้: `backend/internal/platform/apierror.go` (CodeMethodNotAllowed และข้อความ "ไม่รองรับการเรียกแบบนี้" ตาม plan ข้อ 5),
+  `backend/internal/platform/http.go` (MethodNotAllowedJSON ครอบ router ดักเฉพาะ 405 ทิ้งข้อความเดิมของ ServeMux เขียน {code, message} แทน header Allow คงเดิม),
+  `backend/internal/platform/http_test.go` (TestCON_TECH_03_MethodNotAllowed), `backend/cmd/server/main.go` (NoStore(MethodNotAllowedJSON(mux))),
+  `backend/internal/equipment/handler_test.go` (newTestServer ครอบแบบเดียวกับ main.go, TestCON_DATA_02 ตรวจ body ของ 405),
+  `specs/001-equipment-status/tasks.md` (สถานะ T-40)
+- test: `TestCON_TECH_03_MethodNotAllowed` ผ่าน 5 กรณี (405 ได้ body 2 ช่อง Content-Type JSON header Allow มี GET ไม่มีข้อความ "Method Not Allowed" เหลือ /
+  200 JSON, 200 แบบ Write อย่างเดียว, 401 UNAUTHENTICATED, 503 UPSTREAM_UNAVAILABLE ไม่ถูกแตะ) / `TestCON_DATA_02_NoWriteEndpoints` ผ่าน (12 คู่ method x path ได้ 405 METHOD_NOT_ALLOWED)
+  / `TestRoutes_OnlyPost` ของ 002 ยังผ่าน / หลังบ้านทั้งระบบ `go test ./...` ผ่าน 10 package หน้าจอ 31 ไฟล์ 81 test ผ่าน
+- ลองกับหลังบ้านจริง (`go run ./cmd/server`): POST /v1/equipment/models -> 405 Allow: GET, HEAD body METHOD_NOT_ALLOWED /
+  GET /v1/loan-requests (002) -> 405 Allow: POST body เดียวกัน / GET models -> 200 / POST ไม่มี token -> 401 UNAUTHENTICATED เหมือนเดิม
+- ไม่มีเรื่องที่ต้องเดา: รหัส ข้อความ และวิธีครอบมีใน plan ข้อ 5 และข้อ 10
