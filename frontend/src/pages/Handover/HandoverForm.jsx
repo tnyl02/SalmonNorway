@@ -1,11 +1,17 @@
 import { useState } from 'react'
 import { handoverApi } from '../../api/handover.js'
-import { HANDOVER_MIN_PHOTOS, HANDOVER_PHOTO_TYPES, TIME_ZONE } from '../../config.js'
+import { HANDOVER_MIN_PHOTOS, HANDOVER_PHOTO_MAX_BYTES, HANDOVER_PHOTO_TYPES, TIME_ZONE } from '../../config.js'
 
-// ตรวจรูปก่อนส่งเพื่อความสะดวก (FR-HND-06, ASM-HND-07) หลังบ้านตรวจซ้ำจากเนื้อไฟล์เสมอ ขนาดไฟล์ตรวจใน T-28 (รอ Q-HND-10)
+// ตรวจรูปก่อนส่งเพื่อความสะดวก (FR-HND-06, ASM-HND-07) หลังบ้านตรวจซ้ำจากเนื้อไฟล์เสมอ
+// ขนาดไม่เกิน HANDOVER_PHOTO_MAX_BYTES ต่อรูป ไม่จำกัดจำนวนรูป (Q-HND-10, T-28)
 function photosValid(photos) {
-  return photos.length >= HANDOVER_MIN_PHOTOS && photos.every((p) => HANDOVER_PHOTO_TYPES.includes(p.type))
+  return (
+    photos.length >= HANDOVER_MIN_PHOTOS &&
+    photos.every((p) => HANDOVER_PHOTO_TYPES.includes(p.type) && p.size <= HANDOVER_PHOTO_MAX_BYTES)
+  )
 }
+
+const MAX_MB = HANDOVER_PHOTO_MAX_BYTES / (1024 * 1024)
 
 const fmt = (iso) => new Date(iso).toLocaleString('th-TH', { timeZone: TIME_ZONE })
 
@@ -51,7 +57,7 @@ export default function HandoverForm({ request, client = handoverApi, onBack }) 
     e.preventDefault()
     if (!canSave) return // FR-HND-02, FR-HND-03
     if (!photosValid(photos)) {
-      setError(`ต้องแนบรูปสภาพอุปกรณ์อย่างน้อย ${HANDOVER_MIN_PHOTOS} รูป เป็นไฟล์ JPG หรือ PNG`)
+      setError(`ต้องแนบรูปสภาพอุปกรณ์อย่างน้อย ${HANDOVER_MIN_PHOTOS} รูป เป็นไฟล์ JPG หรือ PNG ขนาดไม่เกิน ${MAX_MB} MB ต่อรูป`)
       return
     }
     const form = new FormData()
