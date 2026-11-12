@@ -152,11 +152,10 @@ func errorBody(code string) map[string]any {
 	return map[string]any{"code": code, "message": config.ReturnMessages[code]}
 }
 
-// unavailableBody คือ 503 ที่ลองใหม่ได้ (UPSTREAM_UNAVAILABLE ตาม CON-TECH-03)
+// unavailableBody คือ 503 UPSTREAM_UNAVAILABLE ตาม CON-TECH-03 มีแค่ code และ message
+// ไม่แนบ retryable เพราะตารางกลางไม่ได้กำหนด (rtm F-05 ทีมตัดสิน 2569-11-12 แบบเดียวกับ 003 CR-006)
 func unavailableBody() map[string]any {
-	b := errorBody("UPSTREAM_UNAVAILABLE")
-	b["retryable"] = true
-	return b
+	return errorBody("UPSTREAM_UNAVAILABLE")
 }
 
 // respond เขียน audit ของ request นี้ก่อน แล้วจึงตอบ (DOM-AUDIT-01 "ทุกครั้งที่เข้าถึง")
