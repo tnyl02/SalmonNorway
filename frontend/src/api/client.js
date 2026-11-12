@@ -2,7 +2,7 @@
 // ตอน test ให้ส่ง client จำลองเข้าไปในหน้าจอแทน ไม่ต้องรันหลังบ้านจริง
 // เรียกผ่าน /api (ดู proxy ใน vite.config.js) หลังบ้านต้องรันอยู่ที่ port 8000
 // ฟังก์ชันของแต่ละ endpoint ให้ task ของฟีเจอร์นั้นเพิ่มเอง (เช่น T-06 ของ 001)
-import { MOCK_TOKEN } from '../config.js'
+import { EQUIPMENT_REQUEST_TIMEOUT_MS, MOCK_TOKEN } from '../config.js'
 
 export const BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
@@ -74,14 +74,27 @@ async function failed(res) {
 // ทุก request ต้องยืนยันตัวตน (IF-IDP-01, NFR-SEC-01) ส่ง token จาก session จำลอง
 // cache: 'no-store' ให้เบราว์เซอร์ถามหลังบ้านทุกครั้ง ไม่ใช้ข้อมูลเก่า (NFR-DATA-01, plan.md ข้อ 6.2)
 // หลังบ้านส่ง Cache-Control: no-store มาด้วย (platform.NoStore)
-async function getJSON(path) {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: authHeaders(),
-    cache: 'no-store',
-  })
-  if (!res.ok) throw await failed(res)
-  return res.json()
+// timeoutMs (ถ้าส่งมา) คือเวลารอหลังบ้านทั้งหมดรวมการอ่าน body เกินแล้วยกเลิก request (FR-EQS-08, Q-08, T-26)
+// fetch ถูกยกเลิกจะ throw AbortError ซึ่งไม่ใช่ ApiError หน้าจอจึงแสดงข้อความเดิมพร้อมปุ่มลองใหม่ เหมือนต่อหลังบ้านไม่ได้
+// ไม่ส่ง timeoutMs = รอจนกว่าหลังบ้านตอบ (พฤติกรรมเดิม ใช้กับ request ของ 002, 003)
+async function getJSON(path, { timeoutMs } = {}) {
+  const controller = timeoutMs ? new AbortController() : null
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      headers: authHeaders(),
+      cache: 'no-store',
+      ...(controller ? { signal: controller.signal } : {}),
+    })
+    if (!res.ok) throw await failed(res)
+    return await res.json()
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
 }
+
+// EQUIPMENT_TIMEOUT ใช้กับ request ของ 001 เท่านั้น (FR-EQS-08, Q-08, ทีมตัดสิน 2569-11-12 ตอนทำ T-26)
+const EQUIPMENT_TIMEOUT = { timeoutMs: EQUIPMENT_REQUEST_TIMEOUT_MS }
 
 // postJSON ส่ง body เป็น JSON แบบเดียวกับ getJSON (token, no-store, ApiError) เพิ่มโดย 003 T-07 ฟีเจอร์อื่นใช้ร่วมได้
 async function postJSON(path, body) {
@@ -119,14 +132,39 @@ function filterQuery(filter = {}) {
 export const api = {
   // 001 FR-EQS-01, FR-EQS-02: รายการรุ่น 1 แถว = 1 รุ่น ตามตัวกรอง
   //   -> { items: [{ modelId, name, category, availableCount, totalCount }], total }
-  listModels: (filter) => getJSON(`/v1/equipment/models${filterQuery(filter)}`),
+  listModels: (filter) => getJSON(`/v1/equipment/models${filterQuery(filter)}`, EQUIPMENT_TIMEOUT),
 
   // 001 FR-EQS-01, FR-EQS-02: อุปกรณ์รายชิ้นของรุ่น ตามตัวกรองเดียวกัน -> { items: [{ assetCode, status }], total }
   listItems: (modelId, filter) =>
-    getJSON(`/v1/equipment/models/${encodeURIComponent(modelId)}/items${filterQuery(filter)}`),
+    getJSON(`/v1/equipment/models/${encodeURIComponent(modelId)}/items${filterQuery(filter)}`, EQUIPMENT_TIMEOUT),
 
   // 001 FR-EQS-04: รายละเอียดอุปกรณ์รายชิ้น -> { assetCode, status, dueAt? } (dueAt มีเฉพาะถูกยืม)
-  getItem: (assetCode) => getJSON(`/v1/equipment/items/${encodeURIComponent(assetCode)}`),
+  getItem: (assetCode) => getJSON(`/v1/equipment/items/${encodeURIComponent(assetCode)}`, EQUIPMENT_TIMEOUT),
+
+  // 001 FR-EQS-11 (T-38): คำขอยืมที่ค้างอยู่ของอุปกรณ์ชิ้นนี้ เรียก endpoint ของ 002 (FR-BRQ-05 ก, สัญญาใน CR-005)
+  //   -> [{ requestId, queuePosition, submittedAt, requesterName }] หรือ throw ApiError(403 FORBIDDEN_ROLE) เมื่อไม่ใช่เจ้าหน้าที่
+  listItemRequests: (assetCode) => getJSON(`/v1/equipment/items/${encodeURIComponent(assetCode)}/requests`),
+
+  // 004 FR-APV-01 (ก)(ข): คำขอยืมปกติที่รอพิจารณาของภาควิชาเจ้าหน้าที่ เรียงตามเวลาที่ส่ง
+  //   -> { items: [{ requestId, requesterName, studentCode, modelName, assetCode, purpose, purposeOther?,
+  //                  startAt, endAt, submittedAt, isFirst }], loadedAt }
+  getApprovalRequests: () => getJSON('/v1/approvals/requests'),
+
+  // 004 FR-APV-01 (ค): อนุมัติคำขอ ส่ง loadedAt ที่ได้จาก getApprovalRequests
+  //   -> { requestId, status, decidedAt, rejectedRequestIds }
+  approveRequest: (requestId, loadedAt) =>
+    postJSON(`/v1/approvals/requests/${encodeURIComponent(requestId)}/approve`, { loadedAt }),
+
+  // 004 FR-APV-01 (ง): ปฏิเสธคำขอพร้อมเหตุผล -> { requestId, status, decidedAt, rejectedRequestIds }
+  rejectRequest: (requestId, reason, loadedAt) =>
+    postJSON(`/v1/approvals/requests/${encodeURIComponent(requestId)}/reject`, { reason, loadedAt }),
+
+  // 004 FR-APV-02 (ง): Email ที่ส่งไม่สำเร็จของภาควิชาเจ้าหน้าที่
+  //   -> { items: [{ emailId, requestId, kind, requesterName, modelName, assetCode, attempts, lastError, lastAttemptAt }] }
+  getFailedEmails: () => getJSON('/v1/approvals/failed-emails'),
+
+  // 004 FR-APV-02 (ง): ส่ง Email ซ้ำโดยไม่พิจารณาใหม่ -> { emailId, status } (pending = เข้าคิวแล้ว)
+  resendEmail: (emailId) => postJSON(`/v1/approvals/emails/${encodeURIComponent(emailId)}/resend`, {}),
 
   // 003 FR-CXL-06: คำขอที่ยังยกเลิกได้ของผู้ใช้ที่เข้าสู่ระบบ เรียงใหม่ไปเก่า (plan.md ข้อ 4 ของ 003)
   //   -> { items: [{ requestId, modelName, assetCode, submittedAt }] }

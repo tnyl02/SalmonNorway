@@ -14,6 +14,33 @@ export const HANDOVER_PHOTO_MAX_BYTES = 10 * 1024 * 1024
 export const HANDOVER_PHOTO_TYPES = ['image/jpeg', 'image/png']
 // ---- จบ 005-handover ----
 
+// ---- 004-approve-request (specs/004-approve-request/plan.md ข้อ 5, T-02) ----
+// วางไว้ต้นไฟล์ต่อจาก 005 เพื่อไม่ชนกับฟีเจอร์อื่นที่เพิ่มค่าต่อท้ายไฟล์ตอน merge
+
+// ข้อความ error ภาษาไทยของหน้าจออนุมัติ เลือกตามรหัสใน CON-TECH-03 ไม่ใช่ตามข้อความ (FR-APV-01 ซ, ASM-07, Q-APV-18)
+// ต้องตรงกับ ApprovalMessages ใน backend/internal/config/config.go
+export const APPROVAL_MESSAGES = {
+  ITEM_NOT_AVAILABLE: 'อุปกรณ์ชิ้นนี้ไม่ได้อยู่ในสถานะว่างแล้ว อนุมัติไม่ได้',
+  REQUEST_CANCELLED: 'คำขอนี้ถูกผู้ขอยกเลิกแล้ว',
+  REQUEST_ALREADY_DECIDED: 'คำขอนี้ได้รับการพิจารณาแล้ว',
+  REQUEST_DECIDED_CONCURRENTLY: 'คำขอนี้เพิ่งถูกพิจารณาโดยเจ้าหน้าที่คนอื่น กรุณารีเฟรชหน้า',
+  NOT_FIRST_IN_QUEUE: 'ต้องพิจารณาคำขอที่ส่งก่อนหน้าของอุปกรณ์ชิ้นนี้ก่อน',
+  APPROVAL_CUTOFF_PASSED: 'เลย 16:00 น. ของวันที่ยืมแล้ว อนุมัติไม่ได้',
+  VALIDATION_FAILED: 'กรุณาระบุเหตุผลในการปฏิเสธ',
+  FORBIDDEN_ROLE: 'บทบาทของคุณไม่มีสิทธิ์ทำรายการนี้',
+  FORBIDDEN_DEPARTMENT: 'คำขอนี้เป็นของอุปกรณ์ภาควิชาอื่น คุณไม่มีสิทธิ์พิจารณา',
+  UPSTREAM_UNAVAILABLE: 'ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง',
+  REQUEST_NOT_FOUND: 'ไม่พบคำขอนี้',
+}
+// แบบของ Email ที่แสดงในรายการ "Email ที่ส่งไม่สำเร็จ" (FR-APV-02 ก ข ค, T-34) ค่า key ตรงกับ kind ของหลังบ้าน
+// ข้อความทีมออกแบบเอง ไม่ได้มาจาก spec
+export const APPROVAL_EMAIL_KIND_LABELS = {
+  approved: 'ผลอนุมัติ',
+  rejected: 'ผลปฏิเสธ',
+  auto_rejected: 'ปฏิเสธอัตโนมัติ',
+}
+// ---- จบ 004-approve-request ----
+
 // token ของผู้ใช้จำลองที่หน้าจอส่งไปกับทุก request (IF-IDP-01 ใช้ระบบยืนยันตัวตนจำลองไปก่อน รอ Q-SH-03)
 // ทีมเลือกเอง ไม่ได้มาจาก spec (ตัดสิน 2569-11-10 ตอนทำ T-06) ใช้จนกว่าจะมีหน้าล็อกอินจำลองใน T-21
 // เปลี่ยนผู้ใช้ได้ด้วย VITE_MOCK_TOKEN เช่น `VITE_MOCK_TOKEN=mock-staff-001 npm run dev`
@@ -23,6 +50,13 @@ export const MOCK_TOKEN = import.meta.env.VITE_MOCK_TOKEN ?? 'mock-student-001'
 // เขตเวลาที่ใช้แสดงวันที่และเวลา (glossary: เวลาปัจจุบัน / วันเดียวกัน เทียบด้วย Asia/Bangkok, DOM-LOAN-01)
 // 003 ใช้ค่าเดียวกันแสดงเวลาที่ส่งคำขอ (FR-CXL-06)
 export const TIME_ZONE = 'Asia/Bangkok'
+
+// ---- 001-equipment-status ----
+
+// เวลาที่หน้าจอรอหลังบ้านของ 001 (รายการรุ่น รายชิ้น รายละเอียด) เกินนี้ถือว่าดึงข้อมูลไม่สำเร็จ แสดงข้อผิดพลาดพร้อมปุ่มลองใหม่
+// (FR-EQS-08, AC-EQS-08, Q-08 ทีมตัดสิน 2569-11-12) ต้องมากกว่า EquipmentDBTimeout (5 วินาที) ใน backend/internal/config/config.go
+// เพื่อให้ได้ 503 พร้อม message จากหลังบ้านก่อน ใช้เฉพาะ request ของ 001 ไม่ใช้กับ 002, 003 (ทีมตัดสิน 2569-11-12 ตอนทำ T-26)
+export const EQUIPMENT_REQUEST_TIMEOUT_MS = 6000
 
 // ---- 003-cancel-request (plan.md ข้อ 5 ของ 003, T-03) ----
 

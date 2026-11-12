@@ -1,5 +1,5 @@
 # Implementation Plan: ตรวจสอบสถานะอุปกรณ์ (Equipment Status)
-Spec: SPEC-EQS-001 (specs/001-equipment-status/spec.md, Draft v5) | Plan status: Draft v1.7 | Updated: 2569-11-12 (CR-005 อนุมัติ: FR-EQS-11 / v1.6: CON-TECH-03, ปิด Q-16)
+Spec: SPEC-EQS-001 (specs/001-equipment-status/spec.md, Draft v5.1) | Plan status: Draft v1.8 | Updated: 2569-11-12 (v1.8: ตัวเลข timeout จาก Q-08 / v1.7: CR-005 อนุมัติ: FR-EQS-11 / v1.6: CON-TECH-03, ปิด Q-16)
 
 ## 1. Summary
 ฟีเจอร์ read-only ให้ผู้ใช้ที่ยืนยันตัวตนแล้วดูรายการอุปกรณ์แบบ "1 แถว = 1 รุ่น/ชนิด"
@@ -161,9 +161,10 @@ UC-02 ต้องตรวจสถานะซ้ำที่ฝั่งต�
 ### 6.2 ความสดของข้อมูล (NFR-DATA-01) และความทนทาน (FR-08)
 - ไม่ cache ที่ server; response ตั้ง `Cache-Control: no-store` ป้องกันเบราว์เซอร์/proxy เก็บค่าเก่า
 - ฝั่ง web: เมื่อ request ล้มเหลว ให้ล้าง state รายการเดิมทิ้งก่อนแสดง error + ปุ่มลองใหม่
-  (ห้ามใช้รูปแบบ stale-while-revalidate ที่โชว์ข้อมูลเก่า) และตั้ง timeout ของ request (เช่น 8 วินาที)
+  (ห้ามใช้รูปแบบ stale-while-revalidate ที่โชว์ข้อมูลเก่า) และตั้ง timeout ของ request 6 วินาที (Q-08 ทีมตัดสิน 2569-11-12 ค่าอยู่ใน `frontend/src/config.js`)
   เพื่อไม่ให้หน้าจอค้าง (AC-08)
-- DB query timeout ที่ server (เช่น 5 วินาที) แล้วแปลงเป็น 503
+- DB query timeout ที่ server 5 วินาที (Q-08 ค่าอยู่ใน `backend/internal/config/config.go`) แล้วแปลงเป็น 503
+  หน้าจอรอนานกว่าหลังบ้าน 1 วินาที เพื่อให้ได้ 503 พร้อม message ของ CON-TECH-03 ก่อนหน้าจอตัดเอง
 
 ### 6.3 ค้นหา/กรอง (FR-02, FR-03)
 - `q` ค้นทั้ง `equipment_model.name` และ `equipment_item.asset_code` แบบ ILIKE + trigram index

@@ -2,7 +2,6 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
- 003-cancel-request
 ## [constraints v5.2 + CR-006 แก้หลังอนุมัติ] - 2569-11-12
 เจ้าของ 002 ทักว่า `REQUEST_NOT_FOUND` มีแถวอยู่แล้ว (004 ลงทะเบียนใน branch ของ 004)
 ### Changed
@@ -35,6 +34,71 @@
 
 ### Added
 - specs/changes/CR-006.md, tasks.md T-33 (เฟส 18)
+
+## [tasks 004 v1.1 + plan 004] - 2569-11-12
+ปรับตามโค้ดของ 002 และ 005 ที่ merge จาก main ไม่ทำ CR เพราะไม่ได้เปลี่ยน spec หรือ constraint
+
+### Changed
+- `specs/004-approve-request/tasks.md` T-03: ข้อมูลตัวอย่างย้ายไป `backend/db/seed/approve_dev.sql` (seed.sql ต้องไม่มีคำขอยืม ตาม `TestSeed_BorrowRequestScenarios` ของ 002) จุดตรวจทุกเฟสอ้างไฟล์นี้
+- tasks.md T-02, T-21 และ plan.md ข้อ 5: ใช้ `LoanNormalReturnHour` และ `RequestStatuses` ของ 002 ร่วม ไม่ประกาศค่าซ้ำ
+
+## [tasks 004 v1] - 2569-11-12
+ไม่ทำ CR เพราะไม่ได้เปลี่ยน spec หรือ constraint
+
+### Added
+- `specs/004-approve-request/tasks.md` จาก /tasks: 20 เฟส 39 task (เฟส 1 ถึง 18 เฟสละ 1 AC), เฟสรอคำตอบ 3 task (T-37, T-38 รอ Q-APV-04, T-39 รอ Q-SH-03), ตารางตรวจความครบ AC / Constraint / FR
+
+## [SPEC-APV-004 Draft v2.1 + plan 004 v1.1 + CON-TECH-03 รหัสของ 004] - 2569-11-12
+ทีมตอบคำถามค้าง 8 ข้อที่พบตอนอ่าน spec และ plan (Q-APV-14 ถึง 21) ผ่านหน้าเว็บ https://claude.ai/artifact/LdTfyp1kd4ZEEpYnUhU6pc
+ไม่ทำ CR เพราะเป็นการตอบ Open Questions ภายใน spec ของ 004 (ID เดิม ไม่เพิ่ม FR) และการเพิ่มรหัสใน CON-TECH-03 ทำตามกติกาของ CON-TECH-03 เอง เหมือนตอนเพิ่ม `FORBIDDEN_ROLE`
+
+### Changed
+- `specs/004-approve-request/spec.md`: FR-APV-01 (ข) คำขอแรกที่เลย 16:00 น. ยังขวางคิว, (จ) ปฏิเสธตามรวมคำขอค้างคืน, (ฉ) เที่ยงคืนเฉพาะยืมปกติ นับจากวันที่ส่ง และไล่ปฏิเสธตอนระบบเริ่มทำงาน, (ซ) เพิ่มข้อความ `FORBIDDEN_DEPARTMENT`; FR-APV-02 (ง) ส่งครั้งแรก + ซ้ำ 3 = 4 ครั้ง; แก้ AC-APV-12, 14
+- `specs/004-approve-request/plan.md`: ข้อ 1, 3, 4, 5, 6, 7, 8 ตามคำตอบ
+- `specs/000-shared/constraints.md`: เพิ่ม 004 ในคอลัมน์ "ใครใช้แล้ว" ของ `UNAUTHENTICATED`, `FORBIDDEN_DEPARTMENT`, `VALIDATION_FAILED`, `ITEM_NOT_AVAILABLE`
+
+### Added
+- `specs/000-shared/constraints.md` CON-TECH-03: `REQUEST_CANCELLED`, `REQUEST_ALREADY_DECIDED`, `REQUEST_DECIDED_CONCURRENTLY`, `NOT_FIRST_IN_QUEUE`, `APPROVAL_CUTOFF_PASSED` (409 ทั้งหมด)
+- spec: AC-APV-17, 18 (เสนอ รอทีมอนุมัติ ID Q-APV-22), Q-APV-14 ถึง 22, Clarifications session 2569-11-12
+
+### ยังเปิด
+- Q-APV-01, Q-APV-04, Q-APV-13 (ID ของ AC-APV-16), Q-APV-22 (ID ของ AC-APV-17, 18)
+
+## [plan 004 v1] - 2569-11-11
+ไม่ทำ CR เพราะไม่ได้เปลี่ยน spec หรือ constraint
+
+### Added
+- `specs/004-approve-request/plan.md` Draft v1 จาก /plan: 8 หัวข้อ, ตารางตรวจ Constraints 8 ข้อ, ค่าที่ตั้งได้ใน config.go, แผนทดสอบ AC-APV-01 ถึง 16, ตาราง `approval_decision` และ `approval_email` เฉพาะ 004
+- รอคุยกับฟีเจอร์อื่น: รหัส error ใหม่ 5 ตัวใน CON-TECH-03, ค่า action ใน DM-07 (001), เลข migration, ชื่อและ Email จากระบบยืนยันตัวตน (Q-APV-04)
+
+## [SPEC-APV-004 Draft v2 + CON-TECH-03 FORBIDDEN_ROLE] - 2569-11-11
+อัปเดตจาก /clarify 3 รอบของ Draft v1 ไม่ทำ CR เพราะเป็นการเปลี่ยนก่อนผ่าน Draft v2 และการเพิ่มรหัสใน CON-TECH-03 ทำตามกติกาของ CON-TECH-03 เอง ("เพิ่มแถวในตารางนี้ก่อนใช้")
+
+### Changed
+- `specs/004-approve-request/spec.md`: FR-APV-01 (หน้ารายการ, ลำดับ, เงื่อนไขอนุมัติ, เหตุผลการปฏิเสธ, ปฏิเสธคำขออื่นอัตโนมัติ, ปฏิเสธอัตโนมัติตอนเที่ยงคืน, กดพร้อมกัน, ข้อความ error, ประวัติ) และ FR-APV-02 (60 วินาที, Email 3 แบบ, ส่งไม่สำเร็จ) ID เดิม; แก้ AC-APV-01 ถึง 05
+
+### Added
+- AC-APV-06 ถึง 15 (เสนอ รอทีมอนุมัติ ID), ASM-04 ถึง 09, Q-APV-11, Q-APV-12, หัวข้อ Clarifications
+- `specs/000-shared/constraints.md`: รหัส `FORBIDDEN_ROLE` (403) ในตาราง CON-TECH-03
+
+### ยังเปิด
+- Q-APV-01 รับคำขอค้างคืน (ขัดกับ README, SRS 3.1.7, RQ-15, data-model.md, FR-BRQ-01 ต้องเข้าที่ประชุมทีม), Q-APV-04 Email ผู้ขอ (รอ 002)
+
+## [SPEC-APV-004 Draft v1 + shared references 004] - 2569-11-11
+เริ่ม 004 ใหม่จากศูนย์บน branch ใหม่ตามที่เจ้าของ 004 สั่ง (งานเดิมอยู่ที่ branch `004-approve-request-old`) ไม่ทำ CR เพราะเป็น Draft v1 และเพิ่มเฉพาะรายการอ้างอิงในตาราง "ใครอ้างใช้บ้าง" โดยไม่เปลี่ยนเนื้อหา constraint
+
+### Added
+- `specs/004-approve-request/spec.md` Draft v1: FR-APV-01, FR-APV-02, AC-APV-01 ถึง 05 (ID รอทีมอนุมัติ), Q-APV-01 ถึง 10
+- `specs/000-shared/constraints.md`: เพิ่ม 004-approve-request ในแถว CON-TECH-01, 02, 03, CON-DATA-01, DOM-REQ-01, DOM-LOAN-01, IF-IDP-01, IF-NOT-01
+## [SPEC-EQS-001 Draft v5.1 + plan v1.8 + tasks v2.3] - 2569-11-12
+ทีมตัดสิน Q-08 (ตัวเลข timeout) ไม่มี CR เพราะเพิ่มตัวเลขที่ spec ยังไม่บอก ไม่เปลี่ยนข้อความ FR หรือ AC
+
+### Changed
+- spec Q-08: ปิดแล้ว หลังบ้านรอฐานข้อมูล 5 วินาที แล้วตอบ 503 `UPSTREAM_UNAVAILABLE` หน้าจอรอหลังบ้าน 6 วินาที (FR-EQS-08, AC-EQS-08)
+  เพิ่ม Clarifications Session 2569-11-12 (v5.1)
+- plan v1.8 ข้อ 6.2: เปลี่ยน "เช่น 8 วินาที" / "เช่น 5 วินาที" เป็นค่าที่ตัดสินแล้ว (หน้าจอ 6 วินาที หลังบ้าน 5 วินาที)
+- tasks v2.3: T-26 จาก "รอ Q-08" เป็น "พร้อมทำ" พร้อมเงื่อนไขเสร็จที่มีตัวเลข
+- SRS 4.3: แถว FR-EQS-08 บันทึกว่า Q-08 ปิดแล้ว / specs/README.md: เวอร์ชันของ 001
 
 ## [SPEC-EQS-001 Draft v5 + plan v1.7 + tasks v2.2] - 2569-11-12
 CR-005 ตัดสินแล้ว (รับทั้งหมด 2569-11-12) ดู [CR-005](changes/CR-005.md)
@@ -184,7 +248,6 @@ UC-15 ยกเลิกคำขอยืม (RQ-03, BL-20) ฉบับแร�
 ### Added
 - specs/003-cancel-request/spec.md: FR-CXL-01 ถึง FR-CXL-05, AC-CXL-01 ถึง AC-CXL-07, CON-CXL-01, CON-CXL-02, Q-01 ถึง Q-10
 - constraints.md ตาราง "ใครอ้างใช้บ้าง": เพิ่ม 003-cancel-request ที่ CON-TECH-01, CON-TECH-02, CON-DATA-01, DOM-REQ-01, IF-IDP-01
-=======
 ## [SPEC-EQS-001 Draft v4.4 + plan v1.6 + tasks v2.1] - 2569-11-11
 ตามการตัดสินของทีมหลัง PR ของ 002 (CR-003, CR-004) เป็น clarification ไม่ทำ CR เพราะไม่ได้เปลี่ยน FR/AC เดิม
 ส่วนที่ต้องเพิ่ม FR (Q-SH-05) แยกไปเสนอใน CR-005 ยังไม่แก้ spec จนกว่าทีมอนุมัติ
@@ -203,7 +266,6 @@ UC-15 ยกเลิกคำขอยืม (RQ-03, BL-20) ฉบับแร�
 
 ### Pending
 - 404 และ 405 ยังไม่มีรหัสในรายการกลางของ CON-TECH-03 ต้องให้ทีมเพิ่มก่อน
- main
 
 ## [SPEC-HND-005 Draft v2.6 + plan v1.4 + tasks v1.4 + constraints v5.1] - 2569-11-11
 ทีมตอบคำถามที่เปิดค้าง (Banlu C) เป็นการตัดสินของทีม ยังไม่ได้ถามผู้ใช้จริง ไม่ทำ CR เพราะตอบ Open Question ไม่เปลี่ยนพฤติกรรมที่ตกลงแล้ว

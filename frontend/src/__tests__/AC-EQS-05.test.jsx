@@ -40,6 +40,8 @@ test('AC-EQS-05 รับคืนแล้ว กดรีเฟรชเห็
   expect(screen.queryByText('กำหนดคืน')).toBeNull()
 
   // Then: ถามหลังบ้านใหม่ทุกครั้ง และบอกเบราว์เซอร์ไม่ให้ใช้ cache (NFR-DATA-01)
-  expect(calls).toHaveLength(2)
+  // นับเฉพาะ request ของรายละเอียด เพราะหน้าเรียกคำขอที่ค้างอยู่ (FR-EQS-11, T-38) ด้วย ทีมตัดสิน 2569-11-12
+  const detail = calls.filter((c) => c.url.endsWith('/items/CS-NB-0004'))
+  expect(detail).toHaveLength(2)
   for (const c of calls) expect(c.opts.cache).toBe('no-store')
 })
