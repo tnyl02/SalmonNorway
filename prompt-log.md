@@ -5059,3 +5059,11 @@ CR-005 เขียนสัญญา API ไว้ครบ ยกเว้น�
   และกรณีข้อมูลไม่ครบตรวจด้วยว่า outcome เป็น forbidden และมีรหัสครุภัณฑ์
 - `go test ./... -count=1`: ทุกแพ็กเกจ ok (10 แพ็กเกจ)
 - `go vet ./internal/borrowrequest/`: ไม่มีข้อความเตือน
+
+### ทีมลอง T-24 เองด้วยมือ (2569-11-12)
+
+- ผู้ลอง: ธัญลักษณ์ ด. (@tnyl02) เวลา 19:42 น. ตรวจผลจากฐานข้อมูลโดยตรง
+- ยิง POST ที่ไม่ใส่ `studentCode`: 422 -> `audit_log` id 6 outcome `forbidden` asset_code CS-NB-0003
+- ยิงยืมค้างคืนแนบไฟล์ `.txt` (ผิดชนิด): 422 -> `audit_log` id 7 outcome `forbidden` asset_code CS-NB-0003
+- `borrow_request` ของ student-001 เหลือ **0 แถว** คือบันทึก audit ได้โดยไม่สร้างคำขอ
+- ยืนยันว่าตอนนี้ทุกทางออกของ POST /v1/loan-requests มี audit ครบ: 201, 403, 409, 422 และ 503
