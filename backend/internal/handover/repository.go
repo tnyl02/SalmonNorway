@@ -8,7 +8,14 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"salmonnorway/backend/internal/audit"
+	"salmonnorway/backend/internal/auth"
 )
+
+// auditActionHandover คือค่า action ของ audit_log สำหรับการส่งมอบ (DM-07, FR-HND-08, Q-HND-06 ปิด 2569-11-12)
+// อยู่ใน CHECK ด้วย migration 0009 ของ 005
+const auditActionHandover = "handover"
 
 // ค่าสถานะในฐานข้อมูลที่ 005 อ่านและเขียน (CON-DATA-01, data-model.md ตารางสถานะของคำขอยืม)
 const (
@@ -54,8 +61,8 @@ type HandoverRecord struct {
 	RequestID         int
 	BorrowerUserID    string    // รหัสผู้ใช้ที่ยืนยันตัวตนแล้ว เก็บใน loan.borrower_id (DM-05)
 	BorrowerStudentID string    // FR-HND-03
-	BorrowerFirstName string    // FR-HND-03 (ที่มารอ Q-HND-13)
-	BorrowerLastName  string    // FR-HND-03 (ที่มารอ Q-HND-13)
+	BorrowerFirstName string    // FR-HND-03 เจ้าหน้าที่พิมพ์ตามบัตร (ASM-HND-10)
+	BorrowerLastName  string    // FR-HND-03 เจ้าหน้าที่พิมพ์ตามบัตร (ASM-HND-10)
 	IdentityMethod    string    // FR-HND-02: auth_api หรือ card_only
 	CardChecked       bool      // FR-HND-03
 	HandedOverBy      string    // รหัสเจ้าหน้าที่ (CON-HND-01)
@@ -150,6 +157,20 @@ func (r *Repository) CreateHandover(ctx context.Context, rec HandoverRecord, rea
 		`UPDATE borrow_request SET status = $2 WHERE id = $1`, rec.RequestID, requestStatusHandedOver,
 	); err != nil {
 		return HandoverResult{}, fmt.Errorf("update request: %w", err)
+	}
+
+	// FR-HND-08, DOM-AUDIT-01: audit log ของการส่งมอบสำเร็จ เขียนใน transaction เดียวกัน (writer.go ของ 001 รับ tx ได้)
+	// ถ้าเขียน audit ไม่ได้ การส่งมอบจะไม่ถูกบันทึก จึงไม่มีการส่งมอบที่สำเร็จโดยไม่มี audit log
+	requestID := rec.RequestID
+	if _, err := audit.Write(ctx, tx, audit.Entry{
+		ActorID:   rec.HandedOverBy,
+		ActorRole: string(auth.RoleStaff), // CON-HND-01 ผู้บันทึกการส่งมอบเป็นเจ้าหน้าที่เท่านั้น
+		Action:    auditActionHandover,
+		AssetCode: res.AssetCode, // CON-DATA-03
+		RequestID: &requestID,
+		Outcome:   audit.OutcomeOK,
+	}); err != nil {
+		return HandoverResult{}, fmt.Errorf("write audit log: %w", err)
 	}
 
 	// FR-HND-06: เขียนรูปลงดิสก์ก่อน commit แล้วบันทึก path ผูกกับการยืมนี้

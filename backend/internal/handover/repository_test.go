@@ -197,10 +197,19 @@ func TestHandover_ConcurrentSameItem(t *testing.T) {
 		if _, err := pool.Exec(ctx, `DELETE FROM loan WHERE item_id = $1`, itemID); err != nil {
 			t.Errorf("ลบข้อมูลทดสอบไม่สำเร็จ: %v", err)
 		}
-		if _, err := pool.Exec(ctx, `DELETE FROM borrow_request WHERE id IN ($1, $2)`, reqA, reqB); err != nil {
-			t.Errorf("ลบข้อมูลทดสอบไม่สำเร็จ: %v", err)
+		// audit_log เป็น append-only และอ้าง borrow_request (T-26) คำขอที่มี audit log แล้วลบไม่ได้ ตั้งเป็น cancelled แทน
+		for _, q := range []string{
+			`UPDATE borrow_request SET status = 'cancelled'
+			 WHERE id IN ($1, $2) AND EXISTS (SELECT 1 FROM audit_log a WHERE a.request_id = borrow_request.id)`,
+			`DELETE FROM borrow_request
+			 WHERE id IN ($1, $2) AND NOT EXISTS (SELECT 1 FROM audit_log a WHERE a.request_id = borrow_request.id)`,
+		} {
+			if _, err := pool.Exec(ctx, q, reqA, reqB); err != nil {
+				t.Errorf("ลบข้อมูลทดสอบไม่สำเร็จ: %v", err)
+			}
 		}
-		if _, err := pool.Exec(ctx, `DELETE FROM equipment_item WHERE id = $1`, itemID); err != nil {
+		if _, err := pool.Exec(ctx,
+			`DELETE FROM equipment_item WHERE id = $1 AND NOT EXISTS (SELECT 1 FROM borrow_request WHERE item_id = $1)`, itemID); err != nil {
 			t.Errorf("ลบข้อมูลทดสอบไม่สำเร็จ: %v", err)
 		}
 	})

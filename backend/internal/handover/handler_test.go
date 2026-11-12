@@ -101,8 +101,28 @@ func createItem(t *testing.T, pool *pgxpool.Pool, assetCode, status string) int 
 		for _, q := range []string{
 			`DELETE FROM handover_photo WHERE loan_id IN (SELECT id FROM loan WHERE item_id = $1)`,
 			`DELETE FROM handover WHERE loan_id IN (SELECT id FROM loan WHERE item_id = $1)`,
-			`DELETE FROM audit_log WHERE request_id IN (SELECT id FROM borrow_request WHERE item_id = $1)`,
 			`DELETE FROM loan WHERE item_id = $1`,
+		} {
+			if _, err := pool.Exec(ctx, q, id); err != nil {
+				t.Errorf("ลบข้อมูลทดสอบไม่สำเร็จ: %v", err)
+			}
+		}
+		// audit_log เป็น append-only (trigger ใน 0002) ลบแถวไม่ได้ และอ้าง borrow_request ด้วย foreign key
+		// คำขอที่มี audit log แล้วจึงลบไม่ได้ ตั้งเป็น cancelled แทน ไม่ให้ค้างในรายการรอส่งมอบของ test อื่น (AC-HND-14)
+		var audited bool
+		if err := pool.QueryRow(ctx,
+			`SELECT EXISTS (SELECT 1 FROM audit_log WHERE request_id IN (SELECT id FROM borrow_request WHERE item_id = $1))`,
+			id).Scan(&audited); err != nil {
+			t.Errorf("ตรวจ audit_log ไม่สำเร็จ: %v", err)
+			return
+		}
+		if audited {
+			if _, err := pool.Exec(ctx, `UPDATE borrow_request SET status = 'cancelled' WHERE item_id = $1`, id); err != nil {
+				t.Errorf("ปิดคำขอทดสอบไม่สำเร็จ: %v", err)
+			}
+			return
+		}
+		for _, q := range []string{
 			`DELETE FROM borrow_request WHERE item_id = $1`,
 			`DELETE FROM equipment_item WHERE id = $1`,
 		} {
@@ -600,9 +620,9 @@ func dirEntries(t *testing.T) int {
 	return len(entries)
 }
 
-// AC-HND-12 (FR-HND-06) กรณี (ก) 1 รูป และ (ข) GIF ส่วน (ค) 11 MB รอ Q-HND-10 (T-28)
+// AC-HND-12 (FR-HND-06) กรณี (ก) 1 รูป (ข) GIF (T-21) และ (ค) 11 MB (T-28, 10 MB ต่อรูป ตาม Q-HND-10)
 // Given คำขอยืมแบบปกติที่ได้รับอนุมัติแล้ว
-// When  เจ้าหน้าที่บันทึกการส่งมอบโดยแนบรูป (ก) 1 รูป หรือ (ข) ไฟล์ GIF
+// When  เจ้าหน้าที่บันทึกการส่งมอบโดยแนบรูป (ก) 1 รูป หรือ (ข) ไฟล์ GIF หรือ (ค) รูปขนาด 11 MB
 // Then  ระบบไม่บันทึกการส่งมอบในทุกกรณี และไม่มี Loan ถูกสร้าง (และไม่มีไฟล์ค้างบนดิสก์ T-21)
 func TestAC_HND_12_InvalidPhotos(t *testing.T) {
 	pool := testPool(t)
@@ -616,6 +636,7 @@ func TestAC_HND_12_InvalidPhotos(t *testing.T) {
 		{"ก_1_รูป", []photoFile{{"1.jpg", "image/jpeg", testJPEG(1024)}}},
 		{"ข_GIF", []photoFile{{"1.jpg", "image/jpeg", testJPEG(1024)}, {"2.gif", "image/gif", gif}}},
 		{"ข_GIF_ตั้งชื่อเป็น_jpg", []photoFile{{"1.jpg", "image/jpeg", testJPEG(1024)}, {"2.jpg", "image/jpeg", gif}}},
+		{"ค_11_MB", []photoFile{{"1.jpg", "image/jpeg", testJPEG(1024)}, {"2.jpg", "image/jpeg", testJPEG(11 << 20)}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			itemID := createItem(t, pool, "T12-PH-000"+strconv.Itoa(i+1), "available")
@@ -708,7 +729,8 @@ func TestAC_HND_09_StudentForbidden(t *testing.T) {
 // Given คำขอยืมแบบปกติที่ได้รับอนุมัติแล้ว
 // When  เจ้าหน้าที่บันทึกการส่งมอบเมื่อ 2569-11-12 เวลา 16:30 น. (Asia/Bangkok)
 // Then  ระบบบันทึกการส่งมอบ การยืมนั้นมีเวลาที่ส่งมอบ 2569-11-12 16:30 น. และอุปกรณ์มีสถานะ "ถูกยืม"
-// ไม่ตรวจกำหนดคืน จนกว่าจะตอบ Q-HND-03 (spec สั่งห้ามเขียน test ส่วนนี้)
+//
+//	และกำหนดคืน 2569-11-13 16:00 น. (Q-HND-03 ปิดแล้ว, T-25)
 func TestAC_HND_11_HandoverAfter1600(t *testing.T) {
 	pool := testPool(t)
 	itemID := createItem(t, pool, "T11-AF-0001", "available")
@@ -719,15 +741,278 @@ func TestAC_HND_11_HandoverAfter1600(t *testing.T) {
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
 	}
-	var handedOverAt time.Time
+	var handedOverAt, dueAt time.Time
 	if err := pool.QueryRow(context.Background(),
-		`SELECT handed_over_at FROM handover WHERE request_id = $1`, requestID).Scan(&handedOverAt); err != nil {
+		`SELECT h.handed_over_at, l.due_at FROM handover h JOIN loan l ON l.id = h.loan_id WHERE h.request_id = $1`,
+		requestID).Scan(&handedOverAt, &dueAt); err != nil {
 		t.Fatal(err)
 	}
 	if !handedOverAt.Equal(at) {
 		t.Errorf("เวลาที่ส่งมอบ = %v ต้องเป็น %v", handedOverAt.In(at.Location()), at)
 	}
+	if want := bangkok(t, 2026, time.November, 13, 16, 0); !dueAt.Equal(want) {
+		t.Errorf("กำหนดคืน = %v ต้องเป็น %v", dueAt.In(at.Location()), want)
+	}
 	if s := statusOf(t, pool, "equipment_item", itemID); s != "borrowed" {
 		t.Errorf("สถานะอุปกรณ์ = %q ต้องเป็น borrowed", s)
 	}
+}
+
+// T-30 เสร็จเมื่อ: ส่งมอบคำขอค้างคืนได้ loan_type = overnight และ due_at = 16:00 ของวันสิ้นสุดการยืม (FR-HND-05, Q-SH-04, Q-HND-07)
+// spec ยังไม่มี AC ของค้างคืน (tasks.md T-30) และ 004 ยังไม่ทำ UC-14 จึงตั้งคำขอค้างคืน approved เอง
+// end_at 2569-11-14 01:00 Asia/Bangkok = 2569-11-13 ใน UTC ใช้ตรวจว่าวันที่นับตาม Asia/Bangkok
+func TestHandover_OvernightDueAt(t *testing.T) {
+	pool := testPool(t)
+	itemID := createItem(t, pool, "T30-ON-0001", "available")
+	endAt := bangkok(t, 2026, time.November, 14, 1, 0)
+	var requestID int
+	if err := pool.QueryRow(context.Background(),
+		`INSERT INTO borrow_request (requester_id, requester_name, student_code, item_id, loan_type, purpose, start_at, end_at, status)
+		 VALUES ('student-001', 'ผู้ขอทดสอบ', 'student-001', $1, 'overnight', 'study', now(), $2, 'approved') RETURNING id`,
+		itemID, endAt).Scan(&requestID); err != nil {
+		t.Fatalf("เพิ่มคำขอค้างคืนไม่สำเร็จ: %v", err)
+	}
+
+	rec := postHandover(t, routesAt(pool, bangkok(t, 2026, time.November, 12, 10, 0)), tokenStaff, requestID, validForm(tokenStudentA), twoJPEGs())
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
+	}
+	var loanType string
+	var dueAt time.Time
+	if err := pool.QueryRow(context.Background(),
+		`SELECT l.loan_type, l.due_at FROM handover h JOIN loan l ON l.id = h.loan_id WHERE h.request_id = $1`,
+		requestID).Scan(&loanType, &dueAt); err != nil {
+		t.Fatal(err)
+	}
+	want := bangkok(t, 2026, time.November, 14, 16, 0)
+	if loanType != "overnight" || !dueAt.Equal(want) {
+		t.Errorf("loan_type = %q กำหนดคืน = %v ต้องเป็น overnight และ %v", loanType, dueAt.In(want.Location()), want)
+	}
+}
+
+// auditRow คือแถว audit_log ของการส่งมอบ 1 แถว (DM-07)
+type auditRow struct {
+	actorID, actorRole, assetCode, outcome string
+	occurredAt                             time.Time
+}
+
+// handoverAudits คืนแถว audit_log action handover ของคำขอ requestID เรียงตามเวลา (FR-HND-08)
+func handoverAudits(t *testing.T, pool *pgxpool.Pool, requestID int) []auditRow {
+	t.Helper()
+	rows, err := pool.Query(context.Background(),
+		`SELECT actor_id, actor_role, COALESCE(asset_code, ''), outcome, occurred_at
+		 FROM audit_log WHERE action = 'handover' AND request_id = $1 ORDER BY id`, requestID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var out []auditRow
+	for rows.Next() {
+		var r auditRow
+		if err := rows.Scan(&r.actorID, &r.actorRole, &r.assetCode, &r.outcome, &r.occurredAt); err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+// AC-HND-08 (FR-HND-08, DOM-AUDIT-01)
+// Given เจ้าหน้าที่บันทึกการส่งมอบ (ทั้งสำเร็จและไม่สำเร็จ Q-HND-14 ปิดแล้ว)
+// When  การบันทึกเสร็จสิ้น
+// Then  มี audit log ที่ระบุผู้ทำ เวลา รหัสครุภัณฑ์ รหัสคำขอยืม และผลลัพธ์
+// subtest สำเร็จ (T-26) กรณีไม่สำเร็จอยู่ใน T-27
+func TestAC_HND_08_AuditLogged(t *testing.T) {
+	pool := testPool(t)
+	h := routesOnly(pool)
+
+	t.Run("สำเร็จ", func(t *testing.T) {
+		itemID := createItem(t, pool, "T08-OK-0001", "available")
+		requestID := createRequest(t, pool, "student-001", itemID, "approved")
+		before := time.Now().Add(-time.Second)
+
+		rec := postHandover(t, h, tokenStaff, requestID, validForm(tokenStudentA), twoJPEGs())
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
+		}
+		got := handoverAudits(t, pool, requestID)
+		if len(got) != 1 {
+			t.Fatalf("audit log ของการส่งมอบ = %d แถว ต้องเป็น 1: %+v", len(got), got)
+		}
+		r := got[0]
+		if r.actorID != "staff-001" || r.actorRole != "staff" || r.assetCode != "T08-OK-0001" || r.outcome != "ok" {
+			t.Errorf("audit log = %+v ต้องเป็นของ staff-001 อุปกรณ์ T08-OK-0001 ผล ok", r)
+		}
+		if r.occurredAt.Before(before) || r.occurredAt.After(time.Now().Add(time.Second)) {
+			t.Errorf("เวลาใน audit log = %v ต้องเป็นเวลาที่บันทึกจริง", r.occurredAt)
+		}
+	})
+
+	// T-27: ไม่สำเร็จ เจ้าหน้าที่ถูกปฏิเสธด้วยเหตุใดก็ตาม outcome error (ทีมตัดสิน 2569-11-12)
+	notChecked := validForm(tokenStudentA)
+	notChecked["cardChecked"] = "false"
+	for i, tc := range []struct {
+		name     string
+		item     string // สถานะอุปกรณ์
+		form     map[string]string
+		wantHTTP int
+	}{
+		{"ไม่สำเร็จ_อุปกรณ์ไม่ว่าง", "unavailable", validForm(tokenStudentA), http.StatusConflict},
+		{"ไม่สำเร็จ_ไม่ยืนยันการตรวจบัตร", "available", notChecked, http.StatusUnprocessableEntity},
+		{"ไม่สำเร็จ_ผู้ยืมไม่ใช่ผู้ส่งคำขอ", "available", validForm(tokenStudentB), http.StatusConflict},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assetCode := "T08-ER-000" + strconv.Itoa(i+1)
+			requestID := createRequest(t, pool, "student-001", createItem(t, pool, assetCode, tc.item), "approved")
+
+			rec := postHandover(t, h, tokenStaff, requestID, tc.form, twoJPEGs())
+			if rec.Code != tc.wantHTTP {
+				t.Fatalf("HTTP %d ต้องเป็น %d: %s", rec.Code, tc.wantHTTP, rec.Body.String())
+			}
+			got := handoverAudits(t, pool, requestID)
+			if len(got) != 1 {
+				t.Fatalf("audit log ของการส่งมอบ = %d แถว ต้องเป็น 1: %+v", len(got), got)
+			}
+			if r := got[0]; r.actorID != "staff-001" || r.actorRole != "staff" || r.assetCode != assetCode || r.outcome != "error" || r.occurredAt.IsZero() {
+				t.Errorf("audit log = %+v ต้องเป็นของ staff-001 อุปกรณ์ %s ผล error", r, assetCode)
+			}
+		})
+	}
+
+	// T-27: นักศึกษาเรียกบันทึกการส่งมอบ (AC-HND-09) outcome forbidden / เรียกยืนยันผู้ยืมไม่ใช่การส่งมอบ ไม่เขียน
+	t.Run("ไม่สำเร็จ_นักศึกษาเรียกเอง", func(t *testing.T) {
+		requestID := createRequest(t, pool, "student-001", createItem(t, pool, "T08-FB-0001", "available"), "approved")
+
+		if rec := doJSON(h, http.MethodPost, verifyPath(requestID), tokenStudentA, `{"borrowerCredential":"`+tokenStudentA+`"}`); rec.Code != http.StatusForbidden {
+			t.Fatalf("verify-borrower โดยนักศึกษา: HTTP %d ต้องเป็น 403", rec.Code)
+		}
+		if got := handoverAudits(t, pool, requestID); len(got) != 0 {
+			t.Fatalf("verify-borrower ไม่ใช่การส่งมอบ ต้องไม่มี audit log แต่มี %+v", got)
+		}
+
+		rec := postHandover(t, h, tokenStudentA, requestID, validForm(tokenStudentA), twoJPEGs())
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("HTTP %d ต้องเป็น 403", rec.Code)
+		}
+		got := handoverAudits(t, pool, requestID)
+		if len(got) != 1 {
+			t.Fatalf("audit log ของการส่งมอบ = %d แถว ต้องเป็น 1: %+v", len(got), got)
+		}
+		if r := got[0]; r.actorID != "student-001" || r.actorRole != "student" || r.assetCode != "T08-FB-0001" || r.outcome != "forbidden" {
+			t.Errorf("audit log = %+v ต้องเป็นของ student-001 อุปกรณ์ T08-FB-0001 ผล forbidden", r)
+		}
+	})
+}
+
+// hangingVerifier จำลอง Auth API ที่ไม่ตอบ: ค้างจนกว่า ctx จะหมดเวลา (AC-HND-03)
+type hangingVerifier struct{}
+
+func (hangingVerifier) VerifyBorrower(ctx context.Context, _ string) (string, error) {
+	<-ctx.Done()
+	return "", ctx.Err()
+}
+
+// testAuthTimeout คือ BorrowerAuthTimeout แบบสั้นใน test แทน 10 วินาทีจริง (plan.md ข้อ 6)
+const testAuthTimeout = 50 * time.Millisecond
+
+// routesWithVerifier คือ router ที่ใช้ verifier ที่กำหนด ห่อด้วย WithTimeout เหมือน NewHandler
+func routesWithVerifier(db DB, v BorrowerVerifier) http.Handler {
+	h := newHandler(db, WithTimeout(v, testAuthTimeout), NewPhotoStore(testPhotoRoot), time.Now)
+	return auth.Middleware(auth.NewMockProvider(), h.Routes())
+}
+
+// AC-HND-03 (FR-HND-02, FR-HND-03)
+// Given คำขอยืมแบบปกติที่ได้รับอนุมัติแล้ว และ Auth API ไม่ตอบภายใน 10 วินาที
+// When  เจ้าหน้าที่ยืนยันว่าตรวจบัตรแล้ว และบันทึกการส่งมอบ
+// Then  ระบบบันทึกการส่งมอบได้โดยใช้ผลการตรวจบัตร
+//
+//	ถ้าเจ้าหน้าที่ไม่ยืนยันการตรวจบัตร ระบบไม่บันทึกการส่งมอบ
+//
+// รหัสผู้ยืมของกรณี card_only = requester_id ของคำขอ (ทีมตัดสิน 2569-11-12 ตอน /implement T-13)
+func TestAC_HND_03_AuthApiTimeoutCardOnly(t *testing.T) {
+	pool := testPool(t)
+	h := routesWithVerifier(pool, hangingVerifier{})
+
+	t.Run("verify_borrower ได้ unavailable", func(t *testing.T) {
+		requestID := createRequest(t, pool, "student-001", createItem(t, pool, "T03-VB-0001", "available"), "approved")
+		start := time.Now()
+		rec := doJSON(h, http.MethodPost, verifyPath(requestID), tokenStaff, `{"borrowerCredential":"`+tokenStudentA+`"}`)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
+		}
+		var got VerifyBorrowerResult
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatal(err)
+		}
+		if got.Result != "unavailable" {
+			t.Errorf("ผล = %+v ต้องเป็น unavailable", got)
+		}
+		if waited := time.Since(start); waited > time.Second {
+			t.Errorf("รอ %v ต้องหยุดรอที่ timeout", waited)
+		}
+	})
+
+	t.Run("ตรวจบัตรแล้ว บันทึกด้วย card_only", func(t *testing.T) {
+		itemID := createItem(t, pool, "T03-HO-0001", "available")
+		requestID := createRequest(t, pool, "student-001", itemID, "approved")
+
+		rec := postHandover(t, h, tokenStaff, requestID, validForm(tokenStudentA), twoJPEGs())
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
+		}
+		var method, studentID, borrowerID string
+		if err := pool.QueryRow(context.Background(),
+			`SELECT h.identity_method, h.borrower_student_id, l.borrower_id
+			 FROM handover h JOIN loan l ON l.id = h.loan_id WHERE h.request_id = $1`, requestID).Scan(&method, &studentID, &borrowerID); err != nil {
+			t.Fatalf("ไม่พบการส่งมอบ: %v", err)
+		}
+		if method != "card_only" || studentID != "student-001" || borrowerID != "student-001" {
+			t.Errorf("identity_method = %q รหัสนักศึกษา = %q ผู้ยืม = %q ต้องเป็น card_only ของ student-001", method, studentID, borrowerID)
+		}
+		if s := statusOf(t, pool, "equipment_item", itemID); s != "borrowed" {
+			t.Errorf("สถานะอุปกรณ์ = %q ต้องเป็น borrowed", s)
+		}
+	})
+
+	t.Run("ไม่ยืนยันการตรวจบัตร ไม่บันทึก", func(t *testing.T) {
+		itemID := createItem(t, pool, "T03-HO-0002", "available")
+		requestID := createRequest(t, pool, "student-001", itemID, "approved")
+		form := validForm(tokenStudentA)
+		form["cardChecked"] = "false"
+
+		rec := postHandover(t, h, tokenStaff, requestID, form, twoJPEGs())
+		var e ErrorDTO
+		_ = json.Unmarshal(rec.Body.Bytes(), &e)
+		if rec.Code != http.StatusUnprocessableEntity || e.Code != "VALIDATION_FAILED" || len(e.Fields) != 1 || e.Fields[0] != "cardChecked" {
+			t.Fatalf("HTTP %d %+v ต้องเป็น 422 VALIDATION_FAILED ช่อง cardChecked", rec.Code, e)
+		}
+		if n := countLoans(t, pool, itemID); n != 0 {
+			t.Errorf("มี Loan %d รายการ ต้องไม่มี", n)
+		}
+		if s := statusOf(t, pool, "equipment_item", itemID); s != "available" {
+			t.Errorf("สถานะอุปกรณ์ = %q ต้องเป็น available", s)
+		}
+	})
+
+	t.Run("Auth API ตอบทันเวลา ยังใช้ auth_api", func(t *testing.T) {
+		itemID := createItem(t, pool, "T03-HO-0003", "available")
+		requestID := createRequest(t, pool, "student-001", itemID, "approved")
+		fast := routesWithVerifier(pool, NewMockBorrowerVerifier(auth.NewMockProvider()))
+
+		rec := postHandover(t, fast, tokenStaff, requestID, validForm(tokenStudentA), twoJPEGs())
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
+		}
+		var method string
+		if err := pool.QueryRow(context.Background(),
+			`SELECT identity_method FROM handover WHERE request_id = $1`, requestID).Scan(&method); err != nil {
+			t.Fatal(err)
+		}
+		if method != "auth_api" {
+			t.Errorf("identity_method = %q ต้องเป็น auth_api", method)
+		}
+	})
 }

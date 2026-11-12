@@ -277,11 +277,14 @@ func getenv(key, fallback string) string {
 // แล้วใช้ผลการตรวจบัตรแทน (FR-HND-02, ASM-HND-02, IF-IDP-01)
 const BorrowerAuthTimeout = 10 * time.Second
 
+// LoanOvernightReturnHour คือชั่วโมงที่ต้องคืนของการยืมแบบค้างคืน = 16:00 ของวันสิ้นสุดการยืมที่ผู้ขอระบุ
+// (FR-HND-05, Q-SH-04, Q-HND-07 ปิด 2569-11-12, T-30) เป็นค่าเดียวกับ DOM-LOAN-01 จึงอ้าง LoanNormalReturnHour ของ 002 ไม่ประกาศเลขซ้ำ
+const LoanOvernightReturnHour = LoanNormalReturnHour
+
 // HandoverMinPhotos คือจำนวนรูปสภาพอุปกรณ์ขั้นต่ำที่ต้องแนบตอนส่งมอบ (FR-HND-06, ASM-HND-07)
 const HandoverMinPhotos = 2
 
-// HandoverPhotoMaxBytes คือขนาดไฟล์รูปสูงสุด 10 MB (FR-HND-06, ASM-HND-07)
-// นับต่อรูปหรือรวมทุกรูป รอ Q-HND-10 (ใช้ใน T-28)
+// HandoverPhotoMaxBytes คือขนาดไฟล์รูปสูงสุด 10 MB ต่อรูป ไม่จำกัดจำนวนรูป (FR-HND-06, ASM-HND-07, Q-HND-10 ปิด 2569-11-12)
 const HandoverPhotoMaxBytes = 10 << 20
 
 // HandoverPhotoTypes คือชนิดไฟล์รูปที่รับ JPG และ PNG (FR-HND-06, ASM-HND-07)
