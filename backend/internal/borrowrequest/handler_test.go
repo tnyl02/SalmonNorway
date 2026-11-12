@@ -17,6 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"salmonnorway/backend/internal/auth"
 	"salmonnorway/backend/internal/config"
 )
@@ -940,5 +942,77 @@ func TestSafeFileName(t *testing.T) {
 		if got := safeFileName(c.in); got != c.want {
 			t.Errorf("safeFileName(%q) = %q ต้องเป็น %q", c.in, got, c.want)
 		}
+	}
+}
+
+// failOnceDB ห่อการเชื่อมฐานข้อมูลจริง แล้วทำให้คำสั่งที่ "เขียนคำขอ" ล้มเหลวครั้งแรกครั้งเดียว
+// ใช้จำลองฐานข้อมูลขัดข้องตอนกดส่ง โดยไม่ต้องหยุด container จริง (FR-BRQ-09, AC-BRQ-09)
+// คำสั่งอื่น เช่น การเขียน audit_log ยังวิ่งไปที่ฐานข้อมูลจริงตามปกติ
+type failOnceDB struct {
+	Querier
+	failed bool
+}
+
+func (d *failOnceDB) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
+	if !d.failed && strings.HasPrefix(strings.TrimSpace(sql), "INSERT INTO borrow_request") {
+		d.failed = true
+		return errRow{err: errors.New("จำลองฐานข้อมูลขัดข้องตอนบันทึกคำขอ")}
+	}
+	return d.Querier.QueryRow(ctx, sql, args...)
+}
+
+// errRow คือแถวผลลัพธ์ที่อ่านแล้วได้ error เสมอ
+type errRow struct{ err error }
+
+func (r errRow) Scan(...any) error { return r.err }
+
+// AC-BRQ-09 (FR-BRQ-09)
+// Given การบันทึกคำขอลงฐานข้อมูลไม่สำเร็จ
+// When  นักศึกษากดส่งคำขอ แล้วกดส่งใหม่อีกครั้งจนสำเร็จ
+// Then  ครั้งแรกต้องแจ้งข้อผิดพลาดและไม่มีคำขอค้างในระบบ และเมื่อสำเร็จต้องมีคำขอเพียง 1 รายการ
+func TestAC_BRQ_09(t *testing.T) {
+	pool := testPool(t)
+	const requester = "student-001"
+	const assetCode = "CS-NB-0002"
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM borrow_request WHERE requester_id = $1`, requester)
+	})
+
+	// Given: ฐานข้อมูลจะล้มเหลวเฉพาะการเขียนคำขอครั้งแรก
+	svc := NewServiceWithClock(NewRepository(&failOnceDB{Querier: pool}), testClock())
+	srv := auth.Middleware(auth.NewMockProvider(), NewHandler(svc).Routes())
+
+	// When: กดส่งครั้งแรก
+	w := postRequest(t, srv, tokenStudentDept1, bodyFor(assetCode))
+
+	// Then: แจ้งข้อผิดพลาดด้วยรหัสกลาง (CON-TECH-03)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("บันทึกไม่สำเร็จต้องได้ 503 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	var e ErrorDTO
+	if err := json.Unmarshal(w.Body.Bytes(), &e); err != nil {
+		t.Fatalf("อ่าน JSON ไม่ได้: %v", err)
+	}
+	if e.Code != "UPSTREAM_UNAVAILABLE" {
+		t.Errorf("รหัสต้องเป็น UPSTREAM_UNAVAILABLE ตาม CON-TECH-03 แต่ได้ %q", e.Code)
+	}
+	if e.Message == "" {
+		t.Error("ต้องมีข้อความแจ้งผู้ขอว่าเกิดข้อผิดพลาด (FR-BRQ-09)")
+	}
+	// Then: ไม่มีคำขอค้างในระบบ
+	if n := countRequests(t, pool, requester); n != 0 {
+		t.Fatalf("บันทึกไม่สำเร็จต้องไม่ทิ้งคำขอค้างไว้ แต่พบ %d ใบ", n)
+	}
+
+	// When: กดส่งใหม่อีกครั้ง
+	w = postRequest(t, srv, tokenStudentDept1, bodyFor(assetCode))
+
+	// Then: สำเร็จ และมีคำขอเพียง 1 รายการ ไม่ซ้ำซ้อน (FR-BRQ-05 ข ช่วยกันไว้อีกชั้น)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("ส่งใหม่ต้องสำเร็จ 201 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	decodeCreated(t, w)
+	if n := countRequests(t, pool, requester); n != 1 {
+		t.Errorf("ต้องมีคำขอเพียง 1 รายการ แต่พบ %d ใบ", n)
 	}
 }
