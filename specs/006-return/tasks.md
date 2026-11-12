@@ -202,7 +202,7 @@ task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้�
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-04
 - เสร็จเมื่อ: `TestReturns_LoanDetail` ผ่าน (การยืมที่คืนแล้วได้ `{loanId, assetCode, borrowerId, dueAt, returnedAt, condition, returnedLate}`)
-- สถานะ: เสร็จ รอทีมตรวจ
+- สถานะ: เสร็จ
 - ความสำคัญ: ควรทำ
 
 ### T-12 สร้างหน้า `LoanDetailPage` แสดงเวลาคืน และสภาพ
