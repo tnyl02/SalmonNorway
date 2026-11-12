@@ -1,9 +1,9 @@
 # Tasks: บันทึกการรับคืนอุปกรณ์ (Return)
-Spec: SPEC-RET-006 (spec.md Draft v2.1) | Plan: plan.md Draft v1.1 | สร้าง: 2569-11-10 | แก้: 2569-11-11 (ลบ task รูป เลื่อนเลข) | Owner: 660710737 นายวรรัตน์ หลักฐาน (@660710737)
+Spec: SPEC-RET-006 (spec.md Draft v2.2) | Plan: plan.md Draft v1.2 | สร้าง: 2569-11-10 | แก้: 2569-11-11 (ลบ task รูป เลื่อนเลข), 2569-11-12 (รวม main เพิ่มเฟส 14) | Owner: 660710737 นายวรรัตน์ หลักฐาน (@660710737)
 
 สรุป
-- 14 เฟส (ฐานราก + 12 เฟส + รอคำตอบ) รวม 27 task
-- รอ Q-xx 4 task (T-24 Q-04, T-25 Q-03, T-26 Q-09, T-27 Q-SH-08) (เลข migration 0009 เปลี่ยนจาก 0006 เมื่อ 2569-11-11 เพราะ 0006 เป็นของ 005)
+- 15 เฟส (ฐานราก + 12 เฟส + รอคำตอบ + รวม main) รวม 28 task
+- รอ Q-xx 4 task (T-24 Q-04, T-25 Q-03, T-26 Q-09, T-27 Q-SH-08) (เลข migration 0010: 0006 -> 0009 เมื่อ 2569-11-11 -> 0010 เมื่อ 2569-11-12 เพราะชนกับ 005)
 - เฟสแรกที่ลองใช้งานได้จริง: เฟส 1 (เจ้าหน้าที่กรอกรหัสครุภัณฑ์ บันทึกคืนสภาพปกติ แล้วอุปกรณ์กลับเป็น "ว่าง")
 
 เลข task และเฟสถูกเลื่อน 2569-11-11 (ทีมสั่ง): ลบ task รูปเดิม T-11 ถึง T-13 และเฟส 5 เดิม (FR-RET-05 ยกเลิก)
@@ -42,7 +42,7 @@ task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้�
 ### T-01 สร้าง migration ของการรับคืน
 - รองรับ: FR-RET-02, FR-RET-06, FR-RET-07, CON-TECH-01, CON-DATA-01, DOM-AUDIT-01
 - ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นงานพื้นฐานของ T-04, T-08, T-11, T-13, T-23
-- ไฟล์ที่แตะ: `backend/db/migrations/0009_return.up.sql`, `specs/000-shared/data-model.md` (เพิ่มแถว action `return_list`, `return_lookup`, `return_detail`, `return` ใน DM-07 และคอลัมน์ใหม่ของ DM-05), `backend/internal/platform/migrate_test.go`
+- ไฟล์ที่แตะ: `backend/db/migrations/0010_return.up.sql`, `specs/000-shared/data-model.md` (เพิ่มแถว action `return_list`, `return_lookup`, `return_detail`, `return` ใน DM-07 และคอลัมน์ใหม่ของ DM-05), `backend/internal/platform/migrate_test.go`
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: migration รันบน DB ว่างได้ ตาราง `loan` มี `return_condition`, `returned_late` พร้อม CHECK และ `audit_log` รับ action ใหม่ 4 ค่า (ตาราง `loan_return_photo` ถอดออก 2569-11-11 พร้อม FR-RET-05) (test ใน `migrate_test.go` ผ่าน)
@@ -62,10 +62,10 @@ task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้�
 ### T-03 สร้างโครง package returns ผูก route และข้อมูลตัวอย่าง
 - รองรับ: IF-IDP-01, CON-TECH-02
 - ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นงานพื้นฐานของทุกเฟส
-- ไฟล์ที่แตะ: `backend/internal/returns/handler.go`, `backend/internal/returns/repository.go`, `backend/internal/platform/http.go` (ผูก route `/api/v1/returns/` ผ่าน auth middleware), `backend/cmd/server/main.go`, `backend/db/seed/seed_006_return.sql` (การยืมที่ยังไม่คืนของภาควิชา 2 และการยืมที่คืนแล้ว 2 รายการของภาควิชา 1 สำหรับ AC-RET-10, AC-RET-11)
+- ไฟล์ที่แตะ: `backend/internal/returns/handler.go`, `backend/internal/returns/repository.go`, `backend/internal/platform/http.go` (ผูก route `/v1/returns/` ผ่าน auth middleware), `backend/cmd/server/main.go`, `backend/db/seed/seed_006_return.sql` (การยืมที่ยังไม่คืนของภาควิชา 2 และการยืมที่คืนแล้ว 2 รายการของภาควิชา 1 สำหรับ AC-RET-10, AC-RET-11)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
-- เสร็จเมื่อ: เรียก `/api/v1/returns/open-loans` ด้วย token เจ้าหน้าที่ได้ 501 (ยังไม่ทำ) และไม่มี token ได้ 401 ตาม middleware ของ 001
+- เสร็จเมื่อ: เรียก `/v1/returns/open-loans` ด้วย token เจ้าหน้าที่ได้ 501 (ยังไม่ทำ) และไม่มี token ได้ 401 ตาม middleware ของ 001
 - สถานะ: เสร็จ 
 - ความสำคัญ: ต้องทำ
 
@@ -73,7 +73,7 @@ task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้�
 
 ## เฟส 1: เจ้าหน้าที่บันทึกคืนสภาพปกติ อุปกรณ์กลับเป็น "ว่าง" (AC-RET-01)
 
-### T-04 ทำ `POST /api/v1/returns` สภาพปกติ
+### T-04 ทำ `POST /v1/returns` สภาพปกติ
 - รองรับ: FR-RET-02, FR-RET-03, CON-DATA-01, CON-DATA-03
 - ตรวจด้วย: AC-RET-01
 - ไฟล์ที่แตะ: `backend/internal/returns/handler.go`, `backend/internal/returns/service.go`, `backend/internal/returns/repository.go`, `backend/internal/returns/handler_test.go`
@@ -83,7 +83,7 @@ task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้�
 - สถานะ: เสร็จ 
 - ความสำคัญ: ต้องทำ
 
-### T-05 ทำ `GET /api/v1/returns/lookup?assetCode=`
+### T-05 ทำ `GET /v1/returns/lookup?assetCode=`
 - รองรับ: FR-RET-01, CON-DATA-03
 - ตรวจด้วย: AC-RET-01 (ขั้นหาการยืมก่อนบันทึก)
 - ไฟล์ที่แตะ: `backend/internal/returns/handler.go`, `backend/internal/returns/repository.go`, `backend/internal/returns/handler_test.go`
@@ -251,7 +251,7 @@ task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้�
 
 ## เฟส 7: ดูรายการที่ยังไม่คืนของภาควิชาตนเอง (AC-RET-10)
 
-### T-14 ทำ `GET /api/v1/returns/open-loans` กรองตามภาควิชา
+### T-14 ทำ `GET /v1/returns/open-loans` กรองตามภาควิชา
 - รองรับ: FR-RET-01, IF-IDP-01
 - ตรวจด้วย: AC-RET-10
 - ไฟล์ที่แตะ: `backend/internal/returns/handler.go`, `backend/internal/returns/repository.go`, `backend/internal/returns/handler_test.go`
@@ -398,7 +398,7 @@ task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้�
 - เปิดระบบ: ดูคำสั่งด้านบน
 - คนลองเองตาม AC-RET-08:
   Given หลังบ้านรันอยู่
-  When `curl -H "Authorization: Bearer mock-student-001" http://localhost:8000/api/v1/returns/open-loans` และ `curl -X POST ... /api/v1/returns -F assetCode=CS-NB-0004 -F condition=normal`
+  When `curl -H "Authorization: Bearer mock-student-001" http://localhost:8000/v1/returns/open-loans` และ `curl -X POST ... /v1/returns -F assetCode=CS-NB-0004 -F condition=normal`
   Then ได้ 403 `FORBIDDEN_ROLE` ทั้งสองครั้ง และ `CS-NB-0004` ยัง "ถูกยืม"
 - ยังขาด: ไม่มี
 
@@ -471,6 +471,30 @@ task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้�
 
 ---
 
+## เฟส 14: รวม main (002-005) และทำตามข้อตกลงกลางที่เพิ่มระหว่างทาง (เพิ่ม 2569-11-12)
+ทีมสั่ง 2569-11-12 หลังรวม main เข้า 006-return แก้เฉพาะไฟล์ของ 006
+
+### T-29 error ทุกตัวตอบ code และ message ตาม CON-TECH-03
+- รองรับ: CON-TECH-03
+- ตรวจด้วย: ไม่มี AC ตรง ๆ (Constraint ใช้ร่วม)
+- ไฟล์ที่แตะ: `backend/internal/returns/handler.go` (`errorBody`, `unavailableBody`), `backend/internal/config/config.go` (บล็อก 006: `ReturnMessages`), `backend/internal/returns/handler_test.go`
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: T-22
+- เสร็จเมื่อ: `TestReturns_ErrorBodyFollowsConTech03` ผ่าน และ test ของ AC-RET-08, 11 ตรวจว่า body มีแค่ code กับ message
+- สถานะ: เสร็จ รอทีมตรวจ (รหัสที่ยังไม่ลงทะเบียนรอ Q-10)
+- ความสำคัญ: ต้องทำ
+
+#### จุดตรวจเฟส 14
+- test ที่ต้องผ่านทั้งหมด: `cd backend && go test ./...` (ทุกฟีเจอร์) และ `cd frontend && npm test` (ทุกฟีเจอร์)
+- เปิดระบบ: `cd backend && go run ./cmd/server` (สร้างตารางและข้อมูลตั้งต้นให้เอง) / `cd frontend && VITE_MOCK_TOKEN=mock-staff-001 npm run dev` แล้วกดเมนู "รับคืนอุปกรณ์"
+- คนลองเองตาม CON-TECH-03:
+  Given หลังบ้านรันอยู่
+  When `curl -H "Authorization: Bearer mock-student-001" http://localhost:8000/v1/returns/open-loans`
+  Then ได้ 403 body `{"code":"FORBIDDEN_ROLE","message":"เฉพาะเจ้าหน้าที่เท่านั้นที่บันทึกการรับคืนได้"}`
+- ยังขาด: Q-10 ลงทะเบียนรหัส error
+
+---
+
 ## ตารางตรวจความครบ
 
 ### 1. AC กับ task
@@ -495,6 +519,7 @@ task ส่วนใหญ่ผูกกับ AC ใน spec ถ้าข้�
 |---|---|
 | CON-TECH-01 | T-01 |
 | CON-TECH-02 | T-03 (ใช้ deploy ของ 001) |
+| CON-TECH-03 | T-29 (รหัสที่ยังไม่ลงทะเบียนรอ Q-10) |
 | CON-DATA-01 | T-01, T-04, T-08, T-18 |
 | CON-DATA-03 | T-04, T-05 |
 | DOM-AUDIT-01 | T-01, T-23 (T-26 รอ Q-09) |
