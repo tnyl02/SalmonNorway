@@ -830,6 +830,99 @@ func TestAC_BRQ_10(t *testing.T) {
 	})
 }
 
+// ผู้ใช้จำลองที่เป็นเจ้าหน้าที่ (ดู backend/internal/auth/mock_provider.go)
+const tokenStaff = "mock-staff-001"
+
+// getAttachment ยิง GET /v1/loan-requests/{id}/attachment ด้วย token ที่ให้
+func getAttachment(t *testing.T, srv http.Handler, token string, id int) *httptest.ResponseRecorder {
+	t.Helper()
+	r := httptest.NewRequest(http.MethodGet, fmt.Sprintf("%s/%d/attachment", PathPrefix, id), nil)
+	if token != "" {
+		r.Header.Set("Authorization", "Bearer "+token)
+	}
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, r)
+	return w
+}
+
+// AC-BRQ-10 (FR-BRQ-10 ข้อ ก) ส่วนของการเปิดดูไฟล์แนบ
+// Given คำขอยืมค้างคืนของ student-001 ที่แนบใบบันทึกข้อความไว้แล้ว
+// When  เจ้าหน้าที่ เจ้าของคำขอ และนักศึกษาคนอื่น เปิดไฟล์แนบของคำขอใบนั้น
+// Then  สองคนแรกต้องได้ไฟล์ (200) ส่วนนักศึกษาคนอื่นต้องถูกปฏิเสธ (403) และต้องไม่ได้เนื้อไฟล์
+//
+// (ทีมตัดสิน 2569-11-12: ใช้รหัส FORBIDDEN_ROLE ที่ลงทะเบียนไว้แล้ว และ REQUEST_NOT_FOUND สำหรับ 404)
+func TestAC_BRQ_10_AttachmentAccess(t *testing.T) {
+	t.Setenv("ATTACHMENT_DIR", t.TempDir())
+	srv := newTestServer(t)
+
+	// Given: คำขอค้างคืนที่แนบไฟล์แล้ว 1 ใบ เจ้าของคือ student-001
+	content := []byte("%PDF-1.4 ใบบันทึกข้อความของ student-001")
+	ct, body := multipartForm(t, "CS-NB-0003", config.LoanTypeOvernight,
+		&testFile{name: "memo.pdf", contentType: "application/pdf", content: content})
+	w := postMultipart(t, srv, tokenStudentDept1, ct, body)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("เตรียมคำขอไม่สำเร็จ ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	created := decodeCreated(t, w)
+
+	t.Run("เจ้าหน้าที่เปิดได้", func(t *testing.T) {
+		got := getAttachment(t, srv, tokenStaff, created.RequestID)
+		if got.Code != http.StatusOK {
+			t.Fatalf("เจ้าหน้าที่ต้องได้ 200 แต่ได้ %d body=%s", got.Code, got.Body.String())
+		}
+		if !bytes.Equal(got.Body.Bytes(), content) {
+			t.Error("ไฟล์ที่ส่งกลับต้องเป็นไฟล์เดียวกับที่ผู้ขอแนบมา")
+		}
+	})
+
+	t.Run("เจ้าของคำขอเปิดได้", func(t *testing.T) {
+		got := getAttachment(t, srv, tokenStudentDept1, created.RequestID)
+		if got.Code != http.StatusOK {
+			t.Fatalf("เจ้าของคำขอต้องได้ 200 แต่ได้ %d body=%s", got.Code, got.Body.String())
+		}
+		if !bytes.Equal(got.Body.Bytes(), content) {
+			t.Error("ไฟล์ที่ส่งกลับต้องเป็นไฟล์เดียวกับที่ผู้ขอแนบมา")
+		}
+	})
+
+	t.Run("นักศึกษาคนอื่นเปิดไม่ได้", func(t *testing.T) {
+		got := getAttachment(t, srv, tokenStudentOverdue, created.RequestID) // student-002 ภาควิชาเดียวกัน
+		if got.Code != http.StatusForbidden {
+			t.Fatalf("นักศึกษาคนอื่นต้องได้ 403 แต่ได้ %d body=%s", got.Code, got.Body.String())
+		}
+		var e ErrorDTO
+		if err := json.Unmarshal(got.Body.Bytes(), &e); err != nil {
+			t.Fatalf("อ่าน JSON ไม่ได้: %v", err)
+		}
+		if e.Code != "FORBIDDEN_ROLE" {
+			t.Errorf("รหัสต้องเป็น FORBIDDEN_ROLE ตาม CON-TECH-03 แต่ได้ %q", e.Code)
+		}
+		if bytes.Contains(got.Body.Bytes(), content) {
+			t.Error("คำตอบต้องไม่มีเนื้อไฟล์ของคนอื่นติดไปด้วย (DOM-PRIV-01)")
+		}
+	})
+
+	t.Run("ไม่มีคำขอใบนั้น", func(t *testing.T) {
+		got := getAttachment(t, srv, tokenStaff, created.RequestID+100000)
+		if got.Code != http.StatusNotFound {
+			t.Fatalf("คำขอที่ไม่มีอยู่ต้องได้ 404 แต่ได้ %d body=%s", got.Code, got.Body.String())
+		}
+		var e ErrorDTO
+		if err := json.Unmarshal(got.Body.Bytes(), &e); err != nil {
+			t.Fatalf("อ่าน JSON ไม่ได้: %v", err)
+		}
+		if e.Code != "REQUEST_NOT_FOUND" {
+			t.Errorf("รหัสต้องเป็น REQUEST_NOT_FOUND แต่ได้ %q", e.Code)
+		}
+	})
+
+	t.Run("ไม่มี token", func(t *testing.T) {
+		if got := getAttachment(t, srv, "", created.RequestID); got.Code != http.StatusUnauthorized {
+			t.Errorf("ไม่มี token ต้องได้ 401 แต่ได้ %d", got.Code)
+		}
+	})
+}
+
 // T-14 เสร็จเมื่อ (ส่วนเสริม): ชื่อไฟล์จากผู้ขอต้องพาไฟล์ออกนอกโฟลเดอร์ที่กำหนดไม่ได้ (ASM-BRQ-07)
 func TestSafeFileName(t *testing.T) {
 	for _, c := range []struct{ in, want string }{

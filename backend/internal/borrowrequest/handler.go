@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 // PathPrefix คือ path ของ endpoint ส่งคำขอยืม
@@ -27,8 +28,38 @@ func NewHandler(svc *Service) *Handler {
 func (h *Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST "+PathPrefix, h.create)
-	// method อื่นบน path เดียวกันได้ 405 จาก router ฟีเจอร์นี้มีแต่การสร้างคำขอ
+	// เปิดดูไฟล์ใบบันทึกข้อความของคำขอใบนั้น (FR-BRQ-10 ข้อ ก, plan.md ข้อ 4)
+	mux.HandleFunc("GET "+PathPrefix+"/{id}/attachment", h.attachment)
+	// method อื่นบน path เดียวกันได้ 405 จาก router
 	return mux
+}
+
+// attachment: GET /v1/loan-requests/{id}/attachment ส่งไฟล์ใบบันทึกข้อความกลับไป (FR-BRQ-10 ข้อ ก)
+// เปิดดูได้เฉพาะเจ้าหน้าที่กับเจ้าของคำขอ ตามที่ทีมตัดสินใน Q-BRQ-13 (ASM-BRQ-07, DOM-PRIV-01)
+func (h *Handler) attachment(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || id <= 0 {
+		writeError(w, http.StatusNotFound, "REQUEST_NOT_FOUND", "ไม่พบคำขอที่ระบุ")
+		return
+	}
+
+	path, err := h.svc.OpenAttachment(r.Context(), id)
+	switch {
+	case err == nil:
+		// ชนิดไฟล์ให้ net/http เดาจากนามสกุล ซึ่งถูกรักษาไว้ตอนเก็บไฟล์ (safeFileName)
+		http.ServeFile(w, r, path)
+	case errors.Is(err, ErrAttachmentNotFound):
+		// ไม่แยกว่า "ไม่มีคำขอ" หรือ "ไม่มีไฟล์แนบ" เพื่อไม่บอกว่าเลขคำขอใดมีอยู่จริง (DOM-PRIV-01)
+		writeError(w, http.StatusNotFound, "REQUEST_NOT_FOUND", "ไม่พบไฟล์แนบของคำขอที่ระบุ")
+	case errors.Is(err, ErrNotRequestOwner):
+		writeError(w, http.StatusForbidden, "FORBIDDEN_ROLE",
+			"เปิดดูไฟล์แนบได้เฉพาะเจ้าหน้าที่และเจ้าของคำขอ")
+	case errors.Is(err, ErrNoPrincipal):
+		writeError(w, http.StatusUnauthorized, "UNAUTHENTICATED", "ต้องเข้าสู่ระบบก่อนเปิดดูไฟล์แนบ")
+	default:
+		log.Printf("borrowrequest attachment: %v", err)
+		writeError(w, http.StatusServiceUnavailable, "UPSTREAM_UNAVAILABLE", "ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง")
+	}
 }
 
 // create: POST /v1/loan-requests สร้างคำขอยืมใบใหม่ (FR-BRQ-04, AC-BRQ-04)

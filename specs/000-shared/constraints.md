@@ -1,5 +1,5 @@
 # Constraint ที่ใช้ร่วมทุกฟีเจอร์ (shared constraints)
-Status: v5.1 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบบและรายการรหัส error กลาง ตาม CR-004, v5.1 005 เพิ่มรหัส REQUEST_NOT_APPROVED, BORROWER_MISMATCH และ FORBIDDEN_ROLE (แถวเดียวกับที่ 004 ลงทะเบียน) ตามกติกาของ CON-TECH-03) | Source: Miro (Requirement table, Use Case Diagram, Architecture), spec 001
+Status: v5.2 | Updated: 2569-11-12 (v5 เพิ่ม CON-TECH-03 รูปแบบและรายการรหัส error กลาง ตาม CR-004, v5.1 005 เพิ่มรหัส REQUEST_NOT_APPROVED, BORROWER_MISMATCH และ FORBIDDEN_ROLE (แถวเดียวกับที่ 004 ลงทะเบียน), v5.2 002 ลงทะเบียน REQUEST_NOT_FOUND (404) และใช้ FORBIDDEN_ROLE ร่วม ตาม CR-007) | Source: Miro (Requirement table, Use Case Diagram, Architecture), spec 001
 
 กติกา: Constraint ที่ใช้มากกว่า 1 ฟีเจอร์ เขียนที่นี่ **ที่เดียว** spec ของแต่ละฟีเจอร์อ้าง ID ในหมวด Constraints ไม่ copy ข้อความ
 ถ้าแก้ไฟล์นี้ ต้องทำ CR และดู Impact Analysis กับทุก spec ที่อ้าง ID นั้น (ดู rtm.md ของแต่ละฟีเจอร์)
@@ -23,7 +23,8 @@ Status: v5.1 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบ�
   | `BORROWER_MISMATCH` | 409 | ผู้ที่ยืนยันตัวตนไม่ใช่ผู้ส่งคำขอ | 005 (ลงทะเบียน 2569-11-11) |
   | `DUPLICATE_REQUEST` | 409 | ผู้ขอคนเดิมมีคำขอที่ยังไม่จบของอุปกรณ์ชิ้นเดิมอยู่แล้ว | 002 |
   | `HAS_OVERDUE_LOAN` | 409 | ผู้ขอมีอุปกรณ์ที่คืนเกินกำหนดค้างอยู่ | 002 |
-  | `FORBIDDEN_ROLE` | 403 | ยืนยันตัวตนได้และบทบาทรู้จัก แต่บทบาทนี้ไม่มีสิทธิ์ทำรายการนี้ (เช่น นักศึกษาเรียกการอนุมัติ) | 004 |
+  | `FORBIDDEN_ROLE` | 403 | ยืนยันตัวตนได้และบทบาทรู้จัก แต่บทบาทนี้ไม่มีสิทธิ์ทำรายการนี้ (เช่น นักศึกษาเรียกการอนุมัติ) | 004, 005, 002 (เปิดไฟล์แนบของคนอื่น) |
+  | `REQUEST_NOT_FOUND` | 404 | ไม่พบคำขอที่ระบุ หรือคำขอนั้นไม่มีสิ่งที่ขอ ใช้คำตอบเดียวกันกับกรณีไม่มีสิทธิ์เห็น เพื่อไม่บอกว่าเลขคำขอใดมีอยู่จริง (DOM-PRIV-01) | 002 (ลงทะเบียน 2569-11-12 ดู CR-007) 003 และ 004 ใช้ร่วม |
 
   ฟีเจอร์ที่ต้องการรหัสใหม่ ให้เพิ่มแถวในตารางนี้ก่อนใช้ ห้ามตั้งรหัสเองในโค้ดโดยไม่ลงทะเบียน
 
@@ -88,7 +89,7 @@ Status: v5.1 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบ�
 |---|---|
 | CON-TECH-01 | 001-equipment-status, 002-borrow-request, 005-handover |
 | CON-TECH-02 | 001-equipment-status, 002-borrow-request, 005-handover |
-| CON-TECH-03 | 001-equipment-status (รหัสเดิม 4 ตัว), 002-borrow-request, 005-handover (ใช้ FORBIDDEN_ROLE ร่วมกับ 004, ลงทะเบียน REQUEST_NOT_APPROVED, BORROWER_MISMATCH) |
+| CON-TECH-03 | 001-equipment-status (รหัสเดิม 4 ตัว), 002-borrow-request (ลงทะเบียน VALIDATION_FAILED, ITEM_NOT_AVAILABLE, DUPLICATE_REQUEST, HAS_OVERDUE_LOAN, REQUEST_NOT_FOUND และใช้ FORBIDDEN_ROLE ร่วม), 005-handover (ใช้ FORBIDDEN_ROLE ร่วมกับ 004, ลงทะเบียน REQUEST_NOT_APPROVED, BORROWER_MISMATCH) |
 | CON-DATA-01 | 001-equipment-status, 002-borrow-request (ส่งคำขอได้เฉพาะชิ้นที่ "ว่าง"), 005-handover |
 | CON-DATA-03 | 001-equipment-status, 002-borrow-request, 005-handover |
 | DOM-PRIV-01 | 001-equipment-status, 002-borrow-request (ไม่เปิดเผยชื่อผู้ขอรายอื่น FR-BRQ-05) |

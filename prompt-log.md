@@ -2355,3 +2355,55 @@ T-13 มีแค่ `service.go` ในช่องไฟล์ที่แต�
   เพราะโฟลเดอร์อยู่บนไดรฟ์ Windows ที่ WSL mount มา ซึ่งไม่เก็บ mode bits ของ Linux
   บนเซิร์ฟเวอร์จริงหรือใน container จะได้ 0600 ตามที่เขียน ไม่ใช่ข้อบกพร่องของโค้ด
 - ล้างข้อมูลที่ลองไว้: ลบคำขอของ student-001 และลบโฟลเดอร์ `backend/var/attachments`
+
+---
+
+## 2569-11-12 /implement T-15 (002-borrow-request) — ปิดเฟส 9
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 9 endpoint เปิดดูไฟล์แนบ จำกัดสิทธิ์)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-15`
+
+### คำถามที่ AI ถามก่อนเริ่ม และคำตอบของทีม (3 ข้อ)
+1. ขอบเขตไฟล์: ต้องอ่าน `requester_id` กับ `attachment_path` จากฐานข้อมูล แต่ช่องไฟล์ที่แตะมีแค่ handler.go กับ main.go
+   → **ทีมตอบ ก** เพิ่ม `service.go` กับ `repository.go` (ครั้งที่ 6 ต่อจาก T-09 T-11 T-12 T-13 T-14)
+2. รหัส 403 สำหรับ "ไม่ใช่เจ้าของคำขอ" ซึ่งตารางกลางไม่มี
+   → **ทีมตอบ ก** ใช้ `FORBIDDEN_ROLE` ที่ 004 ลงทะเบียนไว้แล้ว ไม่ตั้งรหัสใหม่
+3. คำขอที่ไม่มีอยู่จริงหรือไม่มีไฟล์แนบ ซึ่งตารางกลางไม่มีรหัส 404 เลย
+   → **ทีมตอบ ก** ลงทะเบียน `REQUEST_NOT_FOUND` (404) เป็นรหัสกลาง ใช้ร่วมกับ 003 และ 004
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/handler.go` (ตรงกับช่อง) — route `GET /v1/loan-requests/{id}/attachment` และการแปลง error
+- `backend/cmd/server/main.go` (ตรงกับช่อง) — ผูก `PathPrefix+"/"` เพิ่ม
+- `backend/internal/borrowrequest/service.go` (เพิ่มในช่องวันนี้) — `OpenAttachment`, `ErrAttachmentNotFound`, `ErrNotRequestOwner`
+- `backend/internal/borrowrequest/repository.go` (เพิ่มในช่องวันนี้) — `AttachmentOf`, `RequestAttachment`
+- `backend/internal/borrowrequest/handler_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** — test ใหม่
+- **ไฟล์ของกลาง (แก้เพราะ T-15 ของฟีเจอร์ 002 ตามที่ AGENTS.md สั่งให้บันทึกเหตุผล)**
+  - `specs/000-shared/constraints.md` v5.1 -> v5.2 เพิ่มแถว `REQUEST_NOT_FOUND` และเติม 002 ในแถว `FORBIDDEN_ROLE`
+  - `specs/changes/CR-007.md` ไฟล์ใหม่ (ข้าม CR-006 ไว้ให้ 003 ซึ่งกำลังเสนอ CR เรื่องรหัส error รอบเดียวกัน)
+  - `specs/CHANGELOG.md` บันทึก shared constraints v5.2
+
+### การตัดสินใจ
+- `main.go` ต้องผูก `PathPrefix+"/"` เพิ่มอีกบรรทัด เพราะ mux ชั้นนอกจับ path แบบเป๊ะ
+  ถ้าไม่ผูก path ลูกอย่าง `/v1/loan-requests/11/attachment` จะไปไม่ถึง router ของฟีเจอร์ (เจอตอนออกแบบ ไม่ได้เจอตอน test ล้ม)
+- `AttachmentOf` รวม "ไม่มีคำขอ" กับ "ไม่มีไฟล์แนบ" เป็นคำตอบเดียว ผู้เรียกแยกไม่ได้ (DOM-PRIV-01)
+- เจ้าหน้าที่เปิดได้ทุกใบ **ไม่ได้จำกัดว่าต้องเป็นภาควิชาเดียวกัน** เพราะ FR-BRQ-10 (ก) เขียนแค่ "เฉพาะเจ้าหน้าที่กับเจ้าของคำขอ"
+  ไม่ได้เขียนเรื่องภาควิชา และ DOM-ACCESS-01 พูดถึงนักศึกษา ถ้าทีมต้องการจำกัดต้องเพิ่มใน spec ก่อน **ไม่ได้เดาเอง**
+- ใช้ `http.ServeFile` ส่งไฟล์ ชนิดไฟล์ให้เดาจากนามสกุลซึ่ง `safeFileName` รักษาไว้ตั้งแต่ T-14
+
+### ข้อจำกัดที่บันทึกไว้ใน CR-007
+คำขอที่มีอยู่จริงและมีไฟล์แนบแต่เป็นของคนอื่น จะได้ 403 ไม่ใช่ 404
+นักศึกษาจึงยังเดาได้ว่าเลขคำขอนั้นมีไฟล์แนบอยู่ แม้ไม่เห็นตัวไฟล์
+เลือกแบบนี้เพราะช่อง "เสร็จเมื่อ" ของ T-15 กำหนดให้นักศึกษาคนอื่นได้ 403
+
+### สภาพแวดล้อม
+รอบแรกรัน test ไม่ได้เพราะ Docker Desktop ถูกปิดอยู่ (`docker` หายไปจาก WSL)
+ทีมเปิดให้แล้วจึงรันต่อได้ ไม่ได้แก้โค้ดใด ๆ ระหว่างนั้น
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run TestAC_BRQ_10 -v`: PASS ทั้งหมด
+  `TestAC_BRQ_10_AttachmentAccess` มี 5 กรณีย่อย: เจ้าหน้าที่ 200 / เจ้าของคำขอ 200 /
+  นักศึกษาคนอื่น 403 `FORBIDDEN_ROLE` และต้องไม่มีเนื้อไฟล์ติดไปใน body / ไม่มีคำขอ 404 `REQUEST_NOT_FOUND` / ไม่มี token 401
+- `go test ./... -count=1`: ทุกแพ็กเกจ ok
+- `go vet ./...`: ไม่มีข้อความเตือน

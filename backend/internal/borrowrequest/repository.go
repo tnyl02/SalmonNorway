@@ -243,6 +243,35 @@ func (r *Repository) Delete(ctx context.Context, requestID int) error {
 	return err
 }
 
+// RequestAttachment คือข้อมูลที่ต้องใช้ตัดสินสิทธิ์เปิดดูไฟล์แนบ (FR-BRQ-10 ข้อ ก, DOM-PRIV-01)
+type RequestAttachment struct {
+	RequesterID string // เจ้าของคำขอ ใช้เทียบกับผู้ที่ยืนยันตัวตนมา (IF-IDP-01)
+	Path        string // ที่อยู่ไฟล์บนเครื่องที่รันระบบ (ASM-BRQ-07)
+}
+
+// attachmentByIDSQL อ่านเจ้าของคำขอและที่อยู่ไฟล์แนบของคำขอใบนั้น (FR-BRQ-10 ข้อ ก)
+const attachmentByIDSQL = `SELECT requester_id, attachment_path FROM borrow_request WHERE id = $1`
+
+// AttachmentOf คืนเจ้าของคำขอและที่อยู่ไฟล์แนบ
+// found = false ทั้งกรณีที่ไม่มีคำขอใบนั้น และกรณีที่คำขอใบนั้นไม่ได้แนบไฟล์ไว้
+// ผู้เรียกจึงแยกสองกรณีนี้ไม่ได้ ซึ่งตั้งใจให้เป็นแบบนั้น จะได้ไม่บอกคนนอกว่าเลขคำขอใดมีอยู่จริง (DOM-PRIV-01)
+func (r *Repository) AttachmentOf(ctx context.Context, requestID int) (RequestAttachment, bool, error) {
+	var out RequestAttachment
+	var path *string // NULL เมื่อคำขอนั้นไม่มีไฟล์แนบ
+	err := r.db.QueryRow(ctx, attachmentByIDSQL, requestID).Scan(&out.RequesterID, &path)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return RequestAttachment{}, false, nil
+	}
+	if err != nil {
+		return RequestAttachment{}, false, err
+	}
+	if path == nil {
+		return RequestAttachment{}, false, nil
+	}
+	out.Path = *path
+	return out, true, nil
+}
+
 // statusSQL อ่านสถานะล่าสุดของอุปกรณ์ตามรหัสครุภัณฑ์ (CON-DATA-01, CON-DATA-03)
 const statusSQL = `SELECT status FROM equipment_item WHERE asset_code = $1`
 

@@ -97,6 +97,35 @@ func (s *Service) CreateWithAttachment(ctx context.Context, in NewRequest, up *U
 	return req, nil
 }
 
+// ErrAttachmentNotFound เกิดเมื่อไม่มีคำขอใบนั้น หรือคำขอใบนั้นไม่ได้แนบไฟล์ไว้
+// รวมสองกรณีไว้ด้วยกัน เพื่อไม่บอกคนนอกว่าเลขคำขอใดมีอยู่จริง (DOM-PRIV-01, FR-BRQ-10 ข้อ ก)
+var ErrAttachmentNotFound = errors.New("ไม่พบคำขอหรือคำขอนั้นไม่มีไฟล์แนบ")
+
+// ErrNotRequestOwner เกิดเมื่อผู้ใช้ไม่ใช่เจ้าหน้าที่และไม่ใช่เจ้าของคำขอ (FR-BRQ-10 ข้อ ก, DOM-PRIV-01)
+var ErrNotRequestOwner = errors.New("เปิดดูไฟล์แนบได้เฉพาะเจ้าหน้าที่และเจ้าของคำขอ")
+
+// OpenAttachment คืนที่อยู่ไฟล์แนบเมื่อผู้ใช้มีสิทธิ์เปิดดู (FR-BRQ-10 ข้อ ก)
+// เปิดดูได้เฉพาะเจ้าหน้าที่กับเจ้าของคำขอ นักศึกษาคนอื่นดูไม่ได้ (ASM-BRQ-07, DOM-PRIV-01)
+// เจ้าของคำขอคือรหัสผู้ใช้จากการยืนยันตัวตน ไม่ใช่รหัสนักศึกษาที่พิมพ์ในฟอร์ม (IF-IDP-01, ASM-BRQ-06)
+func (s *Service) OpenAttachment(ctx context.Context, requestID int) (string, error) {
+	p, ok := auth.FromContext(ctx)
+	if !ok || !p.Complete() {
+		return "", ErrNoPrincipal
+	}
+
+	att, found, err := s.repo.AttachmentOf(ctx, requestID)
+	if err != nil {
+		return "", err
+	}
+	if !found {
+		return "", ErrAttachmentNotFound
+	}
+	if p.Role != auth.RoleStaff && att.RequesterID != p.UserID {
+		return "", ErrNotRequestOwner
+	}
+	return att.Path, nil
+}
+
 // hasOverdueLoan บอกว่าผู้ขอยังถูกกฎคืนเกินกำหนดห้ามส่งคำขออยู่หรือไม่ (FR-BRQ-06)
 // นับเฉพาะอุปกรณ์ของภาควิชาผู้ขอเอง ของค้างในภาควิชาอื่นไม่นับ (FR-BRQ-06 ข้อ ค, DOM-ACCESS-01)
 // มี 2 กรณีที่ห้ามส่ง

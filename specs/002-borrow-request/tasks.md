@@ -271,11 +271,15 @@ Updated: 2569-11-11
 ### T-15 สร้าง endpoint เปิดดูไฟล์แนบ จำกัดสิทธิ์
 - รองรับ: FR-BRQ-10, DOM-PRIV-01, IF-IDP-01
 - ตรวจด้วย: AC-BRQ-10
-- ไฟล์ที่แตะ: `backend/internal/borrowrequest/handler.go`, `backend/cmd/server/main.go`
+- ไฟล์ที่แตะ: `backend/internal/borrowrequest/handler.go`, `backend/cmd/server/main.go`,
+  `backend/internal/borrowrequest/service.go`, `backend/internal/borrowrequest/repository.go`
+  (2 ไฟล์หลังเพิ่มเมื่อ 2569-11-12 ทีมตัดสิน เพราะต้องอ่านเจ้าของคำขอและ path ของไฟล์จากฐานข้อมูล)
+  และของกลาง `specs/000-shared/constraints.md` + `specs/changes/CR-007.md` + `specs/CHANGELOG.md`
+  (ลงทะเบียนรหัส `REQUEST_NOT_FOUND` ตามที่ทีมเลือก ดู CR-007)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-14
 - เสร็จเมื่อ: เจ้าหน้าที่และเจ้าของคำขอเปิดไฟล์ได้ 200 ส่วนนักศึกษาคนอื่นได้ 403 โดยมี test ครอบทั้ง 3 กรณี
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 #### จุดตรวจเฟส 9
 - test ที่ต้องผ่านทั้งหมด: `TestAC_BRQ_10` และ test ของเฟส 0-8
