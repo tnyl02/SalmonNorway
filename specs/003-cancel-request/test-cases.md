@@ -1,5 +1,5 @@
 # Test cases: ยกเลิกคำขอยืม (Cancel Borrow Request)
-อ้างอิง: spec.md SPEC-CXL-003 Draft v3.3 | plan.md v1.2 ข้อ 4 (สัญญา API) และข้อ 6 | tasks.md v1.1
+อ้างอิง: spec.md SPEC-CXL-003 Draft v3.9 | plan.md v1.7 ข้อ 4 (สัญญา API) และข้อ 6 | tasks.md (34 task) (หัวไฟล์แก้ 2569-11-12 เดิมอ้าง spec v3.3 / plan v1.2 / tasks v1.1 แถว TC ไม่เปลี่ยน)
 
 คนออกแบบตารางนี้ AI เขียนโค้ด test ตามตารางด้วยคำสั่ง /testcases
 - สถานะ: ร่าง (AI เสนอ ยังไม่มีใครตรวจ) / ใช้ได้ (ทีมตรวจแล้ว) / รอ Q-xx

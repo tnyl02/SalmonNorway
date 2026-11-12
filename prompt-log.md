@@ -5882,6 +5882,7 @@ main
 
 ---
 
+<<<<<<< HEAD
 ## 2569-11-10 อ่านของกลางและ SRS ก่อนเริ่ม 006 แล้วตอบคำถามที่ยังไม่ชัด
 
 - ผู้สั่ง: 660710737 นายวรรัตน์ หลักฐาน
@@ -6608,3 +6609,48 @@ main
 - F-02 เดา: fail closed 503 เมื่อเขียน audit ไม่ได้ ใช้แนว Q-P4 ของ 001 ที่ยังไม่มีคำตอบ
 - F-03 test อ่อน: การต่อ OpenLoansPage -> ReturnPage ใน App.jsx ไม่มี test (AC-RET-10)
 - F-04 FR ไม่มี AC: NFR-AVAIL-01
+=======
+
+---
+
+---
+
+## 2569-11-12 pull main (001 PR #20, #21, 004 PR #22) ตรวจข้อแจ้งของ 001 และแก้ plan ข้อ 6 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- pull: fast-forward ไม่มี conflict ไม่มีไฟล์ของ 003 เปลี่ยน go test ทุก package ผ่าน npm test 89 ผ่าน
+- ตรวจข้อแจ้งของ 001 (PR #14-#20): ข้อ 1 (401 ไปหน้าล็อกอิน) ทำแล้วใน T-26, ข้อ 5 (timeoutMs, 405) ไม่กระทบ 003, ข้อ 6 (CHANGELOG ข้อความหลง) ลบแล้ว
+  ข้อ 3 (returnTo) plan ข้อ 4 แก้แล้วใน v1.6 แต่ข้อ 6 ยังค้าง 2 บรรทัด (AI ตกหล่นตอน v1.6)
+- ไฟล์ที่แก้: specs/003-cancel-request/plan.md บรรทัด 179 ชื่อ test เป็น AC_CXL_07 redirects to login and back และคำอธิบายตามกลไกของ 001, บรรทัด 191 ตัด returnTo URL ภายนอกออกจาก test ของ 003 (อยู่ใน safePageKey ทดสอบโดย 001)
+- ยิงหลังบ้านจริง (405 ของ 001 T-40): GET ที่ /v1/borrow-requests/3001/cancel -> 405 Allow: POST {code:METHOD_NOT_ALLOWED, message}, DELETE ที่ /v1/my/pending-requests -> 405 Allow: GET, HEAD, ไม่มี token -> 401 ก่อน, GET ปกติ 200 คำขอ 3001 สถานะไม่เปลี่ยน
+
+---
+
+## 2569-11-12 แก้หัวไฟล์ test-cases.md (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np) สั่ง "โอเคแก้เลย" หลัง AI แจ้งว่าไฟล์นี้ต้องให้ทีมรับรู้ (AGENTS.md)
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: specs/003-cancel-request/test-cases.md บรรทัด 2 อ้าง spec Draft v3.9 / plan v1.7 / tasks 34 task (เดิม v3.3 / v1.2 / v1.1) ไม่แตะแถว TC
+
+---
+
+## 2569-11-12 /verify specs/003-cancel-request/ รอบที่ 3 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (พิมพ์ /verify แล้วเรียก skill ตรวจของ Claude Code ไม่ใช่ของรายวิชา AI อ่าน .claude/commands/verify.md แล้วทำตามเอง)
+- ผล test: go test -count=1 -p 1 ./... ผ่าน 189 (ของ 003 51) ไม่ผ่าน 0, npm test ผ่าน 89 (ของ 003 26) ไม่ผ่าน 0 รวม 278 / k6 ใช้ผลรันซ้ำ 2569-11-12 (list p95 123.39 ms, cancel p95 61.03 ms)
+- ตารางไปข้างหน้า 22 แถว: ครบ 17, ยังไม่ถึง 0, รอ Q-16 1 (FR-CXL-10), ช่องโหว่ 4 (FR-CXL-01 จาก F-11 เอกสารเท่านั้น, NFR-SEC-01, NFR-AVAIL-01, CON-TECH-02 จาก F-03 / F-08)
+- แก้แล้ว (ย้ายไปหัวข้อ 4 คงข้อความทีมตัดสินเดิม): F-04 (T-34), F-09 (spec v3.9), F-10 (client.js, errors.go)
+- คงไว้ในหัวข้อ 3: F-03, F-08 (ยังไม่ตัดสิน รอทีม), F-05, F-07 (ทีมตัดสินว่าไม่ใช่ปัญหา)
+- ข้อค้นพบใหม่: F-11 plan ข้อ 6 บรรทัด 185 ชื่อ vitest AC_CXL_13 shows retry ไม่ตรง test จริง (AC_CXL_13 shows error with retry) และยังเขียน 503 retryable
+
+---
+
+## 2569-11-12 ตัดสินและแก้ F-11 ของ rtm.md (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np) สั่ง "แก้ plan.md บรรทัด 185 แล้วจด แก้ spec ในช่องทีมตัดสินของ F-11"
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: specs/003-cancel-request/plan.md บรรทัด 185 (ข้อ 6 แถว AC-CXL-13) ชื่อ vitest AC_CXL_13 shows error with retry, 503 UPSTREAM_UNAVAILABLE {code, message} ไม่มี retryable
+  specs/003-cancel-request/rtm.md ช่องทีมตัดสินของ F-11 เขียนตามคำสั่งของเจ้าของ (จะย้ายไปหัวข้อแก้แล้วตอน /verify รอบหน้า)
+>>>>>>> 1a46da5fb8d67dfffdacd7cca631b5c8da611892
