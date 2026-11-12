@@ -1,8 +1,8 @@
 # Tasks: ตรวจสอบสถานะอุปกรณ์ (Equipment Status)
-Spec: SPEC-EQS-001 (spec.md Draft v5.1) | Plan: plan.md Draft v1.8 | tasks v2.3: 2569-11-12 (v2.2 2569-11-12, v2.1 2569-11-11, v2 2569-11-10, v1 2569-11-02) | Owner: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05)
+Spec: SPEC-EQS-001 (spec.md Draft v5.1) | Plan: plan.md Draft v1.9 | tasks v2.4: 2569-11-12 (v2.3 2569-11-12, v2.2 2569-11-12, v2.1 2569-11-11, v2 2569-11-10, v1 2569-11-02) | Owner: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05)
 
 สรุป
-- 15 เฟสที่ใช้งาน (ฐานราก + 13 เฟสตาม AC + รอคำตอบ) รวม 38 task: เสร็จ 18, พร้อมทำ 9, รอ Q-xx 9, ยกเลิก 2 (T-15, T-25)
+- 15 เฟสที่ใช้งาน (ฐานราก + 13 เฟสตาม AC + รอคำตอบ) รวม 40 task: เสร็จ 26, พร้อมทำ 3, รอ Q-xx 9, ยกเลิก 2 (T-15, T-25)
 - รอ Q-xx 9 task: แบ่งหน้า (Q-05), วิธีค้นหา (Q-06), จอมือถือ (Q-09), ขอบเขตเจ้าหน้าที่ (Q-P3), audit ของรายการ (Q-11, Q-P4),
   auth จริง (Q-SH-03), รีเฟรชเอง (Q-18), ชื่อผู้ยืม (Q-20), load test (Q-17)
 - เฟสแรกที่ลองใช้งานได้จริง: เฟส 1 (เห็นรายการรุ่นและรายชิ้นบนหน้าจอ)
@@ -21,6 +21,9 @@ Spec: SPEC-EQS-001 (spec.md Draft v5.1) | Plan: plan.md Draft v1.8 | tasks v2.3:
 
 เปลี่ยนจาก v2.1 (v2.2 2569-11-12 ตาม spec v5 และ plan v1.7 แก้เฉพาะจุด):
 - CR-005 อนุมัติ: เพิ่มเฟส 15 ใหม่ T-38 (FR-EQS-11, AC-EQS-17) เฟสรอคำตอบเลื่อนจาก 15 เป็น 16 เลข task เดิมไม่เปลี่ยน
+
+เปลี่ยนจาก v2.3 (v2.4 2569-11-12 ตาม plan v1.9 แก้เฉพาะจุด):
+- 001 ลงทะเบียน `ITEM_NOT_FOUND` และ `METHOD_NOT_ALLOWED` ในรายการกลาง เพิ่ม T-39 (404) และ T-40 (405 ทั้งระบบ) ในเฟส 12 ต่อจาก T-37
 
 เทคโนโลยีตาม plan.md ข้อ 2: Go (net/http + pgx), PostgreSQL 16, React + Vite (ทีมเลือกเอง ไม่ได้มาจาก spec ยกเว้น PostgreSQL / HTTPS / Docker)
 คำสั่งเปิดระบบ (ใช้ในทุกจุดตรวจ):
@@ -368,6 +371,24 @@ Spec: SPEC-EQS-001 (spec.md Draft v5.1) | Plan: plan.md Draft v1.8 | tasks v2.3:
 - เสร็จเมื่อ: `TestCON_TECH_03_ErrorBodyHasCodeAndMessage` ผ่าน (401, 403 PRINCIPAL_INCOMPLETE และ 503 มีทั้ง code และ message ไม่มีช่องอื่น) และ test ของ auth เดิมยังผ่าน
 - สถานะ: เสร็จ 
 
+### T-39 ตอบ 404 ด้วย {code, message} รหัส ITEM_NOT_FOUND ตาม CON-TECH-03
+- รองรับ: CON-TECH-03, FR-EQS-04 (รายละเอียดรายชิ้น), FR-EQS-01 (รายชิ้นของรุ่น)
+- ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นงานของ Constraint ร่วม (CON-TECH-03)
+- ไฟล์ที่แตะ: `backend/internal/platform/apierror.go` (รหัสและข้อความ), `backend/internal/platform/apierror_test.go`, `backend/internal/equipment/handler.go` (2 จุดที่ใช้ http.NotFound), `backend/internal/equipment/handler_test.go`
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: T-37, T-10
+- เสร็จเมื่อ: `TestCON_TECH_03_ItemNotFound` ผ่าน (รหัสครุภัณฑ์ที่ไม่มีและรหัสรุ่นที่ไม่ใช่ตัวเลข ได้ 404 body `{code: ITEM_NOT_FOUND, message}` ไม่มีช่องอื่น / รุ่นที่เป็นตัวเลขแต่ไม่มีอยู่ยังได้ 200 รายการว่างตาม plan ข้อ 5) และ test เดิมยังผ่าน
+- สถานะ: พร้อมทำ
+
+### T-40 ตอบ 405 ด้วย {code, message} ทั้งระบบ ด้วยตัวครอบกลางใน platform
+- รองรับ: CON-TECH-03, CON-DATA-02 (ฟีเจอร์นี้อ่านอย่างเดียว method อื่นถูกปฏิเสธ)
+- ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นงานของ Constraint ร่วม (CON-TECH-03)
+- ไฟล์ที่แตะ: `backend/internal/platform/apierror.go` (รหัสและข้อความ), `backend/internal/platform/http.go` (MethodNotAllowedJSON), `backend/internal/platform/http_test.go`, `backend/cmd/server/main.go` (ครอบ router), `backend/internal/equipment/handler_test.go` (newTestServer ครอบแบบเดียวกับ main.go และ TestCON_DATA_02 ตรวจ body)
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: T-37
+- เสร็จเมื่อ: `TestCON_TECH_03_MethodNotAllowed` ผ่าน (405 ได้ body `{code: METHOD_NOT_ALLOWED, message}` ไม่มีช่องอื่น header `Allow` ยังอยู่ / 200, 401 และ error JSON อื่นไม่ถูกแตะ) และ test ทั้งระบบยังผ่าน (002 มี test 405)
+- สถานะ: พร้อมทำ (แก้ main.go ของกลาง แจ้งทีมในกลุ่มก่อนเริ่ม)
+
 ### T-20 ตอบ 503 เมื่อต่อฐานข้อมูลไม่ได้ และหน้าจอแสดงปุ่มลองใหม่โดยไม่แสดงข้อมูลเก่า
 - รองรับ: FR-EQS-08
 - ตรวจด้วย: AC-EQS-08
@@ -571,7 +592,7 @@ T-22 ย้ายไปเฟส 16 เพราะยังไม่รู้�
 |---|---|
 | CON-TECH-01 | T-01, T-02 |
 | CON-TECH-02 | T-01 (Docker) ส่วน HTTPS/TLS ที่ reverse proxy: ยังไม่มี task ดูหมายเหตุ |
-| CON-TECH-03 | T-03 (รหัส 401/403 เดิม), T-37 (body {code, message}) |
+| CON-TECH-03 | T-03 (รหัส 401/403 เดิม), T-37 (body {code, message}), T-39 (404 ITEM_NOT_FOUND), T-40 (405 METHOD_NOT_ALLOWED ทั้งระบบ) |
 | CON-DATA-01 | T-02, T-12, T-14 |
 | CON-DATA-02 | T-10 |
 | CON-DATA-03 | T-02, T-05 |
@@ -627,6 +648,5 @@ NFR-USE-01 ต้องทดสอบกับผู้ใช้จริง 10
 
 เรื่องที่ spec ยังไม่บอก และยังไม่มี Q (เสนอทีมเพิ่ม ห้ามเดา):
 - FR-EQS-11: ไม่มีคำขอค้างเลย หรือ endpoint ของ 002 ไม่ตอบ หน้าจอแสดงข้อความอะไร (T-38 ตอนนี้ไม่แสดงส่วนนี้ทั้งสองกรณี)
-- CON-TECH-03: 404 (รหัสครุภัณฑ์หรือรุ่นที่ไม่มี) และ 405 (method ที่ไม่รองรับ) ยังไม่มีรหัสในรายการกลาง ตอนนี้ตอบข้อความธรรมดา ต้องให้ทีมเพิ่มรหัสก่อน
 - T-34: วิธีเปิดฟอร์มของ 002 พร้อม assetCode (ไม่มี router) ต้องตกลงกับ 002
 - FR-EQS-07: สรุปจำนวนแยกตามสถานะยังไม่มี AC
