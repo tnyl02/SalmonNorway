@@ -106,6 +106,8 @@ Response (ตัวอย่างแถวรุ่น): `{modelId, name, categ
 - availableCount/totalCount นับเฉพาะชิ้นที่ตรงตัวกรอง (Q-15) รูปแบบตัวเลขบนหน้าจอเมื่อกรองตามที่ตกลงใน AC-EQS-15
 
 Response (รายชิ้น): `{assetCode, status, dueAt?, isOverdue?, canRequestLoan, borrowerName?}`
+- ตารางรายชิ้น (`.../models/{modelId}/items`) ส่งแค่ `{assetCode, status, canRequestLoan}` ส่วน `dueAt`, `isOverdue` มีเฉพาะหน้ารายละเอียด
+  ตารางรายชิ้นไม่แสดงกำหนดคืน (ทีมตัดสิน 2569-11-12 ตอนตรวจ TC-EQS-04-4)
 - `canRequestLoan = (status == 'available')` คำนวณที่ server ตาม FR-04/05/06
   ส่งทั้งในตารางรายชิ้น (`.../models/{modelId}/items`) และหน้ารายละเอียด เพราะปุ่มอยู่ทั้งสองหน้า (Q-16 ปิดแล้ว 2569-11-11)
 - `isOverdue = (status == 'borrowed' && now(Asia/Bangkok) > dueAt)` เทียบวันที่และเวลา คำนวณที่ server (CR-001, CR-002)
@@ -136,7 +138,7 @@ Error contract: ตาม **CON-TECH-03** (CR-004) ทุก error ตอบ bod
 
 การส่งต่อไป UC-02 (FR-06): ปุ่มส่งคำขอยืมส่ง `assetCode` ไปฟอร์มของ 002 อย่างเดียว (FR-BRQ-01 รับรหัสครุภัณฑ์จาก FR-EQS-06)
 ยังไม่มี router หน้าจอสลับหน้าด้วยตาราง `PAGES` ใน `App.jsx` (003 ตั้งไว้) วิธีเปิดฟอร์มของ 002 พร้อม assetCode
-**ต้องตกลงกับ 002** ฟอร์มของ 002 ยังไม่ได้สร้าง (รอ Q-BRQ-14 ของ 002)
+ต้องตกลงกับ 002 ฟอร์มของ 002 ยังไม่ได้สร้าง" เป็น "ตกลงกับ 002 แล้ว 2569-11-12: App.jsx เปิดหน้า borrow-request พร้อม assetCode (T-41)" แล้วขึ้น plan เป็น v1.10 และเพิ่ม 1 บรรทัดใน CHANGELOG
 UC-02 ต้องตรวจสถานะซ้ำที่ฝั่งตัวเอง (สถานะอาจเปลี่ยนระหว่างรอ) -- 002 เขียนไว้แล้วใน plan 002 ข้อ 4
 
 ลำดับคำขอที่ค้างอยู่ (FR-EQS-11, AC-EQS-17, CR-005 อนุมัติ 2569-11-12): หน้ารายละเอียดเรียก

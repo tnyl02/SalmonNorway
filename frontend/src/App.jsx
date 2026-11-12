@@ -29,6 +29,9 @@ const SESSION_EXPIRED_MESSAGE = 'กรุณาเข้าสู่ระบ�
 export default function App() {
   const [current, setCurrent] = useState(PAGES[0].key)
   const [login, setLogin] = useState(null) // { message, returnTo } เมื่อ session หมดอายุ
+  // รหัสครุภัณฑ์ที่กดปุ่ม "ส่งคำขอยืม" มาจากหน้าของ 001 ส่งให้ฟอร์มของ 002 (FR-EQS-06 -> FR-BRQ-01, T-41 ของ 001)
+  // เปิดฟอร์มจากแถบด้านบนเอง = ไม่มีรหัสติดมา
+  const [requestAsset, setRequestAsset] = useState('')
   const currentRef = useRef(current)
   currentRef.current = current
 
@@ -66,7 +69,10 @@ export default function App() {
             key={p.key}
             type="button"
             aria-current={p.key === current ? 'page' : undefined}
-            onClick={() => setCurrent(p.key)}
+            onClick={() => {
+              setRequestAsset('')
+              setCurrent(p.key)
+            }}
             className={
               p.key === current
                 ? 'rounded bg-teal-700 px-3 py-1 text-sm text-white'
@@ -77,7 +83,20 @@ export default function App() {
           </button>
         ))}
       </nav>
-      <Component />
+      {current === 'equipment' ? (
+        // FR-EQS-06: ปุ่มส่งคำขอยืมของ 001 เปิดหน้าฟอร์มของ 002 พร้อมรหัสครุภัณฑ์ของชิ้นนั้น (T-41, F-01 ใน rtm.md ของ 001)
+        <EquipmentList
+          onRequestLoan={(assetCode) => {
+            setRequestAsset(assetCode)
+            setCurrent('borrow-request')
+          }}
+        />
+      ) : current === 'borrow-request' ? (
+        // key ทำให้ฟอร์มเริ่มใหม่ทุกครั้งที่รหัสเปลี่ยน เพราะฟอร์มอ่าน assetCode เป็นค่าเริ่มต้นครั้งเดียว
+        <BorrowRequestForm key={requestAsset} assetCode={requestAsset} />
+      ) : (
+        <Component />
+      )}
     </main>
   )
 }

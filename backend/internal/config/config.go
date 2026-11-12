@@ -21,6 +21,10 @@ const TimeZone = "Asia/Bangkok"
 // เพื่อให้หน้าจอได้ 503 พร้อม message ก่อนหน้าจอเลิกรอเอง
 const EquipmentDBTimeout = 5 * time.Second
 
+// EquipmentPerfP95 คือเวลาตอบสนอง p95 สูงสุดของการค้นหาและแสดงรายการอุปกรณ์ (NFR-PERF-01, AC-EQS-10, RQ-24)
+// ใช้เป็นเกณฑ์ของ test ประสิทธิภาพ (TestTC_EQS_10_*) ย้ายมาจากไฟล์ test ตาม F-09 ใน rtm.md
+const EquipmentPerfP95 = 3 * time.Second
+
 // ---- 003-cancel-request (plan.md ข้อ 5 ของ 003, T-03) ----
 
 // CancellableStatuses คือสถานะของคำขอที่นักศึกษายังยกเลิกได้ (CON-CXL-02, FR-CXL-01, ASM-04)
