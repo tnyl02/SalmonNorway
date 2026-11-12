@@ -3,6 +3,7 @@ package borrowrequest
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -148,6 +149,32 @@ func (r *Repository) checkDepartment(ctx context.Context, assetCode string) erro
 		return ErrForbiddenDepartment
 	}
 	return nil
+}
+
+// earliestOpenLoanSQL หากำหนดคืนที่เร็วที่สุดของอุปกรณ์ที่ผู้ขอยังไม่คืน เฉพาะอุปกรณ์ของภาควิชาที่ระบุ
+// (DM-05 ตาราง loan ของ 001, FR-BRQ-06 ข้อ ค, DOM-ACCESS-01)
+// ใบที่กำหนดคืนเร็วที่สุดเกินกำหนดก็พอให้ปฏิเสธแล้ว จึงอ่านค่าเดียวแทนการดึงทุกใบ
+const earliestOpenLoanSQL = `
+SELECT min(l.due_at)
+FROM loan l
+JOIN equipment_item i ON i.id = l.item_id
+JOIN equipment_model m ON m.id = i.model_id
+WHERE l.borrower_id = $1
+  AND l.returned_at IS NULL
+  AND m.department_id = $2`
+
+// EarliestOpenLoanDue คืนกำหนดคืนที่เร็วที่สุดของการยืมที่ผู้ขอยังไม่คืน (FR-BRQ-06)
+// found = false แปลว่าไม่มีของค้างในภาควิชาตนเอง
+// ฟีเจอร์นี้อ่านตาราง loan อย่างเดียว ไม่เขียนทับงานของ 005 และ 006 (DOM-REQ-01)
+func (r *Repository) EarliestOpenLoanDue(ctx context.Context, borrowerID string, departmentID int) (time.Time, bool, error) {
+	var dueAt *time.Time // NULL เมื่อไม่มีใบที่ยังไม่คืน
+	if err := r.db.QueryRow(ctx, earliestOpenLoanSQL, borrowerID, departmentID).Scan(&dueAt); err != nil {
+		return time.Time{}, false, err
+	}
+	if dueAt == nil {
+		return time.Time{}, false, nil
+	}
+	return *dueAt, true, nil
 }
 
 // statusSQL อ่านสถานะล่าสุดของอุปกรณ์ตามรหัสครุภัณฑ์ (CON-DATA-01, CON-DATA-03)

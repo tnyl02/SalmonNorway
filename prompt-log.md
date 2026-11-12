@@ -2173,3 +2173,67 @@ AI เคยบอกว่า T-10 จะได้เปลี่ยนชื�
   `go run` คอมไพล์ครั้งเดียวตอนเปิด ต้อง Ctrl+C แล้วเปิดใหม่ทุกครั้งหลังแก้โค้ดก่อนลองด้วยมือ
   (ตอนนั้นฐานข้อมูลกันแถวซ้ำได้ถูกต้องแล้ว เห็นจาก psql ที่มีแถวเดียว ผิดแค่การแปลงเป็นรหัส HTTP ของ build เก่า)
 - ล้างข้อมูลที่ลองไว้ด้วย `DELETE FROM borrow_request WHERE requester_id = 'student-001';`
+
+---
+
+## 2569-11-12 /implement T-12 (002-borrow-request) — เฟส 8 ครึ่งแรก
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 8 AC-BRQ-06 ปฏิเสธเมื่อมีของคืนเกินกำหนด)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-12 เพิ่ม handler.go ได้` (ทีมอนุญาตขยายช่องไฟล์ที่แตะไว้ล่วงหน้า เหมือน T-09 และ T-11)
+- ทำหลังจาก merge main ลงมาแล้ว (ได้ 005-handover และ 001 รอบล่าสุดติดมาด้วย)
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/clock.go` **ไฟล์ใหม่** (ตรงกับช่องไฟล์ที่แตะ)
+  `Clock`, `SystemClock`, `FixedClock`, `overdueDeadline`
+- `backend/internal/borrowrequest/service.go` (ตรงกับช่องไฟล์ที่แตะ)
+  เปลี่ยนฟิลด์ `now func() time.Time` เป็น `clock Clock`, เพิ่ม `NewServiceWithClock`, `ErrHasOverdueLoan`, `hasOverdueLoan`
+- `backend/internal/borrowrequest/repository.go` (ตรงกับช่องไฟล์ที่แตะ)
+  เพิ่ม `earliestOpenLoanSQL` และ `EarliestOpenLoanDue` (อ่านตาราง `loan` ของ 001 อย่างเดียว)
+- `backend/internal/borrowrequest/handler.go` (เพิ่มในช่องไฟล์ที่แตะวันนี้ ตามที่ทีมอนุญาต)
+  เพิ่ม case แปลงเป็น 409 `HAS_OVERDUE_LOAN`
+- `backend/internal/borrowrequest/service_test.go`, `handler_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ**
+  นอกจาก test ใหม่แล้ว ยังเปลี่ยนวิธีประกอบ service ของ test เดิมทุกตัวให้ใช้นาฬิกาตรึงเวลา (ดูหัวข้อถัดไป)
+
+### การตัดสินใจ
+- **test เดิมทุกตัวเปลี่ยนมาใช้ `NewServiceWithClock(..., testClock())` ตรึงเวลาไว้ที่ 09:00 ของวันนี้**
+  เหตุผล: ข้อมูลตั้งต้น (T-03) ให้ `student-001` ยืม CS-NB-0004 กำหนดคืน 16:00 **ของวันนี้** และยังไม่คืน
+  พอ T-12 บังคับกฎ FR-BRQ-06 แล้ว ถ้า test ยังใช้นาฬิกาจริง test เดิมที่ใช้ student-001 (เช่น TestAC_BRQ_04)
+  จะผ่านตอนเช้าแต่ล้มตอนเย็น ไม่ได้ลดความเข้มของการตรวจ เปลี่ยนแค่เวลาที่ใช้ทดสอบให้แน่นอน
+- ตรวจกฎคืนเกินกำหนด **ก่อน** ตรวจอุปกรณ์ เพราะเป็นเรื่องของตัวผู้ขอเอง คำตอบ `HAS_OVERDUE_LOAN`
+  ไม่เปิดเผยข้อมูลอุปกรณ์ชิ้นใดเลย จึงไม่ขัด FR-BRQ-07 และไม่กระทบ AC-BRQ-07 ที่ผู้ขอภาควิชา 2 ไม่มีของค้าง
+- ใช้ `SELECT min(l.due_at)` แทนการดึงทุกใบมาวนเทียบใน Go ใบที่กำหนดคืนเร็วที่สุดเกินกำหนดก็พอปฏิเสธแล้ว
+- เส้นแบ่ง 16:00 ใช้ `config.LoanNormalReturnHour` ตัวเดียวกับกฎเวลาคืนใน validate.go ไม่ฝังเลข 16 ซ้ำ
+- **ไม่ได้ทำ** กฎปลดล็อก 00:00 ของวันถัดไป (FR-BRQ-06 ข) เพราะเป็น T-13 query จึงกรอง `returned_at IS NULL`
+
+### ข้อผิดพลาดระหว่างทำ และการแก้
+`TestOverdue_OtherDepartmentNotCounted` รอบแรกไม่ผ่าน เพราะ AI เข้าใจข้อมูลตั้งต้นผิด
+คิดว่า `CS-PJ-0001` เป็นของภาควิชา 2 แต่จริง ๆ เป็นรุ่น 2 ซึ่งอยู่ภาควิชา 1 ส่วนชิ้นของภาควิชา 2 คือ `XX-NB-0001`
+แก้ที่ test (ข้อมูลที่ใช้ทดสอบผิด ไม่ใช่โค้ดผิด) และเพิ่มการตรวจภาควิชาของอุปกรณ์ก่อนเริ่ม test กันพลาดซ้ำ
+
+### งานค้างที่ทีมต้องตัดสิน (พบระหว่างทำ T-12)
+**T-13 (AC-BRQ-12) มีแค่ `service.go` ในช่องไฟล์ที่แตะ แต่กฎปลดล็อกต้องรู้ `returned_at` ของใบที่คืนแล้ว**
+ซึ่ง query ปัจจุบันกรองเฉพาะใบที่ยังไม่คืน ตอนทำ T-13 น่าจะต้องขอเพิ่ม `repository.go` ในช่องไฟล์ที่แตะ
+AI ไม่ได้ทำเผื่อไว้ เพราะเป็นกฎของ task อื่น
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run "TestAC_BRQ_06|TestOverdue" -v`: PASS ทั้ง 4 ตัว
+  (`TestAC_BRQ_06`, `TestAC_BRQ_06_HTTP`, `TestOverdue_BoundaryAtReturnHour`, `TestOverdue_OtherDepartmentNotCounted`)
+- `go test ./... -count=1`: ทุกแพ็กเกจ ok รวม `internal/handover` ของ 005 ที่เพิ่ง merge ลงมา
+- `go vet ./internal/borrowrequest/`: ไม่มีข้อความเตือน
+
+### จุดตรวจเฟส 8 ครึ่งแรก (ทีมลองเองด้วยมือ 2569-11-12)
+
+- ผู้ลอง: ธัญลักษณ์ ด. (@tnyl02) ด้วย `go run ./cmd/server` + curl + psql ใน container
+- `mock-student-002` (มีของเกินกำหนดค้าง): **409** `{"code":"HAS_OVERDUE_LOAN"}` และ psql ยืนยันว่าไม่มีคำขอเกิดขึ้น (0 แถว)
+- `mock-student-001` รอบแรก: ได้ 409 เหมือนกัน **ซึ่งถูกต้อง** เพราะข้อมูลในฐานข้อมูลของเครื่องพัฒนาเก่า
+  `due_at` ของ CS-NB-0004 เป็น 16:00 ของ 11 พ.ย. (วันที่ seed) ไม่ใช่ของวันนี้ จึงเลยกำหนดไปแล้วจริง
+- หลัง `UPDATE loan SET due_at = 16:00 ของวันนี้ WHERE borrower_id = 'student-001'` แล้วยิงซ้ำเวลา 09:10 น.: **201** requestId 9
+  ยืนยันเส้นแบ่ง 16:00 บนของจริง ตรงกับ `TestOverdue_BoundaryAtReturnHour` ที่ตรวจ 15:59 กับ 16:01 ด้วยนาฬิกาตรึงเวลา
+- **ข้อควรระวังสำหรับคนที่ลองต่อจากนี้** (001 เคยจดไว้แล้ว เจออีกครั้งตอน T-12)
+  ข้อมูลตั้งต้นคิดกำหนดคืนจาก `now()` ตอน seed ถ้าฐานข้อมูลของเครื่องพัฒนาถูกสร้างไว้หลายวันแล้ว
+  ของทุกคนจะกลายเป็นเกินกำหนดหมด ล้างด้วย `docker compose -f deploy/docker-compose.yml down -v`
+  หรือ `UPDATE loan SET due_at = ...` ก่อนลองกฎที่เทียบกับวันนี้ (test อัตโนมัติไม่เจอปัญหานี้
+  เพราะ testcontainers สร้างฐานข้อมูลใหม่ทุกครั้ง และ T-12 ตรึงเวลาด้วย FixedClock แล้ว)
+- ล้างข้อมูลที่ลองไว้ด้วย `DELETE FROM borrow_request WHERE requester_id IN ('student-001','student-002');`

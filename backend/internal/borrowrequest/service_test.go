@@ -106,7 +106,7 @@ func newTestRequest(assetCode string) NewRequest {
 func TestAC_BRQ_04(t *testing.T) {
 	pool := testPool(t)
 	ctx := studentCtx("student-001")
-	svc := NewService(NewRepository(pool))
+	svc := NewServiceWithClock(NewRepository(pool), testClock())
 
 	// Given: CS-NB-0001 เป็นอุปกรณ์ว่างของภาควิชา 1 ในข้อมูลตั้งต้น (T-03)
 	const assetCode = "CS-NB-0001"
@@ -180,7 +180,7 @@ func TestAC_BRQ_04(t *testing.T) {
 func TestCreate_RejectsItemNotAvailable(t *testing.T) {
 	pool := testPool(t)
 	ctx := studentCtx("student-001")
-	svc := NewService(NewRepository(pool))
+	svc := NewServiceWithClock(NewRepository(pool), testClock())
 
 	// CS-NB-0004 ถูกยืมอยู่ในข้อมูลตั้งต้น
 	// ใช้ errors.Is เพราะตั้งแต่ T-09 error พกสถานะล่าสุดมาด้วย (ItemNotAvailableError)
@@ -204,7 +204,7 @@ func TestCreate_RejectsItemNotAvailable(t *testing.T) {
 // T-04 เสร็จเมื่อ (ส่วนเสริม): เรียก service โดยไม่มีผู้ใช้ที่ยืนยันตัวตนต้องถูกปฏิเสธ ไม่เดาว่าเป็นใคร (IF-IDP-01)
 func TestCreate_RequiresPrincipal(t *testing.T) {
 	pool := testPool(t)
-	svc := NewService(NewRepository(pool))
+	svc := NewServiceWithClock(NewRepository(pool), testClock())
 
 	if _, err := svc.Create(context.Background(), newTestRequest("CS-NB-0001")); !errors.Is(err, ErrNoPrincipal) {
 		t.Errorf("ไม่มีผู้ใช้ใน context ต้องได้ ErrNoPrincipal แต่ได้ %v", err)
@@ -257,7 +257,7 @@ func TestAC_BRQ_11(t *testing.T) {
 	const requester = "student-011"
 	const assetCode = "CS-NB-0003" // อุปกรณ์ว่างของภาควิชา 1 ในข้อมูลตั้งต้น (T-03)
 	ctx := studentCtx(requester)
-	svc := NewService(NewRepository(pool))
+	svc := NewServiceWithClock(NewRepository(pool), testClock())
 	t.Cleanup(func() {
 		_, _ = pool.Exec(context.Background(), `DELETE FROM borrow_request WHERE requester_id = $1`, requester)
 	})
@@ -312,7 +312,7 @@ func TestDuplicateRequest_ConcurrentSubmitsKeepOneRow(t *testing.T) {
 	const requester = "student-012"
 	const assetCode = "CS-NB-0002" // อุปกรณ์ว่างของภาควิชา 1 ในข้อมูลตั้งต้น (T-03)
 	ctx := studentCtx(requester)
-	svc := NewService(NewRepository(pool))
+	svc := NewServiceWithClock(NewRepository(pool), testClock())
 	t.Cleanup(func() {
 		_, _ = pool.Exec(context.Background(), `DELETE FROM borrow_request WHERE requester_id = $1`, requester)
 	})
@@ -344,5 +344,108 @@ func TestDuplicateRequest_ConcurrentSubmitsKeepOneRow(t *testing.T) {
 	}
 	if n := countRequests(t, pool, requester); n != 1 {
 		t.Errorf("ต้องมีคำขอแถวเดียว แต่พบ %d แถว", n)
+	}
+}
+
+// testClock ตั้งเวลาไว้ที่ 09:00 น. ของวันนี้ ตามเขตเวลา Asia/Bangkok
+// test ที่ไม่ได้ทดสอบกฎคืนเกินกำหนดต้องไม่ขึ้นกับเวลาจริงของเครื่อง
+// เพราะข้อมูลตั้งต้นให้ student-001 ยืมของโดยมีกำหนดคืน 16:00 ของวันนี้ (T-03)
+// ถ้าปล่อยให้ใช้นาฬิกาจริงแล้วรัน test ตอนเย็น ผู้ขอคนนั้นจะถูกกฎ FR-BRQ-06 ปฏิเสธ
+func testClock() Clock { return FixedClock{T: bangkokToday(9, 0)} }
+
+// AC-BRQ-06 (FR-BRQ-06)
+// Given นักศึกษามีอุปกรณ์ที่ยังไม่คืน และเลยเวลา 16:00 น. ของกำหนดคืนไปแล้ว
+// When  พยายามส่งคำขอยืมใหม่
+// Then  ระบบต้องปฏิเสธคำขอ แจ้งสาเหตุ และไม่สร้างคำขอ
+func TestAC_BRQ_06(t *testing.T) {
+	pool := testPool(t)
+	// Given: ข้อมูลตั้งต้นให้ student-002 ยืม CS-NB-0005 กำหนดคืน 16:00 ของเมื่อวาน และยังไม่คืน (T-03)
+	const requester = "student-002"
+	ctx := studentCtx(requester)
+	svc := NewServiceWithClock(NewRepository(pool), testClock())
+
+	var dueAt time.Time
+	var returnedAt *time.Time
+	if err := pool.QueryRow(ctx,
+		`SELECT due_at, returned_at FROM loan WHERE borrower_id = $1`, requester).Scan(&dueAt, &returnedAt); err != nil {
+		t.Fatalf("ข้อมูลตั้งต้นต้องมีการยืมของ %s: %v", requester, err)
+	}
+	if returnedAt != nil {
+		t.Fatalf("ข้อมูลตั้งต้นต้องเป็นการยืมที่ยังไม่คืน แต่คืนแล้วเมื่อ %v", *returnedAt)
+	}
+	if !testClock().Now().After(overdueDeadline(dueAt, appLoc)) {
+		t.Fatalf("ข้อมูลตั้งต้นต้องเลย 16:00 ของกำหนดคืนแล้ว (กำหนดคืน %v เวลาที่ใช้ทดสอบ %v)", dueAt, testClock().Now())
+	}
+
+	// When
+	_, err := svc.Create(ctx, newTestRequest("CS-NB-0003"))
+
+	// Then: ปฏิเสธพร้อมสาเหตุที่แยกจาก error ตัวอื่นได้ (ข้อความถึงผู้ขออยู่ที่ handler)
+	if !errors.Is(err, ErrHasOverdueLoan) {
+		t.Errorf("ผู้ขอที่มีของเกินกำหนดต้องได้ ErrHasOverdueLoan แต่ได้ %v", err)
+	}
+	// Then: ไม่สร้างคำขอ
+	if n := countRequests(t, pool, requester); n != 0 {
+		t.Errorf("ต้องไม่มีคำขอเกิดขึ้นเลย แต่พบ %d ใบ", n)
+	}
+}
+
+// T-12 เสร็จเมื่อ (ส่วนเสริม): เส้นแบ่ง "เกินกำหนด" อยู่ที่ 16:00 น. ของวันกำหนดคืนพอดี (FR-BRQ-06 ข้อ ก)
+// ใช้ข้อมูลตั้งต้นที่ student-001 ยืม CS-NB-0004 กำหนดคืน 16:00 ของวันนี้ และยังไม่คืน (T-03)
+func TestOverdue_BoundaryAtReturnHour(t *testing.T) {
+	pool := testPool(t)
+	const requester = "student-001"
+	ctx := studentCtx(requester)
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM borrow_request WHERE requester_id = $1`, requester)
+	})
+
+	// ก่อน 16:00 ของวันกำหนดคืน ยังไม่ถือว่าเกินกำหนด ส่งคำขอได้ตามปกติ
+	before := NewServiceWithClock(NewRepository(pool), FixedClock{T: bangkokToday(15, 59)})
+	if _, err := before.Create(ctx, newTestRequest("CS-NB-0001")); err != nil {
+		t.Errorf("เวลา 15:59 ของวันกำหนดคืน ยังต้องส่งคำขอได้ แต่ได้ error: %v", err)
+	}
+
+	// เลย 16:00 แล้ว ถือว่าเกินกำหนดทันที
+	after := NewServiceWithClock(NewRepository(pool), FixedClock{T: bangkokToday(16, 1)})
+	if _, err := after.Create(ctx, newTestRequest("CS-NB-0003")); !errors.Is(err, ErrHasOverdueLoan) {
+		t.Errorf("เวลา 16:01 ของวันกำหนดคืน ต้องได้ ErrHasOverdueLoan แต่ได้ %v", err)
+	}
+}
+
+// T-12 เสร็จเมื่อ (ส่วนเสริม): ของค้างเกินกำหนดในภาควิชาอื่นไม่นับ (FR-BRQ-06 ข้อ ค, DOM-ACCESS-01)
+func TestOverdue_OtherDepartmentNotCounted(t *testing.T) {
+	pool := testPool(t)
+	const requester = "student-013" // ผู้ขอของ test นี้เท่านั้น ไม่ให้ชนกับข้อมูลตั้งต้น
+	ctx := studentCtx(requester)    // สังกัดภาควิชา 1
+	svc := NewServiceWithClock(NewRepository(pool), testClock())
+
+	// ตรวจข้อมูลตั้งต้นก่อนว่า XX-NB-0001 เป็นของภาควิชาอื่นจริง (ไม่ใช่ 1 ที่ผู้ขอสังกัด)
+	const otherDeptItem = "XX-NB-0001"
+	var itemDept int
+	if err := pool.QueryRow(ctx, `
+		SELECT m.department_id FROM equipment_item i
+		JOIN equipment_model m ON m.id = i.model_id WHERE i.asset_code = $1`, otherDeptItem).Scan(&itemDept); err != nil {
+		t.Fatal(err)
+	}
+	if itemDept == 1 {
+		t.Fatalf("%s ต้องเป็นอุปกรณ์ของภาควิชาอื่น แต่อยู่ภาควิชาเดียวกับผู้ขอ", otherDeptItem)
+	}
+
+	// Given: มีของค้างเกินกำหนดของภาควิชาอื่น กำหนดคืน 16:00 ของเมื่อวาน
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO loan (item_id, borrower_id, loan_type, due_at)
+		SELECT id, $1, 'normal', $2 FROM equipment_item WHERE asset_code = $3`,
+		requester, bangkokToday(16, 0).AddDate(0, 0, -1), otherDeptItem); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM loan WHERE borrower_id = $1`, requester)
+		_, _ = pool.Exec(context.Background(), `DELETE FROM borrow_request WHERE requester_id = $1`, requester)
+	})
+
+	// When/Then: ส่งคำขออุปกรณ์ของภาควิชาตนเองได้ตามปกติ เพราะของค้างอยู่คนละภาควิชา
+	if _, err := svc.Create(ctx, newTestRequest("CS-NB-0003")); err != nil {
+		t.Errorf("ของค้างในภาควิชาอื่นต้องไม่นับ ควรส่งคำขอได้ แต่ได้ error: %v", err)
 	}
 }

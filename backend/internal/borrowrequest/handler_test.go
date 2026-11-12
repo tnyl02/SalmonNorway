@@ -19,8 +19,13 @@ const tokenStudentDept1 = "mock-student-001"
 
 // newTestServer ประกอบ handler เข้ากับ auth.Middleware แบบเดียวกับ main.go (IF-IDP-01)
 func newTestServer(t *testing.T) http.Handler {
+	return newTestServerAt(t, testClock())
+}
+
+// newTestServerAt ประกอบ handler ด้วยนาฬิกาที่กำหนดเอง ใช้กับ test ที่ต้องตรึงเวลา (AC-BRQ-06)
+func newTestServerAt(t *testing.T, clock Clock) http.Handler {
 	t.Helper()
-	svc := NewService(NewRepository(testPool(t)))
+	svc := NewServiceWithClock(NewRepository(testPool(t)), clock)
 	return auth.Middleware(auth.NewMockProvider(), NewHandler(svc).Routes())
 }
 
@@ -496,7 +501,7 @@ func TestAC_BRQ_01(t *testing.T) {
 	}
 
 	// Then: error ที่ service คืนต้องพกสถานะล่าสุดมาด้วย เพื่อให้แจ้งผู้ขอได้ (FR-BRQ-01)
-	svc := NewService(NewRepository(pool))
+	svc := NewServiceWithClock(NewRepository(pool), testClock())
 	_, err := svc.Create(studentCtx("student-001"), newTestRequest(assetCode))
 	var notAvail *ItemNotAvailableError
 	if !errors.As(err, &notAvail) {
@@ -626,5 +631,32 @@ func TestAC_BRQ_11_HTTP(t *testing.T) {
 	}
 	if got.Message == "" {
 		t.Error("ต้องมีข้อความแจ้งว่ามีคำขอของอุปกรณ์ชิ้นนี้ค้างอยู่แล้ว")
+	}
+}
+
+// ผู้ใช้จำลองที่ข้อมูลตั้งต้นให้มีอุปกรณ์คืนเกินกำหนดค้างอยู่ (T-03)
+const tokenStudentOverdue = "mock-student-002"
+
+// AC-BRQ-06 (FR-BRQ-06) ยิงผ่าน HTTP จริง ตรงกับจุดตรวจเฟส 8
+// Given ล็อกอินเป็น student-002 ซึ่งมีอุปกรณ์เลยกำหนดคืนค้างอยู่
+// When  POST /v1/loan-requests
+// Then  ได้ 409 รหัส HAS_OVERDUE_LOAN ตามรายการของ CON-TECH-03 พร้อมเหตุผล
+func TestAC_BRQ_06_HTTP(t *testing.T) {
+	srv := newTestServer(t)
+
+	w := postRequest(t, srv, tokenStudentOverdue, bodyFor("CS-NB-0003"))
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("ผู้ขอที่มีของเกินกำหนดต้องได้ 409 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	var got ErrorDTO
+	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+		t.Fatalf("อ่าน JSON ไม่ได้: %v", err)
+	}
+	if got.Code != "HAS_OVERDUE_LOAN" {
+		t.Errorf("รหัสต้องเป็น HAS_OVERDUE_LOAN ตาม CON-TECH-03 แต่ได้ %q", got.Code)
+	}
+	if got.Message == "" {
+		t.Error("ต้องมีข้อความแจ้งเหตุผลว่ามีของค้างเกินกำหนด (FR-BRQ-06)")
 	}
 }

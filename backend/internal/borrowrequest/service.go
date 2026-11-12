@@ -2,6 +2,7 @@ package borrowrequest
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -12,19 +13,28 @@ import (
 // Service คือกฎของฟีเจอร์ที่อยู่ระหว่าง handler กับ repository
 // ทุกกฎบังคับที่ฝั่ง server ไม่พึ่งการซ่อนปุ่มที่หน้าจอ (plan.md ข้อ 1)
 type Service struct {
-	repo *Repository
-	now  func() time.Time // นาฬิกา test ตั้งเวลาเองได้ (ใช้เต็มที่ใน T-12, T-13)
-	loc  *time.Location   // เขตเวลา Asia/Bangkok (config.TimeZone, glossary)
+	repo  *Repository
+	clock Clock          // นาฬิกาที่ฉีดได้ ใช้เทียบกฎคืนเกินกำหนด (FR-BRQ-06, T-12)
+	loc   *time.Location // เขตเวลา Asia/Bangkok (config.TimeZone, glossary)
 }
 
 // NewService สร้าง Service ใช้นาฬิกาจริงและเขตเวลาจาก config
 func NewService(repo *Repository) *Service {
+	return NewServiceWithClock(repo, SystemClock{})
+}
+
+// NewServiceWithClock สร้าง Service ด้วยนาฬิกาที่กำหนดเอง ใช้ใน test ที่ต้องตรึงเวลา (AC-BRQ-06)
+func NewServiceWithClock(repo *Repository, clock Clock) *Service {
 	loc, err := time.LoadLocation(config.TimeZone)
 	if err != nil {
 		panic("load time zone " + config.TimeZone + ": " + err.Error()) // ฝัง tzdata ไว้แล้ว ไม่ควรเกิด
 	}
-	return &Service{repo: repo, now: time.Now, loc: loc}
+	return &Service{repo: repo, clock: clock, loc: loc}
 }
+
+// ErrHasOverdueLoan เกิดเมื่อผู้ขอมีอุปกรณ์ที่คืนเกินกำหนดค้างอยู่ จึงส่งคำขอใหม่ไม่ได้
+// (FR-BRQ-06, CON-TECH-03 รหัส HAS_OVERDUE_LOAN)
+var ErrHasOverdueLoan = errors.New("มีอุปกรณ์ที่คืนเกินกำหนดค้างอยู่")
 
 // Create สร้างคำขอยืมใบใหม่ด้วยสถานะเริ่มต้น "รออนุมัติ" (config.StatusRequested)
 // บันทึกผู้ขอจากรหัสผู้ใช้ที่ยืนยันตัวตนแล้วเท่านั้น ไม่ใช่รหัสที่พิมพ์ในฟอร์ม (FR-BRQ-04, ASM-BRQ-06)
@@ -40,6 +50,16 @@ func (s *Service) Create(ctx context.Context, in NewRequest) (Request, error) {
 		return Request{}, ErrNoPrincipal
 	}
 
+	// ผู้ขอที่มีของคืนเกินกำหนดค้างอยู่ ส่งคำขอใหม่ไม่ได้ และต้องไม่สร้างคำขอ (FR-BRQ-06, AC-BRQ-06)
+	// ตรวจก่อนแตะอุปกรณ์ได้ เพราะเป็นเรื่องของตัวผู้ขอเอง คำตอบไม่เปิดเผยข้อมูลอุปกรณ์ชิ้นใดเลย (DOM-ACCESS-01)
+	overdue, err := s.hasOverdueLoan(ctx, p)
+	if err != nil {
+		return Request{}, err
+	}
+	if overdue {
+		return Request{}, ErrHasOverdueLoan
+	}
+
 	req, err := s.repo.Create(ctx, p.UserID, normalizePurpose(in), config.StatusRequested)
 	if err != nil {
 		return Request{}, err
@@ -48,6 +68,19 @@ func (s *Service) Create(ctx context.Context, in NewRequest) (Request, error) {
 	// เวลาที่ส่งเทียบด้วยเขตเวลา Asia/Bangkok ตาม glossary (FR-BRQ-04)
 	req.SubmittedAt = req.SubmittedAt.In(s.loc)
 	return req, nil
+}
+
+// hasOverdueLoan บอกว่าผู้ขอมีอุปกรณ์ที่ยังไม่คืนและเลยเวลา 16:00 น. ของกำหนดคืนไปแล้วหรือไม่
+// นับเฉพาะอุปกรณ์ของภาควิชาผู้ขอเอง ของค้างในภาควิชาอื่นไม่นับ (FR-BRQ-06 ข้อ ก และ ค, DOM-ACCESS-01)
+//
+// กฎปลดล็อกหลังคืนแล้วตาม FR-BRQ-06 ข้อ ข (ส่งได้เมื่อถึง 00:00 น. ของวันถัดไป) เป็นงานของ T-13
+// ที่นี่จึงนับเฉพาะใบที่ยังไม่คืน
+func (s *Service) hasOverdueLoan(ctx context.Context, p auth.Principal) (bool, error) {
+	dueAt, found, err := s.repo.EarliestOpenLoanDue(ctx, p.UserID, p.DepartmentID)
+	if err != nil || !found {
+		return false, err
+	}
+	return s.clock.Now().After(overdueDeadline(dueAt, s.loc)), nil
 }
 
 // normalizePurpose จัดค่าวัตถุประสงค์ก่อนบันทึก (FR-BRQ-02)

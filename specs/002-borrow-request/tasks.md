@@ -224,11 +224,13 @@ Updated: 2569-11-11
 ### T-12 เพิ่มนาฬิกาที่ฉีดได้ และกฎปฏิเสธเมื่อมีของคืนเกินกำหนด
 - รองรับ: FR-BRQ-06, DOM-ACCESS-01, CON-TECH-03
 - ตรวจด้วย: AC-BRQ-06
-- ไฟล์ที่แตะ: `backend/internal/borrowrequest/clock.go`, `backend/internal/borrowrequest/service.go`, `backend/internal/borrowrequest/repository.go`
+- ไฟล์ที่แตะ: `backend/internal/borrowrequest/clock.go`, `backend/internal/borrowrequest/service.go`, `backend/internal/borrowrequest/repository.go`,
+  `backend/internal/borrowrequest/handler.go` (เพิ่มเมื่อ 2569-11-12 ทีมอนุญาตล่วงหน้าตอนสั่ง เพราะการแปลง error
+  เป็นรหัส `HAS_OVERDUE_LOAN` และสถานะ 409 ตาม CON-TECH-03 ทำที่ handler เท่านั้น เหมือน T-09 และ T-11)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-11
 - เสร็จเมื่อ: `TestAC_BRQ_06` ผ่าน — ผู้ขอที่มี loan ซึ่ง `returned_at` ว่างและเลย 16:00 น. ของ `due_at` แล้ว ต้องได้ 409 `HAS_OVERDUE_LOAN` และต้องนับเฉพาะอุปกรณ์ของภาควิชาตนเอง
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ
 
 ### T-13 กฎปลดล็อกเมื่อถึง 00:00 น. ของวันถัดไปหลังคืน
 - รองรับ: FR-BRQ-06
