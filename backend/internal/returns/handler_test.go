@@ -1125,3 +1125,583 @@ func TestReturns_ErrorBodyFollowsConTech03(t *testing.T) {
 		}
 	}
 }
+
+// ==== test จาก specs/006-return/test-cases.md (TestTC_ ห้ามแก้ให้ผ่าน ถ้าไม่ผ่านให้แก้โค้ดหรือถามทีม) ====
+
+// tcLoanState คือสถานะการยืมล่าสุดของอุปกรณ์ assetCode ใช้ใน TestTC_ (FR-RET-02, FR-RET-06)
+type tcLoanState struct {
+	ReturnedAt *time.Time
+	Condition  *string
+	Late       *bool
+}
+
+func tcLoanOf(t *testing.T, pool *pgxpool.Pool, assetCode string) tcLoanState {
+	t.Helper()
+	var s tcLoanState
+	if err := pool.QueryRow(context.Background(), `
+		SELECT l.returned_at, l.return_condition, l.returned_late
+		FROM loan l JOIN equipment_item i ON i.id = l.item_id
+		WHERE i.asset_code = $1 ORDER BY l.id DESC LIMIT 1`, assetCode).Scan(&s.ReturnedAt, &s.Condition, &s.Late); err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
+// tcLoanCount นับการยืมของอุปกรณ์ assetCode (returnedOnly = นับเฉพาะที่มีเวลาคืน)
+func tcLoanCount(t *testing.T, pool *pgxpool.Pool, assetCode string, returnedOnly bool) int {
+	t.Helper()
+	var n int
+	if err := pool.QueryRow(context.Background(), `
+		SELECT count(*) FROM loan l JOIN equipment_item i ON i.id = l.item_id
+		WHERE i.asset_code = $1 AND ($2 = false OR l.returned_at IS NOT NULL)`, assetCode, returnedOnly).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+// tcErrorBody อ่าน code และ message ของ error ตาม CON-TECH-03
+func tcErrorBody(t *testing.T, rec *httptest.ResponseRecorder) (code, message string) {
+	t.Helper()
+	var b struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &b); err != nil {
+		t.Fatalf("body ไม่ใช่ JSON: %s", rec.Body.String())
+	}
+	return b.Code, b.Message
+}
+
+// tcPostReturnNoAuth ส่ง POST /v1/returns โดยไม่มี header Authorization เลย
+func tcPostReturnNoAuth(t *testing.T, router http.Handler, fields map[string]string) *httptest.ResponseRecorder {
+	t.Helper()
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	for k, v := range fields {
+		if err := mw.WriteField(k, v); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := mw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/v1/returns", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	return rec
+}
+
+// TC-RET-01-1 (AC-RET-01 ทางปกติ)
+func TestTC_RET_01_1_NormalReturnAvailable(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+
+	// Given อุปกรณ์ภาควิชา 1 สถานะ "ถูกยืม" มีการยืมที่ยังไม่คืน (กำหนดคืนยังไม่ถึง)
+	insertBorrowedItem(t, pool, "TC-RET-01-1", 2*time.Hour)
+
+	// When เจ้าหน้าที่ภาควิชา 1 บันทึกการรับคืน สภาพ "ปกติ"
+	rec := postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "TC-RET-01-1", "condition": "normal"})
+
+	// Then (1) ตอบ 200
+	if rec.Code != http.StatusOK {
+		t.Fatalf("(1) status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+	loan := tcLoanOf(t, pool, "TC-RET-01-1")
+	// (2) การยืมนั้นมีเวลาคืน
+	if loan.ReturnedAt == nil {
+		t.Error("(2) returned_at ว่าง, want มีเวลาคืน")
+	}
+	// (3) สถานะอุปกรณ์เป็น "ว่าง"
+	if got := itemStatus(t, pool, "TC-RET-01-1"); got != "available" {
+		t.Errorf("(3) สถานะ = %q, want available", got)
+	}
+	// (4) สภาพที่บันทึกเป็น ปกติ
+	if loan.Condition == nil || *loan.Condition != "normal" {
+		t.Errorf("(4) return_condition = %v, want normal", loan.Condition)
+	}
+}
+
+// TC-RET-01-2 (AC-RET-01 ขอบ)
+func TestTC_RET_01_2_LateNormalReturnStillAvailable(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+
+	// Given อุปกรณ์ "ถูกยืม" มีการยืมที่ยังไม่คืน และเลยกำหนดคืนไปแล้ว
+	insertBorrowedItem(t, pool, "TC-RET-01-2", -1*time.Hour)
+
+	// When เจ้าหน้าที่บันทึกการรับคืน สภาพ "ปกติ"
+	rec := postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "TC-RET-01-2", "condition": "normal"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	// Then
+	loan := tcLoanOf(t, pool, "TC-RET-01-2")
+	// (1) การยืมมีเวลาคืน
+	if loan.ReturnedAt == nil {
+		t.Error("(1) returned_at ว่าง, want มีเวลาคืน")
+	}
+	// (2) สถานะอุปกรณ์ยังเป็น "ว่าง" แม้คืนเกินกำหนด (FR-RET-03)
+	if got := itemStatus(t, pool, "TC-RET-01-2"); got != "available" {
+		t.Errorf("(2) สถานะ = %q, want available", got)
+	}
+	// (3) การยืมถูกบันทึกว่าคืนเกินกำหนด (FR-RET-06)
+	if loan.Late == nil || !*loan.Late {
+		t.Errorf("(3) returned_late = %v, want true", loan.Late)
+	}
+}
+
+// TC-RET-01-3 (AC-RET-01 ขอบ)
+func TestTC_RET_01_3_SecondReturnRejected(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+
+	// Given อุปกรณ์ที่เพิ่งบันทึกคืนสภาพ "ปกติ" สำเร็จไปแล้ว 1 ครั้ง
+	insertBorrowedItem(t, pool, "TC-RET-01-3", 2*time.Hour)
+	if rec := postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "TC-RET-01-3", "condition": "normal"}); rec.Code != http.StatusOK {
+		t.Fatalf("บันทึกครั้งแรก status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	first := tcLoanOf(t, pool, "TC-RET-01-3")
+
+	// When เจ้าหน้าที่บันทึกการรับคืนชิ้นเดิมซ้ำ สภาพ "ปกติ"
+	rec := postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "TC-RET-01-3", "condition": "normal"})
+
+	// Then (1) ตอบ 409 NO_OPEN_LOAN
+	if code, _ := tcErrorBody(t, rec); rec.Code != http.StatusConflict || code != "NO_OPEN_LOAN" {
+		t.Errorf("(1) status = %d code = %q, want 409 NO_OPEN_LOAN", rec.Code, code)
+	}
+	// (2) เวลาคืนของการยืมครั้งแรกไม่เปลี่ยน
+	if after := tcLoanOf(t, pool, "TC-RET-01-3"); after.ReturnedAt == nil || !after.ReturnedAt.Equal(*first.ReturnedAt) {
+		t.Errorf("(2) returned_at = %v, want %v (ไม่เปลี่ยน)", after.ReturnedAt, first.ReturnedAt)
+	}
+	// (3) สถานะอุปกรณ์ยังเป็น "ว่าง"
+	if got := itemStatus(t, pool, "TC-RET-01-3"); got != "available" {
+		t.Errorf("(3) สถานะ = %q, want available", got)
+	}
+}
+
+// TC-RET-01-4 (AC-RET-01 ทางผิด)
+func TestTC_RET_01_4_UnauthenticatedRejected(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+
+	// Given อุปกรณ์ "ถูกยืม" มีการยืมที่ยังไม่คืน แต่ผู้เรียกไม่ได้ยืนยันตัวตน (ไม่มี token)
+	insertBorrowedItem(t, pool, "TC-RET-01-4", 2*time.Hour)
+
+	// When เรียกบันทึกการรับคืน สภาพ "ปกติ"
+	rec := tcPostReturnNoAuth(t, router, map[string]string{"assetCode": "TC-RET-01-4", "condition": "normal"})
+
+	// Then (1) ตอบ 401 UNAUTHENTICATED
+	if code, _ := tcErrorBody(t, rec); rec.Code != http.StatusUnauthorized || code != "UNAUTHENTICATED" {
+		t.Errorf("(1) status = %d code = %q, want 401 UNAUTHENTICATED", rec.Code, code)
+	}
+	// (2) การยืมยังไม่มีเวลาคืน
+	if loan := tcLoanOf(t, pool, "TC-RET-01-4"); loan.ReturnedAt != nil {
+		t.Errorf("(2) returned_at = %v, want ว่าง", loan.ReturnedAt)
+	}
+	// (3) สถานะอุปกรณ์ยังเป็น "ถูกยืม"
+	if got := itemStatus(t, pool, "TC-RET-01-4"); got != "borrowed" {
+		t.Errorf("(3) สถานะ = %q, want borrowed", got)
+	}
+}
+
+// TC-RET-02-1 (AC-RET-02 ทางปกติ)
+func TestTC_RET_02_1_DamagedNeverAvailable(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+	ctx := context.Background()
+
+	// Given อุปกรณ์ภาควิชา 1 สถานะ "ถูกยืม" มีการยืมที่ยังไม่คืน
+	insertBorrowedItem(t, pool, "TC-RET-02-1", 2*time.Hour)
+	// เก็บประวัติการเปลี่ยนสถานะของชิ้นนี้ด้วย trigger เฉพาะ test (plan ข้อ 6)
+	if _, err := pool.Exec(ctx, `
+		CREATE TABLE tc_status_history (asset_code TEXT, status TEXT);
+		CREATE FUNCTION tc_record_status() RETURNS trigger AS $$
+		BEGIN
+			INSERT INTO tc_status_history VALUES (NEW.asset_code, NEW.status);
+			RETURN NEW;
+		END;
+		$$ LANGUAGE plpgsql;
+		CREATE TRIGGER tc_status_history AFTER UPDATE OF status ON equipment_item
+			FOR EACH ROW EXECUTE FUNCTION tc_record_status();`); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `
+			DROP TRIGGER tc_status_history ON equipment_item;
+			DROP FUNCTION tc_record_status();
+			DROP TABLE tc_status_history;`)
+	})
+
+	// When เจ้าหน้าที่ภาควิชา 1 บันทึกการรับคืน สภาพ "ชำรุด"
+	rec := postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "TC-RET-02-1", "condition": "damaged"})
+
+	// Then (1) ตอบ 200
+	if rec.Code != http.StatusOK {
+		t.Fatalf("(1) status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+	loan := tcLoanOf(t, pool, "TC-RET-02-1")
+	// (2) การยืมนั้นมีเวลาคืน
+	if loan.ReturnedAt == nil {
+		t.Error("(2) returned_at ว่าง, want มีเวลาคืน")
+	}
+	// (3) สถานะอุปกรณ์เป็น "ไม่พร้อมใช้งาน"
+	if got := itemStatus(t, pool, "TC-RET-02-1"); got != "unavailable" {
+		t.Errorf("(3) สถานะ = %q, want unavailable", got)
+	}
+	// (4) ประวัติการเปลี่ยนสถานะไม่มี "ว่าง" (เปลี่ยนครั้งเดียว)
+	rows, err := pool.Query(ctx, `SELECT status FROM tc_status_history WHERE asset_code = 'TC-RET-02-1'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var history []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			t.Fatal(err)
+		}
+		history = append(history, s)
+	}
+	rows.Close()
+	if len(history) != 1 || history[0] != "unavailable" {
+		t.Errorf("(4) ประวัติสถานะ = %v, want [unavailable] (ไม่ผ่าน available)", history)
+	}
+	// (5) สภาพที่บันทึกเป็น ชำรุด
+	if loan.Condition == nil || *loan.Condition != "damaged" {
+		t.Errorf("(5) return_condition = %v, want damaged", loan.Condition)
+	}
+}
+
+// TC-RET-02-2 (AC-RET-02 ขอบ)
+func TestTC_RET_02_2_ReturnAgainDoesNotMakeAvailable(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+
+	// Given อุปกรณ์ที่เพิ่งบันทึกคืนสภาพ "ชำรุด" สำเร็จแล้ว (สถานะ "ไม่พร้อมใช้งาน")
+	insertBorrowedItem(t, pool, "TC-RET-02-2", 2*time.Hour)
+	if rec := postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "TC-RET-02-2", "condition": "damaged"}); rec.Code != http.StatusOK {
+		t.Fatalf("บันทึกชำรุด status = %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	// When เจ้าหน้าที่บันทึกการรับคืนชิ้นเดิมซ้ำ สภาพ "ปกติ"
+	rec := postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "TC-RET-02-2", "condition": "normal"})
+
+	// Then (1) ตอบ 409 NO_OPEN_LOAN
+	if code, _ := tcErrorBody(t, rec); rec.Code != http.StatusConflict || code != "NO_OPEN_LOAN" {
+		t.Errorf("(1) status = %d code = %q, want 409 NO_OPEN_LOAN", rec.Code, code)
+	}
+	// (2) สถานะอุปกรณ์ยังเป็น "ไม่พร้อมใช้งาน" ไม่กลายเป็น "ว่าง"
+	if got := itemStatus(t, pool, "TC-RET-02-2"); got != "unavailable" {
+		t.Errorf("(2) สถานะ = %q, want unavailable", got)
+	}
+}
+
+// TC-RET-02-3 (AC-RET-02 ทางผิด)
+func TestTC_RET_02_3_OtherDepartmentDamagedRejected(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool) // mock-staff-001 อยู่ภาควิชา 1
+
+	// Given อุปกรณ์ "ถูกยืม" มีการยืมที่ยังไม่คืน แต่เป็นของภาควิชาอื่น
+	_, otherModel := insertDepartment(t, pool, "TC-RET-02-3 ภาควิชาอื่น")
+	insertLoanOfModel(t, pool, otherModel, "TC-RET-02-3", 2*time.Hour, false)
+
+	// When เจ้าหน้าที่ภาควิชา 1 บันทึกการรับคืน สภาพ "ชำรุด"
+	rec := postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "TC-RET-02-3", "condition": "damaged"})
+
+	// Then (1) ตอบ 403 FORBIDDEN_DEPARTMENT
+	if code, _ := tcErrorBody(t, rec); rec.Code != http.StatusForbidden || code != "FORBIDDEN_DEPARTMENT" {
+		t.Errorf("(1) status = %d code = %q, want 403 FORBIDDEN_DEPARTMENT", rec.Code, code)
+	}
+	// (2) การยืมยังไม่มีเวลาคืน
+	if loan := tcLoanOf(t, pool, "TC-RET-02-3"); loan.ReturnedAt != nil {
+		t.Errorf("(2) returned_at = %v, want ว่าง", loan.ReturnedAt)
+	}
+	// (3) สถานะอุปกรณ์ยังเป็น "ถูกยืม"
+	if got := itemStatus(t, pool, "TC-RET-02-3"); got != "borrowed" {
+		t.Errorf("(3) สถานะ = %q, want borrowed", got)
+	}
+}
+
+// TC-RET-02-4 (AC-RET-02 ทางผิด)
+func TestTC_RET_02_4_StudentDamagedRejected(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+
+	// Given อุปกรณ์ "ถูกยืม" มีการยืมที่ยังไม่คืน แต่ผู้เรียกเป็นนักศึกษา
+	insertBorrowedItem(t, pool, "TC-RET-02-4", 2*time.Hour)
+
+	// When นักศึกษาเรียกบันทึกการรับคืน สภาพ "ชำรุด"
+	rec := postReturn(t, router, "mock-student-001", map[string]string{"assetCode": "TC-RET-02-4", "condition": "damaged"})
+
+	// Then (1) ตอบ 403 FORBIDDEN_ROLE
+	if code, _ := tcErrorBody(t, rec); rec.Code != http.StatusForbidden || code != "FORBIDDEN_ROLE" {
+		t.Errorf("(1) status = %d code = %q, want 403 FORBIDDEN_ROLE", rec.Code, code)
+	}
+	// (2) body ไม่มีข้อมูลการยืม (มีแค่ code และ message)
+	if !isErrorOnly(rec, "FORBIDDEN_ROLE") {
+		t.Errorf("(2) body = %s, want มีแค่ code และ message", rec.Body.String())
+	}
+	// (3) การยืมและสถานะอุปกรณ์ไม่เปลี่ยน
+	if loan := tcLoanOf(t, pool, "TC-RET-02-4"); loan.ReturnedAt != nil {
+		t.Errorf("(3) returned_at = %v, want ว่าง", loan.ReturnedAt)
+	}
+	if got := itemStatus(t, pool, "TC-RET-02-4"); got != "borrowed" {
+		t.Errorf("(3) สถานะ = %q, want borrowed", got)
+	}
+}
+
+// tcLookupAndPost เรียกทั้งค้นด้วยรหัสครุภัณฑ์และบันทึกการรับคืน สภาพ "ปกติ" ด้วยเจ้าหน้าที่ภาควิชา 1
+func tcLookupAndPost(t *testing.T, router http.Handler, assetCode string) map[string]*httptest.ResponseRecorder {
+	t.Helper()
+	return map[string]*httptest.ResponseRecorder{
+		"lookup": call(router, http.MethodGet, "/v1/returns/lookup?assetCode="+assetCode, "mock-staff-001"),
+		"POST":   postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": assetCode, "condition": "normal"}),
+	}
+}
+
+// TC-RET-03-1 (AC-RET-03 ทางปกติ)
+func TestTC_RET_03_1_AvailableItemNoOpenLoan(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+
+	// Given อุปกรณ์ภาควิชา 1 สถานะ "ว่าง" ไม่มีการยืมที่ยังไม่คืน
+	insertItemWithoutLoan(t, pool, "TC-RET-03-1", "available")
+
+	// When เจ้าหน้าที่ค้นด้วยรหัสครุภัณฑ์ และบันทึกการรับคืน สภาพ "ปกติ"
+	recs := tcLookupAndPost(t, router, "TC-RET-03-1")
+
+	for name, rec := range recs {
+		code, msg := tcErrorBody(t, rec)
+		// Then (1) ทั้งสองทางตอบ 409 NO_OPEN_LOAN
+		if rec.Code != http.StatusConflict || code != "NO_OPEN_LOAN" {
+			t.Errorf("(1) %s: status = %d code = %q, want 409 NO_OPEN_LOAN", name, rec.Code, code)
+		}
+		// (2) message เป็น "อุปกรณ์นี้ไม่มีการยืมที่ยังไม่คืน"
+		if msg != "อุปกรณ์นี้ไม่มีการยืมที่ยังไม่คืน" {
+			t.Errorf("(2) %s: message = %q", name, msg)
+		}
+	}
+	// (3) ไม่มีการยืมถูกบันทึกเวลาคืน
+	if n := tcLoanCount(t, pool, "TC-RET-03-1", false); n != 0 {
+		t.Errorf("(3) จำนวนการยืม = %d, want 0", n)
+	}
+	// (4) สถานะอุปกรณ์ยังเป็น "ว่าง"
+	if got := itemStatus(t, pool, "TC-RET-03-1"); got != "available" {
+		t.Errorf("(4) สถานะ = %q, want available", got)
+	}
+}
+
+// TC-RET-03-2 (AC-RET-03 ทางปกติ)
+func TestTC_RET_03_2_UnavailableItemNoOpenLoan(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+
+	// Given อุปกรณ์ภาควิชา 1 สถานะ "ไม่พร้อมใช้งาน" ไม่มีการยืมที่ยังไม่คืน
+	insertItemWithoutLoan(t, pool, "TC-RET-03-2", "unavailable")
+
+	// When เจ้าหน้าที่ค้นด้วยรหัสครุภัณฑ์ และบันทึกการรับคืน สภาพ "ปกติ"
+	recs := tcLookupAndPost(t, router, "TC-RET-03-2")
+
+	// Then (1) ทั้งสองทางตอบ 409 NO_OPEN_LOAN
+	for name, rec := range recs {
+		if code, _ := tcErrorBody(t, rec); rec.Code != http.StatusConflict || code != "NO_OPEN_LOAN" {
+			t.Errorf("(1) %s: status = %d code = %q, want 409 NO_OPEN_LOAN", name, rec.Code, code)
+		}
+	}
+	// (2) สถานะอุปกรณ์ยังเป็น "ไม่พร้อมใช้งาน"
+	if got := itemStatus(t, pool, "TC-RET-03-2"); got != "unavailable" {
+		t.Errorf("(2) สถานะ = %q, want unavailable", got)
+	}
+}
+
+// TC-RET-03-4 (AC-RET-03 ขอบ)
+func TestTC_RET_03_4_OnlyReturnedLoansNoOpenLoan(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+
+	// Given อุปกรณ์ภาควิชา 1 (รุ่น 1) สถานะ "ว่าง" ที่มีการยืมในอดีตซึ่งคืนแล้วทั้งหมด (สร้างใน test เอง)
+	insertLoanOfModel(t, pool, 1, "TC-RET-03-4", -2*time.Hour, true)
+	before := tcLoanOf(t, pool, "TC-RET-03-4")
+
+	// When เจ้าหน้าที่ค้นด้วยรหัสครุภัณฑ์ และบันทึกการรับคืน
+	recs := tcLookupAndPost(t, router, "TC-RET-03-4")
+
+	// Then (1) ตอบ 409 NO_OPEN_LOAN
+	for name, rec := range recs {
+		if code, _ := tcErrorBody(t, rec); rec.Code != http.StatusConflict || code != "NO_OPEN_LOAN" {
+			t.Errorf("(1) %s: status = %d code = %q, want 409 NO_OPEN_LOAN", name, rec.Code, code)
+		}
+	}
+	// (2) เวลาคืนและสภาพของการยืมเดิมไม่เปลี่ยน
+	after := tcLoanOf(t, pool, "TC-RET-03-4")
+	if after.ReturnedAt == nil || !after.ReturnedAt.Equal(*before.ReturnedAt) {
+		t.Errorf("(2) returned_at = %v, want %v", after.ReturnedAt, before.ReturnedAt)
+	}
+	if after.Condition == nil || *after.Condition != *before.Condition {
+		t.Errorf("(2) return_condition = %v, want %v", after.Condition, *before.Condition)
+	}
+}
+
+// TC-RET-03-5 (AC-RET-03 ขอบ)
+func TestTC_RET_03_5_UnknownAssetCodeNoOpenLoan(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+
+	// Given ไม่มีอุปกรณ์รหัสครุภัณฑ์นี้ในระบบ
+	const missing = "TC-RET-03-5-NOT-EXIST"
+
+	// When เจ้าหน้าที่ค้นด้วยรหัสนั้น และบันทึกการรับคืน
+	recs := tcLookupAndPost(t, router, missing)
+
+	// Then ตอบ 409 NO_OPEN_LOAN
+	for name, rec := range recs {
+		if code, _ := tcErrorBody(t, rec); rec.Code != http.StatusConflict || code != "NO_OPEN_LOAN" {
+			t.Errorf("%s: status = %d code = %q, want 409 NO_OPEN_LOAN", name, rec.Code, code)
+		}
+	}
+}
+
+// TC-RET-03-6 (AC-RET-03 ทางผิด ทีมตัดสิน 2569-11-12)
+func TestTC_RET_03_6_OtherDepartmentAvailableItem(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool) // mock-staff-001 อยู่ภาควิชา 1
+
+	// Given อุปกรณ์สถานะ "ว่าง" ไม่มีการยืมที่ยังไม่คืน แต่เป็นของภาควิชาอื่น
+	_, otherModel := insertDepartment(t, pool, "TC-RET-03-6 ภาควิชาอื่น")
+	if _, err := pool.Exec(context.Background(),
+		`INSERT INTO equipment_item (asset_code, model_id, status) VALUES ('TC-RET-03-6', $1, 'available')`, otherModel); err != nil {
+		t.Fatal(err)
+	}
+
+	// When เจ้าหน้าที่ภาควิชา 1 ค้นด้วยรหัสครุภัณฑ์ และบันทึกการรับคืน สภาพ "ปกติ"
+	recs := tcLookupAndPost(t, router, "TC-RET-03-6")
+
+	for name, rec := range recs {
+		// Then (1) ทั้งสองทางตอบ 403 FORBIDDEN_DEPARTMENT ไม่ใช่ 409
+		if code, _ := tcErrorBody(t, rec); rec.Code != http.StatusForbidden || code != "FORBIDDEN_DEPARTMENT" {
+			t.Errorf("(1) %s: status = %d code = %q, want 403 FORBIDDEN_DEPARTMENT", name, rec.Code, code)
+		}
+		// (2) body มีแค่ code และ message
+		if !isErrorOnly(rec, "FORBIDDEN_DEPARTMENT") {
+			t.Errorf("(2) %s: body = %s, want มีแค่ code และ message", name, rec.Body.String())
+		}
+	}
+	// (3) สถานะอุปกรณ์ยังเป็น "ว่าง"
+	if got := itemStatus(t, pool, "TC-RET-03-6"); got != "available" {
+		t.Errorf("(3) สถานะ = %q, want available", got)
+	}
+}
+
+// tcAssertConditionRejected ตรวจว่าได้ 422 CONDITION_REQUIRED และการยืมกับสถานะอุปกรณ์ไม่เปลี่ยน (AC-RET-04)
+func tcAssertConditionRejected(t *testing.T, pool *pgxpool.Pool, rec *httptest.ResponseRecorder, assetCode string) {
+	t.Helper()
+	// (1) ตอบ 422 CONDITION_REQUIRED
+	if code, _ := tcErrorBody(t, rec); rec.Code != http.StatusUnprocessableEntity || code != "CONDITION_REQUIRED" {
+		t.Errorf("(1) status = %d code = %q, want 422 CONDITION_REQUIRED", rec.Code, code)
+	}
+	// (2) การยืมยังไม่มีเวลาคืน
+	if loan := tcLoanOf(t, pool, assetCode); loan.ReturnedAt != nil {
+		t.Errorf("(2) returned_at = %v, want ว่าง", loan.ReturnedAt)
+	}
+	// (3) สถานะอุปกรณ์ยังเป็น "ถูกยืม"
+	if got := itemStatus(t, pool, assetCode); got != "borrowed" {
+		t.Errorf("(3) สถานะ = %q, want borrowed", got)
+	}
+}
+
+// TC-RET-04-1 (AC-RET-04 ทางปกติ)
+func TestTC_RET_04_1_MissingConditionRejected(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+
+	// Given อุปกรณ์ "ถูกยืม" มีการยืมที่ยังไม่คืน เจ้าหน้าที่กำลังบันทึกการรับคืน
+	insertBorrowedItem(t, pool, "TC-RET-04-1", 2*time.Hour)
+
+	// When ส่งบันทึกการรับคืนโดยไม่มีช่อง condition
+	rec := postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "TC-RET-04-1"})
+
+	// Then (1) ตอบ 422 CONDITION_REQUIRED
+	code, msg := tcErrorBody(t, rec)
+	if rec.Code != http.StatusUnprocessableEntity || code != "CONDITION_REQUIRED" {
+		t.Errorf("(1) status = %d code = %q, want 422 CONDITION_REQUIRED", rec.Code, code)
+	}
+	// (2) message บอกให้เลือก ปกติ หรือ ชำรุด
+	if !strings.Contains(msg, "ปกติ") || !strings.Contains(msg, "ชำรุด") {
+		t.Errorf("(2) message = %q, want มีคำว่า ปกติ และ ชำรุด", msg)
+	}
+	// (3) การยืมยังไม่มีเวลาคืน (ระบบไม่บันทึก)
+	if loan := tcLoanOf(t, pool, "TC-RET-04-1"); loan.ReturnedAt != nil {
+		t.Errorf("(3) returned_at = %v, want ว่าง", loan.ReturnedAt)
+	}
+	// (4) สถานะอุปกรณ์ยังเป็น "ถูกยืม"
+	if got := itemStatus(t, pool, "TC-RET-04-1"); got != "borrowed" {
+		t.Errorf("(4) สถานะ = %q, want borrowed", got)
+	}
+}
+
+// TC-RET-04-4 (AC-RET-04 ขอบ)
+func TestTC_RET_04_4_LostConditionRejected(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+
+	// Given อุปกรณ์ "ถูกยืม" มีการยืมที่ยังไม่คืน
+	insertBorrowedItem(t, pool, "TC-RET-04-4", 2*time.Hour)
+
+	// When ส่งบันทึกการรับคืน condition=lost (เรียก API ตรง)
+	rec := postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "TC-RET-04-4", "condition": "lost"})
+
+	// Then (1) 422 CONDITION_REQUIRED (2) การยืมยังไม่มีเวลาคืน (3) สถานะยังเป็น "ถูกยืม"
+	tcAssertConditionRejected(t, pool, rec, "TC-RET-04-4")
+}
+
+// TC-RET-04-5 (AC-RET-04 ขอบ)
+func TestTC_RET_04_5_EmptyConditionRejected(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+
+	// Given อุปกรณ์ "ถูกยืม" มีการยืมที่ยังไม่คืน
+	insertBorrowedItem(t, pool, "TC-RET-04-5", 2*time.Hour)
+
+	// When ส่งบันทึกการรับคืน condition= (ค่าว่าง)
+	rec := postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "TC-RET-04-5", "condition": ""})
+
+	// Then (1) 422 CONDITION_REQUIRED (2) การยืมและสถานะอุปกรณ์ไม่เปลี่ยน
+	tcAssertConditionRejected(t, pool, rec, "TC-RET-04-5")
+}
+
+// TC-RET-04-6 (AC-RET-04 ขอบ ทีมตัดสิน 2569-11-12)
+func TestTC_RET_04_6_ConditionCaseSensitivity(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+
+	// Given อุปกรณ์ "ถูกยืม" มีการยืมที่ยังไม่คืน
+	insertBorrowedItem(t, pool, "TC-RET-04-6", 2*time.Hour)
+
+	// When ส่งบันทึกการรับคืน condition=Normal (ตัวพิมพ์ใหญ่)
+	rec := postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "TC-RET-04-6", "condition": "Normal"})
+
+	// Then (1) 422 CONDITION_REQUIRED (2) การยืมยังไม่มีเวลาคืน (3) สถานะยังเป็น "ถูกยืม"
+	tcAssertConditionRejected(t, pool, rec, "TC-RET-04-6")
+}
+
+// TC-RET-04-7 (AC-RET-04 ทางผิด)
+func TestTC_RET_04_7_ConditionCheckedBeforeLookup(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+
+	// Given อุปกรณ์สถานะ "ว่าง" ไม่มีการยืมที่ยังไม่คืน
+	insertItemWithoutLoan(t, pool, "TC-RET-04-7", "available")
+
+	// When ส่งบันทึกการรับคืนโดยไม่ระบุสภาพ
+	rec := postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "TC-RET-04-7"})
+
+	// Then (1) ตอบ 422 CONDITION_REQUIRED เพราะตรวจสภาพก่อนแตะฐานข้อมูล
+	if code, _ := tcErrorBody(t, rec); rec.Code != http.StatusUnprocessableEntity || code != "CONDITION_REQUIRED" {
+		t.Errorf("(1) status = %d code = %q, want 422 CONDITION_REQUIRED", rec.Code, code)
+	}
+	// (2) สถานะอุปกรณ์ยังเป็น "ว่าง"
+	if got := itemStatus(t, pool, "TC-RET-04-7"); got != "available" {
+		t.Errorf("(2) สถานะ = %q, want available", got)
+	}
+}
