@@ -2,6 +2,14 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [SPEC-APV-004 Draft v2.1 Q-APV-32 ถึง 34 คำถามจาก test cases ชุดที่ 2] - 2569-11-12
+ทีมตอบ 3 คำถามที่พบตอน /testcases AC-APV-05, 12 ผ่านหน้าเว็บ ขยายความ FR-APV-01 (ง)(ซ) ไม่เปลี่ยน ID และไม่เปลี่ยน AC
+### Changed
+- `specs/004-approve-request/spec.md`: FR-APV-01 (ง) ตรวจภาควิชาก่อนเหตุผล (Q-APV-34) / (ซ) ตรวจภาควิชาก่อนสถานะ (Q-APV-33) และ `UNAUTHENTICATED` ระหว่างใช้หน้าแสดงข้อความสำรองของ `UPSTREAM_UNAVAILABLE` (Q-APV-32) / Q-APV-32 ถึง 34 ปิดแล้ว และ Clarifications
+- `specs/004-approve-request/tasks.md`: บันทึกการแก้ใต้ T-25
+- `specs/004-approve-request/test-cases.md`: Then ของ TC-APV-05-8, 12-6, 12-7
+- โค้ด: `backend/internal/approve/service.go` ลำดับการตรวจใน `Reject` เป็น หาคำขอ -> ภาควิชา -> เหตุผล -> สถานะ
+
 ## [SPEC-APV-004 Draft v2.1 Q-APV-27 ถึง 31 คำถามจาก test cases] - 2569-11-12
 ทีมตอบ 5 คำถามที่พบตอน /testcases AC-APV-02, 06, 11 ผ่านหน้าเว็บ ขยายความ FR-APV-01 (ก)(ข)(ง)(ซ) ไม่เปลี่ยน ID และไม่เปลี่ยน AC
 ### Changed

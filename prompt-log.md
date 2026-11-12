@@ -5478,3 +5478,54 @@ main
   / ถ้าไม่มีคำขอ แสดงข้อความแทนตาราง (ไม่แสดงหัวตารางเปล่า)
 - ผล test (AI รัน): `go test ./internal/approve/ -count=1` ผ่าน ไม่มี skip / `go test ./internal/config/` ผ่าน / `go vet ./...` ผ่าน /
   `npx vitest run` ผ่าน 38 ไฟล์ 95 test / ยังไม่ได้รัน `go test ./...` ทั้งระบบ
+
+---
+
+## 2569-11-12 /testcases AC-APV-05, 12 (โหมดร่าง)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcases AC-APV-05, 12`
+- โหมด: ร่าง ยังไม่เขียนโค้ด test
+- TC ที่เสนอ (สถานะ "ร่าง" ทุกแถว ต่อท้ายตาราง ไม่แก้แถวเดิม): TC-APV-05-1 ถึง 8, TC-APV-12-1 ถึง 7 รวม 15 แถว
+  ไม่เสนอซ้ำกับแถวเดิมที่ตรวจสิทธิ์ไปแล้ว (TC-APV-01-8, 02-8, 06-8, 11-6 ถึง 8)
+- ส่วนของ Then ที่ spec ไม่ได้บอก (เสนอเป็นคำถามให้ทีม):
+  1. TC-APV-05-8 หน้าจออนุมัติได้ UNAUTHENTICATED ต้องแสดงข้อความอะไร
+  2. TC-APV-12-6 ภาควิชาอื่นและคำขอถูกยกเลิก ตอบรหัสไหน
+  3. TC-APV-12-7 ภาควิชาอื่นและไม่ระบุเหตุผล ตอบรหัสไหน
+
+---
+
+## 2569-11-12 /testcases AC-APV-05, 12 (โหมดเขียน test)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcases AC-APV-05, 12`
+- โหมด: เขียน test (ทีมเปลี่ยนสถานะ TC-APV-05-1 ถึง 8 และ TC-APV-12-1 ถึง 7 เป็น "ใช้ได้" แล้ว)
+- 3 แถวที่ Then ยังเป็น "spec ไม่ได้บอก" (TC-APV-05-8, 12-6, 12-7) AI ทำแบบเดียวกับรอบก่อนที่ทีมสั่งให้ข้าม:
+  12-6, 12-7 เขียนเป็น t.Skip ไม่มี assert / 05-8 assert เฉพาะส่วนที่รู้แล้ว (คำขอยังอยู่ในรายการ) ไม่ assert ข้อความ
+- ไฟล์ที่สร้าง: `backend/internal/approve/tc_ac_apv_05_12_test.go` (12 test: ตรวจจริง 10, skip 2),
+  `frontend/src/__tests__/TC-APV-05-3.test.jsx`, `TC-APV-05-8.test.jsx`, `TC-APV-12-3.test.jsx`
+  ไม่แก้โค้ดของระบบ ไม่แก้ test เดิม
+- ผล test (AI รัน): `go test ./internal/approve/ -run "TestTC_APV_(05|12)" -count=1 -v` ผ่าน 10 skip 2 / vitest 3 ไฟล์ผ่าน
+
+---
+
+## 2569-11-12 ทีมตอบคำถามจาก test cases ชุดที่ 2 (Q-APV-32 ถึง 34) แก้ spec โค้ด และ test
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "จะตอบ 3 ข้อนี้ผ่านหน้าเว็บ" แล้ว "ตอบแล้ว"
+- AI เพิ่ม 3 คำถามในหน้าเว็บเดิม (https://claude.ai/artifact/7GcUrjzzJYKKYpfUhMfNhG) แล้วอ่านคำตอบจากที่เก็บของหน้านั้น
+- คำตอบของทีม (ผู้สั่ง) และ ID ที่ AI ตั้ง (ข้อถัดจาก Q-APV-31 ปิดทันทีพร้อมคำตอบ):
+  1. Q-APV-32 (TC-APV-05-8) หมดอายุระหว่างใช้หน้า -> "ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง" แบบเดิม (ตรงกับโค้ด)
+  2. Q-APV-33 (TC-APV-12-6) ภาควิชาอื่นและยกเลิกแล้ว -> FORBIDDEN_DEPARTMENT (ตรงกับโค้ด)
+  3. Q-APV-34 (TC-APV-12-7) ภาควิชาอื่นและไม่มีเหตุผล -> FORBIDDEN_DEPARTMENT (ต้องแก้โค้ด)
+- คำถามที่ AI ถามต่อ: ข้อ 3 ต้องแก้ลำดับใน Reject และมีผลข้างเคียงว่าปฏิเสธคำขอที่ไม่มีอยู่โดยไม่ใส่เหตุผลได้ REQUEST_NOT_FOUND แทน VALIDATION_FAILED จะแก้เลยไหม -> แก้เลย
+- ไฟล์ที่แก้: `specs/004-approve-request/spec.md`, `tasks.md` (T-25), `test-cases.md` (Then 3 แถว), `specs/CHANGELOG.md`,
+  `backend/internal/approve/service.go` (ย้ายการตรวจเหตุผลเข้าไปหลังตรวจภาควิชา ก่อนตรวจสถานะ),
+  `backend/internal/approve/tc_ac_apv_05_12_test.go` (TestTC_APV_12_6, 12_7 จาก skip เป็น assert), `frontend/src/__tests__/TC-APV-05-8.test.jsx` (เพิ่ม assert ข้อความ)
+- ผล test (AI รัน): `go test ./internal/approve/ -count=1` ผ่าน ไม่มี skip / `npx vitest run` ผ่าน 41 ไฟล์ 98 test / ยังไม่ได้รัน `go test ./...` ทั้งระบบ

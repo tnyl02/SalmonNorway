@@ -240,15 +240,8 @@ func (s *Service) Reject(ctx context.Context, requestID int, reason string, load
 	if err != nil {
 		return Result{}, err
 	}
-	// FR-APV-01 (ง)(ซ), AC-APV-06: ต้องระบุเหตุผล ว่างหรือมีแต่ช่องว่างไม่นับ ไม่เปิด transaction เลย สถานะจึงคงเดิม
-	if strings.TrimSpace(reason) == "" {
-		return Result{}, ErrReasonRequired
-	}
-	// FR-APV-01 (ง), Q-APV-28: ไม่เกิน ApprovalRejectReasonMaxLength นับตาม code point แบบเดียวกับ 003
-	// ตรวจก่อนดูสถานะคำขอ เหมือนกรณีไม่ระบุเหตุผล (Q-APV-29)
-	if utf8.RuneCountInString(reason) > config.ApprovalRejectReasonMaxLength {
-		return Result{}, ErrReasonTooLong
-	}
+	// ลำดับการตรวจ (Q-APV-29, Q-APV-34): หาคำขอ -> ภาควิชา -> เหตุผล -> สถานะ
+	// ตรวจเหตุผลหลังภาควิชา เจ้าหน้าที่ภาควิชาอื่นจึงได้ FORBIDDEN_DEPARTMENT เสมอ และก่อนสถานะ คำขอที่ยกเลิกแล้วจึงได้ VALIDATION_FAILED
 	var out Result
 	err = s.repo.inTx(ctx, func(tx *Repository) error {
 		target, _, ok, err := tx.lockItemRequests(ctx, requestID)
@@ -262,6 +255,14 @@ func (s *Service) Reject(ctx context.Context, requestID int, reason string, load
 		// ตรวจก่อนเรื่องอื่น ผู้ที่อยู่ภาควิชาอื่นจึงไม่รู้สถานะหรือข้อมูลใดของคำขอนั้น
 		if target.DepartmentID != p.DepartmentID {
 			return ErrForbiddenDepartment
+		}
+		// FR-APV-01 (ง)(ซ), AC-APV-06: ต้องระบุเหตุผล ว่างหรือมีแต่ช่องว่างไม่นับ ยังไม่เขียนอะไร สถานะจึงคงเดิม
+		if strings.TrimSpace(reason) == "" {
+			return ErrReasonRequired
+		}
+		// FR-APV-01 (ง), Q-APV-28: ไม่เกิน ApprovalRejectReasonMaxLength นับตาม code point แบบเดียวกับ 003
+		if utf8.RuneCountInString(reason) > config.ApprovalRejectReasonMaxLength {
+			return ErrReasonTooLong
 		}
 		if target.Status != config.StatusRequested {
 			return notRequestedError(ctx, tx, target, loadedAt) // FR-APV-01 (ซ), T-23
