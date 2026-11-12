@@ -172,7 +172,8 @@ func TestMigration_AuditLogAction(t *testing.T) {
 			t.Errorf("action %q อยู่ใน DM-07 ต้องบันทึกได้ แต่ได้ error: %v", a, err)
 		}
 	}
-	for _, a := range []string{"cancel_notify_failed", "approve", ""} {
+	// 'approve' เคยอยู่ในรายการนี้ ย้ายเป็น 'delete' เพราะ migration 0008 ของ 004 เพิ่ม 'approve' ใน DM-07 แล้ว (ทีมตกลง 2569-11-12)
+	for _, a := range []string{"cancel_notify_failed", "delete", ""} {
 		stmt := `INSERT INTO audit_log (actor_id, actor_role, action, outcome) VALUES ('student-001', 'student', '` + a + `', 'ok')`
 		if err := execInTx(t, conn, stmt); err == nil {
 			t.Errorf("action %q ไม่อยู่ใน DM-07 ต้องถูกปฏิเสธ", a)

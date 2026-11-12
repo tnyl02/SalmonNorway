@@ -1,5 +1,5 @@
 # Constraint ที่ใช้ร่วมทุกฟีเจอร์ (shared constraints)
-Status: v5.1 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบบและรายการรหัส error กลาง ตาม CR-004, v5.1 005 เพิ่มรหัส REQUEST_NOT_APPROVED, BORROWER_MISMATCH และ FORBIDDEN_ROLE (แถวเดียวกับที่ 004 ลงทะเบียน) ตามกติกาของ CON-TECH-03) | Source: Miro (Requirement table, Use Case Diagram, Architecture), spec 001
+Status: v5.1 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบบและรายการรหัส error กลาง ตาม CR-004, v5.1 005 เพิ่มรหัส REQUEST_NOT_APPROVED, BORROWER_MISMATCH และ FORBIDDEN_ROLE (แถวเดียวกับที่ 004 ลงทะเบียน) ตามกติกาของ CON-TECH-03, 2569-11-12 004 เพิ่มรหัส REQUEST_CANCELLED, REQUEST_ALREADY_DECIDED, REQUEST_DECIDED_CONCURRENTLY, NOT_FIRST_IN_QUEUE, APPROVAL_CUTOFF_PASSED ตามกติกาของ CON-TECH-03) | Source: Miro (Requirement table, Use Case Diagram, Architecture), spec 001
 
 กติกา: Constraint ที่ใช้มากกว่า 1 ฟีเจอร์ เขียนที่นี่ **ที่เดียว** spec ของแต่ละฟีเจอร์อ้าง ID ในหมวด Constraints ไม่ copy ข้อความ
 ถ้าแก้ไฟล์นี้ ต้องทำ CR และดู Impact Analysis กับทุก spec ที่อ้าง ID นั้น (ดู rtm.md ของแต่ละฟีเจอร์)
@@ -13,17 +13,23 @@ Status: v5.1 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบ�
 
   | รหัส | HTTP | ความหมาย | ใครใช้แล้ว |
   |---|---|---|---|
-  | `UNAUTHENTICATED` | 401 | ไม่มี session หรือหมดอายุ | 001, 002 |
+  | `UNAUTHENTICATED` | 401 | ไม่มี session หรือหมดอายุ | 001, 002, 004 |
   | `PRINCIPAL_INCOMPLETE` | 403 | ยืนยันตัวตนได้ แต่ไม่มีภาควิชาหรือบทบาทไม่รู้จัก | 001, 002 |
-  | `FORBIDDEN_DEPARTMENT` | 403 | เข้าถึงอุปกรณ์ของภาควิชาอื่น ต้องไม่ส่งข้อมูลอุปกรณ์กลับ | 001, 002 |
-  | `UPSTREAM_UNAVAILABLE` | 503 | ฐานข้อมูลหรือระบบภายนอกไม่ตอบ | 001, 002 |
-  | `VALIDATION_FAILED` | 422 | ข้อมูลที่ส่งมาไม่ครบหรือผิดกติกา แนบรายชื่อช่องที่ผิด | 002 |
-  | `ITEM_NOT_AVAILABLE` | 409 | อุปกรณ์ไม่ได้อยู่ในสถานะ "ว่าง" แล้ว | 002 |
+  | `FORBIDDEN_DEPARTMENT` | 403 | เข้าถึงอุปกรณ์ของภาควิชาอื่น ต้องไม่ส่งข้อมูลอุปกรณ์กลับ | 001, 002, 004 |
+  | `UPSTREAM_UNAVAILABLE` | 503 | ฐานข้อมูลหรือระบบภายนอกไม่ตอบ | 001, 002, 004 |
+  | `VALIDATION_FAILED` | 422 | ข้อมูลที่ส่งมาไม่ครบหรือผิดกติกา แนบรายชื่อช่องที่ผิด | 002, 004 |
+  | `ITEM_NOT_AVAILABLE` | 409 | อุปกรณ์ไม่ได้อยู่ในสถานะ "ว่าง" แล้ว | 002, 004 |
   | `REQUEST_NOT_APPROVED` | 409 | คำขอยืมไม่อยู่ในสถานะที่ทำสิ่งนี้ได้ (ยังไม่อนุมัติ หรือส่งมอบไปแล้ว) | 005 (ลงทะเบียน 2569-11-11) |
   | `BORROWER_MISMATCH` | 409 | ผู้ที่ยืนยันตัวตนไม่ใช่ผู้ส่งคำขอ | 005 (ลงทะเบียน 2569-11-11) |
   | `DUPLICATE_REQUEST` | 409 | ผู้ขอคนเดิมมีคำขอที่ยังไม่จบของอุปกรณ์ชิ้นเดิมอยู่แล้ว | 002 |
   | `HAS_OVERDUE_LOAN` | 409 | ผู้ขอมีอุปกรณ์ที่คืนเกินกำหนดค้างอยู่ | 002 |
-  | `FORBIDDEN_ROLE` | 403 | ยืนยันตัวตนได้และบทบาทรู้จัก แต่บทบาทนี้ไม่มีสิทธิ์ทำรายการนี้ (เช่น นักศึกษาเรียกการอนุมัติ) | 004, 001 |
+  | `FORBIDDEN_ROLE` | 403 | ยืนยันตัวตนได้และบทบาทรู้จัก แต่บทบาทนี้ไม่มีสิทธิ์ทำรายการนี้ (เช่น นักศึกษาเรียกการอนุมัติ) | 001, 004, 005 |
+  | `REQUEST_CANCELLED` | 409 | คำขอถูกผู้ขอยกเลิกแล้ว (`cancelled`) จึงพิจารณาไม่ได้ | 004 |
+  | `REQUEST_ALREADY_DECIDED` | 409 | คำขอได้รับการพิจารณาไปแล้วก่อนที่หน้าจอของผู้เรียกจะโหลด | 004 |
+  | `REQUEST_DECIDED_CONCURRENTLY` | 409 | คำขอเพิ่งถูกพิจารณาโดยผู้อื่นหลังหน้าจอของผู้เรียกโหลด (กดพร้อมกัน) | 004 |
+  | `NOT_FIRST_IN_QUEUE` | 409 | ไม่ใช่คำขอที่ส่งก่อนสุดที่ยังรออนุมัติของอุปกรณ์ชิ้นนั้น | 004 |
+  | `APPROVAL_CUTOFF_PASSED` | 409 | เลยเวลาที่อนุมัติได้แล้ว (16:00 น. ของวันที่เริ่มยืม) | 004 |
+  | `REQUEST_NOT_FOUND` | 404 | ไม่มีคำขอยืมรหัสนี้ หรือเป็นคำขอที่ฟีเจอร์นั้นไม่ได้รับผิดชอบ | 004 (ลงทะเบียน 2569-11-12) |
 
   ฟีเจอร์ที่ต้องการรหัสใหม่ ให้เพิ่มแถวในตารางนี้ก่อนใช้ ห้ามตั้งรหัสเองในโค้ดโดยไม่ลงทะเบียน
 
@@ -87,17 +93,17 @@ Status: v5.1 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบ�
 ## ใครอ้างใช้บ้าง
 | ID | ฟีเจอร์ที่อ้าง |
 |---|---|
-| CON-TECH-01 | 001-equipment-status, 002-borrow-request, 005-handover, 003-cancel-request |
-| CON-TECH-02 | 001-equipment-status, 002-borrow-request, 005-handover, 003-cancel-request |
-| CON-TECH-03 | 001-equipment-status (รหัสเดิม 4 ตัว และ FORBIDDEN_ROLE ใน T-17), 002-borrow-request, 005-handover (ใช้ FORBIDDEN_ROLE ร่วมกับ 004, ลงทะเบียน REQUEST_NOT_APPROVED, BORROWER_MISMATCH) |
-| CON-DATA-01 | 001-equipment-status, 002-borrow-request (ส่งคำขอได้เฉพาะชิ้นที่ "ว่าง"), 005-handover, 003-cancel-request (ยกเลิกไม่เปลี่ยนสถานะอุปกรณ์) |
+| CON-TECH-01 | 001-equipment-status, 002-borrow-request, 003-cancel-request, 004-approve-request, 005-handover |
+| CON-TECH-02 | 001-equipment-status, 002-borrow-request, 003-cancel-request, 004-approve-request, 005-handover |
+| CON-TECH-03 | 001-equipment-status (รหัสเดิม 4 ตัว และ FORBIDDEN_ROLE ใน T-17), 002-borrow-request, 004-approve-request, 005-handover (ใช้ FORBIDDEN_ROLE ร่วมกับ 004, ลงทะเบียน REQUEST_NOT_APPROVED, BORROWER_MISMATCH) |
+| CON-DATA-01 | 001-equipment-status, 002-borrow-request (ส่งคำขอได้เฉพาะชิ้นที่ "ว่าง"), 003-cancel-request (ยกเลิกไม่เปลี่ยนสถานะอุปกรณ์), 004-approve-request (สถานะอุปกรณ์ยังเป็น ว่าง หลังอนุมัติ), 005-handover |
 | CON-DATA-03 | 001-equipment-status, 002-borrow-request, 005-handover |
 | DOM-PRIV-01 | 001-equipment-status, 002-borrow-request (ไม่เปิดเผยชื่อผู้ขอรายอื่น FR-BRQ-05) |
 | DOM-AUDIT-01 | 001-equipment-status, 002-borrow-request (อ่านสถานะอุปกรณ์ตอนเปิดฟอร์ม ส่วน log การส่งคำขอใช้ RQ-25 ดู CR-003), 005-handover |
 | DOM-ACCESS-01 | 001-equipment-status, 002-borrow-request (FR-BRQ-07) |
-| DOM-REQ-01 | 001-equipment-status (จำนวนว่างไม่เปลี่ยนตามคำขอ), 002-borrow-request (ส่งคำขอซ้อนและลำดับคำขอ FR-BRQ-05), 005-handover (เปลี่ยนเป็นถูกยืมตอนส่งมอบ), 003-cancel-request (ยกเลิกคำขอหนึ่งไม่กระทบคำขออื่นของชิ้นเดียวกัน) |
-| DOM-LOAN-01 | 001-equipment-status (อ่านกำหนดคืน), 002-borrow-request (แสดงเงื่อนไขยืมปกติ FR-BRQ-10), 005-handover (สร้างกำหนดคืน) |
-| IF-IDP-01 | 001-equipment-status, 002-borrow-request, 005-handover, 003-cancel-request |
-| IF-NOT-01 | 003-cancel-request (แจ้งเจ้าหน้าที่เมื่อมีการยกเลิก FR-CXL-09) |
+| DOM-REQ-01 | 001-equipment-status (จำนวนว่างไม่เปลี่ยนตามคำขอ), 002-borrow-request (ส่งคำขอซ้อนและลำดับคำขอ FR-BRQ-05), 003-cancel-request (ยกเลิกคำขอหนึ่งไม่กระทบคำขออื่นของชิ้นเดียวกัน), 004-approve-request (คำขออื่นถูกปฏิเสธเมื่อมีคำขอได้รับอนุมัติ), 005-handover (เปลี่ยนเป็นถูกยืมตอนส่งมอบ) |
+| DOM-LOAN-01 | 001-equipment-status (อ่านกำหนดคืน), 002-borrow-request (แสดงเงื่อนไขยืมปกติ FR-BRQ-10), 004-approve-request, 005-handover (สร้างกำหนดคืน) |
+| IF-IDP-01 | 001-equipment-status, 002-borrow-request, 003-cancel-request, 004-approve-request, 005-handover |
+| IF-NOT-01 | 003-cancel-request (แจ้งเจ้าหน้าที่เมื่อมีการยกเลิก FR-CXL-09), 004-approve-request (แจ้งผลการพิจารณาให้ผู้ขอ FR-APV-02) |
 
 เมื่อเปิดฟีเจอร์ 002-006 เจ้าของฟีเจอร์เพิ่มชื่อโฟลเดอร์ของตัวเองในตารางนี้

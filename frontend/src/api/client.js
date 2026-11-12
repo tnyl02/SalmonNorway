@@ -145,6 +145,27 @@ export const api = {
   //   -> [{ requestId, queuePosition, submittedAt, requesterName }] หรือ throw ApiError(403 FORBIDDEN_ROLE) เมื่อไม่ใช่เจ้าหน้าที่
   listItemRequests: (assetCode) => getJSON(`/v1/equipment/items/${encodeURIComponent(assetCode)}/requests`),
 
+  // 004 FR-APV-01 (ก)(ข): คำขอยืมปกติที่รอพิจารณาของภาควิชาเจ้าหน้าที่ เรียงตามเวลาที่ส่ง
+  //   -> { items: [{ requestId, requesterName, studentCode, modelName, assetCode, purpose, purposeOther?,
+  //                  startAt, endAt, submittedAt, isFirst }], loadedAt }
+  getApprovalRequests: () => getJSON('/v1/approvals/requests'),
+
+  // 004 FR-APV-01 (ค): อนุมัติคำขอ ส่ง loadedAt ที่ได้จาก getApprovalRequests
+  //   -> { requestId, status, decidedAt, rejectedRequestIds }
+  approveRequest: (requestId, loadedAt) =>
+    postJSON(`/v1/approvals/requests/${encodeURIComponent(requestId)}/approve`, { loadedAt }),
+
+  // 004 FR-APV-01 (ง): ปฏิเสธคำขอพร้อมเหตุผล -> { requestId, status, decidedAt, rejectedRequestIds }
+  rejectRequest: (requestId, reason, loadedAt) =>
+    postJSON(`/v1/approvals/requests/${encodeURIComponent(requestId)}/reject`, { reason, loadedAt }),
+
+  // 004 FR-APV-02 (ง): Email ที่ส่งไม่สำเร็จของภาควิชาเจ้าหน้าที่
+  //   -> { items: [{ emailId, requestId, kind, requesterName, modelName, assetCode, attempts, lastError, lastAttemptAt }] }
+  getFailedEmails: () => getJSON('/v1/approvals/failed-emails'),
+
+  // 004 FR-APV-02 (ง): ส่ง Email ซ้ำโดยไม่พิจารณาใหม่ -> { emailId, status } (pending = เข้าคิวแล้ว)
+  resendEmail: (emailId) => postJSON(`/v1/approvals/emails/${encodeURIComponent(emailId)}/resend`, {}),
+
   // 003 FR-CXL-06: คำขอที่ยังยกเลิกได้ของผู้ใช้ที่เข้าสู่ระบบ เรียงใหม่ไปเก่า (plan.md ข้อ 4 ของ 003)
   //   -> { items: [{ requestId, modelName, assetCode, submittedAt }] }
   listMyPendingRequests: () => getJSON('/v1/my/pending-requests'),
