@@ -3,6 +3,11 @@
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
  003-cancel-request
+## [003 plan Draft v1.6 + tasks T-26] - 2569-11-12
+### Changed
+- plan ข้อ 4: 401 ใช้กลไกกลางของ 001 T-21 (จำชื่อแท็บ + safePageKey แทน returnTo แบบ path), เพิ่มหน้าจอเมื่อเจ้าหน้าที่ได้ 403 FORBIDDEN_ROLE (แสดง message ไม่มีปุ่มลองใหม่ ทีมตัดสิน ทาง ก), หัวไฟล์อ้าง spec v3.8
+- tasks T-26: รวมงานหน้าจอ 403 ของเจ้าหน้าที่ และแก้เสร็จเมื่อให้ตรงกับกลไกจริง
+
 ## [SPEC-CXL-003 Draft v3.8 + constraints v5.2 + plan + test-cases + tasks T-33] - 2569-11-12
 ตาม CR-006 (แก้ไขต่อจาก CR-004) ข้อค้นพบ F-01 ของ /verify
 

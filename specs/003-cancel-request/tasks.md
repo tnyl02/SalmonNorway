@@ -2,7 +2,7 @@
 Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้าง: 2569-11-10 | แก้: 2569-11-11 (ปิด Q-13) | Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
 
 สรุป
-- 18 เฟส (ฐานราก + 17 เฟสตาม AC) รวม 32 task (เดิมเฟส 17 เป็นเฟสรอคำตอบ ปิด Q-13 แล้วจึงเป็นเฟสของ AC-CXL-06)
+- 18 เฟส (ฐานราก + 17 เฟสตาม AC) รวม 33 task (T-33 เพิ่มตาม CR-006) (เดิมเฟส 17 เป็นเฟสรอคำตอบ ปิด Q-13 แล้วจึงเป็นเฟสของ AC-CXL-06)
 - รอ Q-xx 0 task
 - เฟสแรกที่ลองใช้งานได้จริง: เฟส 1 (นักศึกษาเห็นรายการคำขอที่รออนุมัติของตนเองบนหน้าจอ)
 
@@ -432,13 +432,15 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 - เสร็จเมื่อ: `TestAC_CXL_07_ExpiredSessionNoCancel` ผ่าน (ไม่มี token หรือ token ไม่รู้จัก -> 401 `UNAUTHENTICATED` สถานะไม่เปลี่ยน) ส่วนตรวจ audit_log อยู่ที่ T-31
 - สถานะ: เสร็จ
 
-### T-26 พาไปหน้าเข้าสู่ระบบและกลับมาหน้าเดิม
-- รองรับ: IF-IDP-01
+### T-26 พาไปหน้าเข้าสู่ระบบและกลับมาหน้าเดิม และหน้าจอเมื่อเจ้าหน้าที่เปิดหน้านี้
+- รองรับ: IF-IDP-01, FR-CXL-03 (ASM-13)
 - ตรวจด้วย: AC-CXL-07
-- ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/MyPendingRequests.test.jsx` (ถ้า 001 ทำกลไก redirect พร้อม `returnTo` ไว้แล้วใน AC-EQS-09 ให้ใช้ของเดิม ไม่เขียนใหม่)
+- ไฟล์ที่แตะ: `frontend/src/pages/MyPendingRequests/MyPendingRequests.jsx`, `frontend/src/pages/MyPendingRequests/__tests__/MyPendingRequests.test.jsx` (กลไก 401 ใช้ของ 001 T-21 ที่มีแล้ว ไม่เขียนใหม่ ไม่แก้ `App.jsx`, `api/client.js`)
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (plan ข้อ 4)
 - ต้องทำหลัง: T-07 (เดิม T-07, T-25 ทีมแก้ 2569-11-11: งานหน้าจอไม่รองานหลังบ้าน ใช้สัญญา API ใน plan ข้อ 4 และ client จำลอง ลองกับหลังบ้านจริงที่จุดตรวจของเฟส)
-- เสร็จเมื่อ: vitest `AC_CXL_07 redirects to login with returnTo` ผ่าน (401 -> ไปหน้าเข้าสู่ระบบพร้อม `returnTo` ของหน้านี้ ไม่เรียกยกเลิกซ้ำอัตโนมัติ `returnTo` ภายนอกระบบถูกปฏิเสธ)
+- เสร็จเมื่อ: (แก้ 2569-11-12 ตาม plan v1.6 ข้อ 4)
+  (1) vitest `AC_CXL_07 redirects to login and back` ผ่าน: render `App` กับ client จริง mock `fetch` ให้ยกเลิกได้ 401 -> เห็นหน้าเข้าสู่ระบบพร้อมข้อความ ล็อกอินแล้วกลับมาแท็บ "คำขอที่รออนุมัติของฉัน" ไม่เรียกยกเลิกซ้ำอัตโนมัติ
+  (2) vitest เจ้าหน้าที่เปิดหน้านี้ได้ 403 `FORBIDDEN_ROLE` -> แสดง message จากหลังบ้าน ไม่มีปุ่ม "ลองใหม่" (ทีมตัดสิน ทาง ก)
 - สถานะ: พร้อมทำ
 
 #### จุดตรวจเฟส 13

@@ -1,5 +1,5 @@
 # Implementation Plan: ยกเลิกคำขอยืม (Cancel Borrow Request)
-Spec: SPEC-CXL-003 (specs/003-cancel-request/spec.md, Draft v3.7) | Plan status: Draft v1.5 | Updated: 2569-11-11 (001 รับ action notify และ writer.go รับ pgx.Tx)
+Spec: SPEC-CXL-003 (specs/003-cancel-request/spec.md, Draft v3.8) | Plan status: Draft v1.6 | Updated: 2569-11-12 (ข้อ 4 รูปแบบ error ตาม CR-006, 401 ใช้กลไกของ 001 T-21, เจ้าหน้าที่เปิดหน้านี้ได้ข้อความไม่มีปุ่มลองใหม่)
 Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
 
 ## 1. สรุปแนวทาง
@@ -123,9 +123,12 @@ staff_contact(department_id INT REFERENCES department(id), email TEXT NOT NULL)
 
 - ยกเลิกสำเร็จ: แสดง "ยกเลิกคำขอยืม {ชื่อรุ่น} ({รหัสครุภัณฑ์}) เรียบร้อยแล้ว" แล้วเอาแถวออกจากรายการ (FR-CXL-01, FR-CXL-07)
 - โหลดรายการไม่สำเร็จ: แสดง "โหลดรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" พร้อมปุ่ม "ลองใหม่" ไม่แสดงข้อความว่าไม่มีคำขอ (FR-CXL-06)
+- 403 `FORBIDDEN_ROLE` (เจ้าหน้าที่เปิดหน้านี้ ASM-13): แสดง `message` จากหลังบ้าน ไม่แสดงปุ่ม "ลองใหม่" เพราะลองใหม่ก็ไม่สำเร็จ หน้าจอตัดสินจาก `code` (ทีมตัดสิน 2569-11-12 ทำใน T-26 ทีมเลือกเอง ไม่ได้มาจาก spec)
 - 409 / 404: แสดงข้อความตามตาราง error แล้วโหลดรายการใหม่ (FR-CXL-02, FR-CXL-03)
 - 503: แสดงข้อผิดพลาดพร้อมปุ่มลองใหม่ แถวยังอยู่ (ASM-06, AC-CXL-13)
-- 401: ไปหน้าเข้าสู่ระบบพร้อม `returnTo=/my/pending-requests` กลับมาแล้วไม่ยกเลิกให้อัตโนมัติ (AC-CXL-07) ตรวจ `returnTo` เป็น path ภายในเท่านั้น (แบบ plan 6.5 ของ 001)
+- 401: ใช้กลไกกลางของ 001 (T-21: `onUnauthorized` ใน `api/client.js`, `App.jsx`, `MockLogin.jsx`) แสดงหน้าเข้าสู่ระบบจำลองพร้อม `message` ของ 401
+  แล้วกลับมาแท็บ `my-pending` กลับมาแล้วไม่ยกเลิกให้อัตโนมัติ เหตุผลที่พิมพ์ค้างไว้หายไปด้วย (AC-CXL-07 ให้กดยกเลิกใหม่)
+  ยังไม่มี router จึงจำชื่อแท็บไว้ในหน่วยความจำแทน `returnTo` แบบ path และรับเฉพาะชื่อแท็บที่มีในระบบ (`safePageKey` กัน open redirect แบบ plan 6.5 ของ 001, ทีมตัดสิน 2569-11-12)
 - ไม่มี endpoint และหน้าจอของเจ้าหน้าที่ (FR-CXL-10 ไม่ทำใน prototype)
 
 ## 5. ตารางตรวจ Constraints
