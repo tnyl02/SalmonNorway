@@ -6,6 +6,7 @@ import {
   LABEL_SUBMIT_REQUEST,
   MSG_ATTACHMENT_HINT,
   MSG_LOAN_NORMAL_CONDITIONS,
+  MSG_STACKED_NOTICE,
   MSG_SUBMIT_SUCCESS,
   PURPOSE_OPTIONS,
   PURPOSE_OTHER,
@@ -153,7 +154,13 @@ export default function BorrowRequestForm({ client = api, assetCode: initialAsse
         {LABEL_SUBMIT_REQUEST}
       </button>
 
-      {created && <p role="status">{MSG_SUBMIT_SUCCESS(created.requestId)}</p>}
+      {/* ส่งสำเร็จแล้วบอกผลและเตือนเรื่องคำขอที่ส่งซ้อนทุกครั้ง (FR-BRQ-04, FR-BRQ-05, T-22) */}
+      {created && (
+        <div role="status" className="grid justify-items-start gap-1">
+          <p>{MSG_SUBMIT_SUCCESS(created.requestId)}</p>
+          <p className="text-sm text-slate-600">{MSG_STACKED_NOTICE}</p>
+        </div>
+      )}
       <RequestErrorSummary error={error} />
     </form>
   )

@@ -6,7 +6,13 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { vi } from 'vitest'
 import BorrowRequestForm from '../pages/BorrowRequest/BorrowRequestForm.jsx'
 import { ApiError } from '../api/client.js'
-import { MSG_ATTACHMENT_HINT, MSG_LOAN_NORMAL_CONDITIONS, MSG_SUBMIT_SUCCESS, PURPOSE_OPTIONS } from '../config.js'
+import {
+  MSG_ATTACHMENT_HINT,
+  MSG_LOAN_NORMAL_CONDITIONS,
+  MSG_STACKED_NOTICE,
+  MSG_SUBMIT_SUCCESS,
+  PURPOSE_OPTIONS,
+} from '../config.js'
 
 // okClient คืนผลสำเร็จแบบเดียวกับหลังบ้าน (FR-BRQ-04) และจำค่าที่ถูกส่งไว้ตรวจ
 function okClient() {
@@ -65,7 +71,8 @@ test('กรอกครบแล้วกดส่ง ต้องส่งค�
 
   fireEvent.click(screen.getByRole('button', { name: 'ส่งคำขอยืม' }))
 
-  expect(await screen.findByRole('status')).toHaveProperty('textContent', MSG_SUBMIT_SUCCESS(42))
+  // ใช้ toContain เพราะกล่องผลลัพธ์มีข้อความเรื่องคำขอที่ส่งซ้อนอยู่ด้วย (T-22) ไม่ใช่ข้อความเดียว
+  expect((await screen.findByRole('status')).textContent).toContain(MSG_SUBMIT_SUCCESS(42))
   const [input, attachment] = client.createLoanRequest.mock.calls[0]
   expect(input.assetCode).toBe('CS-NB-0003')
   expect(input.loanType).toBe('normal')
@@ -117,4 +124,18 @@ test('ช่องวันเวลาที่ยังไม่ได้ก�
   const [input] = client.createLoanRequest.mock.calls[0]
   expect('startAt' in input).toBe(false)
   expect('endAt' in input).toBe(false)
+})
+
+test('ส่งสำเร็จแล้วต้องบอกเรื่องคำขอที่ส่งซ้อนด้วย (FR-BRQ-05, T-22)', async () => {
+  // ส่งซ้อนกับคำขอของผู้อื่นได้ตาม DOM-REQ-01 ผู้ขอจึงต้องรู้ว่ายังไม่ได้อุปกรณ์ทันที
+  // ข้อความคงที่ทุกครั้ง ไม่บอกว่ามีคำขออื่นจริงหรือไม่ และไม่บอกลำดับ (AC-BRQ-05, DOM-PRIV-01)
+  const client = okClient()
+  render(<BorrowRequestForm client={client} />)
+  fillRequiredFields()
+
+  fireEvent.click(screen.getByRole('button', { name: 'ส่งคำขอยืม' }))
+
+  const status = await screen.findByRole('status')
+  expect(status.textContent).toContain(MSG_SUBMIT_SUCCESS(42))
+  expect(status.textContent).toContain(MSG_STACKED_NOTICE)
 })
