@@ -818,6 +818,61 @@ func TestAC_HND_08_AuditLogged(t *testing.T) {
 			t.Errorf("เวลาใน audit log = %v ต้องเป็นเวลาที่บันทึกจริง", r.occurredAt)
 		}
 	})
+
+	// T-27: ไม่สำเร็จ เจ้าหน้าที่ถูกปฏิเสธด้วยเหตุใดก็ตาม outcome error (ทีมตัดสิน 2569-11-12)
+	notChecked := validForm(tokenStudentA)
+	notChecked["cardChecked"] = "false"
+	for i, tc := range []struct {
+		name     string
+		item     string // สถานะอุปกรณ์
+		form     map[string]string
+		wantHTTP int
+	}{
+		{"ไม่สำเร็จ_อุปกรณ์ไม่ว่าง", "unavailable", validForm(tokenStudentA), http.StatusConflict},
+		{"ไม่สำเร็จ_ไม่ยืนยันการตรวจบัตร", "available", notChecked, http.StatusUnprocessableEntity},
+		{"ไม่สำเร็จ_ผู้ยืมไม่ใช่ผู้ส่งคำขอ", "available", validForm(tokenStudentB), http.StatusConflict},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assetCode := "T08-ER-000" + strconv.Itoa(i+1)
+			requestID := createRequest(t, pool, "student-001", createItem(t, pool, assetCode, tc.item), "approved")
+
+			rec := postHandover(t, h, tokenStaff, requestID, tc.form, twoJPEGs())
+			if rec.Code != tc.wantHTTP {
+				t.Fatalf("HTTP %d ต้องเป็น %d: %s", rec.Code, tc.wantHTTP, rec.Body.String())
+			}
+			got := handoverAudits(t, pool, requestID)
+			if len(got) != 1 {
+				t.Fatalf("audit log ของการส่งมอบ = %d แถว ต้องเป็น 1: %+v", len(got), got)
+			}
+			if r := got[0]; r.actorID != "staff-001" || r.actorRole != "staff" || r.assetCode != assetCode || r.outcome != "error" || r.occurredAt.IsZero() {
+				t.Errorf("audit log = %+v ต้องเป็นของ staff-001 อุปกรณ์ %s ผล error", r, assetCode)
+			}
+		})
+	}
+
+	// T-27: นักศึกษาเรียกบันทึกการส่งมอบ (AC-HND-09) outcome forbidden / เรียกยืนยันผู้ยืมไม่ใช่การส่งมอบ ไม่เขียน
+	t.Run("ไม่สำเร็จ_นักศึกษาเรียกเอง", func(t *testing.T) {
+		requestID := createRequest(t, pool, "student-001", createItem(t, pool, "T08-FB-0001", "available"), "approved")
+
+		if rec := doJSON(h, http.MethodPost, verifyPath(requestID), tokenStudentA, `{"borrowerCredential":"`+tokenStudentA+`"}`); rec.Code != http.StatusForbidden {
+			t.Fatalf("verify-borrower โดยนักศึกษา: HTTP %d ต้องเป็น 403", rec.Code)
+		}
+		if got := handoverAudits(t, pool, requestID); len(got) != 0 {
+			t.Fatalf("verify-borrower ไม่ใช่การส่งมอบ ต้องไม่มี audit log แต่มี %+v", got)
+		}
+
+		rec := postHandover(t, h, tokenStudentA, requestID, validForm(tokenStudentA), twoJPEGs())
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("HTTP %d ต้องเป็น 403", rec.Code)
+		}
+		got := handoverAudits(t, pool, requestID)
+		if len(got) != 1 {
+			t.Fatalf("audit log ของการส่งมอบ = %d แถว ต้องเป็น 1: %+v", len(got), got)
+		}
+		if r := got[0]; r.actorID != "student-001" || r.actorRole != "student" || r.assetCode != "T08-FB-0001" || r.outcome != "forbidden" {
+			t.Errorf("audit log = %+v ต้องเป็นของ student-001 อุปกรณ์ T08-FB-0001 ผล forbidden", r)
+		}
+	})
 }
 
 // hangingVerifier จำลอง Auth API ที่ไม่ตอบ: ค้างจนกว่า ctx จะหมดเวลา (AC-HND-03)

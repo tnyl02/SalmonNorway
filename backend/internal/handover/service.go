@@ -3,9 +3,14 @@ package handover
 import (
 	"context"
 	"errors"
+	"log"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
+	"salmonnorway/backend/internal/audit"
+	"salmonnorway/backend/internal/auth"
 	"salmonnorway/backend/internal/config"
 )
 
@@ -64,7 +69,42 @@ func NewService(repo *Repository, requesters RowQuerier, verifier BorrowerVerifi
 }
 
 // Handover ตรวจข้อมูล ยืนยันผู้ยืม แล้วบันทึกการส่งมอบ (FR-HND-02, 03, 05, 07)
+// ไม่สำเร็จด้วยเหตุใดก็ตาม เขียน audit log outcome error (FR-HND-08, Q-HND-14, T-27) กรณีสำเร็จ repository เขียนใน transaction (T-26)
 func (s *Service) Handover(ctx context.Context, in HandoverInput) (HandoverOutput, error) {
+	out, err := s.handover(ctx, in)
+	if err != nil {
+		s.AuditFailure(ctx, in.StaffID, auth.RoleStaff, in.RequestID, audit.OutcomeError)
+	}
+	return out, err
+}
+
+// AuditFailure เขียน audit log ของการส่งมอบที่ไม่สำเร็จ (FR-HND-08, DOM-AUDIT-01, Q-HND-14, T-27)
+// ระบุรหัสคำขอและรหัสครุภัณฑ์ถ้าคำขอมีจริง (request_id มี foreign key ไป borrow_request) ไม่มีคำขอ = ว่างทั้งคู่
+// เขียนนอก transaction ของการส่งมอบ (plan.md ข้อ 4) ถ้าเขียนไม่ได้ บันทึกลง log ของ server แทน ผลที่ตอบผู้ใช้ไม่เปลี่ยน
+func (s *Service) AuditFailure(ctx context.Context, actorID string, role auth.Role, requestID int, outcome string) {
+	if s.requesters == nil {
+		return // ไม่มีฐานข้อมูล (test ของ route ที่ไม่ใช้ฐานข้อมูล)
+	}
+	ctx = context.WithoutCancel(ctx) // ผู้ใช้ปิดการเชื่อมต่อแล้วก็ยังต้องบันทึก
+	e := audit.Entry{ActorID: actorID, ActorRole: string(role), Action: auditActionHandover, Outcome: outcome}
+	var assetCode string
+	err := s.requesters.QueryRow(ctx,
+		`SELECT i.asset_code FROM borrow_request r JOIN equipment_item i ON i.id = r.item_id WHERE r.id = $1`, requestID,
+	).Scan(&assetCode)
+	switch {
+	case err == nil:
+		e.AssetCode = assetCode // CON-DATA-03
+		e.RequestID = &requestID
+	case !errors.Is(err, pgx.ErrNoRows):
+		log.Printf("handover: audit failure lookup request %d: %v", requestID, err)
+	}
+	if _, err := audit.Write(ctx, s.requesters, e); err != nil {
+		log.Printf("handover: write audit log (outcome %s) request %d: %v", outcome, requestID, err)
+	}
+}
+
+// handover คือขั้นตอนของ Handover ก่อนเขียน audit log กรณีไม่สำเร็จ
+func (s *Service) handover(ctx context.Context, in HandoverInput) (HandoverOutput, error) {
 	var missing []string
 	if strings.TrimSpace(in.BorrowerCredential) == "" {
 		missing = append(missing, "borrowerCredential")

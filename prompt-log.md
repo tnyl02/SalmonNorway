@@ -5456,3 +5456,19 @@ main
   - `backend/internal/handover/repository_test.go` แก้ cleanup ของ TestHandover_ConcurrentSameItem แบบเดียวกัน (ไม่อยู่ในช่องไฟล์ที่แตะ จำเป็นเพื่อให้ test เดิมไม่พัง)
 - ไม่แก้ `specs/000-shared/data-model.md` ตามช่องไฟล์ที่แตะ เพราะ 0008 ของ 004 บันทึกว่าทีมตัดสิน 2569-11-12 ให้ค่า action ใหม่กำหนดใน migration ไม่เขียนใน data-model.md ทีมควรยืนยัน
 - ผล test (container golang:1.25): TestAC_HND_08_AuditLogged/สำเร็จ ผ่าน test ของ 005 ทั้งหมดผ่าน `go test ./...` ผ่านทุก package รวม TestMigration_AuditLogAction ของ 001 และ test ของ 003, 004 go vet และ gofmt ผ่าน
+
+---
+
+## 2569-11-12 /implement T-27 audit log เมื่อส่งมอบไม่สำเร็จ
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ทำ task ต่อไปได้เลย หากส่วนไหนไม่รู้ให้ถาม" (Q-HND-14 ปิดแล้วใน spec v2.7: บันทึกทั้งสำเร็จและไม่สำเร็จ)
+- คำตอบของทีมที่ใช้ (ถามไว้ตอน T-26): "403=forbidden อื่น ๆ=error"
+- ไฟล์ที่แก้:
+  - `backend/internal/handover/service.go` Handover ห่อขั้นตอนเดิม ถ้าไม่สำเร็จเรียก AuditFailure (outcome error) AuditFailure หารหัสครุภัณฑ์จากคำขอ (ถ้าคำขอไม่มีจริง request_id และ asset_code ว่าง) เขียนนอก transaction ด้วย context.WithoutCancel เขียนไม่ได้ลง log ของ server
+  - `backend/internal/handover/handler.go` (ไม่อยู่ในช่องไฟล์ที่แตะ จำเป็นสำหรับกรณี 403 ตามคำตอบของทีม) requireStaff เขียน audit forbidden เฉพาะ route บันทึกการส่งมอบ (ดูรายการและยืนยันผู้ยืมไม่ใช่การส่งมอบ ไม่เขียน) และฟอร์ม multipart เสียเขียน error
+  - `backend/internal/handover/handler_test.go` TestAC_HND_08_AuditLogged เพิ่ม 4 กรณีไม่สำเร็จ: อุปกรณ์ไม่ว่าง, ไม่ยืนยันการตรวจบัตร, ผู้ยืมไม่ใช่ผู้ส่งคำขอ (error) และนักศึกษาเรียกเอง (forbidden และ verify-borrower ของนักศึกษาไม่มี audit)
+- ผล test (container golang:1.25): TestAC_HND_08_AuditLogged 5 กรณีผ่าน TestHandover_NonStaffForbidden, TestAC_HND_09_StudentForbidden, TestAC_HND_14_ListApprovedOnly ยังผ่าน `go test ./...` ผ่านทุก package go vet และ gofmt ผ่าน
+- สิ่งที่ AI ตัดสินเอง (ทีมควรตรวจ): ไม่เขียน audit ของนักศึกษาที่เรียกดูรายการหรือยืนยันผู้ยืม เพราะไม่ใช่ "การส่งมอบ" ตาม FR-HND-08
