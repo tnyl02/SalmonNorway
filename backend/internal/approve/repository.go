@@ -174,3 +174,59 @@ func (r *Repository) decisionTime(ctx context.Context, requestID int) (time.Time
 	}
 	return at, true, nil
 }
+
+// ListFailedEmails คืน Email สถานะ failed ของคำขอที่อุปกรณ์เป็นของภาควิชาที่ระบุ รวมของการปฏิเสธอัตโนมัติ (System)
+// เรียงตามเวลาที่ลองส่งครั้งล่าสุด (FR-APV-02 ง, ASM-06, ASM-08, T-33)
+func (r *Repository) ListFailedEmails(ctx context.Context, departmentID int) ([]FailedEmail, error) {
+	const q = `
+SELECT e.id, e.request_id, e.kind, r.requester_name, m.name, i.asset_code,
+       e.attempts, coalesce(e.last_error, ''), e.last_attempt_at
+FROM approval_email e
+JOIN borrow_request  r ON r.id = e.request_id
+JOIN equipment_item  i ON i.id = r.item_id
+JOIN equipment_model m ON m.id = i.model_id
+WHERE e.status = $1 AND m.department_id = $2
+ORDER BY e.last_attempt_at, e.id`
+	rows, err := r.db.Query(ctx, q, config.ApprovalEmailFailed, departmentID)
+	if err != nil {
+		return nil, err
+	}
+	out, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (FailedEmail, error) {
+		var f FailedEmail
+		err := row.Scan(&f.ID, &f.RequestID, &f.Kind, &f.RequesterName, &f.ModelName, &f.AssetCode,
+			&f.Attempts, &f.LastError, &f.LastAttemptAt)
+		return f, err
+	})
+	if err != nil {
+		return nil, err
+	}
+	if out == nil {
+		out = []FailedEmail{}
+	}
+	return out, nil
+}
+
+// lockEmail ล็อก Email 1 ฉบับ คืนสถานะการส่งและภาควิชาเจ้าของอุปกรณ์ ok = false ถ้าไม่มี (T-33)
+func (r *Repository) lockEmail(ctx context.Context, emailID int) (status string, departmentID int, ok bool, err error) {
+	err = r.db.QueryRow(ctx, `
+SELECT e.status, m.department_id
+FROM approval_email e
+JOIN borrow_request  r ON r.id = e.request_id
+JOIN equipment_item  i ON i.id = r.item_id
+JOIN equipment_model m ON m.id = i.model_id
+WHERE e.id = $1
+FOR UPDATE OF e`, emailID).Scan(&status, &departmentID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", 0, false, nil
+	}
+	return status, departmentID, err == nil, err
+}
+
+// requeueEmail ส่ง Email ที่ failed กลับเข้าคิว ตัวส่งเบื้องหลังส่งในรอบถัดไป (FR-APV-02 ง "กดส่งซ้ำได้โดยไม่ต้องพิจารณาใหม่")
+// เริ่มนับครั้งใหม่ จึงได้ส่งซ้ำอัตโนมัติอีกชุดถ้ายังล้ม ไม่แตะ approval_decision และ borrow_request
+func (r *Repository) requeueEmail(ctx context.Context, emailID int, now time.Time) error {
+	_, err := r.db.Exec(ctx, `
+UPDATE approval_email SET status = $2, attempts = 0, next_attempt_at = $3 WHERE id = $1`,
+		emailID, config.ApprovalEmailPending, now)
+	return err
+}

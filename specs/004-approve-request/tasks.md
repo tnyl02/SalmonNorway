@@ -537,11 +537,11 @@ Updated: 2569-11-12
 ### T-33 สร้าง GET /v1/approvals/failed-emails และ POST /v1/approvals/emails/{id}/resend
 - รองรับ: FR-APV-02 (ง), ASM-08, ASM-06
 - ตรวจด้วย: AC-APV-14
-- ไฟล์ที่แตะ: `backend/internal/approve/handler.go`, `backend/internal/approve/dto.go`, `backend/internal/approve/repository.go`, `backend/internal/approve/handler_test.go`
+- ไฟล์ที่แตะ: `backend/internal/approve/handler.go`, `backend/internal/approve/dto.go`, `backend/internal/approve/repository.go`, `backend/internal/approve/handler_test.go`, `backend/internal/approve/service.go` (ListFailedEmails, Resend), `backend/internal/approve/model.go` (FailedEmail)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-05, T-32
 - เสร็จเมื่อ: `TestAC_APV_14` ผ่าน: รายการคืนเฉพาะ Email `failed` ของภาควิชาตนเอง (รวมของ System) และกดส่งซ้ำแล้วเป็น `sent` โดย `approval_decision` ไม่เปลี่ยน
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน `TestAC_APV_14` ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 ### T-34 สร้างหน้าจอ FailedEmails พร้อมปุ่มส่งซ้ำ
 - รองรับ: FR-APV-02 (ง), ASM-08

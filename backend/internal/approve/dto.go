@@ -76,3 +76,27 @@ type ValidationErrorDTO struct {
 	Message string   `json:"message"`
 	Fields  []string `json:"fields"`
 }
+
+// FailedEmailDTO คือ 1 แถวในรายการ "Email ที่ส่งไม่สำเร็จ" (FR-APV-02 ง, plan.md ข้อ 4)
+type FailedEmailDTO struct {
+	EmailID       int       `json:"emailId"`
+	RequestID     int       `json:"requestId"`
+	Kind          string    `json:"kind"`
+	RequesterName string    `json:"requesterName"`
+	ModelName     string    `json:"modelName"`
+	AssetCode     string    `json:"assetCode"`
+	Attempts      int       `json:"attempts"`
+	LastError     string    `json:"lastError"`     // สาเหตุ
+	LastAttemptAt time.Time `json:"lastAttemptAt"` // เวลา
+}
+
+// FailedEmailListDTO คือคำตอบของ GET /v1/approvals/failed-emails
+type FailedEmailListDTO struct {
+	Items []FailedEmailDTO `json:"items"`
+}
+
+// ResendResultDTO คือคำตอบของ POST /v1/approvals/emails/{id}/resend สถานะการส่งหลังกด (pending = เข้าคิวแล้ว)
+type ResendResultDTO struct {
+	EmailID int    `json:"emailId"`
+	Status  string `json:"status"`
+}

@@ -281,3 +281,45 @@ func (s *Service) Reject(ctx context.Context, requestID int, reason string, load
 	})
 	return out, err
 }
+
+// ListFailedEmails คืนรายการ "Email ที่ส่งไม่สำเร็จ" ของภาควิชาเจ้าหน้าที่ (FR-APV-02 ง, ASM-08, AC-APV-14)
+func (s *Service) ListFailedEmails(ctx context.Context) ([]FailedEmail, error) {
+	p, err := staff(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.ListFailedEmails(ctx, p.DepartmentID)
+}
+
+// ErrEmailNotFound เกิดเมื่อไม่มี Email รหัสนี้ (ตอบด้วย REQUEST_NOT_FOUND ที่ลงทะเบียนแล้ว Q-APV-25)
+var ErrEmailNotFound = errors.New("ไม่พบ Email นี้")
+
+// Resend ส่ง Email ที่ส่งไม่สำเร็จกลับเข้าคิวให้ตัวส่งเบื้องหลังส่งภายในรอบถัดไป โดยไม่พิจารณาใหม่ (FR-APV-02 ง, AC-APV-14, T-33)
+//   - เฉพาะ Email ของอุปกรณ์ภาควิชาเดียวกับเจ้าหน้าที่ (ASM-06) ไม่อย่างนั้น ErrForbiddenDepartment
+//   - Email ที่ไม่ได้ failed (ส่งแล้วหรืออยู่ในคิวแล้ว) ไม่ทำอะไร คืนสถานะปัจจุบัน กดซ้ำได้ไม่เกิด Email ซ้ำ
+func (s *Service) Resend(ctx context.Context, emailID int) (string, error) {
+	p, err := staff(ctx)
+	if err != nil {
+		return "", err
+	}
+	var status string
+	err = s.repo.inTx(ctx, func(tx *Repository) error {
+		st, dept, ok, err := tx.lockEmail(ctx, emailID)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return ErrEmailNotFound
+		}
+		if dept != p.DepartmentID {
+			return ErrForbiddenDepartment
+		}
+		status = st
+		if st != config.ApprovalEmailFailed {
+			return nil
+		}
+		status = config.ApprovalEmailPending
+		return tx.requeueEmail(ctx, emailID, s.now())
+	})
+	return status, err
+}

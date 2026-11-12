@@ -52,3 +52,16 @@ type Result struct {
 	DecidedAt  time.Time // เวลาที่บันทึกผล (FR-APV-01 ฌ)
 	RejectedBy []int     // รหัสคำขออื่นของชิ้นเดียวกันที่ถูกปฏิเสธตาม (FR-APV-01 จ, T-16) ว่างได้
 }
+
+// FailedEmail คือ Email ที่ส่งไม่สำเร็จครบทุกครั้งแล้ว 1 แถวในรายการ "Email ที่ส่งไม่สำเร็จ" (FR-APV-02 ง, ASM-08)
+type FailedEmail struct {
+	ID            int
+	RequestID     int
+	Kind          string // approved / rejected / auto_rejected
+	RequesterName string
+	ModelName     string
+	AssetCode     string
+	Attempts      int
+	LastError     string    // สาเหตุ (FR-APV-02 ง)
+	LastAttemptAt time.Time // เวลา (FR-APV-02 ง)
+}

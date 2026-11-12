@@ -4046,3 +4046,26 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ฟีเจอร์: 004-approve-request
 - คำสั่ง: "ตรวจสอบแล่วผ่าน"
 - สิ่งที่แก้: tasks.md T-32 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-33 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "ตรวจสอบแล่วผ่าน" (T-32 -> เสร็จ)
+- คำสั่ง: "/implement T-33"
+- ไฟล์ที่แก้: `backend/internal/approve/handler.go` (`GET /v1/approvals/failed-emails`, `POST /v1/approvals/emails/{id}/resend`), `dto.go` (`FailedEmailDTO`, `FailedEmailListDTO`, `ResendResultDTO`), `repository.go` (`ListFailedEmails` กรองตามภาควิชาเจ้าของอุปกรณ์, `lockEmail`, `requeueEmail`), `service.go` (`ListFailedEmails`, `Resend`, `ErrEmailNotFound`), `model.go` (`FailedEmail`), `handler_test.go` (`TestAC_APV_14`), `specs/004-approve-request/tasks.md`
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน
+- ไฟล์นอกช่อง "ไฟล์ที่แตะ": service.go และ model.go ของ 004 เอง เพิ่มในช่องแล้ว
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): กดส่งซ้ำ = ส่ง Email กลับเข้าคิว (pending, นับครั้งใหม่) ให้ตัวส่งเบื้องหลังส่งในรอบถัดไปภายใน 5 วินาที ไม่ได้ส่งทันทีใน request; Email ที่ไม่ได้ failed (ส่งแล้ว/อยู่ในคิว) กดซ้ำไม่ทำอะไร คืนสถานะเดิม จึงไม่เกิด Email ซ้ำและไม่ต้องลงทะเบียนรหัส error ใหม่; Email ที่ไม่มีอยู่ตอบ REQUEST_NOT_FOUND (รหัสที่ลงทะเบียนแล้ว); รายการกรองตามภาควิชาเจ้าของอุปกรณ์ (รวมของ System)
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-33 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจสอบแล่วผ่าน"
+- สิ่งที่แก้: tasks.md T-33 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)

@@ -32,7 +32,42 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET "+PathPrefix+"requests", h.list)
 	mux.HandleFunc("POST "+PathPrefix+"requests/{id}/approve", h.approve)
 	mux.HandleFunc("POST "+PathPrefix+"requests/{id}/reject", h.reject)
+	mux.HandleFunc("GET "+PathPrefix+"failed-emails", h.failedEmails)
+	mux.HandleFunc("POST "+PathPrefix+"emails/{id}/resend", h.resend)
 	return requireStaff(mux)
+}
+
+// failedEmails: GET /v1/approvals/failed-emails รายการ Email ที่ส่งไม่สำเร็จของภาควิชาตนเอง (FR-APV-02 ง, AC-APV-14)
+func (h *Handler) failedEmails(w http.ResponseWriter, r *http.Request) {
+	items, err := h.svc.ListFailedEmails(r.Context())
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	out := FailedEmailListDTO{Items: make([]FailedEmailDTO, 0, len(items))}
+	for _, f := range items {
+		out.Items = append(out.Items, FailedEmailDTO{
+			EmailID: f.ID, RequestID: f.RequestID, Kind: f.Kind, RequesterName: f.RequesterName,
+			ModelName: f.ModelName, AssetCode: f.AssetCode, Attempts: f.Attempts,
+			LastError: f.LastError, LastAttemptAt: f.LastAttemptAt,
+		})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// resend: POST /v1/approvals/emails/{id}/resend ส่ง Email ที่ไม่สำเร็จซ้ำโดยไม่พิจารณาใหม่ (FR-APV-02 ง, AC-APV-14)
+func (h *Handler) resend(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "REQUEST_NOT_FOUND")
+		return
+	}
+	status, err := h.svc.Resend(r.Context(), id)
+	if err != nil {
+		writeServiceError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, ResendResultDTO{EmailID: id, Status: status})
 }
 
 // requireStaff ปฏิเสธผู้ที่ไม่ใช่เจ้าหน้าที่ก่อนถึง endpoint ใด ๆ ของ 004 (AC-APV-05, CON-TECH-03)
@@ -116,7 +151,7 @@ func writeServiceError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusConflict, "ITEM_NOT_AVAILABLE") // FR-APV-01 (ค)(ซ), AC-APV-08
 	case errors.Is(err, ErrNotFirst):
 		writeError(w, http.StatusConflict, "NOT_FIRST_IN_QUEUE") // FR-APV-01 (ข)(ซ), AC-APV-07
-	case errors.Is(err, ErrRequestNotFound):
+	case errors.Is(err, ErrRequestNotFound), errors.Is(err, ErrEmailNotFound):
 		writeError(w, http.StatusNotFound, "REQUEST_NOT_FOUND") // Q-APV-25
 	case errors.Is(err, ErrRequestCancelled):
 		writeError(w, http.StatusConflict, "REQUEST_CANCELLED") // FR-APV-01 (ซ), AC-APV-09

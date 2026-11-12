@@ -8,6 +8,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	"salmonnorway/backend/internal/auth"
 	"salmonnorway/backend/internal/config"
@@ -318,5 +321,91 @@ func TestAC_APV_05(t *testing.T) {
 	}
 	if status != "requested" || decisions != 0 || audits != 0 {
 		t.Errorf("สถานะต้องคงเดิม แต่ได้ %q, approval_decision %d, audit_log %d", status, decisions, audits)
+	}
+}
+
+// markFailed ทำให้ Email ของคำขอเป็น failed เหมือนส่งไม่สำเร็จครบทุกครั้ง (ส่วนส่งซ้ำอัตโนมัติตรวจใน TestSender_RetryThenFailed)
+func markFailed(t *testing.T, tx pgx.Tx, requestID int) int {
+	t.Helper()
+	var id int
+	if err := tx.QueryRow(context.Background(), `
+		UPDATE approval_email SET status = 'failed', attempts = 4, last_error = 'smtp: connection refused', last_attempt_at = now()
+		WHERE request_id = $1 RETURNING id`, requestID).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+// AC-APV-14 (FR-APV-02 ง)
+// Given บันทึกผลแล้ว แต่ระบบแจ้งเตือน Email ส่งไม่สำเร็จทุกครั้ง (ส่งครั้งแรกและส่งซ้ำอีก 3 ครั้งแล้ว)
+// Then  ผลการพิจารณาไม่เปลี่ยน สถานะการส่งเป็น Failed พร้อมสาเหตุและเวลา คำขออยู่ในรายการ "Email ที่ส่งไม่สำเร็จ"
+//
+//	และเมื่อเจ้าหน้าที่กดส่งซ้ำ ระบบส่ง Email โดยผลการพิจารณาไม่เปลี่ยน
+func TestAC_APV_14(t *testing.T) {
+	tx := devTx(t)
+	srv := newTestServer(tx)
+	ctx := context.Background()
+
+	// Given: อนุมัติคำขอภาควิชา 1 และภาควิชา 2 แล้ว Email ของทั้งคู่ส่งไม่สำเร็จ
+	own := requestIDOf(t, tx, "AP-TEST-0002", "student-001")
+	other := requestIDOf(t, tx, "AP-TEST-0101", "student-101")
+	svc := NewService(NewRepository(tx))
+	if _, err := svc.Approve(staffCtx("staff-001", 1), own, time.Time{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Approve(staffCtx("staff-201", 2), other, time.Time{}); err != nil {
+		t.Fatal(err)
+	}
+	ownEmail, otherEmail := markFailed(t, tx, own), markFailed(t, tx, other)
+
+	// รายการ "Email ที่ส่งไม่สำเร็จ" ของภาควิชา 1 เห็นเฉพาะของตนเอง พร้อมสาเหตุและเวลา
+	w := getJSON(srv, tokenStaffDept1, PathPrefix+"failed-emails")
+	if w.Code != http.StatusOK {
+		t.Fatalf("ต้องได้ 200 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	var list FailedEmailListDTO
+	if err := json.Unmarshal(w.Body.Bytes(), &list); err != nil {
+		t.Fatal(err)
+	}
+	if len(list.Items) != 1 || list.Items[0].EmailID != ownEmail || list.Items[0].RequestID != own ||
+		list.Items[0].LastError == "" || list.Items[0].LastAttemptAt.IsZero() {
+		t.Fatalf("รายการต้องมีเฉพาะ Email ของภาควิชา 1 พร้อมสาเหตุและเวลา แต่ได้ %+v", list.Items)
+	}
+
+	// Email ของภาควิชาอื่นกดส่งซ้ำไม่ได้ (ASM-06)
+	if w := postJSON(srv, tokenStaffDept1, fmt.Sprintf("%semails/%d/resend", PathPrefix, otherEmail), `{}`); w.Code != http.StatusForbidden {
+		t.Errorf("ส่งซ้ำ Email ของภาควิชาอื่นต้องได้ 403 แต่ได้ %d", w.Code)
+	}
+
+	// When: กดส่งซ้ำ -> กลับเข้าคิว แล้วตัวส่งรอบถัดไปส่งสำเร็จ
+	w = postJSON(srv, tokenStaffDept1, fmt.Sprintf("%semails/%d/resend", PathPrefix, ownEmail), `{}`)
+	var res ResendResultDTO
+	_ = json.Unmarshal(w.Body.Bytes(), &res)
+	if w.Code != http.StatusOK || res.Status != "pending" {
+		t.Fatalf("กดส่งซ้ำต้องได้ 200 สถานะ pending แต่ได้ %d %+v", w.Code, res)
+	}
+	mailer := &fakeMailer{}
+	sender := &Sender{db: tx, mailer: mailer, resolver: MockRecipientResolver{}, now: func() time.Time { return time.Now().Add(time.Minute) }}
+	if err := sender.SendDue(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// Then: ส่งถึงผู้ขอ Email เป็น sent หายจากรายการ และผลการพิจารณาไม่เปลี่ยน
+	if len(mailer.sent) != 1 || mailer.sent[0].To != "student-001@example.com" {
+		t.Errorf("ต้องส่ง Email ถึง student-001 1 ฉบับ แต่ได้ %+v", mailer.sent)
+	}
+	var emailStatus, decision, reqStatus string
+	var decisions int
+	if err := tx.QueryRow(ctx, `
+		SELECT e.status, d.result, r.status, (SELECT count(*) FROM approval_decision WHERE request_id = r.id)
+		FROM approval_email e JOIN approval_decision d ON d.request_id = e.request_id
+		JOIN borrow_request r ON r.id = e.request_id WHERE e.id = $1`, ownEmail).Scan(&emailStatus, &decision, &reqStatus, &decisions); err != nil {
+		t.Fatal(err)
+	}
+	if emailStatus != "sent" || decision != "approved" || reqStatus != "approved" || decisions != 1 {
+		t.Errorf("ต้องเป็น sent และผลเดิม approved 1 แถว แต่ได้ %q / %q / %q / %d", emailStatus, decision, reqStatus, decisions)
+	}
+	if w := getJSON(srv, tokenStaffDept1, PathPrefix+"failed-emails"); !strings.Contains(w.Body.String(), `"items":[]`) {
+		t.Errorf("หลังส่งสำเร็จรายการต้องว่าง แต่ได้ %s", w.Body.String())
 	}
 }
