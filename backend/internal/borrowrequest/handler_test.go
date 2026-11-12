@@ -49,10 +49,16 @@ func postRequest(t *testing.T, srv http.Handler, token, body string) *httptest.R
 	return w
 }
 
+// ช่วงเวลายืมมาตรฐานของ test ที่ไม่ได้ทดสอบกฎเวลาคืนโดยตรง
+// ตรึงไว้ที่ 09:00 ถึง 15:00 ของวันนี้ตามเวลา Asia/Bangkok เพื่อให้ผ่านกฎ DOM-LOAN-01 เสมอ
+// (ของเดิมใช้ "ตอนนี้ + 2 ชั่วโมง" ซึ่งทำให้ test ทั้งชุดล้มเมื่อรันหลัง 14:00 น. พบ 2569-11-12)
+func testLoanWindow() (string, string) {
+	return bangkokToday(9, 0).Format(time.RFC3339), bangkokToday(15, 0).Format(time.RFC3339)
+}
+
 // bodyFor สร้าง JSON ของฟอร์มที่กรอกครบ สำหรับอุปกรณ์รหัสที่ระบุ
 func bodyFor(assetCode string) string {
-	start := time.Now().Format(time.RFC3339)
-	end := time.Now().Add(2 * time.Hour).Format(time.RFC3339)
+	start, end := testLoanWindow()
 	return `{"assetCode":"` + assetCode + `","requesterName":"ธัญลักษณ์ ทดสอบ","studentCode":"660710715",` +
 		`"loanType":"normal","purpose":"study","startAt":"` + start + `","endAt":"` + end + `"}`
 }
@@ -162,8 +168,8 @@ func bodyWithout(assetCode, omit string) string {
 	fields := map[string]string{
 		"requesterName": `"ธัญลักษณ์ ทดสอบ"`,
 		"studentCode":   `"660710715"`,
-		"startAt":       `"` + time.Now().Format(time.RFC3339) + `"`,
-		"endAt":         `"` + time.Now().Add(2*time.Hour).Format(time.RFC3339) + `"`,
+		"startAt":       `"` + bangkokToday(9, 0).Format(time.RFC3339) + `"`,
+		"endAt":         `"` + bangkokToday(15, 0).Format(time.RFC3339) + `"`,
 		"purpose":       `"study"`,
 	}
 	delete(fields, omit)
@@ -238,8 +244,7 @@ func TestValidation_ReportsAllMissingFields(t *testing.T) {
 
 // bodyWithPurpose สร้าง JSON ของฟอร์มที่ครบทุกช่อง โดยกำหนดค่าวัตถุประสงค์และข้อความระบุเพิ่มเอง
 func bodyWithPurpose(assetCode, purpose, purposeOther string) string {
-	start := time.Now().Format(time.RFC3339)
-	end := time.Now().Add(2 * time.Hour).Format(time.RFC3339)
+	start, end := testLoanWindow()
 	return `{"assetCode":"` + assetCode + `","requesterName":"ธัญลักษณ์ ทดสอบ","studentCode":"660710715",` +
 		`"loanType":"normal","purpose":"` + purpose + `","purposeOther":"` + purposeOther + `",` +
 		`"startAt":"` + start + `","endAt":"` + end + `"}`

@@ -4,11 +4,12 @@ import ModelRow from '../../components/ModelRow.jsx'
 import ItemTable from '../../components/ItemTable.jsx'
 import SearchBar from '../../components/SearchBar.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
+import ErrorState from '../../components/ErrorState.jsx'
 import EquipmentDetail from '../EquipmentDetail/EquipmentDetail.jsx'
 
 const NO_FILTER = { categories: [], statuses: [] }
 
-// หน้ารายการอุปกรณ์ (UC-01 main flow ขั้น 3-6 และ alternative 6a, FR-EQS-01, FR-EQS-02, FR-EQS-03)
+// หน้ารายการอุปกรณ์ (UC-01 main flow ขั้น 3-6, alternative 6a และ exception E2, FR-EQS-01, FR-EQS-02, FR-EQS-03, FR-EQS-08)
 // แสดงรายการรุ่น 1 แถว = 1 รุ่น กรองตามประเภทและสถานะ แล้วเมื่อเลือกรุ่นแสดงอุปกรณ์รายชิ้นตามรหัสครุภัณฑ์
 // รายชิ้นใช้ตัวกรองเดียวกับรายการรุ่น (plan.md ข้อ 6.3)
 // client ส่งเข้ามาได้ ตอน test ใช้ client จำลองแทนหลังบ้านจริง
@@ -18,7 +19,8 @@ export default function EquipmentList({ client = api }) {
   const [models, setModels] = useState(null)
   const [selectedId, setSelectedId] = useState(null)
   const [items, setItems] = useState(null)
-  const [failed, setFailed] = useState(false)
+  const [error, setError] = useState(null) // ดึงข้อมูลไม่สำเร็จ (FR-EQS-08)
+  const [reloadKey, setReloadKey] = useState(0) // เพิ่มทีละ 1 เมื่อกดลองใหม่ ให้โหลดใหม่ทั้งรายการรุ่นและรายชิ้น
   const [openAsset, setOpenAsset] = useState(null) // รหัสครุภัณฑ์ที่เปิดดูรายละเอียดอยู่ (FR-EQS-04)
 
   useEffect(() => {
@@ -32,17 +34,18 @@ export default function EquipmentList({ client = api }) {
         // ตัวเลือกประเภทมาจากรายการตอนยังไม่กรอง ไม่มี endpoint ประเภทแยกใน plan.md ข้อ 5
         if (filter === NO_FILTER) setCategories([...new Set(res.items.map((m) => m.category))])
       })
-      .catch(() => {
-        // FR-EQS-08: ไม่แสดงข้อมูลเก่า ปุ่มลองใหม่และ test ของกรณีนี้อยู่ใน T-20
+      .catch((err) => {
+        // FR-EQS-08: ไม่แสดงข้อมูลเก่าที่อาจไม่ถูกต้อง ล้างรายการเดิมทิ้งก่อนแสดงข้อผิดพลาด
         if (active) {
           setModels(null)
-          setFailed(true)
+          setItems(null)
+          setError(err)
         }
       })
     return () => {
       active = false
     }
-  }, [client, filter])
+  }, [client, filter, reloadKey])
 
   useEffect(() => {
     if (selectedId == null) return
@@ -51,19 +54,31 @@ export default function EquipmentList({ client = api }) {
     client
       .listItems(selectedId, filter)
       .then((res) => active && setItems(res.items))
-      .catch(() => {
+      .catch((err) => {
         if (active) {
+          setModels(null)
           setItems(null)
-          setFailed(true)
+          setError(err)
         }
       })
     return () => {
       active = false
     }
-  }, [client, selectedId, filter])
+  }, [client, selectedId, filter, reloadKey])
 
-  if (failed) {
-    return <p role="alert" className="mt-4 text-red-700">ดึงข้อมูลอุปกรณ์ไม่สำเร็จ</p>
+  // FR-EQS-08: กดลองใหม่ = ล้างข้อผิดพลาดแล้วโหลดใหม่ตามตัวกรองเดิม
+  const retry = () => {
+    setError(null)
+    setReloadKey((k) => k + 1)
+  }
+
+  if (error) {
+    return (
+      <section className="mt-4 grid gap-4">
+        <h2 className="text-lg font-semibold text-slate-900">รายการอุปกรณ์</h2>
+        <ErrorState error={error} onRetry={retry} />
+      </section>
+    )
   }
 
   // เปิดรายละเอียดแทนรายการ ไม่ล้างตัวกรองและรุ่นที่เลือก กดกลับแล้วเห็นรายการเดิม

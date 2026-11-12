@@ -1,10 +1,17 @@
 package equipment
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
+
+	"salmonnorway/backend/internal/audit"
+	"salmonnorway/backend/internal/auth"
+	"salmonnorway/backend/internal/config"
+	"salmonnorway/backend/internal/platform"
 )
 
 // PathPrefix คือส่วนต้นของ path ทุก endpoint ของฟีเจอร์นี้ที่หลังบ้านรับ
@@ -14,12 +21,13 @@ const PathPrefix = "/v1/equipment/"
 
 // Handler รับ HTTP request ของฟีเจอร์ 001 ทุก endpoint ต้องอยู่หลัง auth.Middleware (IF-IDP-01, NFR-SEC-01)
 type Handler struct {
-	svc *Service
+	svc     *Service
+	auditDB audit.DB // ฐานข้อมูลเดียวกับ repository ใช้เขียน audit_log (DOM-AUDIT-01)
 }
 
-// NewHandler สร้าง Handler
+// NewHandler สร้าง Handler เขียน audit ลงฐานข้อมูลเดียวกับที่อ่านข้อมูลอุปกรณ์ (plan.md ข้อ 6.4 synchronous ใน request เดียวกัน)
 func NewHandler(svc *Service) *Handler {
-	return &Handler{svc: svc}
+	return &Handler{svc: svc, auditDB: svc.repo.db}
 }
 
 // Routes คืน router ของฟีเจอร์นี้ ให้ main.go ห่อด้วย auth.Middleware แล้วผูกกับ PathPrefix
@@ -28,15 +36,27 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET "+PathPrefix+"models", h.listModels)
 	mux.HandleFunc("GET "+PathPrefix+"models/{modelId}/items", h.listItems)
 	mux.HandleFunc("GET "+PathPrefix+"items/{assetCode}", h.getItem)
+	mux.HandleFunc("GET "+PathPrefix+"summary", h.summary)
 	// ไม่มี endpoint ที่เขียนข้อมูล ฟีเจอร์นี้อ่านอย่างเดียว (CON-DATA-02) method อื่นได้ 405 จาก router
-	return mux
+	return withDBTimeout(mux)
 }
 
-// listModels: GET /v1/equipment/models?category=&status= รายการรุ่นพร้อมจำนวนว่าง/ทั้งหมด (FR-EQS-01, FR-EQS-02, AC-EQS-01, AC-EQS-02)
+// withDBTimeout จำกัดเวลารอฐานข้อมูลของทุก endpoint ของฟีเจอร์นี้ไว้ที่ config.EquipmentDBTimeout (FR-EQS-08, Q-08, T-26)
+// query ที่เกินเวลาคืน error แล้ว handler ตอบ 503 UPSTREAM_UNAVAILABLE ผ่าน writeServiceError / writeUpstreamError
+func withDBTimeout(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), config.EquipmentDBTimeout)
+		defer cancel()
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// listModels: GET /v1/equipment/models?category=&status=&department= รายการรุ่นพร้อมจำนวนว่าง/ทั้งหมด (FR-EQS-01, FR-EQS-02, AC-EQS-01, AC-EQS-02)
+// นักศึกษาเห็นเฉพาะภาควิชาของตน และขอ department อื่นได้ 403 (FR-EQS-10, AC-EQS-13)
 func (h *Handler) listModels(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.svc.ListModels(r.Context(), filterFrom(r))
+	rows, err := h.svc.ListModels(r.Context(), filterFrom(r), requestedDepartment(r))
 	if err != nil {
-		writeUpstreamError(w, err)
+		writeServiceError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, ListDTO[ModelRowDTO]{Items: nonNil(rows), Total: len(rows)})
@@ -52,24 +72,95 @@ func (h *Handler) listItems(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := h.svc.ListItems(r.Context(), modelID, filterFrom(r))
 	if err != nil {
-		writeUpstreamError(w, err)
+		writeServiceError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, ListDTO[ItemRow]{Items: nonNil(items), Total: len(items)})
 }
 
 // getItem: GET /v1/equipment/items/{assetCode} รายละเอียดอุปกรณ์รายชิ้น พร้อมกำหนดคืนเมื่อถูกยืม (FR-EQS-04, AC-EQS-04)
+// ทุกการเปิดรายละเอียดบันทึก audit_log ผู้เข้าถึง เวลา รหัสครุภัณฑ์ รวมกรณีถูกปฏิเสธ (DOM-AUDIT-01, AC-EQS-11, plan.md ข้อ 6.4)
 func (h *Handler) getItem(w http.ResponseWriter, r *http.Request) {
-	item, found, err := h.svc.GetItem(r.Context(), r.PathValue("assetCode"))
+	assetCode := r.PathValue("assetCode")
+	item, found, err := h.svc.GetItem(r.Context(), assetCode)
+	switch {
+	case errors.Is(err, ErrForbiddenDepartment):
+		if h.auditDetail(r, assetCode, audit.OutcomeForbidden) != nil {
+			writeUpstreamError(w, err)
+			return
+		}
+		writeServiceError(w, err)
+		return
+	case err != nil:
+		_ = h.auditDetail(r, assetCode, audit.OutcomeError) // ตอบ 503 อยู่แล้ว ไม่สนผลของการเขียน audit
+		writeServiceError(w, err)
+		return
+	case !found:
+		http.NotFound(w, r) // ไม่มีรหัสครุภัณฑ์นี้ ไม่มีข้อมูลอุปกรณ์ถูกเข้าถึง จึงไม่บันทึก (plan ไม่ได้กำหนด error code ของกรณีนี้)
+		return
+	}
+	// เขียน audit ไม่สำเร็จ = ไม่ส่งข้อมูล ตอบ 503 (fail closed ตาม plan.md ข้อ 6.4 เพราะ spec ระบุ "ทุกครั้ง" รอยืนยัน Q-P4 ดู T-29)
+	if err := h.auditDetail(r, assetCode, audit.OutcomeOK); err != nil {
+		writeUpstreamError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, item)
+}
+
+// auditDetail บันทึกการเปิดรายละเอียด 1 ครั้ง (DOM-AUDIT-01) ผู้ใช้มาจาก auth.Middleware (IF-IDP-01)
+func (h *Handler) auditDetail(r *http.Request, assetCode, outcome string) error {
+	p, ok := auth.FromContext(r.Context())
+	if !ok {
+		return errors.New("audit: no principal in context")
+	}
+	_, err := audit.Write(r.Context(), h.auditDB, audit.Entry{
+		ActorID:   p.UserID,
+		ActorRole: string(p.Role),
+		Action:    audit.ActionDetail,
+		AssetCode: assetCode,
+		Outcome:   outcome,
+	})
+	return err
+}
+
+// summary: GET /v1/equipment/summary จำนวนอุปกรณ์แยกตามสถานะ เฉพาะเจ้าหน้าที่ (FR-EQS-07)
+// นักศึกษาได้ 403 FORBIDDEN_ROLE ตาม CON-TECH-03 และไม่ได้ตัวเลขใด ๆ
+func (h *Handler) summary(w http.ResponseWriter, r *http.Request) {
+	out, err := h.svc.Summary(r.Context())
+	if errors.Is(err, ErrStaffOnly) {
+		platform.WriteError(w, http.StatusForbidden, platform.CodeForbiddenRole)
+		return
+	}
 	if err != nil {
 		writeUpstreamError(w, err)
 		return
 	}
-	if !found {
-		http.NotFound(w, r) // ไม่มีรหัสครุภัณฑ์นี้ (plan ไม่ได้กำหนด error code ของกรณีนี้)
+	writeJSON(w, http.StatusOK, out)
+}
+
+// requestedDepartment อ่าน ?department= (plan.md ข้อ 5) ไม่ได้ส่ง = 0 / ค่าที่ไม่ใช่รหัสภาควิชา = -1 (ไม่ตรงกับภาควิชาใด)
+// ตอนนี้ใช้ตรวจสิทธิ์ของนักศึกษาอย่างเดียว เจ้าหน้าที่ไม่ได้กรองด้วยค่านี้ (ทีมตัดสิน 2569-11-12 รอ Q-P3)
+func requestedDepartment(r *http.Request) int {
+	v := r.URL.Query().Get("department")
+	if v == "" {
+		return 0
+	}
+	id, err := strconv.Atoi(v)
+	if err != nil || id <= 0 {
+		return -1
+	}
+	return id
+}
+
+// writeServiceError แปลง error จาก service เป็นคำตอบตาม CON-TECH-03
+//   - ขอข้อมูลภาควิชาอื่น -> 403 FORBIDDEN_DEPARTMENT ไม่มีข้อมูลอุปกรณ์ใน body (FR-EQS-10, AC-EQS-13)
+//   - อื่น ๆ -> 503 UPSTREAM_UNAVAILABLE (FR-EQS-08)
+func writeServiceError(w http.ResponseWriter, err error) {
+	if errors.Is(err, ErrForbiddenDepartment) {
+		platform.WriteError(w, http.StatusForbidden, platform.CodeForbiddenDepartment)
 		return
 	}
-	writeJSON(w, http.StatusOK, item)
+	writeUpstreamError(w, err)
 }
 
 // filterFrom อ่านตัวกรองจาก query string (FR-EQS-02) เลือกได้หลายค่าในแต่ละตัวกรอง (Q-15)
@@ -93,11 +184,11 @@ func nonEmpty(values []string) []string {
 	return out
 }
 
-// writeUpstreamError ตอบเมื่ออ่านฐานข้อมูลไม่สำเร็จ ตาม Error contract ใน plan.md ข้อ 5 (FR-EQS-08)
+// writeUpstreamError ตอบ 503 UPSTREAM_UNAVAILABLE เมื่ออ่านฐานข้อมูลไม่สำเร็จ (FR-EQS-08) body {code, message} ตาม CON-TECH-03
 // ไม่ส่งข้อมูลเก่าหรือรายละเอียดภายในกลับไป (test และหน้าจอของกรณีนี้อยู่ใน T-20)
 func writeUpstreamError(w http.ResponseWriter, err error) {
 	log.Printf("equipment: database error: %v", err)
-	writeJSON(w, http.StatusServiceUnavailable, ErrorDTO{Code: "UPSTREAM_UNAVAILABLE", Retryable: true})
+	platform.WriteError(w, http.StatusServiceUnavailable, platform.CodeUpstreamUnavailable)
 }
 
 // nonNil ให้ JSON เป็น [] แทน null เมื่อไม่มีข้อมูล (plan.md ข้อ 5: ไม่พบ = items ว่าง)

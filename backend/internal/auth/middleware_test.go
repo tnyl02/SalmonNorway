@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -30,6 +31,19 @@ func serve(t *testing.T, p Provider, authHeader string) (*httptest.ResponseRecor
 	return rec, called, got
 }
 
+// errorCode อ่าน body ของ error แล้วตรวจว่ามี message ภาษาไทย (CON-TECH-03, T-37)
+func errorCode(t *testing.T, rec *httptest.ResponseRecorder) string {
+	t.Helper()
+	var body struct{ Code, Message string }
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("body ไม่ใช่ JSON: %v", err)
+	}
+	if body.Message == "" {
+		t.Errorf("error %s ต้องมี message (CON-TECH-03)", body.Code)
+	}
+	return body.Code
+}
+
 // T-03 เสร็จเมื่อ: ไม่มี token -> 401 และไม่เข้าถึงข้อมูล (IF-IDP-01, NFR-SEC-01)
 func TestAuth_NoToken_401(t *testing.T) {
 	for name, header := range map[string]string{
@@ -42,6 +56,9 @@ func TestAuth_NoToken_401(t *testing.T) {
 			rec, called, _ := serve(t, NewMockProvider(), header)
 			if rec.Code != http.StatusUnauthorized {
 				t.Errorf("status = %d, want 401", rec.Code)
+			}
+			if code := errorCode(t, rec); code != "UNAUTHENTICATED" {
+				t.Errorf("code = %q, want UNAUTHENTICATED", code)
 			}
 			if called {
 				t.Error("handler ด้านในต้องไม่ถูกเรียก")
@@ -63,6 +80,9 @@ func TestAuth_MissingDepartment_Rejected(t *testing.T) {
 			if rec.Code != http.StatusForbidden {
 				t.Errorf("status = %d, want 403", rec.Code)
 			}
+			if code := errorCode(t, rec); code != "PRINCIPAL_INCOMPLETE" {
+				t.Errorf("code = %q, want PRINCIPAL_INCOMPLETE", code)
+			}
 			if called {
 				t.Error("handler ด้านในต้องไม่ถูกเรียก")
 			}
@@ -79,5 +99,20 @@ func TestAuth_ValidToken_PassesPrincipal(t *testing.T) {
 	want := Principal{UserID: "student-101", Role: RoleStudent, DepartmentID: 2}
 	if got != want {
 		t.Errorf("principal = %+v, want %+v", got, want)
+	}
+}
+
+// AC-EQS-09 (IF-IDP-01) ส่วนหลังบ้าน: session หมดอายุ (token ที่ระบบยืนยันตัวตนไม่รับแล้ว) ได้ 401 UNAUTHENTICATED พร้อมข้อความ
+// หน้าจอใช้ 401 นี้พาไปหน้าเข้าสู่ระบบ (frontend AC-EQS-09.test.jsx)
+func TestAC_EQS_09_ExpiredSessionIs401(t *testing.T) {
+	// Given: token เดิมที่ระบบยืนยันตัวตนไม่รู้จักแล้ว (หมดอายุ)
+	rec, called, _ := serve(t, NewMockProvider(), "Bearer mock-expired-session")
+
+	// Then: 401 UNAUTHENTICATED มีข้อความให้หน้าจอแสดง และไม่เข้าถึงข้อมูล
+	if rec.Code != http.StatusUnauthorized || called {
+		t.Fatalf("status = %d, called = %v ต้องเป็น 401 และไม่เรียก handler", rec.Code, called)
+	}
+	if code := errorCode(t, rec); code != "UNAUTHENTICATED" {
+		t.Errorf("code = %q, want UNAUTHENTICATED", code)
 	}
 }
