@@ -128,6 +128,10 @@ export const api = {
   // 001 FR-EQS-04: รายละเอียดอุปกรณ์รายชิ้น -> { assetCode, status, dueAt? } (dueAt มีเฉพาะถูกยืม)
   getItem: (assetCode) => getJSON(`/v1/equipment/items/${encodeURIComponent(assetCode)}`),
 
+  // 001 FR-EQS-11 (T-38): คำขอยืมที่ค้างอยู่ของอุปกรณ์ชิ้นนี้ เรียก endpoint ของ 002 (FR-BRQ-05 ก, สัญญาใน CR-005)
+  //   -> [{ requestId, queuePosition, submittedAt, requesterName }] หรือ throw ApiError(403 FORBIDDEN_ROLE) เมื่อไม่ใช่เจ้าหน้าที่
+  listItemRequests: (assetCode) => getJSON(`/v1/equipment/items/${encodeURIComponent(assetCode)}/requests`),
+
   // 003 FR-CXL-06: คำขอที่ยังยกเลิกได้ของผู้ใช้ที่เข้าสู่ระบบ เรียงใหม่ไปเก่า (plan.md ข้อ 4 ของ 003)
   //   -> { items: [{ requestId, modelName, assetCode, submittedAt }] }
   listMyPendingRequests: () => getJSON('/v1/my/pending-requests'),
