@@ -23,6 +23,11 @@ const QueuePath = "/v1/equipment/items/{assetCode}/requests"
 
 // Handler รับ HTTP request ของฟีเจอร์ 002
 // ทุก endpoint ต้องอยู่หลัง auth.Middleware (IF-IDP-01, NFR-SEC-01) และให้บริการผ่าน HTTPS เท่านั้น (CON-TECH-02)
+//
+// เมื่อระบบยืนยันตัวตนของมหาวิทยาลัยเชื่อมต่อไม่ได้ (Q-SH-08 ปิดแล้ว 2569-11-12 ทีมตัดสิน, T-23)
+// auth.Middleware ของกลางจะตอบ 401 UNAUTHENTICATED และไม่ปล่อยให้ request ถึง handler นี้เลย
+// ฟีเจอร์นี้จึงไม่สร้างคำขอและไม่เดาว่าผู้ขอเป็นใครหรืออยู่ภาควิชาไหน (fail closed ตาม DOM-ACCESS-01)
+// ทีมรับข้อจำกัดไว้ว่าผู้ใช้จะเห็นข้อความเหมือน session หมดอายุ และจะแยกเป็น 503 เมื่อต่อ IdP จริง
 type Handler struct {
 	svc *Service
 }

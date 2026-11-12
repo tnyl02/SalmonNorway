@@ -1206,3 +1206,53 @@ func TestAuditOnValidationRejected(t *testing.T) {
 		}
 	})
 }
+
+// unavailableIdP จำลองระบบยืนยันตัวตนของมหาวิทยาลัยที่เชื่อมต่อไม่ได้ (IF-IDP-01, ASM-BRQ-01)
+// ต่างจาก token ผิด ตรงที่ผู้ใช้ส่ง token ที่ถูกต้องมา แต่ระบบปลายทางตอบไม่ได้
+type unavailableIdP struct{}
+
+func (unavailableIdP) Authenticate(context.Context, string) (auth.Principal, error) {
+	return auth.Principal{}, errors.New("จำลองระบบยืนยันตัวตนเชื่อมต่อไม่ได้")
+}
+
+// T-23 เสร็จเมื่อ: มี test ที่ยืนยันพฤติกรรมตามที่ทีมตัดสิน (Q-SH-08 ปิดแล้ว 2569-11-12)
+// คำตัดสิน: คงพฤติกรรมปัจจุบันคือตอบ 401 UNAUTHENTICATED และ fail closed
+// ไม่แก้ auth/ ของกลาง เพราะโปรโตไทป์ใช้ระบบจำลองซึ่งยังเชื่อมต่อไม่ได้จริงไม่ได้
+func TestIdentityProviderUnavailable(t *testing.T) {
+	pool := testPool(t)
+	svc := NewServiceWithClock(NewRepository(pool), testClock())
+	srv := auth.Middleware(unavailableIdP{}, NewHandler(svc).Routes())
+	const requester = "student-001"
+	before := countRequests(t, pool, requester)
+
+	// Given: ผู้ใช้ส่ง token ที่ปกติใช้ได้ แต่ระบบยืนยันตัวตนตอบไม่ได้
+	// When/Then: ส่งคำขอยืม ต้องถูกปฏิเสธด้วย 401 ตามรหัสกลาง (CON-TECH-03)
+	w := postRequest(t, srv, tokenStudentDept1, bodyFor("CS-NB-0003"))
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("ระบบยืนยันตัวตนล่มต้องได้ 401 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	}
+	var e ErrorDTO
+	if err := json.Unmarshal(w.Body.Bytes(), &e); err != nil {
+		t.Fatalf("อ่าน JSON ไม่ได้: %v", err)
+	}
+	if e.Code != "UNAUTHENTICATED" {
+		t.Errorf("รหัสต้องเป็น UNAUTHENTICATED แต่ได้ %q", e.Code)
+	}
+
+	// Then: fail closed ต้องไม่สร้างคำขอ และไม่เดาว่าผู้ขอเป็นใคร (DOM-ACCESS-01)
+	if after := countRequests(t, pool, requester); after != before {
+		t.Errorf("ต้องไม่มีคำขอเกิดขึ้น แต่จำนวนเปลี่ยนจาก %d เป็น %d", before, after)
+	}
+
+	// Then: endpoint อื่นของฟีเจอร์นี้ก็ต้องถูกปิดเหมือนกัน ไม่ใช่แค่การส่งคำขอ
+	t.Run("เปิดไฟล์แนบก็ไม่ได้", func(t *testing.T) {
+		if got := getAttachment(t, srv, tokenStudentDept1, 1); got.Code != http.StatusUnauthorized {
+			t.Errorf("ต้องได้ 401 แต่ได้ %d", got.Code)
+		}
+	})
+	t.Run("ดูลำดับคำขอก็ไม่ได้", func(t *testing.T) {
+		if got := getQueue(t, srv, tokenStaff, "CS-NB-0003"); got.Code != http.StatusUnauthorized {
+			t.Errorf("ต้องได้ 401 แต่ได้ %d", got.Code)
+		}
+	})
+}
