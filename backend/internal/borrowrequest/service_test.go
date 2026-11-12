@@ -449,3 +449,71 @@ func TestOverdue_OtherDepartmentNotCounted(t *testing.T) {
 		t.Errorf("ของค้างในภาควิชาอื่นต้องไม่นับ ควรส่งคำขอได้ แต่ได้ error: %v", err)
 	}
 }
+
+// insertLoan เพิ่มการยืม 1 ใบในข้อมูลทดสอบ จำลองงานของ 005 (ส่งมอบ) และ 006 (รับคืน)
+// 002 ไม่เคยเขียนตาราง loan เอง ที่นี่เขียนเพื่อสร้างสถานการณ์ของ AC เท่านั้น
+func insertLoan(t *testing.T, pool *pgxpool.Pool, borrowerID, assetCode string, dueAt time.Time, returnedAt *time.Time) {
+	t.Helper()
+	if _, err := pool.Exec(context.Background(), `
+		INSERT INTO loan (item_id, borrower_id, loan_type, due_at, returned_at)
+		SELECT id, $1, 'normal', $2, $3 FROM equipment_item WHERE asset_code = $4`,
+		borrowerID, dueAt, returnedAt, assetCode); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM loan WHERE borrower_id = $1`, borrowerID)
+		_, _ = pool.Exec(context.Background(), `DELETE FROM borrow_request WHERE requester_id = $1`, borrowerID)
+	})
+}
+
+// AC-BRQ-12 (FR-BRQ-06 ข้อ ข)
+// Given นักศึกษาคืนอุปกรณ์ที่เกินกำหนดแล้วเมื่อเวลา 14:00 น. ของวันนี้
+// When  ส่งคำขอยืมใหม่เวลา 23:59 น. ของวันเดียวกัน แล้วส่งอีกครั้งเวลา 00:01 น. ของวันถัดไป
+//
+//	(เทียบด้วยเขตเวลา Asia/Bangkok)
+//
+// Then  คำขอเวลา 23:59 น. ต้องถูกปฏิเสธ ส่วนคำขอเวลา 00:01 น. ต้องส่งได้
+func TestAC_BRQ_12(t *testing.T) {
+	pool := testPool(t)
+	const requester = "student-014" // ผู้ขอของ test นี้เท่านั้น
+	ctx := studentCtx(requester)
+
+	// Given: ยืมโดยมีกำหนดคืน 16:00 ของเมื่อวาน แล้วเพิ่งมาคืนเอา 14:00 ของวันนี้ (คืนช้า)
+	returnedAt := bangkokToday(14, 0)
+	insertLoan(t, pool, requester, "CS-NB-0001", bangkokToday(16, 0).AddDate(0, 0, -1), &returnedAt)
+
+	// When/Then: 23:59 ของวันที่คืน ยังส่งคำขอไม่ได้
+	sameDay := NewServiceWithClock(NewRepository(pool), FixedClock{T: bangkokToday(23, 59)})
+	if _, err := sameDay.Create(ctx, newTestRequest("CS-NB-0003")); !errors.Is(err, ErrHasOverdueLoan) {
+		t.Errorf("เวลา 23:59 ของวันที่คืนช้า ต้องได้ ErrHasOverdueLoan แต่ได้ %v", err)
+	}
+	if n := countRequests(t, pool, requester); n != 0 {
+		t.Errorf("คำขอที่ถูกปฏิเสธต้องไม่ถูกสร้าง แต่พบ %d ใบ", n)
+	}
+
+	// When/Then: 00:01 ของวันถัดไป ปลดล็อกแล้ว ส่งได้ตามปกติ
+	nextDay := NewServiceWithClock(NewRepository(pool), FixedClock{T: bangkokToday(0, 1).AddDate(0, 0, 1)})
+	if _, err := nextDay.Create(ctx, newTestRequest("CS-NB-0003")); err != nil {
+		t.Fatalf("เวลา 00:01 ของวันถัดไป ต้องส่งคำขอได้ แต่ได้ error: %v", err)
+	}
+	if n := countRequests(t, pool, requester); n != 1 {
+		t.Errorf("ต้องมีคำขอ 1 ใบหลังปลดล็อก แต่พบ %d ใบ", n)
+	}
+}
+
+// T-13 เสร็จเมื่อ (ส่วนเสริม): คืนตรงเวลาไม่เข้ากฎนี้ (FR-BRQ-06 พูดถึงผู้ที่คืนเกินกำหนดเท่านั้น)
+func TestOverdue_OnTimeReturnDoesNotBlock(t *testing.T) {
+	pool := testPool(t)
+	const requester = "student-015"
+	ctx := studentCtx(requester)
+
+	// Given: กำหนดคืน 16:00 ของวันนี้ และคืนไปแล้วตั้งแต่ 10:00 ของวันนี้ คือคืนตรงเวลา
+	returnedAt := bangkokToday(10, 0)
+	insertLoan(t, pool, requester, "CS-NB-0001", bangkokToday(16, 0), &returnedAt)
+
+	// When/Then: ส่งคำขอเวลา 11:00 ของวันเดียวกันได้เลย ไม่ต้องรอข้ามวัน
+	svc := NewServiceWithClock(NewRepository(pool), FixedClock{T: bangkokToday(11, 0)})
+	if _, err := svc.Create(ctx, newTestRequest("CS-NB-0003")); err != nil {
+		t.Errorf("คืนตรงเวลาต้องส่งคำขอได้ทันที แต่ได้ error: %v", err)
+	}
+}

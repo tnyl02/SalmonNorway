@@ -2237,3 +2237,49 @@ AI ไม่ได้ทำเผื่อไว้ เพราะเป็น�
   หรือ `UPDATE loan SET due_at = ...` ก่อนลองกฎที่เทียบกับวันนี้ (test อัตโนมัติไม่เจอปัญหานี้
   เพราะ testcontainers สร้างฐานข้อมูลใหม่ทุกครั้ง และ T-12 ตรึงเวลาด้วย FixedClock แล้ว)
 - ล้างข้อมูลที่ลองไว้ด้วย `DELETE FROM borrow_request WHERE requester_id IN ('student-001','student-002');`
+
+---
+
+## 2569-11-12 /implement T-13 (002-borrow-request) — ปิดเฟส 8
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- ฟีเจอร์: 002-borrow-request (เฟส 8 AC-BRQ-12 กฎปลดล็อก 00:00 ของวันถัดไป)
+- เครื่องมือ: Claude Code (`.claude/commands/implement.md`)
+- คำสั่ง: `/implement T-13`
+
+### คำถามที่ AI ถามก่อนเริ่ม และคำตอบของทีม
+T-13 มีแค่ `service.go` ในช่องไฟล์ที่แตะ แต่กฎข้อ ข ต้องรู้ `returned_at` ของใบที่คืนแล้ว
+ส่วน query เดียวที่มีคือ `EarliestOpenLoanDue` จาก T-12 ซึ่งกรอง `returned_at IS NULL` ทิ้งไป
+ใบที่คืนแล้วจึงไม่มีทางถึงมือ service ทำด้วยไฟล์เดียวไม่ได้จริง
+→ **ทีมตอบ: ทางเลือก ก** เพิ่ม `repository.go` ในช่องไฟล์ที่แตะของ T-13 พร้อมเหตุผลลงวันที่
+(เป็นครั้งที่ 4 ที่ช่องไฟล์ที่แตะไม่พอ ต่อจาก T-09 T-11 T-12 ทีมน่าทบทวนวิธีเขียนช่องนี้ตอน retrospective)
+
+### ไฟล์ที่สร้างหรือแก้
+- `backend/internal/borrowrequest/service.go` (ตรงกับช่องไฟล์ที่แตะ)
+  ขยาย `hasOverdueLoan` ให้ครอบข้อ ข, เพิ่ม `returnedLateToday` และ `startOfDay`
+- `backend/internal/borrowrequest/repository.go` (เพิ่มในช่องไฟล์ที่แตะวันนี้ ตามคำตอบของทีม)
+  เพิ่ม `ReturnedLoan`, `returnedSinceSQL`, `ReturnedSince` และเพิ่ม `Query` ใน interface `Querier`
+- `backend/internal/borrowrequest/service_test.go` **ไม่อยู่ในช่องไฟล์ที่แตะ** ต่อ test ท้ายไฟล์เดิม
+
+### การตัดสินใจ
+- กฎ "00:00 น. ของวันถัดไป" เขียนเป็น "การคืนช้านั้นเกิดขึ้นในวันเดียวกับวันนี้หรือไม่"
+  โดย service ส่งเวลา 00:00 ของวันนี้ (`startOfDay`) ลงไปเป็นเงื่อนไขของ query
+  กฎจึงอยู่ใน Go ส่วน SQL เป็นแค่ตัวกรองช่วงเวลา และได้ผลพลอยได้คือ query คืนแถวไม่กี่แถวเสมอ
+- "คืนช้า" ใช้ `overdueDeadline` ตัวเดียวกับข้อ ก (16:00 ของกำหนดคืน) ไม่มีนิยามที่สอง
+- ใช้ `config.OverdueBlockUntilNextDayStart` จริงในโค้ด ไม่ใช่ค่าที่ตั้งไว้เฉย ๆ
+  ถ้าทีมเปลี่ยนเป็น false กฎข้อ ข จะปิดทันที (ตรงกับตาราง "ค่าที่ตั้งได้" ใน plan ข้อ 5)
+- เพิ่ม `Query` ใน `Querier` เพราะกฎนี้ต้องอ่านหลายแถว ของเดิมมีแต่ `QueryRow`
+  `*pgxpool.Pool` รองรับทั้งสองอยู่แล้ว ไม่กระทบ main.go และ test
+
+### สิ่งที่เกือบต้องเดาแต่ไม่ได้เดา
+- **"คืนอุปกรณ์แล้ว" หมายถึงคืนใบไหน** spec ข้อ ข เขียนลอย ๆ ว่า "เมื่อคืนอุปกรณ์แล้ว"
+  แต่ AC-BRQ-12 เขียนชัดว่า "คืนอุปกรณ์**ที่เกินกำหนด**แล้ว" และ FR-BRQ-06 ทั้งข้อพูดถึงผู้ที่คืนเกินกำหนด
+  จึงอ่านว่าใบที่คืนตรงเวลาไม่เข้ากฎนี้ ไม่ได้เดาเอง และเขียน test ยืนยันไว้
+  (`TestOverdue_OnTimeReturnDoesNotBlock`) ถ้าทีมอ่านต่างจากนี้ให้บอก
+
+### ผล test
+- `go test ./internal/borrowrequest/ -run "TestAC_BRQ_12|TestOverdue" -v`: PASS ทั้ง 4 ตัว
+  (`TestAC_BRQ_12`, `TestOverdue_BoundaryAtReturnHour`, `TestOverdue_OtherDepartmentNotCounted`,
+  `TestOverdue_OnTimeReturnDoesNotBlock`)
+- `go test ./... -count=1`: ทุกแพ็กเกจ ok
+- `go vet ./internal/borrowrequest/`: ไม่มีข้อความเตือน

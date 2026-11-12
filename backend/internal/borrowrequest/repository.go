@@ -25,6 +25,8 @@ var ErrDuplicateRequest = errors.New("มีคำขอของอุปกร
 // Querier คือส่วนของ pgxpool.Pool ที่ repository นี้ใช้
 type Querier interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	// Query ใช้กับคำสั่งที่คืนได้หลายแถว เช่น รายการยืมที่คืนแล้ว (FR-BRQ-06 ข้อ ข, T-13)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 }
 
 // Repository เขียนตาราง borrow_request (DM-06) และอ่าน equipment_item เพื่อตรวจสถานะ
@@ -175,6 +177,47 @@ func (r *Repository) EarliestOpenLoanDue(ctx context.Context, borrowerID string,
 		return time.Time{}, false, nil
 	}
 	return *dueAt, true, nil
+}
+
+// ReturnedLoan คือการยืมที่คืนแล้ว 1 ใบ เก็บเท่าที่กฎ FR-BRQ-06 ข้อ ข ต้องใช้
+// กำหนดคืนใช้ตัดสินว่าใบนั้น "คืนช้า" หรือไม่ ส่วนเวลาที่คืนใช้ตัดสินว่าปลดล็อกหรือยัง
+type ReturnedLoan struct {
+	DueAt      time.Time
+	ReturnedAt time.Time
+}
+
+// returnedSinceSQL อ่านการยืมที่คืนแล้วตั้งแต่เวลาที่กำหนด เฉพาะอุปกรณ์ของภาควิชาที่ระบุ
+// (DM-05 ตาราง loan ของ 001, FR-BRQ-06 ข้อ ค, DOM-ACCESS-01)
+// เวลาเริ่มนับมาจาก service เพราะกฎ "00:00 น. ของวันถัดไป" เป็นกฎของฟีเจอร์ ไม่ใช่ของฐานข้อมูล
+const returnedSinceSQL = `
+SELECT l.due_at, l.returned_at
+FROM loan l
+JOIN equipment_item i ON i.id = l.item_id
+JOIN equipment_model m ON m.id = i.model_id
+WHERE l.borrower_id = $1
+  AND m.department_id = $2
+  AND l.returned_at IS NOT NULL
+  AND l.returned_at >= $3
+ORDER BY l.returned_at DESC`
+
+// ReturnedSince คืนการยืมที่คืนแล้วตั้งแต่เวลา since เป็นต้นมา (FR-BRQ-06 ข้อ ข)
+// อ่านตาราง loan อย่างเดียวเหมือน T-12 ไม่เขียนทับงานของ 006 ที่เป็นผู้บันทึกการคืน
+func (r *Repository) ReturnedSince(ctx context.Context, borrowerID string, departmentID int, since time.Time) ([]ReturnedLoan, error) {
+	rows, err := r.db.Query(ctx, returnedSinceSQL, borrowerID, departmentID, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []ReturnedLoan
+	for rows.Next() {
+		var l ReturnedLoan
+		if err := rows.Scan(&l.DueAt, &l.ReturnedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, l)
+	}
+	return out, rows.Err()
 }
 
 // statusSQL อ่านสถานะล่าสุดของอุปกรณ์ตามรหัสครุภัณฑ์ (CON-DATA-01, CON-DATA-03)

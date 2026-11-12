@@ -70,17 +70,52 @@ func (s *Service) Create(ctx context.Context, in NewRequest) (Request, error) {
 	return req, nil
 }
 
-// hasOverdueLoan บอกว่าผู้ขอมีอุปกรณ์ที่ยังไม่คืนและเลยเวลา 16:00 น. ของกำหนดคืนไปแล้วหรือไม่
-// นับเฉพาะอุปกรณ์ของภาควิชาผู้ขอเอง ของค้างในภาควิชาอื่นไม่นับ (FR-BRQ-06 ข้อ ก และ ค, DOM-ACCESS-01)
-//
-// กฎปลดล็อกหลังคืนแล้วตาม FR-BRQ-06 ข้อ ข (ส่งได้เมื่อถึง 00:00 น. ของวันถัดไป) เป็นงานของ T-13
-// ที่นี่จึงนับเฉพาะใบที่ยังไม่คืน
+// hasOverdueLoan บอกว่าผู้ขอยังถูกกฎคืนเกินกำหนดห้ามส่งคำขออยู่หรือไม่ (FR-BRQ-06)
+// นับเฉพาะอุปกรณ์ของภาควิชาผู้ขอเอง ของค้างในภาควิชาอื่นไม่นับ (FR-BRQ-06 ข้อ ค, DOM-ACCESS-01)
+// มี 2 กรณีที่ห้ามส่ง
+//   - ข้อ ก ยังไม่คืน และเลยเวลา 16:00 น. ของกำหนดคืนไปแล้ว
+//   - ข้อ ข คืนไปแล้ว แต่คืนช้า และยังไม่ถึง 00:00 น. ของวันถัดไปจากวันที่คืน
 func (s *Service) hasOverdueLoan(ctx context.Context, p auth.Principal) (bool, error) {
+	now := s.clock.Now()
+
+	// ข้อ ก ใบที่ยังไม่คืน
 	dueAt, found, err := s.repo.EarliestOpenLoanDue(ctx, p.UserID, p.DepartmentID)
-	if err != nil || !found {
+	if err != nil {
 		return false, err
 	}
-	return s.clock.Now().After(overdueDeadline(dueAt, s.loc)), nil
+	if found && now.After(overdueDeadline(dueAt, s.loc)) {
+		return true, nil
+	}
+
+	if !config.OverdueBlockUntilNextDayStart {
+		return false, nil // ทีมปิดกฎข้อ ข ไว้ คืนแล้วส่งคำขอได้ทันที
+	}
+	return s.returnedLateToday(ctx, p, now)
+}
+
+// returnedLateToday บอกว่าผู้ขอคืนของช้าไปแล้วในวันนี้หรือไม่ (FR-BRQ-06 ข้อ ข, AC-BRQ-12)
+// ทีมตัดสิน 2569-11-11 ว่าปลดล็อกเมื่อถึง 00:00 น. ของวันถัดไป ไม่ใช่ทันทีที่คืนและไม่ใช่ครบ 24 ชั่วโมง
+// เทียบว่า "วันนี้" คือวันไหนด้วยเขตเวลา Asia/Bangkok ตาม glossary การคืนเมื่อวานจึงปลดล็อกแล้วเสมอ
+//
+// "คืนช้า" ใช้เส้นแบ่งเดียวกับข้อ ก คือคืนหลัง 16:00 น. ของกำหนดคืน (overdueDeadline)
+// คืนตรงเวลาไม่เข้ากฎนี้ เพราะ FR-BRQ-06 ทั้งข้อพูดถึงผู้ที่คืนเกินกำหนดเท่านั้น
+func (s *Service) returnedLateToday(ctx context.Context, p auth.Principal, now time.Time) (bool, error) {
+	returned, err := s.repo.ReturnedSince(ctx, p.UserID, p.DepartmentID, startOfDay(now, s.loc))
+	if err != nil {
+		return false, err
+	}
+	for _, l := range returned {
+		if l.ReturnedAt.After(overdueDeadline(l.DueAt, s.loc)) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// startOfDay คืนเวลา 00:00 น. ของวันเดียวกับ t ตามเขตเวลาที่ให้ (FR-BRQ-06 ข้อ ข)
+func startOfDay(t time.Time, loc *time.Location) time.Time {
+	d := t.In(loc)
+	return time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, loc)
 }
 
 // normalizePurpose จัดค่าวัตถุประสงค์ก่อนบันทึก (FR-BRQ-02)
