@@ -37,13 +37,15 @@ type Handler struct {
 
 // NewHandler สร้าง Handler จาก connection pool และระบบยืนยันตัวตน
 // ผู้ยืมล็อกอินบัญชีมหาวิทยาลัยบนเครื่องเจ้าหน้าที่ (ASM-HND-09) prototype ใช้ provider จำลองตัวเดียวกับ middleware (Q-SH-03)
+// รอ Auth API ไม่เกิน config.BorrowerAuthTimeout (10 วินาที) เกินนั้นใช้ผลตรวจบัตรแทน (FR-HND-02, ASM-HND-02, T-13)
 func NewHandler(db DB, provider auth.Provider) *Handler {
-	return newHandler(db, NewMockBorrowerVerifier(provider), NewPhotoStore(DefaultPhotoRoot()), time.Now)
+	verifier := WithTimeout(NewMockBorrowerVerifier(provider), config.BorrowerAuthTimeout)
+	return newHandler(db, verifier, NewPhotoStore(DefaultPhotoRoot()), time.Now)
 }
 
 // newHandler ประกอบ Handler จากส่วนที่เปลี่ยนได้ ใช้ใน test เพื่อแทน verifier และนาฬิกา
 func newHandler(db DB, verifier BorrowerVerifier, photos *PhotoStore, now func() time.Time) *Handler {
-	return &Handler{db: db, verifier: verifier, svc: NewService(NewRepository(db), verifier, photos, now)}
+	return &Handler{db: db, verifier: verifier, svc: NewService(NewRepository(db), db, verifier, photos, now)}
 }
 
 // multipartMaxMemory คือขนาดที่อ่านเข้าหน่วยความจำตอนแยก multipart ส่วนเกินพักไว้ในไฟล์ชั่วคราว (ทีมเลือกเอง ไม่ได้มาจาก spec)
@@ -106,7 +108,7 @@ type VerifyBorrowerResult struct {
 const (
 	verifyVerified    = "verified"    // ยืนยันได้และเป็นผู้ส่งคำขอ
 	verifyMismatch    = "mismatch"    // ยืนยันได้แต่ไม่ใช่ผู้ส่งคำขอ (FR-HND-02, ASM-HND-04)
-	verifyUnavailable = "unavailable" // Auth API ไม่ตอบภายในเวลา ใช้ผลตรวจบัตรแทน (T-13)
+	verifyUnavailable = "unavailable" // Auth API ไม่ตอบภายใน BorrowerAuthTimeout ใช้ผลตรวจบัตรแทน (FR-HND-02, AC-HND-03)
 )
 
 // verifyBorrower: POST /v1/handover/requests/{requestId}/verify-borrower (FR-HND-02, IF-IDP-01, ASM-HND-09)
@@ -133,6 +135,10 @@ func (h *Handler) verifyBorrower(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID, err := h.verifier.VerifyBorrower(r.Context(), in.BorrowerCredential)
+	if errors.Is(err, ErrBorrowerAuthUnavailable) {
+		writeJSON(w, http.StatusOK, VerifyBorrowerResult{Result: verifyUnavailable}) // AC-HND-03 หน้าจอให้บันทึกต่อด้วยผลตรวจบัตร
+		return
+	}
 	if errors.Is(err, ErrBorrowerNotVerified) {
 		writeError(w, http.StatusUnprocessableEntity, codeValidationFailed, "borrowerCredential")
 		return

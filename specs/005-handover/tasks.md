@@ -181,11 +181,11 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 ### T-13 ใส่ timeout 10 วินาทีและโหมดตรวจบัตรอย่างเดียว
 - รองรับ: FR-HND-02, FR-HND-03, IF-IDP-01
 - ตรวจด้วย: AC-HND-03
-- ไฟล์ที่แตะ: `backend/internal/handover/verifier.go`, `backend/internal/handover/service.go`, `backend/internal/handover/handler_test.go`
+- ไฟล์ที่แตะ: `backend/internal/handover/verifier.go`, `backend/internal/handover/service.go`, `backend/internal/handover/handler_test.go`, `backend/internal/handover/handler.go` (ทีมอนุญาตเพิ่ม 2569-11-12: verify-borrower ตอบ `unavailable` และ NewHandler ใส่ timeout)
 - แบบหน้าจอ: ไม่มี (หน้าจอใช้ผล `unavailable` จาก T-12)
 - ต้องทำหลัง: T-08, T-10
 - เสร็จเมื่อ: `TestAC_HND_03_AuthApiTimeoutCardOnly` ผ่าน (verifier ค้างเกิน `BorrowerAuthTimeout` ที่ตั้งสั้นใน test ได้ `unavailable` บันทึกด้วย `card_only` ได้ 201 / ไม่ยืนยันบัตรได้ 422)
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ (card_only ใช้ `requester_id` เป็นรหัสผู้ยืม ทีมตัดสิน 2569-11-12 ยังไม่มีใน spec)
 
 #### จุดตรวจเฟส 3
 - test ที่ต้องผ่านทั้งหมด: TestAC_HND_03_AuthApiTimeoutCardOnly และ test ของเฟส 0-2

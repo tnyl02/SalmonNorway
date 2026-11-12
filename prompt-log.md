@@ -2009,3 +2009,18 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - คำถามของ AI: "T-07 และ T-19 ให้ผ่านด้วยไหม?" คำตอบของทีม: "ผ่านทั้งคู่"
 - T-07 ทีมรับว่ายังไม่แก้ docker-compose.yml จนกว่าจะมี service หลังบ้าน / T-19 ทีมรับไว้ก่อน ถ้าแก้ AC-HND-13 ผ่าน CR ต้องแก้ test ตาม
 - commit `005: T-07 reviewed`, `005: T-19 reviewed` ตอนนี้ review ครบ 23 task ที่ทำแล้ว
+
+---
+
+## 2569-11-12 /implement T-13 timeout 10 วินาทีและโหมดตรวจบัตรอย่างเดียว
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "เริ่มทำ task ที่เหลือต่อได้เลย ทำเสร็จ 1 task review จากนั้นค่อยทำ task ต่อไป" แล้ว /implement T-13
+- คำถามของ AI 1: "Auth API ไม่ตอบ (card_only) ระบบไม่ได้รหัสผู้ใช้ของผู้ยืม จะบันทึก loan.borrower_id และรหัสนักศึกษาเป็นอะไร (ก) requester_id ของคำขอ (ข) เพิ่มช่องให้เจ้าหน้าที่พิมพ์รหัสจากบัตร" คำตอบของทีม: "ก"
+- คำถามของ AI 2: "แก้ handler.go เพิ่มได้ไหม (ไม่อยู่ในไฟล์ที่แตะของ T-13)" คำตอบของทีม: "ได้"
+- ไฟล์ที่แก้: `backend/internal/handover/verifier.go` (ErrBorrowerAuthUnavailable, WithTimeout), `service.go` (identifyBorrower: auth_api หรือ card_only + requester_id), `handler.go` (NewHandler ห่อ verifier ด้วย config.BorrowerAuthTimeout, verify-borrower ตอบ unavailable), `handler_test.go` (TestAC_HND_03_AuthApiTimeoutCardOnly)
+- ผล test (รันใน container golang:1.25 เพราะ Windows Application Control บล็อก .test.exe): `TestAC_HND_03_AuthApiTimeoutCardOnly` ผ่าน 4 subtest (unavailable / card_only 201 / ไม่ยืนยันบัตร 422 / ตอบทันเวลายังเป็น auth_api) และ `go test ./...` ผ่านทุก package, go vet และ gofmt ผ่าน
+- สิ่งที่เกือบต้องเดาแต่ถามแทน: รหัสผู้ยืมของกรณี card_only (ข้อ 1) ควรเพิ่มเป็น ASM ใน spec โดยเจ้าของฟีเจอร์ AI ไม่ได้สร้าง ID ใหม่เอง (กฎข้อ 5)
+- ข้อสังเกต: Auth API ที่ตอบ error อื่นที่ไม่ใช่หมดเวลา (เช่น ต่อไม่ติดทันที) ยังตอบ 503 ไม่ได้ใช้ card_only เพราะ FR-HND-02 พูดถึงกรณี "ไม่ได้ผลภายใน 10 วินาที" เท่านั้น

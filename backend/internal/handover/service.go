@@ -12,7 +12,7 @@ import (
 // ค่า identity_method ในตาราง handover (FR-HND-02)
 const (
 	identityAuthAPI  = "auth_api"  // ยืนยันผ่าน Auth API สำเร็จ
-	identityCardOnly = "card_only" // Auth API ไม่ตอบ ใช้ผลตรวจบัตรแทน (T-13)
+	identityCardOnly = "card_only" // Auth API ไม่ตอบภายใน BorrowerAuthTimeout ใช้ผลตรวจบัตรแทน (FR-HND-02, AC-HND-03)
 )
 
 var (
@@ -48,18 +48,19 @@ type HandoverOutput struct {
 
 // Service ตรวจกฎของการส่งมอบก่อนส่งให้ repository บันทึก (FR-HND-02 ถึง 07)
 type Service struct {
-	repo     *Repository
-	verifier BorrowerVerifier
-	photos   *PhotoStore      // FR-HND-06 ที่เก็บไฟล์รูป
-	now      func() time.Time // นาฬิกา inject ได้ ใช้ทดสอบเวลา 10:00 และ 16:30 โดยไม่ต้องรอจริง (FR-HND-05, plan.md ข้อ 6)
+	repo       *Repository
+	requesters RowQuerier // อ่าน requester_id ของคำขอ ใช้เมื่อ Auth API ไม่ตอบ (FR-HND-02, AC-HND-03)
+	verifier   BorrowerVerifier
+	photos     *PhotoStore      // FR-HND-06 ที่เก็บไฟล์รูป
+	now        func() time.Time // นาฬิกา inject ได้ ใช้ทดสอบเวลา 10:00 และ 16:30 โดยไม่ต้องรอจริง (FR-HND-05, plan.md ข้อ 6)
 }
 
 // NewService สร้าง Service now = nil ใช้ time.Now
-func NewService(repo *Repository, verifier BorrowerVerifier, photos *PhotoStore, now func() time.Time) *Service {
+func NewService(repo *Repository, requesters RowQuerier, verifier BorrowerVerifier, photos *PhotoStore, now func() time.Time) *Service {
 	if now == nil {
 		now = time.Now
 	}
-	return &Service{repo: repo, verifier: verifier, photos: photos, now: now}
+	return &Service{repo: repo, requesters: requesters, verifier: verifier, photos: photos, now: now}
 }
 
 // Handover ตรวจข้อมูล ยืนยันผู้ยืม แล้วบันทึกการส่งมอบ (FR-HND-02, 03, 05, 07)
@@ -88,7 +89,7 @@ func (s *Service) Handover(ctx context.Context, in HandoverInput) (HandoverOutpu
 	}
 
 	// FR-HND-02: หลังบ้านยืนยันผู้ยืมเอง ไม่เชื่อผลที่หน้าจอส่งมา (plan.md v1.4)
-	borrowerID, err := s.verifier.VerifyBorrower(ctx, in.BorrowerCredential)
+	borrowerID, method, err := s.identifyBorrower(ctx, in)
 	if err != nil {
 		return HandoverOutput{}, err
 	}
@@ -97,10 +98,10 @@ func (s *Service) Handover(ctx context.Context, in HandoverInput) (HandoverOutpu
 	rec := HandoverRecord{
 		RequestID:         in.RequestID,
 		BorrowerUserID:    borrowerID,
-		BorrowerStudentID: borrowerID, // ASM-HND-09 รหัสนักศึกษา = รหัสผู้ใช้จากการล็อกอิน
+		BorrowerStudentID: borrowerID, // ASM-HND-09 รหัสนักศึกษา = รหัสผู้ใช้จากการล็อกอิน (card_only = requester_id)
 		BorrowerFirstName: strings.TrimSpace(in.BorrowerFirstName),
 		BorrowerLastName:  strings.TrimSpace(in.BorrowerLastName),
-		IdentityMethod:    identityAuthAPI,
+		IdentityMethod:    method,
 		CardChecked:       in.CardChecked,
 		HandedOverBy:      in.StaffID,
 		HandedOverAt:      now,
@@ -111,6 +112,29 @@ func (s *Service) Handover(ctx context.Context, in HandoverInput) (HandoverOutpu
 		return HandoverOutput{}, err
 	}
 	return HandoverOutput{LoanID: res.LoanID, AssetCode: res.AssetCode, HandedOverAt: rec.HandedOverAt, DueAt: rec.DueAt}, nil
+}
+
+// identifyBorrower คืนรหัสผู้ยืมและวิธียืนยันตัวตน (FR-HND-02, FR-HND-03, IF-IDP-01)
+// Auth API ตอบทันเวลา = รหัสจาก Auth API และ auth_api (ผู้ส่งคำขอหรือไม่ repository ตรวจต่อ)
+// Auth API ไม่ตอบภายใน BorrowerAuthTimeout = ใช้ผลตรวจบัตร (AC-HND-03) บันทึกด้วย card_only
+// และใช้ requester_id ของคำขอเป็นรหัสผู้ยืม เพราะเจ้าหน้าที่ตรวจบัตรเทียบกับผู้ส่งคำขอที่หน้าจอแสดง
+// (ทีมตัดสิน 2569-11-12 ตอน /implement T-13 บันทึกใน prompt-log ยังไม่มีใน spec)
+func (s *Service) identifyBorrower(ctx context.Context, in HandoverInput) (userID, method string, err error) {
+	userID, err = s.verifier.VerifyBorrower(ctx, in.BorrowerCredential)
+	if err == nil {
+		return userID, identityAuthAPI, nil
+	}
+	if !errors.Is(err, ErrBorrowerAuthUnavailable) {
+		return "", "", err
+	}
+	requesterID, found, err := GetRequester(ctx, s.requesters, in.RequestID)
+	if err != nil {
+		return "", "", err
+	}
+	if !found {
+		return "", "", ErrRequestNotFound
+	}
+	return requesterID, identityCardOnly, nil
 }
 
 // normalDueAt คือกำหนดคืนของการยืมแบบปกติ = LoanNormalReturnHour:00 (ค่าของ 002 ใน config.go) ของวันที่ส่งมอบตามเขตเวลา TimeZone (FR-HND-05, DOM-LOAN-01)

@@ -731,3 +731,113 @@ func TestAC_HND_11_HandoverAfter1600(t *testing.T) {
 		t.Errorf("สถานะอุปกรณ์ = %q ต้องเป็น borrowed", s)
 	}
 }
+
+// hangingVerifier จำลอง Auth API ที่ไม่ตอบ: ค้างจนกว่า ctx จะหมดเวลา (AC-HND-03)
+type hangingVerifier struct{}
+
+func (hangingVerifier) VerifyBorrower(ctx context.Context, _ string) (string, error) {
+	<-ctx.Done()
+	return "", ctx.Err()
+}
+
+// testAuthTimeout คือ BorrowerAuthTimeout แบบสั้นใน test แทน 10 วินาทีจริง (plan.md ข้อ 6)
+const testAuthTimeout = 50 * time.Millisecond
+
+// routesWithVerifier คือ router ที่ใช้ verifier ที่กำหนด ห่อด้วย WithTimeout เหมือน NewHandler
+func routesWithVerifier(db DB, v BorrowerVerifier) http.Handler {
+	h := newHandler(db, WithTimeout(v, testAuthTimeout), NewPhotoStore(testPhotoRoot), time.Now)
+	return auth.Middleware(auth.NewMockProvider(), h.Routes())
+}
+
+// AC-HND-03 (FR-HND-02, FR-HND-03)
+// Given คำขอยืมแบบปกติที่ได้รับอนุมัติแล้ว และ Auth API ไม่ตอบภายใน 10 วินาที
+// When  เจ้าหน้าที่ยืนยันว่าตรวจบัตรแล้ว และบันทึกการส่งมอบ
+// Then  ระบบบันทึกการส่งมอบได้โดยใช้ผลการตรวจบัตร
+//
+//	ถ้าเจ้าหน้าที่ไม่ยืนยันการตรวจบัตร ระบบไม่บันทึกการส่งมอบ
+//
+// รหัสผู้ยืมของกรณี card_only = requester_id ของคำขอ (ทีมตัดสิน 2569-11-12 ตอน /implement T-13)
+func TestAC_HND_03_AuthApiTimeoutCardOnly(t *testing.T) {
+	pool := testPool(t)
+	h := routesWithVerifier(pool, hangingVerifier{})
+
+	t.Run("verify_borrower ได้ unavailable", func(t *testing.T) {
+		requestID := createRequest(t, pool, "student-001", createItem(t, pool, "T03-VB-0001", "available"), "approved")
+		start := time.Now()
+		rec := doJSON(h, http.MethodPost, verifyPath(requestID), tokenStaff, `{"borrowerCredential":"`+tokenStudentA+`"}`)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
+		}
+		var got VerifyBorrowerResult
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatal(err)
+		}
+		if got.Result != "unavailable" {
+			t.Errorf("ผล = %+v ต้องเป็น unavailable", got)
+		}
+		if waited := time.Since(start); waited > time.Second {
+			t.Errorf("รอ %v ต้องหยุดรอที่ timeout", waited)
+		}
+	})
+
+	t.Run("ตรวจบัตรแล้ว บันทึกด้วย card_only", func(t *testing.T) {
+		itemID := createItem(t, pool, "T03-HO-0001", "available")
+		requestID := createRequest(t, pool, "student-001", itemID, "approved")
+
+		rec := postHandover(t, h, tokenStaff, requestID, validForm(tokenStudentA), twoJPEGs())
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
+		}
+		var method, studentID, borrowerID string
+		if err := pool.QueryRow(context.Background(),
+			`SELECT h.identity_method, h.borrower_student_id, l.borrower_id
+			 FROM handover h JOIN loan l ON l.id = h.loan_id WHERE h.request_id = $1`, requestID).Scan(&method, &studentID, &borrowerID); err != nil {
+			t.Fatalf("ไม่พบการส่งมอบ: %v", err)
+		}
+		if method != "card_only" || studentID != "student-001" || borrowerID != "student-001" {
+			t.Errorf("identity_method = %q รหัสนักศึกษา = %q ผู้ยืม = %q ต้องเป็น card_only ของ student-001", method, studentID, borrowerID)
+		}
+		if s := statusOf(t, pool, "equipment_item", itemID); s != "borrowed" {
+			t.Errorf("สถานะอุปกรณ์ = %q ต้องเป็น borrowed", s)
+		}
+	})
+
+	t.Run("ไม่ยืนยันการตรวจบัตร ไม่บันทึก", func(t *testing.T) {
+		itemID := createItem(t, pool, "T03-HO-0002", "available")
+		requestID := createRequest(t, pool, "student-001", itemID, "approved")
+		form := validForm(tokenStudentA)
+		form["cardChecked"] = "false"
+
+		rec := postHandover(t, h, tokenStaff, requestID, form, twoJPEGs())
+		var e ErrorDTO
+		_ = json.Unmarshal(rec.Body.Bytes(), &e)
+		if rec.Code != http.StatusUnprocessableEntity || e.Code != "VALIDATION_FAILED" || len(e.Fields) != 1 || e.Fields[0] != "cardChecked" {
+			t.Fatalf("HTTP %d %+v ต้องเป็น 422 VALIDATION_FAILED ช่อง cardChecked", rec.Code, e)
+		}
+		if n := countLoans(t, pool, itemID); n != 0 {
+			t.Errorf("มี Loan %d รายการ ต้องไม่มี", n)
+		}
+		if s := statusOf(t, pool, "equipment_item", itemID); s != "available" {
+			t.Errorf("สถานะอุปกรณ์ = %q ต้องเป็น available", s)
+		}
+	})
+
+	t.Run("Auth API ตอบทันเวลา ยังใช้ auth_api", func(t *testing.T) {
+		itemID := createItem(t, pool, "T03-HO-0003", "available")
+		requestID := createRequest(t, pool, "student-001", itemID, "approved")
+		fast := routesWithVerifier(pool, NewMockBorrowerVerifier(auth.NewMockProvider()))
+
+		rec := postHandover(t, fast, tokenStaff, requestID, validForm(tokenStudentA), twoJPEGs())
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
+		}
+		var method string
+		if err := pool.QueryRow(context.Background(),
+			`SELECT identity_method FROM handover WHERE request_id = $1`, requestID).Scan(&method); err != nil {
+			t.Fatal(err)
+		}
+		if method != "auth_api" {
+			t.Errorf("identity_method = %q ต้องเป็น auth_api", method)
+		}
+	})
+}
