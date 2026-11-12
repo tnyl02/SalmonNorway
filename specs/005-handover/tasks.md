@@ -437,7 +437,7 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `TestAC_HND_08_AuditLogged` ผ่านกรณีสำเร็จ (มีแถวระบุผู้ทำ เวลา รหัสครุภัณฑ์ รหัสคำขอ ผลลัพธ์) และ `TestMigration_AuditLogAction` ของ 001 กับ test ของ 003 ที่ใช้ action `cancel`, `notify` ยังผ่าน
-- สถานะ: เสร็จ รอทีมตรวจ (ไม่แก้ไฟล์ของ 004 / ต้องจองเลข 0009 ในกลุ่ม เลข 0007 ที่จองไว้ไม่ได้ใช้ / แก้ cleanup ใน `repository_test.go` เพราะ audit_log ลบไม่ได้ / ไม่แก้ `data-model.md` เพราะทีมตัดสิน 2569-11-12 ตามคอมเมนต์ใน 0008 ว่าค่า action ใหม่กำหนดใน migration ไม่เขียนใน data-model.md)
+- สถานะ: เสร็จ (ตรวจ 2569-11-12 test ผ่าน ใช้ migration 0009 ตามที่ทีมตกลง ไม่แก้ไฟล์ของ 004 / เลข 0007 ที่จองไว้ไม่ได้ใช้ / แก้ cleanup ใน `repository_test.go` เพราะ audit_log ลบไม่ได้ / ไม่แก้ `data-model.md` เพราะทีมตัดสิน 2569-11-12 ตามคอมเมนต์ใน 0008 ว่าค่า action ใหม่กำหนดใน migration ไม่เขียนใน data-model.md)
 
 ### T-27 เขียน audit log เมื่อส่งมอบไม่สำเร็จ
 - รองรับ: FR-HND-08, DOM-AUDIT-01
