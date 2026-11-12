@@ -5435,3 +5435,24 @@ main
 - ผล test: Go (container golang:1.25) TestAC_HND_12_InvalidPhotos 4 กรณีผ่าน TestAC_HND_06_TwoJpgPhotosSaved ยังผ่าน `go test ./...` ผ่านทุก package go vet และ gofmt ผ่าน
   หน้าจอ (vitest รันในสำเนาโฟลเดอร์ frontend ใน scratchpad เพราะ frontend/node_modules ไม่อยู่ใน .gitignore) 13 ไฟล์ 24 test ผ่าน รวม AC-HND-12 3 กรณี
 - สิ่งที่ AI ตัดสินจากข้อความ spec (ไม่ได้ถาม): รูปขนาด 10 MB พอดีผ่าน ("ไม่เกิน") และข้อความแจ้งเตือนที่หน้าจอเป็นข้อความที่ทีมออกแบบเอง (ไม่มี mockup) ทีมควรดูหน้าจอ
+
+---
+
+## 2569-11-12 merge main และ /implement T-26 audit log เมื่อส่งมอบสำเร็จ
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ทำ task ต่อไปได้เลย หากส่วนไหนไม่รู้ให้ถาม" (Q-HND-06 ปิดแล้วใน spec v2.7: action = handover)
+- คำถามของ AI 1: "0008 ของ 004 บน main สร้าง CHECK ของ audit_log.action ใหม่โดยไม่มี 'handover' ถ้า 005 ใช้ 0007 ค่าจะถูกลบ จะใช้ 0009 หรือใช้ 0007 แล้วแก้ 0008" คำตอบของทีม: "กูจอง 6 กับ 7 ไว้" -> ใช้ 0007 และเพิ่ม 'handover' ใน 0008 (คอมเมนต์ใน 0008 ของ 004 เขียนไว้เองว่า "ถ้า 0006 / 0007 เพิ่มค่าภายหลัง ต้องเพิ่มที่นี่ด้วย")
+- คำถามของ AI 2: "merge origin/main เข้า 005-handover ก่อนไหม (ต้องใช้ audit/writer.go ของ 001 และ 0008)" คำตอบของทีม: "merge ได้"
+- คำถามของ AI 3 (สำหรับ T-27): "outcome ของการส่งมอบไม่สำเร็จ" คำตอบของทีม: "403=forbidden อื่น ๆ=error"
+- merge: commit `005: merge main ก่อนทำ T-26` conflict มีแค่ prompt-log.md เก็บบันทึกทั้ง 2 ฝั่ง (ของ main ก่อน ตามด้วยของ 005) go test ./... และ vitest 32 ไฟล์ 90 test ผ่านหลัง merge
+- ไฟล์ที่แก้ของ T-26:
+  - `backend/db/migrations/0007_audit_log_handover_action.up.sql` (ใหม่) CHECK มีทุกค่าก่อนหน้า + handover
+  - `backend/db/migrations/0008_approval.up.sql`, `0008_approval.down.sql` (ของ 004) เพิ่ม 'handover' ในรายการ **ต้องแจ้งเจ้าของ 004** และฐานข้อมูลที่รัน 0008 ไปแล้ว golang-migrate จะไม่รัน 0007 ย้อนหลัง ต้องสร้างฐานข้อมูลใหม่
+  - `backend/internal/handover/repository.go` เขียน audit log (writer.go ของ 001) ใน transaction เดียวกับการส่งมอบ outcome ok
+  - `backend/internal/handover/handler_test.go` TestAC_HND_08_AuditLogged (สำเร็จ) และ cleanup ของ createItem: คำขอที่มี audit log ลบไม่ได้ (append-only) ตั้งเป็น cancelled แทน
+  - `backend/internal/handover/repository_test.go` แก้ cleanup ของ TestHandover_ConcurrentSameItem แบบเดียวกัน (ไม่อยู่ในช่องไฟล์ที่แตะ จำเป็นเพื่อให้ test เดิมไม่พัง)
+- ไม่แก้ `specs/000-shared/data-model.md` ตามช่องไฟล์ที่แตะ เพราะ 0008 ของ 004 บันทึกว่าทีมตัดสิน 2569-11-12 ให้ค่า action ใหม่กำหนดใน migration ไม่เขียนใน data-model.md ทีมควรยืนยัน
+- ผล test (container golang:1.25): TestAC_HND_08_AuditLogged/สำเร็จ ผ่าน test ของ 005 ทั้งหมดผ่าน `go test ./...` ผ่านทุก package รวม TestMigration_AuditLogAction ของ 001 และ test ของ 003, 004 go vet และ gofmt ผ่าน

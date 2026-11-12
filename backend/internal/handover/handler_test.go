@@ -101,8 +101,28 @@ func createItem(t *testing.T, pool *pgxpool.Pool, assetCode, status string) int 
 		for _, q := range []string{
 			`DELETE FROM handover_photo WHERE loan_id IN (SELECT id FROM loan WHERE item_id = $1)`,
 			`DELETE FROM handover WHERE loan_id IN (SELECT id FROM loan WHERE item_id = $1)`,
-			`DELETE FROM audit_log WHERE request_id IN (SELECT id FROM borrow_request WHERE item_id = $1)`,
 			`DELETE FROM loan WHERE item_id = $1`,
+		} {
+			if _, err := pool.Exec(ctx, q, id); err != nil {
+				t.Errorf("ลบข้อมูลทดสอบไม่สำเร็จ: %v", err)
+			}
+		}
+		// audit_log เป็น append-only (trigger ใน 0002) ลบแถวไม่ได้ และอ้าง borrow_request ด้วย foreign key
+		// คำขอที่มี audit log แล้วจึงลบไม่ได้ ตั้งเป็น cancelled แทน ไม่ให้ค้างในรายการรอส่งมอบของ test อื่น (AC-HND-14)
+		var audited bool
+		if err := pool.QueryRow(ctx,
+			`SELECT EXISTS (SELECT 1 FROM audit_log WHERE request_id IN (SELECT id FROM borrow_request WHERE item_id = $1))`,
+			id).Scan(&audited); err != nil {
+			t.Errorf("ตรวจ audit_log ไม่สำเร็จ: %v", err)
+			return
+		}
+		if audited {
+			if _, err := pool.Exec(ctx, `UPDATE borrow_request SET status = 'cancelled' WHERE item_id = $1`, id); err != nil {
+				t.Errorf("ปิดคำขอทดสอบไม่สำเร็จ: %v", err)
+			}
+			return
+		}
+		for _, q := range []string{
 			`DELETE FROM borrow_request WHERE item_id = $1`,
 			`DELETE FROM equipment_item WHERE id = $1`,
 		} {
@@ -736,6 +756,68 @@ func TestAC_HND_11_HandoverAfter1600(t *testing.T) {
 	if s := statusOf(t, pool, "equipment_item", itemID); s != "borrowed" {
 		t.Errorf("สถานะอุปกรณ์ = %q ต้องเป็น borrowed", s)
 	}
+}
+
+// auditRow คือแถว audit_log ของการส่งมอบ 1 แถว (DM-07)
+type auditRow struct {
+	actorID, actorRole, assetCode, outcome string
+	occurredAt                             time.Time
+}
+
+// handoverAudits คืนแถว audit_log action handover ของคำขอ requestID เรียงตามเวลา (FR-HND-08)
+func handoverAudits(t *testing.T, pool *pgxpool.Pool, requestID int) []auditRow {
+	t.Helper()
+	rows, err := pool.Query(context.Background(),
+		`SELECT actor_id, actor_role, COALESCE(asset_code, ''), outcome, occurred_at
+		 FROM audit_log WHERE action = 'handover' AND request_id = $1 ORDER BY id`, requestID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var out []auditRow
+	for rows.Next() {
+		var r auditRow
+		if err := rows.Scan(&r.actorID, &r.actorRole, &r.assetCode, &r.outcome, &r.occurredAt); err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+// AC-HND-08 (FR-HND-08, DOM-AUDIT-01)
+// Given เจ้าหน้าที่บันทึกการส่งมอบ (ทั้งสำเร็จและไม่สำเร็จ Q-HND-14 ปิดแล้ว)
+// When  การบันทึกเสร็จสิ้น
+// Then  มี audit log ที่ระบุผู้ทำ เวลา รหัสครุภัณฑ์ รหัสคำขอยืม และผลลัพธ์
+// subtest สำเร็จ (T-26) กรณีไม่สำเร็จอยู่ใน T-27
+func TestAC_HND_08_AuditLogged(t *testing.T) {
+	pool := testPool(t)
+	h := routesOnly(pool)
+
+	t.Run("สำเร็จ", func(t *testing.T) {
+		itemID := createItem(t, pool, "T08-OK-0001", "available")
+		requestID := createRequest(t, pool, "student-001", itemID, "approved")
+		before := time.Now().Add(-time.Second)
+
+		rec := postHandover(t, h, tokenStaff, requestID, validForm(tokenStudentA), twoJPEGs())
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
+		}
+		got := handoverAudits(t, pool, requestID)
+		if len(got) != 1 {
+			t.Fatalf("audit log ของการส่งมอบ = %d แถว ต้องเป็น 1: %+v", len(got), got)
+		}
+		r := got[0]
+		if r.actorID != "staff-001" || r.actorRole != "staff" || r.assetCode != "T08-OK-0001" || r.outcome != "ok" {
+			t.Errorf("audit log = %+v ต้องเป็นของ staff-001 อุปกรณ์ T08-OK-0001 ผล ok", r)
+		}
+		if r.occurredAt.Before(before) || r.occurredAt.After(time.Now().Add(time.Second)) {
+			t.Errorf("เวลาใน audit log = %v ต้องเป็นเวลาที่บันทึกจริง", r.occurredAt)
+		}
+	})
 }
 
 // hangingVerifier จำลอง Auth API ที่ไม่ตอบ: ค้างจนกว่า ctx จะหมดเวลา (AC-HND-03)
