@@ -4936,3 +4936,12 @@ T-17 จึงเป็นงาน **พิสูจน์ด้วย test** �
 - `go test ./internal/borrowrequest/ -run TestAC_BRQ_09 -v`: PASS
 - `go test ./... -count=1`: ทุกแพ็กเกจ ok (10 แพ็กเกจ)
 - `go vet ./internal/borrowrequest/`: ไม่มีข้อความเตือน
+
+### จุดตรวจเฟส 11 (ทีมลองเองด้วยมือ 2569-11-12)
+
+- ผู้ลอง: ธัญลักษณ์ ด. (@tnyl02) หยุด container ฐานข้อมูลจริงด้วย `docker compose stop db` เวลา 18:55 น.
+- ยิง POST ขณะฐานข้อมูลล่ม: **503** `{"code":"UPSTREAM_UNAVAILABLE","message":"ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง"}`
+- เปิดฐานข้อมูลกลับมาแล้วยิงซ้ำคำสั่งเดิม: **201** requestId 13
+- `SELECT ... WHERE requester_id='student-001'` ได้ **1 row** เท่านั้น ไม่มีคำขอซ้ำซ้อน ตรงตาม AC-BRQ-09
+- ยืนยันว่า pool ของ pgx ต่อฐานข้อมูลกลับเองได้หลัง container กลับมา ไม่ต้องรีสตาร์ตหลังบ้าน
+- ล้างข้อมูล: ลบคำขอของ student-001
