@@ -104,3 +104,17 @@ test('หลังบ้านปฏิเสธ ต้องไม่ขึ้�
   expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'คุณมีคำขอของอุปกรณ์ชิ้นนี้ค้างอยู่แล้ว')
   expect(screen.queryByRole('status')).toBeNull()
 })
+
+test('ช่องวันเวลาที่ยังไม่ได้กรอก ต้องไม่ถูกส่งไปเป็นสตริงว่าง (FR-BRQ-03)', async () => {
+  // หลังบ้านอ่านสตริงว่างเป็นวันเวลาไม่ได้ จะล้มตั้งแต่อ่าน JSON แล้วตอบโดยไม่มีรายชื่อช่องที่ขาด
+  // ทำให้ผู้ขอไม่รู้ว่าต้องแก้ช่องไหน (พบตอนทีมลองด้วยมือ 2569-11-13)
+  const client = okClient()
+  render(<BorrowRequestForm client={client} />)
+
+  fireEvent.click(screen.getByRole('button', { name: 'ส่งคำขอยืม' }))
+
+  await screen.findByRole('status')
+  const [input] = client.createLoanRequest.mock.calls[0]
+  expect('startAt' in input).toBe(false)
+  expect('endAt' in input).toBe(false)
+})

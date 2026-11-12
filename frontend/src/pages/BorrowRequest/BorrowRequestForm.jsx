@@ -35,8 +35,10 @@ export default function BorrowRequestForm({ client = api, assetCode: initialAsse
 
   const overnight = loanType === 'overnight'
 
-  // invalid บอกว่าช่องนี้อยู่ในรายชื่อช่องที่หลังบ้านบอกว่าต้องแก้ (VALIDATION_FAILED + fields)
-  const invalid = (field) => (error?.fields?.includes(field) ? { 'aria-invalid': 'true' } : {})
+  // invalid ทำเครื่องหมายช่องที่หลังบ้านบอกว่าต้องแก้ (VALIDATION_FAILED + fields, FR-BRQ-03)
+  // ทำ 2 ทางคู่กัน: กรอบสีแดงให้คนเห็น และ aria-invalid ให้เครื่องอ่านหน้าจอรู้ (NFR-USE-01)
+  const invalid = (field) =>
+    error?.fields?.includes(field) ? { 'aria-invalid': 'true', className: INPUT_INVALID } : { className: INPUT }
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -53,8 +55,11 @@ export default function BorrowRequestForm({ client = api, assetCode: initialAsse
           purpose,
           // ไม่ได้เลือก "อื่น ๆ" ไม่ต้องส่งข้อความที่พิมพ์ไว้ (FR-BRQ-02 ข้อ ข)
           purposeOther: purpose === PURPOSE_OTHER ? purposeOther : '',
-          startAt: toBangkok(startAt),
-          endAt: toBangkok(endAt),
+          // ช่องวันเวลาที่ยังไม่ได้กรอก ต้อง "ไม่ส่งช่องนั้นไปเลย" ห้ามส่งสตริงว่าง
+          // เพราะหลังบ้านแปลงสตริงว่างเป็นวันเวลาไม่ได้ จะล้มตั้งแต่อ่าน JSON แล้วตอบโดยไม่มีรายชื่อช่องที่ขาด
+          // ทำให้ผู้ขอไม่รู้ว่าต้องแก้ตรงไหน (FR-BRQ-03, พบตอนทีมลองด้วยมือ 2569-11-13)
+          ...onlyIfFilled('startAt', toBangkok(startAt)),
+          ...onlyIfFilled('endAt', toBangkok(endAt)),
         },
         overnight ? attachment : null,
       )
@@ -78,15 +83,16 @@ export default function BorrowRequestForm({ client = api, assetCode: initialAsse
       <h2 className="text-lg font-semibold">{LABEL_SUBMIT_REQUEST}</h2>
 
       <Field id="assetCode" label="รหัสครุภัณฑ์">
+        {/* รหัสครุภัณฑ์ไม่อยู่ในรายชื่อช่องที่หลังบ้านส่งกลับมา (รหัสว่างหรือผิดถูกปฏิเสธด้วย ITEM_NOT_AVAILABLE) */}
         <input id="assetCode" value={assetCode} onChange={(e) => setAssetCode(e.target.value)} className={INPUT} />
       </Field>
 
       <Field id="requesterName" label="ชื่อ-นามสกุล">
-        <input {...invalid('requesterName')} id="requesterName" value={requesterName} onChange={(e) => setRequesterName(e.target.value)} className={INPUT} />
+        <input {...invalid('requesterName')} id="requesterName" value={requesterName} onChange={(e) => setRequesterName(e.target.value)} />
       </Field>
 
       <Field id="studentCode" label="รหัสนักศึกษา">
-        <input {...invalid('studentCode')} id="studentCode" value={studentCode} onChange={(e) => setStudentCode(e.target.value)} className={INPUT} />
+        <input {...invalid('studentCode')} id="studentCode" value={studentCode} onChange={(e) => setStudentCode(e.target.value)} />
       </Field>
 
       <fieldset className="flex flex-col gap-1">
@@ -105,15 +111,15 @@ export default function BorrowRequestForm({ client = api, assetCode: initialAsse
       {!overnight && <p className="text-sm text-slate-600">{MSG_LOAN_NORMAL_CONDITIONS}</p>}
 
       <Field id="startAt" label="วันและเวลาที่เริ่มยืม">
-        <input {...invalid('startAt')} id="startAt" type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} className={INPUT} />
+        <input {...invalid('startAt')} id="startAt" type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
       </Field>
 
       <Field id="endAt" label="วันและเวลาที่คืน">
-        <input {...invalid('endAt')} id="endAt" type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} className={INPUT} />
+        <input {...invalid('endAt')} id="endAt" type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} />
       </Field>
 
       <Field id="purpose" label="วัตถุประสงค์การยืม">
-        <select {...invalid('purpose')} id="purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} className={INPUT}>
+        <select {...invalid('purpose')} id="purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)}>
           <option value="">เลือกวัตถุประสงค์</option>
           {PURPOSE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -126,7 +132,7 @@ export default function BorrowRequestForm({ client = api, assetCode: initialAsse
       {/* เลือก "อื่น ๆ" ต้องพิมพ์ระบุเพิ่ม จึงจะส่งได้ (FR-BRQ-02 ข้อ ก, AC-BRQ-14) */}
       {purpose === PURPOSE_OTHER && (
         <Field id="purposeOther" label="ระบุวัตถุประสงค์">
-          <input {...invalid('purposeOther')} id="purposeOther" value={purposeOther} onChange={(e) => setPurposeOther(e.target.value)} className={INPUT} />
+          <input {...invalid('purposeOther')} id="purposeOther" value={purposeOther} onChange={(e) => setPurposeOther(e.target.value)} />
         </Field>
       )}
 
@@ -154,6 +160,8 @@ export default function BorrowRequestForm({ client = api, assetCode: initialAsse
 }
 
 const INPUT = 'rounded border border-slate-300 px-2 py-1'
+// กรอบสีแดงของช่องที่ต้องแก้ ใช้คู่กับ aria-invalid เพื่อไม่ให้สื่อความหมายด้วยสีอย่างเดียว (NFR-USE-01)
+const INPUT_INVALID = 'rounded border-2 border-red-500 px-2 py-1'
 
 // Field ครอบ label กับช่องกรอกให้ผูกกันด้วย id เพื่อให้ผู้ใช้คลิกป้ายแล้วโฟกัสช่องได้ (NFR-USE-01)
 function Field({ id, label, hint, children }) {
@@ -166,6 +174,12 @@ function Field({ id, label, hint, children }) {
       {hint && <span className="text-xs text-slate-600">{hint}</span>}
     </div>
   )
+}
+
+// onlyIfFilled ใส่ช่องลงในข้อมูลที่ส่งเฉพาะเมื่อมีค่า ช่องที่ยังว่างจะไม่ถูกส่งไปเลย
+// ใช้กับช่องวันเวลา เพราะหลังบ้านอ่านสตริงว่างเป็นวันเวลาไม่ได้ (ดูเหตุผลเต็มที่จุดเรียกใช้)
+function onlyIfFilled(field, value) {
+  return value ? { [field]: value } : {}
 }
 
 // toBangkok แปลงค่าจากช่อง datetime-local เป็นเวลาแบบ RFC3339 โดยถือว่าเป็นเวลาไทย (glossary, config.TIME_ZONE)
