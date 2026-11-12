@@ -84,7 +84,8 @@ func main() {
 
 	log.Printf("listening on %s", cfg.HTTPAddr)
 	// ทุก response ห้าม cache เพื่อให้รีเฟรชแล้วเห็นสถานะล่าสุด (NFR-DATA-01, T-16)
-	if err := http.ListenAndServe(cfg.HTTPAddr, platform.NoStore(mux)); err != nil {
+	// 405 ของทุกฟีเจอร์ตอบ {code: METHOD_NOT_ALLOWED, message} (CON-TECH-03, T-40 ของ 001 แก้ไฟล์กลาง แจ้งทีมแล้ว 2569-11-12)
+	if err := http.ListenAndServe(cfg.HTTPAddr, platform.NoStore(platform.MethodNotAllowedJSON(mux))); err != nil {
 		log.Fatal(err)
 	}
 }

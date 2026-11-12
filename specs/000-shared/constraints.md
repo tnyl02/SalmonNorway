@@ -1,5 +1,5 @@
 # Constraint ที่ใช้ร่วมทุกฟีเจอร์ (shared constraints)
-Status: v5.2 | Updated: 2569-11-12 (v5.2 003 ใช้ REQUEST_NOT_FOUND แถวเดียวกับที่ 004 ลงทะเบียน และลงทะเบียน ALREADY_APPROVED, NOT_CANCELLABLE ตาม CR-006, เพิ่ม CON-TECH-03 รูปแบบและรายการรหัส error กลาง ตาม CR-004, v5.1 005 เพิ่มรหัส REQUEST_NOT_APPROVED, BORROWER_MISMATCH และ FORBIDDEN_ROLE (แถวเดียวกับที่ 004 ลงทะเบียน) ตามกติกาของ CON-TECH-03, 2569-11-12 004 เพิ่มรหัส REQUEST_CANCELLED, REQUEST_ALREADY_DECIDED, REQUEST_DECIDED_CONCURRENTLY, NOT_FIRST_IN_QUEUE, APPROVAL_CUTOFF_PASSED ตามกติกาของ CON-TECH-03, v5.2 2569-11-12 002 ใช้ REQUEST_NOT_FOUND แถวเดียวกับที่ 004 ลงทะเบียน และใช้ FORBIDDEN_ROLE ร่วม ตาม CR-007) | Source: Miro (Requirement table, Use Case Diagram, Architecture), spec 001
+Status: v5.3 | Updated: 2569-11-12 (v5.3 001 ลงทะเบียน ITEM_NOT_FOUND และ METHOD_NOT_ALLOWED ตามกติกาของ CON-TECH-03, v5.2 003 ใช้ REQUEST_NOT_FOUND แถวเดียวกับที่ 004 ลงทะเบียน และลงทะเบียน ALREADY_APPROVED, NOT_CANCELLABLE ตาม CR-006, เพิ่ม CON-TECH-03 รูปแบบและรายการรหัส error กลาง ตาม CR-004, v5.1 005 เพิ่มรหัส REQUEST_NOT_APPROVED, BORROWER_MISMATCH และ FORBIDDEN_ROLE (แถวเดียวกับที่ 004 ลงทะเบียน) ตามกติกาของ CON-TECH-03, 2569-11-12 004 เพิ่มรหัส REQUEST_CANCELLED, REQUEST_ALREADY_DECIDED, REQUEST_DECIDED_CONCURRENTLY, NOT_FIRST_IN_QUEUE, APPROVAL_CUTOFF_PASSED ตามกติกาของ CON-TECH-03, v5.2 2569-11-12 002 ใช้ REQUEST_NOT_FOUND แถวเดียวกับที่ 004 ลงทะเบียน และใช้ FORBIDDEN_ROLE ร่วม ตาม CR-007) | Source: Miro (Requirement table, Use Case Diagram, Architecture), spec 001
 
 กติกา: Constraint ที่ใช้มากกว่า 1 ฟีเจอร์ เขียนที่นี่ **ที่เดียว** spec ของแต่ละฟีเจอร์อ้าง ID ในหมวด Constraints ไม่ copy ข้อความ
 ถ้าแก้ไฟล์นี้ ต้องทำ CR และดู Impact Analysis กับทุก spec ที่อ้าง ID นั้น (ดู rtm.md ของแต่ละฟีเจอร์)
@@ -32,6 +32,8 @@ Status: v5.2 | Updated: 2569-11-12 (v5.2 003 ใช้ REQUEST_NOT_FOUND แถ�
   | `REQUEST_NOT_FOUND` | 404 | ไม่มีคำขอยืมรหัสนี้ เป็นคำขอที่ฟีเจอร์นั้นไม่ได้รับผิดชอบ หรือคำขอนั้นไม่มีสิ่งที่ขอ (เช่น ไม่มีไฟล์แนบ) ตอบเหมือนกันหมดเพื่อไม่บอกว่าเลขคำขอใดมีอยู่จริง (DOM-PRIV-01) | 004 (ลงทะเบียน 2569-11-12), 002 (ไฟล์แนบของคำขอ T-15 ดู CR-007), 003 (คำขอของผู้อื่นตอบเหมือนไม่มี CR-006) |
   | `ALREADY_APPROVED` | 409 | ยกเลิกคำขอไม่ได้ เพราะคำขอได้รับการอนุมัติแล้ว แนบ `status` ของคำขอ (ต่างจาก `REQUEST_ALREADY_DECIDED` ของ 004 ที่ใช้ตอนเจ้าหน้าที่พิจารณาคำขอซึ่งพิจารณาไปแล้ว ทั้ง approved และ rejected) | 003 (ลงทะเบียน 2569-11-12 CR-006) |
   | `NOT_CANCELLABLE` | 409 | ยกเลิกคำขอไม่ได้ เพราะสถานะเป็น rejected, handed_over, returned หรือ cancelled แนบ `status` ของคำขอ | 003 (ลงทะเบียน 2569-11-12 CR-006) |
+  | `ITEM_NOT_FOUND` | 404 | ไม่มีอุปกรณ์รหัสครุภัณฑ์นี้ หรือรหัสรุ่นไม่ถูกต้อง (เรื่องของอุปกรณ์ ไม่ใช่คำขอยืม ซึ่งใช้ `REQUEST_NOT_FOUND`) | 001 (ลงทะเบียน 2569-11-12) |
+  | `METHOD_NOT_ALLOWED` | 405 | เรียก endpoint ด้วย method ที่ไม่รองรับ (เช่น POST ไปที่ endpoint ที่มีแค่ GET) แนบ header `Allow` ตามเดิม | ทุกฟีเจอร์ ผ่านตัวครอบใน `platform` (001 ลงทะเบียน 2569-11-12) |
 
   ฟีเจอร์ที่ต้องการรหัสใหม่ ให้เพิ่มแถวในตารางนี้ก่อนใช้ ห้ามตั้งรหัสเองในโค้ดโดยไม่ลงทะเบียน
 
@@ -97,7 +99,7 @@ Status: v5.2 | Updated: 2569-11-12 (v5.2 003 ใช้ REQUEST_NOT_FOUND แถ�
 |---|---|
 | CON-TECH-01 | 001-equipment-status, 002-borrow-request, 003-cancel-request, 004-approve-request, 005-handover |
 | CON-TECH-02 | 001-equipment-status, 002-borrow-request, 003-cancel-request, 004-approve-request, 005-handover |
-| CON-TECH-03 | 001-equipment-status (รหัสเดิม 4 ตัว และ FORBIDDEN_ROLE ใน T-17), 002-borrow-request (ลงทะเบียน VALIDATION_FAILED, ITEM_NOT_AVAILABLE, DUPLICATE_REQUEST, HAS_OVERDUE_LOAN และใช้ REQUEST_NOT_FOUND กับ FORBIDDEN_ROLE ร่วม ดู CR-007), 003-cancel-request (CR-006 ใช้ REQUEST_NOT_FOUND ร่วมกับ 004, ลงทะเบียน ALREADY_APPROVED, NOT_CANCELLABLE), 004-approve-request, 005-handover (ใช้ FORBIDDEN_ROLE ร่วมกับ 004, ลงทะเบียน REQUEST_NOT_APPROVED, BORROWER_MISMATCH) |
+| CON-TECH-03 | 001-equipment-status (รหัสเดิม 4 ตัว, FORBIDDEN_ROLE ใน T-17, ลงทะเบียน ITEM_NOT_FOUND และ METHOD_NOT_ALLOWED ที่ใช้ร่วมทุกฟีเจอร์), 002-borrow-request (ลงทะเบียน VALIDATION_FAILED, ITEM_NOT_AVAILABLE, DUPLICATE_REQUEST, HAS_OVERDUE_LOAN และใช้ REQUEST_NOT_FOUND กับ FORBIDDEN_ROLE ร่วม ดู CR-007), 003-cancel-request (CR-006 ใช้ REQUEST_NOT_FOUND ร่วมกับ 004, ลงทะเบียน ALREADY_APPROVED, NOT_CANCELLABLE), 004-approve-request, 005-handover (ใช้ FORBIDDEN_ROLE ร่วมกับ 004, ลงทะเบียน REQUEST_NOT_APPROVED, BORROWER_MISMATCH) |
 | CON-DATA-01 | 001-equipment-status, 002-borrow-request (ส่งคำขอได้เฉพาะชิ้นที่ "ว่าง"), 003-cancel-request (ยกเลิกไม่เปลี่ยนสถานะอุปกรณ์), 004-approve-request (สถานะอุปกรณ์ยังเป็น ว่าง หลังอนุมัติ), 005-handover |
 | CON-DATA-03 | 001-equipment-status, 002-borrow-request, 005-handover |
 | DOM-PRIV-01 | 001-equipment-status, 002-borrow-request (ไม่เปิดเผยชื่อผู้ขอรายอื่น FR-BRQ-05) |

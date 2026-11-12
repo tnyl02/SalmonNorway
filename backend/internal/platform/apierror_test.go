@@ -88,6 +88,7 @@ func TestErrorMessage_AllCodesHaveMessage(t *testing.T) {
 	for _, code := range []string{
 		platform.CodeUnauthenticated, platform.CodePrincipalIncomplete,
 		platform.CodeForbiddenDepartment, platform.CodeUpstreamUnavailable,
+		platform.CodeItemNotFound, // T-39
 	} {
 		if m := platform.ErrorMessage(code); m == "" || m == code {
 			t.Errorf("%s ไม่มีข้อความ", code)
@@ -95,5 +96,25 @@ func TestErrorMessage_AllCodesHaveMessage(t *testing.T) {
 	}
 	if m := platform.ErrorMessage("NOT_REGISTERED"); m != "NOT_REGISTERED" {
 		t.Errorf("รหัสที่ไม่มีข้อความต้องคืนรหัสเอง (message ไม่ว่าง) ได้ %q", m)
+	}
+}
+
+// T-39: รหัส ITEM_NOT_FOUND ตรงกับที่ลงทะเบียนในรายการกลาง และ WriteError ตอบ 404 ด้วย {code, message} (CON-TECH-03)
+func TestCON_TECH_03_ItemNotFoundBody(t *testing.T) {
+	if platform.CodeItemNotFound != "ITEM_NOT_FOUND" {
+		t.Fatalf("รหัสต้องตรงกับ specs/000-shared/constraints.md ได้ %q", platform.CodeItemNotFound)
+	}
+	rec := httptest.NewRecorder()
+	platform.WriteError(rec, http.StatusNotFound, platform.CodeItemNotFound)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, ต้องเป็น 404", rec.Code)
+	}
+	var body map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("body ไม่ใช่ JSON: %v", err)
+	}
+	if len(body) != 2 || body["code"] != "ITEM_NOT_FOUND" || body["message"] != "ไม่พบอุปกรณ์รหัสนี้" {
+		t.Errorf("body = %v, ต้องเป็น {code: ITEM_NOT_FOUND, message: ไม่พบอุปกรณ์รหัสนี้}", body)
 	}
 }

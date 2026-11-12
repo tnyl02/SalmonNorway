@@ -86,10 +86,11 @@ ORDER BY model_name, model_id`
 }
 
 // ItemRow คืออุปกรณ์รายชิ้น 1 ชิ้นในรุ่นที่เลือก ระบุด้วยรหัสครุภัณฑ์ (FR-EQS-01, CON-DATA-03)
-// กำหนดคืน ป้ายเลยกำหนดคืน และข้อมูลตามบทบาทจะเพิ่มใน T-10, T-12, T-17
+// canRequestLoan ใช้แสดงปุ่มส่งคำขอยืมในตารางรายชิ้น (FR-EQS-04, 05, 06, Q-16 ปุ่มอยู่ทั้งสองหน้า, T-34)
 type ItemRow struct {
-	AssetCode string `json:"assetCode"`
-	Status    Status `json:"status"`
+	AssetCode      string `json:"assetCode"`
+	Status         Status `json:"status"`
+	CanRequestLoan bool   `json:"canRequestLoan"`
 }
 
 // ListItems คืนอุปกรณ์รายชิ้นของรุ่นที่เลือก พร้อมสถานะล่าสุดของแต่ละชิ้น เรียงตามรหัสครุภัณฑ์ (FR-EQS-01)
@@ -109,6 +110,7 @@ ORDER BY asset_code`
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (ItemRow, error) {
 		var it ItemRow
 		err := row.Scan(&it.AssetCode, &it.Status)
+		it.CanRequestLoan = canRequestLoan(it.Status) // FR-EQS-04, 05, 06 (T-34)
 		return it, err
 	})
 }

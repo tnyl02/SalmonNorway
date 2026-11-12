@@ -5116,6 +5116,7 @@ T-13 มีแค่ `service.go` ในช่องไฟล์ที่แต�
 
 ---
 
+004-approve-request
 ## 2569-11-12 คำสั่ง: /implement T-35 ของ 004-approve-request
 
 - ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
@@ -5226,3 +5227,108 @@ T-13 มีแค่ `service.go` ในช่องไฟล์ที่แต�
 - คำสั่ง: "แจ้ง 002 แล้วว่าใช้ email จำลองแทน"
 - สิ่งที่แก้: spec.md Q-APV-04 บันทึกว่าแจ้ง 002 แล้ว คำขอให้ 002 เก็บ Email พักไว้ คำถามยังเปิดสำหรับการส่งจริง
 - ยังไม่ได้ทำ: แจ้งทั้งทีมและ 003 / เพิ่ม Assumption เรื่อง Email จำลองใน spec (รอทีมไม่ค้าน)
+=======
+## 2569-11-12 ลงทะเบียน ITEM_NOT_FOUND และตัดสินเรื่อง 404 / 405 (plan v1.9, tasks v2.4)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `specs/000-shared/constraints.md` เพิ่มแถวรหัส error เพราะ 001)
+- เครื่องมือ: Claude Code
+- ที่มา: 002 ตอบในกลุ่มว่า 404 ใช้ `REQUEST_NOT_FOUND` ได้ และ 405 ยังไม่ตัดสินใน CR-007
+- คำถามและการตัดสินของผู้สั่ง:
+  1. ไม่ทำ 405 ได้ไหม -> AI ตอบว่าได้ ถ้าบันทึกเหตุผล (router ของ Go, ไม่มี FR/AC, ผู้ใช้ไม่เจอ, ยังปฏิเสธการเขียนตาม CON-DATA-02)
+     ผู้สั่งไม่ได้สั่งให้ทำ 405 ต่อ AI จึงบันทึกว่า "ไม่ทำ"
+  2. AI อธิบายขั้นตอนถ้าใช้ REQUEST_NOT_FOUND ตามที่ 002 บอก เทียบกับลงทะเบียน ITEM_NOT_FOUND -> ผู้สั่งเลือก ITEM_NOT_FOUND
+- สิ่งที่ AI พบเพิ่ม: CON-TECH-03 ให้ลงทะเบียนรหัสใหม่ด้วยการเพิ่มแถวได้เลย (004, 005 ทำแบบนี้) จึงไม่ต้องทำ CR ตามที่ AI บอกไว้ก่อนหน้า
+- สิ่งที่ AI แก้:
+  - constraints.md v5.3: แถว `ITEM_NOT_FOUND` (404) และแถว CON-TECH-03 ในตาราง "ใครอ้างใช้บ้าง"
+  - plan v1.9 (ต่อจาก v1.8 ที่ผู้สั่งแก้เรื่อง Q-08): ข้อ 5 แถว 404, ข้อ 10 ผลการตัดสิน 404 / 405
+  - tasks v2.4 (ต่อจาก v2.3): T-39 พร้อมทำ, ตาราง Constraint, ลบเรื่อง 404/405 ออกจาก "สิ่งที่ยังไม่ทำ", สรุปจำนวน task ใหม่ (39: เสร็จ 26, พร้อมทำ 2, รอ Q 9, ยกเลิก 2)
+  - CHANGELOG
+- สิ่งที่ AI ไม่ได้ทำ: ไม่แก้โค้ด (ทำใน `/implement T-39`) ไม่ commit
+- ข้อความ "ไม่พบอุปกรณ์รหัสนี้" ของ ITEM_NOT_FOUND AI เสนอเอง ไม่ได้มาจาก spec
+
+---
+
+## 2569-11-12 เปลี่ยนการตัดสิน: ทำ 405 ทั้งระบบ (ลงทะเบียน METHOD_NOT_ALLOWED, เพิ่ม T-40)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `specs/000-shared/constraints.md` และวางแผนแก้ `platform/`, `cmd/server/main.go` ที่ทุกฟีเจอร์ใช้)
+- เครื่องมือ: Claude Code
+- ที่มา: ผู้สั่งถามว่าถ้าจะทำ 405 ต้องทำอะไร AI เสนอ 2 ทาง (A ตัวครอบกลางแก้ทั้งระบบ / B ทำเฉพาะ 001) ผู้สั่งเลือก A
+- เปลี่ยนจากบันทึกก่อนหน้า (405 "ไม่ทำ") ซึ่งยังไม่ได้ commit จึงแก้รวมในเวอร์ชันเดิม ไม่ขึ้นเวอร์ชันใหม่:
+  - constraints.md v5.3: เพิ่มแถว `METHOD_NOT_ALLOWED` (405) ใช้ร่วมทุกฟีเจอร์ผ่าน platform
+  - plan v1.9: ข้อ 5 แถว 405 และวิธีทำ (platform.MethodNotAllowedJSON ครอบใน main.go) / ข้อ 10 405 ทำใน T-40
+  - tasks v2.4: เพิ่ม T-40 ในเฟส 12, ตาราง Constraint, สรุปจำนวน task (40: เสร็จ 26, พร้อมทำ 3, รอ Q 9, ยกเลิก 2)
+  - CHANGELOG: รายการเดิมของรอบนี้เปลี่ยนจาก "ไม่ทำ 405" เป็นทำทั้งระบบ
+- สิ่งที่ต้องทำก่อนเริ่ม T-40: แจ้งทีมในกลุ่ม เพราะ 405 ของทุกฟีเจอร์จะเปลี่ยน (test ที่มีอยู่ตรวจแค่ status ของ 001 และ 002 จึงไม่พัง)
+- ข้อความ "ไม่รองรับการเรียกแบบนี้" ของ METHOD_NOT_ALLOWED AI เสนอเอง ไม่ได้มาจาก spec
+- สิ่งที่ AI ไม่ได้ทำ: ไม่แก้โค้ด ไม่ commit
+
+---
+
+## 2569-11-12 /implement T-39 ตอบ 404 ด้วย {code, message} รหัส ITEM_NOT_FOUND (CON-TECH-03)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `backend/internal/platform/apierror.go` เพิ่มรหัส ITEM_NOT_FOUND ที่ 001 ลงทะเบียนใน constraints.md v5.3)
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement T-39`
+- ไฟล์ที่แก้: `backend/internal/platform/apierror.go` (CodeItemNotFound และข้อความ "ไม่พบอุปกรณ์รหัสนี้" ตาม plan ข้อ 5),
+  `backend/internal/platform/apierror_test.go` (เพิ่ม CodeItemNotFound ใน TestErrorMessage_AllCodesHaveMessage และ TestCON_TECH_03_ItemNotFoundBody),
+  `backend/internal/equipment/handler.go` (2 จุดที่เคยใช้ http.NotFound: รหัสรุ่นไม่ใช่ตัวเลข และไม่มีรหัสครุภัณฑ์),
+  `backend/internal/equipment/handler_test.go` (TestCON_TECH_03_ItemNotFound), `specs/001-equipment-status/tasks.md` (สถานะ T-39)
+- test: `TestCON_TECH_03_ItemNotFound` ผ่าน (รหัสครุภัณฑ์ที่ไม่มี และรหัสรุ่น "abc" ได้ 404 body มีแค่ code ITEM_NOT_FOUND กับ message /
+  รุ่น 9999 ได้ 200 items []) / `TestCON_TECH_03_ItemNotFoundBody` ผ่าน / test เดิม TestItems_UnknownModel, TestItemDetail_...Is404 ยังผ่าน
+  หลังบ้านทั้งระบบ `go test ./...` ผ่าน 10 package หน้าจอ 31 ไฟล์ 81 test ผ่าน
+- สิ่งที่ไม่ได้ทำ: 405 METHOD_NOT_ALLOWED เป็นของ T-40 / ไม่แก้หน้าจอ (ErrorState แสดง serverMessage ของ 404 ได้อยู่แล้ว)
+- ไม่มีเรื่องที่ต้องเดา: รหัส ข้อความ และกรณีรุ่นตัวเลขที่ไม่มีอยู่ (200 รายการว่าง) มีใน plan ข้อ 5 และช่อง "เสร็จเมื่อ" ครบ
+
+---
+
+## 2569-11-12 /implement T-40 ตอบ 405 ด้วย {code, message} ทั้งระบบ (CON-TECH-03)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `backend/cmd/server/main.go`, `backend/internal/platform/http.go`, `apierror.go`
+  เพราะ T-40 ของ 001: 405 ของทุกฟีเจอร์เปลี่ยน body เป็น {code: METHOD_NOT_ALLOWED, message})
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement T-40`
+- คำถามที่ AI ถามก่อนทำ และคำตอบของทีม (Pannathorn J):
+  1. ช่องสถานะของ T-40 บอกให้แจ้งทีมในกลุ่มก่อนแก้ main.go แจ้งแล้วหรือยัง -> ทีมตอบ: แจ้งแล้ว ทำได้เลย
+- ไฟล์ที่แก้: `backend/internal/platform/apierror.go` (CodeMethodNotAllowed และข้อความ "ไม่รองรับการเรียกแบบนี้" ตาม plan ข้อ 5),
+  `backend/internal/platform/http.go` (MethodNotAllowedJSON ครอบ router ดักเฉพาะ 405 ทิ้งข้อความเดิมของ ServeMux เขียน {code, message} แทน header Allow คงเดิม),
+  `backend/internal/platform/http_test.go` (TestCON_TECH_03_MethodNotAllowed), `backend/cmd/server/main.go` (NoStore(MethodNotAllowedJSON(mux))),
+  `backend/internal/equipment/handler_test.go` (newTestServer ครอบแบบเดียวกับ main.go, TestCON_DATA_02 ตรวจ body ของ 405),
+  `specs/001-equipment-status/tasks.md` (สถานะ T-40)
+- test: `TestCON_TECH_03_MethodNotAllowed` ผ่าน 5 กรณี (405 ได้ body 2 ช่อง Content-Type JSON header Allow มี GET ไม่มีข้อความ "Method Not Allowed" เหลือ /
+  200 JSON, 200 แบบ Write อย่างเดียว, 401 UNAUTHENTICATED, 503 UPSTREAM_UNAVAILABLE ไม่ถูกแตะ) / `TestCON_DATA_02_NoWriteEndpoints` ผ่าน (12 คู่ method x path ได้ 405 METHOD_NOT_ALLOWED)
+  / `TestRoutes_OnlyPost` ของ 002 ยังผ่าน / หลังบ้านทั้งระบบ `go test ./...` ผ่าน 10 package หน้าจอ 31 ไฟล์ 81 test ผ่าน
+- ลองกับหลังบ้านจริง (`go run ./cmd/server`): POST /v1/equipment/models -> 405 Allow: GET, HEAD body METHOD_NOT_ALLOWED /
+  GET /v1/loan-requests (002) -> 405 Allow: POST body เดียวกัน / GET models -> 200 / POST ไม่มี token -> 401 UNAUTHENTICATED เหมือนเดิม
+- ไม่มีเรื่องที่ต้องเดา: รหัส ข้อความ และวิธีครอบมีใน plan ข้อ 5 และข้อ 10
+
+---
+
+## 2569-11-12 /implement T-34 ปุ่มส่งคำขอยืม ทั้งตารางรายชิ้นและหน้ารายละเอียด (FR-EQS-04, 05, 06)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement T-34`
+- คำถามที่ AI ถามก่อนทำ และคำตอบของทีม (Pannathorn J):
+  1. ฟอร์มของ 002 ยังไม่มีใน main (ไม่มี pages/BorrowRequest และ Q-BRQ-14 ของ 002 ยังเปิด) และ App.jsx ไม่อยู่ในไฟล์ที่แตะ
+     กดปุ่มแล้วจะให้เกิดอะไร -> ทีมตอบ: ส่ง assetCode ออกไปก่อน (prop onRequestLoan) ไม่ต่อกับ App ในแอปจริงกดแล้วยังไม่ไปไหน
+- ไฟล์ที่แก้: `backend/internal/equipment/dto.go` (CanRequestLoan ใน StudentItemDTO / StaffItemDTO และฟังก์ชัน canRequestLoan = ว่างเท่านั้น),
+  `backend/internal/equipment/repository.go` (CanRequestLoan ใน ItemRow ของตารางรายชิ้น), `backend/internal/equipment/service.go` (ใส่ค่าในรายละเอียด),
+  `backend/internal/equipment/handler_test.go` (TestAC_EQS_04_06_14_CanRequestLoan และเติมช่อง canRequestLoan ใน want ของ TestAC_EQS_01_ItemsOfModel
+  ที่สร้าง ItemRow แบบตามตำแหน่ง ไม่งั้น compile ไม่ผ่าน), `frontend/src/components/ItemTable.jsx` (คอลัมน์ปุ่ม และ RequestLoanButton ใช้ร่วม 2 หน้า),
+  `frontend/src/pages/EquipmentList/EquipmentList.jsx` (รับ onRequestLoan ส่งต่อให้ตารางและรายละเอียด), `frontend/src/pages/EquipmentDetail/EquipmentDetail.jsx` (ปุ่มตาม canRequestLoan),
+  `specs/001-equipment-status/tasks.md` (สถานะ T-34)
+- ไฟล์ที่สร้าง: `frontend/src/__tests__/RequestButton.test.jsx`
+- test: `TestAC_EQS_04_06_14_CanRequestLoan` ผ่าน (นักศึกษาและเจ้าหน้าที่ ตารางรายชิ้นและรายละเอียด: CS-NB-0001 ว่าง = true /
+  CS-NB-0004 ถูกยืม, CS-NB-0005 เลยกำหนดคืน, CS-PJ-0002 ไม่พร้อมใช้งาน = false) / `RequestButton.test.jsx` 6 test ผ่าน
+  (ตาราง: ปุ่มเฉพาะชิ้นที่ว่าง กดแล้ว onRequestLoan('CS-NB-0001') / รายละเอียด: ว่างมีปุ่ม ถูกยืม เลยกำหนด ไม่พร้อมใช้งานไม่มีปุ่ม /
+  ไม่มี canRequestLoan จากหลังบ้าน = ไม่มีปุ่ม) หลังบ้านทั้งระบบผ่าน หน้าจอ 32 ไฟล์ 87 test ผ่าน `vite build` ผ่าน
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้):
+  - ข้อความบนปุ่ม "ส่งคำขอยืม" ใช้คำจาก FR-EQS-04 และ AC ไม่มี mockup หัวคอลัมน์ของปุ่มในตารางเว้นว่าง
+  - canRequestLoan ส่งเป็น false ชัด ๆ (ไม่ omitempty) และหน้าจอแสดงปุ่มเฉพาะเมื่อได้ true จากหลังบ้าน ไม่ดูสถานะเอง (plan ข้อ 6.7)
+- ยังขาด: ต่อ onRequestLoan กับฟอร์มของ 002 ใน App.jsx (รอ 002 สร้างฟอร์มและตกลงวิธีเปิด) / test-cases ชุด ค (AC-EQS-04, 05, 06, 14) ทำได้แล้ว
+main
