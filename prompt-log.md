@@ -2050,3 +2050,15 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ไม่สร้าง ID ใหม่ (กฎข้อ 5) คำตอบเขียนในข้อความ FR และหัวข้อ Clarifications
 - แก้ plan.md (ข้อความที่อ้าง Q ทั้ง 4) และ tasks.md: T-25, T-26, T-27, T-28 เปลี่ยนเป็น "พร้อมทำ"
 - ยังเปิด: Q-HND-04 (T-31), Q-HND-07 (T-30), Q-SH-03 (T-29)
+
+---
+
+## 2569-11-12 /implement T-25 กำหนดคืนเมื่อส่งมอบหลัง 16:00
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ทำ task ต่อไปได้เลย หากส่วนไหนไม่รู้ให้ถาม" (Q-HND-03 ปิดแล้วใน spec v2.7)
+- ไฟล์ที่แก้: `backend/internal/handover/service.go` (normalDueAt: หลัง LoanNormalReturnHour:00 เลื่อนกำหนดคืนไปวันถัดไป), `backend/internal/handover/handler_test.go` (TestAC_HND_11_HandoverAfter1600 ตรวจ due_at = 2569-11-13 16:00) ไม่ต้องเพิ่มค่าใน config.go (ใช้ LoanNormalReturnHour เดิม)
+- ผล test (container golang:1.25): TestAC_HND_11_HandoverAfter1600 และ TestAC_HND_05_DueAt1600SameDay ผ่าน `go test ./...` ผ่านทุก package go vet และ gofmt ผ่าน
+- สิ่งที่ AI ตัดสินจากข้อความ spec (ไม่ได้ถาม): ส่งมอบตรง 16:00:00 พอดีนับเป็นวันเดียวกัน เพราะ spec เขียนว่า "หลัง 16:00" และ "วันถัดไป" นับตามปฏิทิน ไม่ข้ามวันหยุด ทีมควรตรวจ

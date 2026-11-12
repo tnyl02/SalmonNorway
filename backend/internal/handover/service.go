@@ -138,12 +138,17 @@ func (s *Service) identifyBorrower(ctx context.Context, in HandoverInput) (userI
 }
 
 // normalDueAt คือกำหนดคืนของการยืมแบบปกติ = LoanNormalReturnHour:00 (ค่าของ 002 ใน config.go) ของวันที่ส่งมอบตามเขตเวลา TimeZone (FR-HND-05, DOM-LOAN-01)
-// กรณีส่งมอบหลัง 16:00 ยังรอ Q-HND-03 (T-25)
+// ส่งมอบหลัง LoanNormalReturnHour:00 กำหนดคืน = LoanNormalReturnHour:00 ของวันถัดไป (FR-HND-05, Q-HND-03 ปิด 2569-11-12, T-25)
+// ส่งมอบตรง 16:00:00 พอดียังนับเป็นวันเดียวกัน เพราะ spec เขียนว่า "หลัง 16:00"
 func normalDueAt(handedOverAt time.Time) time.Time {
 	loc, err := time.LoadLocation(config.TimeZone)
 	if err != nil {
 		loc = time.UTC
 	}
 	t := handedOverAt.In(loc)
-	return time.Date(t.Year(), t.Month(), t.Day(), config.LoanNormalReturnHour, 0, 0, 0, loc)
+	due := time.Date(t.Year(), t.Month(), t.Day(), config.LoanNormalReturnHour, 0, 0, 0, loc)
+	if t.After(due) {
+		due = due.AddDate(0, 0, 1)
+	}
+	return due
 }
