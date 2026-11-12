@@ -5352,3 +5352,24 @@ main
 - ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np) สั่ง "โอเคแก้เลย" หลัง AI แจ้งว่าไฟล์นี้ต้องให้ทีมรับรู้ (AGENTS.md)
 - เครื่องมือ: Claude Code
 - ไฟล์ที่แก้: specs/003-cancel-request/test-cases.md บรรทัด 2 อ้าง spec Draft v3.9 / plan v1.7 / tasks 34 task (เดิม v3.3 / v1.2 / v1.1) ไม่แตะแถว TC
+
+---
+
+## 2569-11-12 /verify specs/003-cancel-request/ รอบที่ 3 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code (พิมพ์ /verify แล้วเรียก skill ตรวจของ Claude Code ไม่ใช่ของรายวิชา AI อ่าน .claude/commands/verify.md แล้วทำตามเอง)
+- ผล test: go test -count=1 -p 1 ./... ผ่าน 189 (ของ 003 51) ไม่ผ่าน 0, npm test ผ่าน 89 (ของ 003 26) ไม่ผ่าน 0 รวม 278 / k6 ใช้ผลรันซ้ำ 2569-11-12 (list p95 123.39 ms, cancel p95 61.03 ms)
+- ตารางไปข้างหน้า 22 แถว: ครบ 17, ยังไม่ถึง 0, รอ Q-16 1 (FR-CXL-10), ช่องโหว่ 4 (FR-CXL-01 จาก F-11 เอกสารเท่านั้น, NFR-SEC-01, NFR-AVAIL-01, CON-TECH-02 จาก F-03 / F-08)
+- แก้แล้ว (ย้ายไปหัวข้อ 4 คงข้อความทีมตัดสินเดิม): F-04 (T-34), F-09 (spec v3.9), F-10 (client.js, errors.go)
+- คงไว้ในหัวข้อ 3: F-03, F-08 (ยังไม่ตัดสิน รอทีม), F-05, F-07 (ทีมตัดสินว่าไม่ใช่ปัญหา)
+- ข้อค้นพบใหม่: F-11 plan ข้อ 6 บรรทัด 185 ชื่อ vitest AC_CXL_13 shows retry ไม่ตรง test จริง (AC_CXL_13 shows error with retry) และยังเขียน 503 retryable
+
+---
+
+## 2569-11-12 ตัดสินและแก้ F-11 ของ rtm.md (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np) สั่ง "แก้ plan.md บรรทัด 185 แล้วจด แก้ spec ในช่องทีมตัดสินของ F-11"
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: specs/003-cancel-request/plan.md บรรทัด 185 (ข้อ 6 แถว AC-CXL-13) ชื่อ vitest AC_CXL_13 shows error with retry, 503 UPSTREAM_UNAVAILABLE {code, message} ไม่มี retryable
+  specs/003-cancel-request/rtm.md ช่องทีมตัดสินของ F-11 เขียนตามคำสั่งของเจ้าของ (จะย้ายไปหัวข้อแก้แล้วตอน /verify รอบหน้า)
