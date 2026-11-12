@@ -5332,3 +5332,16 @@ T-13 มีแค่ `service.go` ในช่องไฟล์ที่แต�
   - canRequestLoan ส่งเป็น false ชัด ๆ (ไม่ omitempty) และหน้าจอแสดงปุ่มเฉพาะเมื่อได้ true จากหลังบ้าน ไม่ดูสถานะเอง (plan ข้อ 6.7)
 - ยังขาด: ต่อ onRequestLoan กับฟอร์มของ 002 ใน App.jsx (รอ 002 สร้างฟอร์มและตกลงวิธีเปิด) / test-cases ชุด ค (AC-EQS-04, 05, 06, 14) ทำได้แล้ว
 main
+
+---
+
+## 2569-11-12 ทีมอนุมัติ ID ของ AC-APV-16, 17, 18 (ปิด Q-APV-13, Q-APV-22)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ID ของ AC-APV-16, 17, 18 อนุมัติ"
+- ไฟล์ที่แก้: `specs/004-approve-request/spec.md` (เอา [เสนอ] ออก, ปิด Q-APV-13 และ Q-APV-22), `specs/004-approve-request/plan.md` (แผนทดสอบ, ข้อ 8),
+  `specs/004-approve-request/tasks.md` (สถานะ T-21, T-22, T-30, T-31, หัวเฟส 15 16, ตารางตรวจความครบ, ตารางสิ่งที่ยังไม่ทำ), `specs/CHANGELOG.md`,
+  คอมเมนต์ใน `backend/internal/approve/service_test.go`, `backend/internal/approve/autoreject_test.go`, `frontend/src/pages/ApproveRequest/ApproveRequests.test.jsx`
+- ไม่เปลี่ยนเนื้อหา AC ชื่อ test และพฤติกรรมของโค้ด จึงไม่ต้องรัน test ใหม่
