@@ -185,12 +185,13 @@ func TestAC_EQS_01_ItemsOfModel(t *testing.T) {
 		t.Fatalf("status = %d, ต้องเป็น 200 (body: %s)", rec.Code, rec.Body.String())
 	}
 	body := decode[ListDTO[ItemRow]](t, rec)
+	// ช่องที่ 3 คือ canRequestLoan (T-34) true เฉพาะชิ้นที่ว่าง
 	want := []ItemRow{
-		{"CS-NB-0001", StatusAvailable},
-		{"CS-NB-0002", StatusAvailable},
-		{"CS-NB-0003", StatusAvailable},
-		{"CS-NB-0004", StatusBorrowed},
-		{"CS-NB-0005", StatusBorrowed},
+		{"CS-NB-0001", StatusAvailable, true},
+		{"CS-NB-0002", StatusAvailable, true},
+		{"CS-NB-0003", StatusAvailable, true},
+		{"CS-NB-0004", StatusBorrowed, false},
+		{"CS-NB-0005", StatusBorrowed, false},
 	}
 	if len(body.Items) != len(want) || body.Total != len(want) {
 		t.Fatalf("ต้องเห็น 5 ชิ้น แต่ได้ %d ชิ้น (total %d): %+v", len(body.Items), body.Total, body.Items)
@@ -808,4 +809,55 @@ func TestCON_TECH_03_ItemNotFound(t *testing.T) {
 			t.Errorf("ต้องได้ items เป็น [] ได้ %+v", body.Items)
 		}
 	})
+}
+
+// T-34 เสร็จเมื่อ: canRequestLoan = true เฉพาะสถานะ "ว่าง" ทั้งตารางรายชิ้นและรายละเอียด (ส่วนปุ่มของ AC-EQS-04, 06, 14)
+//
+//	Given ข้อมูลตั้งต้น: CS-NB-0001 ว่าง / CS-NB-0004 ถูกยืม / CS-NB-0005 ถูกยืมและเลยกำหนดคืน / CS-PJ-0002 ไม่พร้อมใช้งาน
+//	When  นักศึกษาและเจ้าหน้าที่เปิดตารางรายชิ้นและรายละเอียด
+//	Then  ว่าง = canRequestLoan true (FR-EQS-06) / ถูกยืม เลยกำหนด (FR-EQS-04, AC-EQS-04, 14) และไม่พร้อมใช้งาน (FR-EQS-05, AC-EQS-06) = false
+func TestAC_EQS_04_06_14_CanRequestLoan(t *testing.T) {
+	srv := newTestServer(t)
+	want := map[string]bool{
+		"CS-NB-0001": true,  // ว่าง
+		"CS-NB-0004": false, // ถูกยืม
+		"CS-NB-0005": false, // ถูกยืม เลยกำหนดคืน
+		"CS-PJ-0002": false, // ไม่พร้อมใช้งาน
+	}
+
+	for _, token := range []string{tokenStudentDept1, "mock-staff-001"} {
+		t.Run(token+" ตารางรายชิ้น", func(t *testing.T) {
+			got := map[string]bool{}
+			for _, modelID := range []string{"1", "2"} {
+				rec := get(t, srv, PathPrefix+"models/"+modelID+"/items", token)
+				if rec.Code != http.StatusOK {
+					t.Fatalf("models/%s/items status = %d", modelID, rec.Code)
+				}
+				for _, it := range decode[ListDTO[ItemRow]](t, rec).Items {
+					got[it.AssetCode] = it.CanRequestLoan
+					if it.CanRequestLoan != (it.Status == StatusAvailable) {
+						t.Errorf("%s สถานะ %s แต่ canRequestLoan = %v", it.AssetCode, it.Status, it.CanRequestLoan)
+					}
+				}
+			}
+			for code, w := range want {
+				if g, ok := got[code]; !ok || g != w {
+					t.Errorf("%s canRequestLoan = %v (มี=%v), ต้องเป็น %v", code, g, ok, w)
+				}
+			}
+		})
+
+		t.Run(token+" รายละเอียด", func(t *testing.T) {
+			for code, w := range want {
+				rec := get(t, srv, PathPrefix+"items/"+code, token)
+				if rec.Code != http.StatusOK {
+					t.Fatalf("%s status = %d", code, rec.Code)
+				}
+				body := decode[map[string]any](t, rec)
+				if g, ok := body["canRequestLoan"].(bool); !ok || g != w {
+					t.Errorf("%s canRequestLoan = %v, ต้องเป็น %v (body: %v)", code, body["canRequestLoan"], w, body)
+				}
+			}
+		})
+	}
 }
