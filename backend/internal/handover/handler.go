@@ -7,11 +7,13 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"salmonnorway/backend/internal/audit"
 	"salmonnorway/backend/internal/auth"
 	"salmonnorway/backend/internal/config"
 )
@@ -37,17 +39,19 @@ type Handler struct {
 
 // NewHandler สร้าง Handler จาก connection pool และระบบยืนยันตัวตน
 // ผู้ยืมล็อกอินบัญชีมหาวิทยาลัยบนเครื่องเจ้าหน้าที่ (ASM-HND-09) prototype ใช้ provider จำลองตัวเดียวกับ middleware (Q-SH-03)
+// รอ Auth API ไม่เกิน config.BorrowerAuthTimeout (10 วินาที) เกินนั้นใช้ผลตรวจบัตรแทน (FR-HND-02, ASM-HND-02, T-13)
 func NewHandler(db DB, provider auth.Provider) *Handler {
-	return newHandler(db, NewMockBorrowerVerifier(provider), NewPhotoStore(DefaultPhotoRoot()), time.Now)
+	verifier := WithTimeout(NewMockBorrowerVerifier(provider), config.BorrowerAuthTimeout)
+	return newHandler(db, verifier, NewPhotoStore(DefaultPhotoRoot()), time.Now)
 }
 
 // newHandler ประกอบ Handler จากส่วนที่เปลี่ยนได้ ใช้ใน test เพื่อแทน verifier และนาฬิกา
 func newHandler(db DB, verifier BorrowerVerifier, photos *PhotoStore, now func() time.Time) *Handler {
-	return &Handler{db: db, verifier: verifier, svc: NewService(NewRepository(db), verifier, photos, now)}
+	return &Handler{db: db, verifier: verifier, svc: NewService(NewRepository(db), db, verifier, photos, now)}
 }
 
 // multipartMaxMemory คือขนาดที่อ่านเข้าหน่วยความจำตอนแยก multipart ส่วนเกินพักไว้ในไฟล์ชั่วคราว (ทีมเลือกเอง ไม่ได้มาจาก spec)
-// ขนาดสูงสุดของรูปตรวจใน T-28 ตาม config.HandoverPhotoMaxBytes
+// ขนาดสูงสุดต่อรูปตรวจใน validatePhotos ตาม config.HandoverPhotoMaxBytes (FR-HND-06)
 const multipartMaxMemory = 8 << 20
 
 // requestIDFrom อ่าน {requestId} จาก path ok = false ถ้าไม่ใช่ตัวเลขบวก
@@ -56,25 +60,43 @@ func requestIDFrom(r *http.Request) (int, bool) {
 	return id, err == nil && id > 0
 }
 
+// handoverPattern คือ route บันทึกการส่งมอบ ใช้ทั้งผูก handler และแยกว่าการปฏิเสธ 403 ใดต้องเขียน audit log (T-27)
+const handoverPattern = "POST " + PathPrefix + "requests/{requestId}/handover"
+
 // Routes คืน router ของ 005 ห่อด้วย requireStaff ให้ main.go ห่อด้วย auth.Middleware แล้วผูกกับ PathPrefix
 func (h *Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET "+PathPrefix+"requests", h.listRequests)                                // FR-HND-01 (T-04)
 	mux.HandleFunc("POST "+PathPrefix+"requests/{requestId}/verify-borrower", h.verifyBorrower) // FR-HND-02 (T-09)
-	mux.HandleFunc("POST "+PathPrefix+"requests/{requestId}/handover", h.handover)              // FR-HND-02 ถึง 08 (T-10)
-	return requireStaff(mux)
+	mux.HandleFunc(handoverPattern, h.handover)                                                  // FR-HND-02 ถึง 08 (T-10)
+	return h.requireStaff(mux)
 }
 
 // requireStaff ปฏิเสธผู้ใช้ที่ไม่ใช่เจ้าหน้าที่ก่อนถึง handler ใด ๆ (CON-HND-01, AC-HND-09) ตอบ 403 FORBIDDEN_ROLE
-func requireStaff(next http.Handler) http.Handler {
+// ถ้าเป็นการเรียกบันทึกการส่งมอบ เขียน audit log outcome forbidden ด้วย (FR-HND-08, Q-HND-14, T-27 ทีมตัดสิน 2569-11-12)
+// การดูรายการและยืนยันผู้ยืมไม่ใช่การส่งมอบ จึงไม่เขียน
+func (h *Handler) requireStaff(mux *http.ServeMux) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		p, ok := auth.FromContext(r.Context())
 		if !ok || p.Role != auth.RoleStaff {
+			// มีผู้ใช้ (ok) จึงรู้ว่าใครทำ mux.Handler ไม่ใส่ค่า {requestId} ใน r จึงอ่านจาก path เอง
+			if _, pattern := mux.Handler(r); ok && pattern == handoverPattern {
+				if id, found := requestIDFromPath(r.URL.Path); found {
+					h.svc.AuditFailure(r.Context(), p.UserID, p.Role, id, audit.OutcomeForbidden)
+				}
+			}
 			writeError(w, http.StatusForbidden, codeForbiddenRole)
 			return
 		}
-		next.ServeHTTP(w, r)
+		mux.ServeHTTP(w, r)
 	})
+}
+
+// requestIDFromPath อ่าน {requestId} จาก path ของ route บันทึกการส่งมอบ (PathPrefix + "requests/{requestId}/handover")
+func requestIDFromPath(path string) (int, bool) {
+	rest := strings.TrimSuffix(strings.TrimPrefix(path, PathPrefix+"requests/"), "/handover")
+	id, err := strconv.Atoi(rest)
+	return id, err == nil && id > 0
 }
 
 // listRequests: GET /v1/handover/requests รายการคำขอที่อนุมัติแล้วและยังไม่ส่งมอบทั้งหมด (FR-HND-01, AC-HND-14)
@@ -106,7 +128,7 @@ type VerifyBorrowerResult struct {
 const (
 	verifyVerified    = "verified"    // ยืนยันได้และเป็นผู้ส่งคำขอ
 	verifyMismatch    = "mismatch"    // ยืนยันได้แต่ไม่ใช่ผู้ส่งคำขอ (FR-HND-02, ASM-HND-04)
-	verifyUnavailable = "unavailable" // Auth API ไม่ตอบภายในเวลา ใช้ผลตรวจบัตรแทน (T-13)
+	verifyUnavailable = "unavailable" // Auth API ไม่ตอบภายใน BorrowerAuthTimeout ใช้ผลตรวจบัตรแทน (FR-HND-02, AC-HND-03)
 )
 
 // verifyBorrower: POST /v1/handover/requests/{requestId}/verify-borrower (FR-HND-02, IF-IDP-01, ASM-HND-09)
@@ -133,6 +155,10 @@ func (h *Handler) verifyBorrower(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID, err := h.verifier.VerifyBorrower(r.Context(), in.BorrowerCredential)
+	if errors.Is(err, ErrBorrowerAuthUnavailable) {
+		writeJSON(w, http.StatusOK, VerifyBorrowerResult{Result: verifyUnavailable}) // AC-HND-03 หน้าจอให้บันทึกต่อด้วยผลตรวจบัตร
+		return
+	}
 	if errors.Is(err, ErrBorrowerNotVerified) {
 		writeError(w, http.StatusUnprocessableEntity, codeValidationFailed, "borrowerCredential")
 		return
@@ -156,13 +182,14 @@ func (h *Handler) handover(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	staff, _ := auth.FromContext(r.Context()) // requireStaff ตรวจแล้วว่ามีและเป็นเจ้าหน้าที่
 	if err := r.ParseMultipartForm(multipartMaxMemory); err != nil {
+		h.svc.AuditFailure(r.Context(), staff.UserID, staff.Role, requestID, audit.OutcomeError) // FR-HND-08, T-27
 		writeError(w, http.StatusUnprocessableEntity, codeValidationFailed)
 		return
 	}
 	defer r.MultipartForm.RemoveAll() //nolint:errcheck // ลบไฟล์ชั่วคราวของ multipart
 
-	staff, _ := auth.FromContext(r.Context()) // requireStaff ตรวจแล้วว่ามีและเป็นเจ้าหน้าที่
 	out, err := h.svc.Handover(r.Context(), HandoverInput{
 		RequestID:          requestID,
 		StaffID:            staff.UserID,

@@ -1,5 +1,5 @@
 # Implementation Plan: บันทึกการส่งมอบอุปกรณ์ (Handover)
-Spec: SPEC-HND-005 (specs/005-handover/spec.md, Draft v2.6) | Plan status: Draft v1.4 | Updated: 2569-11-11 (v1.1 ไม่กระทบฟีเจอร์อื่น, v1.2 รับผล CR-003, v1.3 รับผล CR-004, migration 0003 และ 004 spec v1, v1.4 ปิด Q-HND-11, Q-HND-13, Q-P4)
+Spec: SPEC-HND-005 (specs/005-handover/spec.md, Draft v2.8) | Plan status: Draft v1.5 | Updated: 2569-11-12 (v1.1 ไม่กระทบฟีเจอร์อื่น, v1.2 รับผล CR-003, v1.3 รับผล CR-004, migration 0003 และ 004 spec v1, v1.4 ปิด Q-HND-11, Q-HND-13, Q-P4, v1.5 รับ spec v2.7-v2.8 migration 0009 และตาราง test ข้อ 6 ครบสำหรับ RTM)
 Owner: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn101219)
 
 ## 1. สรุปแนวทาง
@@ -18,21 +18,21 @@ Owner: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn10121
 | React + Vite, vitest | ทีมเลือกเอง ไม่ได้มาจาก spec | ค่าเริ่มต้นของรายวิชา |
 | golang-migrate (SQL ล้วน) | ทีมเลือกเอง ไม่ได้มาจาก spec | migration ใหม่เท่านั้น ห้ามแก้ 0001, 0002 |
 | เก็บไฟล์รูปบน Docker volume (โฟลเดอร์บนดิสก์) | ทีมเลือกเอง ไม่ได้มาจาก spec (Q-P1 ปิดแล้ว) | SRS 2.3 บอกว่ามี "ที่เก็บไฟล์" แต่ไม่บอกชนิด ต้องรวม volume ใน backup รายวัน |
-| auth จำลอง (`auth.MockProvider`) สำหรับเจ้าหน้าที่และผู้ยืม | ทีมเลือกเอง ไม่ได้มาจาก spec (Q-SH-03) | ผู้ยืมผ่าน interface `BorrowerVerifier` ผู้ยืมล็อกอินบนเครื่องเจ้าหน้าที่ (ASM-HND-09) เปลี่ยนเป็นตัวจริงได้เมื่อตอบ Q-SH-03 |
+| auth จำลอง (`auth.MockProvider`) สำหรับเจ้าหน้าที่และผู้ยืม | ทีมเลือกเอง ไม่ได้มาจาก spec (Q-SH-03) | ผู้ยืมผ่าน interface `BorrowerVerifier` ผู้ยืมล็อกอินบนเครื่องเจ้าหน้าที่ (ASM-HND-09) ทีมตัดสิน 2569-11-12 เทอมนี้ใช้ตัวจำลอง (T-29 ยกเลิกเทอมนี้) |
 
 ## 3. โมเดลข้อมูล
 ตาราง `equipment_item`, `loan` (0001) และ `audit_log` (0002) มีแล้ว ตาราง `borrow_request` เป็นของ 002 (migration 0003)
-ฟีเจอร์นี้เพิ่มด้วย migration ใหม่ 2 ไฟล์ เลข **0006 และ 0007** (ทีมกำหนด 2569-11-11 ถัดจาก 0004, 0005 ของ 003) `0006_handover.up.sql` และ `0007_audit_log_handover_action.up.sql`
+ฟีเจอร์นี้เพิ่มด้วย migration ใหม่ 2 ไฟล์ เลข **0006 และ 0009** (0006 ทีมกำหนด 2569-11-11 / ไฟล์ action ย้ายจาก 0007 เป็น 0009 ทีมเลือก 2569-11-12 เพราะ 0008 ของ 004 สร้าง CHECK ใหม่) `0006_handover.up.sql` และ `0009_audit_log_handover_action.up.sql`
 
 | Entity / การเปลี่ยน | ฟิลด์หลัก | รองรับ |
 |---|---|---|
 | `loan` (DM-05) **ไม่แก้โครงตาราง** | INSERT ด้วยคอลัมน์เดิม `item_id`, `borrower_id` (รหัสนักศึกษาที่ยืนยันแล้ว), `loan_type`, `due_at` | FR-HND-07 |
 | `handover` (ใหม่ เฉพาะ 005 ผูก 1:1 กับ `loan`) | `loan_id` PK/FK -> `loan`, `request_id` FK -> `borrow_request` UNIQUE, `handed_over_at TIMESTAMPTZ`, `handed_over_by` (รหัสเจ้าหน้าที่), `borrower_student_id`, `borrower_first_name`, `borrower_last_name`, `identity_method` CHECK IN (`auth_api`, `card_only`), `card_checked BOOLEAN NOT NULL CHECK (card_checked)` | FR-HND-02, 03, 05, 07 (ชื่อ-นามสกุลเจ้าหน้าที่พิมพ์ตามบัตร ASM-HND-10, รหัสนักศึกษา = รหัสผู้ใช้จากการยืนยัน ASM-HND-09) |
-| `loan.due_at` (มีแล้ว) | ยืมปกติ = 16:00 ของวันส่งมอบ / ค้างคืน = 16:00 ของวันที่สิ้นสุดการยืมในคำขอ (Q-SH-04, CR-003) คำนวณใน 005 เอง ไม่อ่านค่าจากตารางของ 004 | FR-HND-05 (ส่งมอบหลัง 16:00 รอ Q-HND-03, ค้างคืนรอ Q-HND-07) |
+| `loan.due_at` (มีแล้ว) | ยืมปกติ = 16:00 ของวันส่งมอบ / ค้างคืน = 16:00 ของวันที่สิ้นสุดการยืมในคำขอ (Q-SH-04, CR-003) คำนวณใน 005 เอง ไม่อ่านค่าจากตารางของ 004 | FR-HND-05 (ส่งมอบหลัง 16:00 = 16:00 ของวันถัดไป Q-HND-03 ปิด 2569-11-12, ค้างคืนทำแล้ว Q-HND-07 ปิด 2569-11-12) |
 | `handover_photo` (ใหม่) | `id`, `loan_id` FK -> `handover`, `file_path`, `content_type` CHECK IN (`image/jpeg`, `image/png`), `size_bytes`, `uploaded_at` | FR-HND-06 |
 | `equipment_item.status` (มีแล้ว) | `available` -> `borrowed` | FR-HND-04, 07, CON-DATA-01 |
 | `borrow_request.status` (ของ 002) | `approved` -> `handed_over` (data-model v9 ยืนยันแล้ว) อ่านค่าที่ส่งมอบได้จาก config | FR-HND-01, 07 |
-| `audit_log.action` เพิ่มค่าใน CHECK (migration แยก) | ค่าสำหรับการส่งมอบ ชื่อรอ Q-HND-06 (ชื่อชั่วคราว `handover`) ใช้ `asset_code`, `request_id`, `outcome` เดิม | FR-HND-08 |
+| `audit_log.action` เพิ่มค่าใน CHECK (migration แยก) | ค่า `handover` (Q-HND-06 ปิด 2569-11-12) ใช้ `asset_code`, `request_id`, `outcome` เดิม บันทึกทั้งสำเร็จและไม่สำเร็จ (Q-HND-14 ปิด 2569-11-12) | FR-HND-08 |
 
 สิ่งที่ **ไม่มีฟิลด์** โดยตั้งใจ: เลขบัตรประชาชน และเลขบัตรนักศึกษา FR-HND-03 สั่งให้บันทึกแค่ชื่อ นามสกุล รหัสนักศึกษา และเวลา การตรวจบัตรเก็บเป็น `card_checked` อย่างเดียว
 
@@ -40,7 +40,7 @@ Owner: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn10121
 - ไม่ `ALTER TABLE loan` ข้อมูลการส่งมอบอยู่ในตาราง `handover` ของ 005 เอง seed และ test ของ 001 ที่ INSERT `loan` 4 คอลัมน์จึงไม่พัง
   และไม่ต้องแก้ DM-05 ใน data-model.md (ตามกติกา "ฟิลด์ที่ใช้เฉพาะฟีเจอร์เดียวอยู่ใน plan.md ของฟีเจอร์นั้น")
 - เลข migration: 0003 ของ 002, 0004 และ 0005 ของ 003 (จองแล้ว) 005 ใช้ 2 เลขถัดไปที่ว่าง ต้องจองในกลุ่มก่อนสร้างไฟล์
-  ไฟล์แรก `0006_handover` (ตาราง `handover`, `handover_photo`) ไฟล์ที่สอง `0007_audit_log_handover_action` (รอ Q-HND-06)
+  ไฟล์แรก `0006_handover` (ตาราง `handover`, `handover_photo`) ไฟล์ที่สอง `0009_audit_log_handover_action` (Q-HND-06 ปิดแล้ว)
 - migration ของ action ต้อง `DROP CONSTRAINT` แล้วสร้าง CHECK ใหม่ที่มี**ทุกค่าที่มีอยู่ ณ เวลานั้น** ใช้ชื่อเดิม `audit_log_action_check` ตามที่ 0003 ของ 002 ตกลงกับ 003 (ตอนนี้มี list, search, detail, cancel, request บวก notify ของ 003 และของ 004 ถ้าไฟล์มาก่อน) บวก `handover` เพื่อไม่ลบค่าของคนอื่น
 
 ## 4. API / หน้าจอ
@@ -88,10 +88,10 @@ audit log: ถ้า `backend/internal/audit/writer.go` ของ 001 (T-19 ข�
 | CON-TECH-03 | ข้อ 4: error contract ใช้ `{code, message}` และรหัสกลาง รหัสใหม่ 3 ตัวลงทะเบียนแล้ว (Q-P4) | ใช้แล้ว |
 | CON-DATA-01 | ข้อ 3, 4: เปลี่ยนเฉพาะ `available` -> `borrowed` ไม่มีค่าใหม่ | ใช้แล้ว |
 | CON-DATA-03 | ข้อ 4: ระบุอุปกรณ์ด้วย `asset_code` ใน response และ audit log | ใช้แล้ว |
-| DOM-AUDIT-01 | ข้อ 3, 4: เขียน `audit_log` ทุกครั้งที่บันทึกการส่งมอบ ผ่าน package `audit` เดิม | ใช้แล้ว (ค่า action รอ Q-HND-06) |
-| DOM-LOAN-01 | ข้อ 3, 5: `due_at` = 16:00 Asia/Bangkok ของวันส่งมอบ | ใช้แล้วบางส่วน ส่วน "ใช้ได้เฉพาะในพื้นที่มหาวิทยาลัย" ยังไม่ได้ใช้ เพราะรอ Q-HND-04 |
+| DOM-AUDIT-01 | ข้อ 3, 4: เขียน `audit_log` ทุกครั้งที่บันทึกการส่งมอบ ผ่าน package `audit` เดิม | ใช้แล้ว (action `handover` migration 0009 บันทึกทั้งสำเร็จและไม่สำเร็จ) |
+| DOM-LOAN-01 | ข้อ 3, 5: `due_at` = 16:00 Asia/Bangkok ของวันส่งมอบ | ใช้แล้ว ส่วน "ใช้ได้เฉพาะในพื้นที่มหาวิทยาลัย" เป็นกฎที่เจ้าหน้าที่แจ้ง ระบบไม่ทำอะไร (Q-HND-04 ปิด 2569-11-12) |
 | DOM-REQ-01 | ข้อ 4: สถานะเปลี่ยนเป็น `borrowed` ที่ transaction ของฟีเจอร์นี้เท่านั้น ไม่แตะคำขออื่น | ใช้แล้ว |
-| IF-IDP-01 | ข้อ 4: `auth` middleware สำหรับเจ้าหน้าที่ + `BorrowerVerifier` สำหรับผู้ยืม timeout 10 วินาที | ใช้แล้ว (ผู้ยืมล็อกอินบนเครื่องเจ้าหน้าที่ ASM-HND-09 Auth API ตัวจริงรอ Q-SH-03) |
+| IF-IDP-01 | ข้อ 4: `auth` middleware สำหรับเจ้าหน้าที่ + `BorrowerVerifier` สำหรับผู้ยืม timeout 10 วินาที | ใช้แล้ว (ผู้ยืมล็อกอินบนเครื่องเจ้าหน้าที่ ASM-HND-09 เทอมนี้ใช้ตัวจำลอง ไม่เชื่อม Auth API จริง) |
 | CON-HND-01 | ข้อ 4: ตรวจ `role == staff` ทุก endpoint | ใช้แล้ว |
 
 ### ค่าที่ตั้งได้
@@ -102,35 +102,49 @@ audit log: ถ้า `backend/internal/audit/writer.go` ของ 001 (T-19 ข�
 | สถานะคำขอที่ส่งมอบได้ | FR-HND-01, data-model v9 | `HandoverReadyStatuses()` ใน `config.go` = `approved` |
 | Asia/Bangkok | glossary, FR-HND-05 | `TimeZone` ใน `config.go` (มีแล้ว), `TIME_ZONE` ใน `frontend/src/config.js` (มีแล้ว) |
 | อย่างน้อย 2 รูป | FR-HND-06, ASM-HND-07 | `HandoverMinPhotos` ใน `config.go`, `HANDOVER_MIN_PHOTOS` ใน `frontend/src/config.js` |
-| ไม่เกิน 10 MB | FR-HND-06, ASM-HND-07 | `HandoverPhotoMaxBytes` ใน `config.go`, `HANDOVER_PHOTO_MAX_BYTES` ใน `config.js` (ต่อรูปหรือรวม รอ Q-HND-10) |
+| ไม่เกิน 10 MB | FR-HND-06, ASM-HND-07 | `HandoverPhotoMaxBytes` ใน `config.go`, `HANDOVER_PHOTO_MAX_BYTES` ใน `config.js` (ต่อรูป ไม่จำกัดจำนวน Q-HND-10 ปิด 2569-11-12) |
 | JPG, PNG | FR-HND-06, ASM-HND-07 | `HandoverPhotoTypes` ใน `config.go`, `HANDOVER_PHOTO_TYPES` ใน `config.js` |
 | ที่เก็บไฟล์รูป | ทีมเลือกเอง ไม่ได้มาจาก spec (Q-P1) | `PhotoDir` ใน `config.go` อ่านจาก env |
 
 ## 6. แผนทดสอบจาก Acceptance Criteria
-test หลังบ้านอยู่ที่ `backend/internal/handover/handler_test.go` ใช้ PostgreSQL จริงแบบเดียวกับ 001
+test หลังบ้านอยู่ที่ `backend/internal/handover/*_test.go` ใช้ PostgreSQL 16 จริงใน container (testcontainers) แบบเดียวกับ 001
 เวลาและ `BorrowerVerifier` inject ได้ เพื่อทดสอบ 10:00, 16:30 และ timeout โดยไม่ต้องรอจริง
+test หน้าจออยู่ที่ `frontend/src/__tests__/AC-HND-*.test.jsx` ใช้ client จำลอง
+คำสั่งรัน: `cd backend && go test ./internal/handover/ -v` (ต้องมี Docker) และ `cd frontend && npx vitest run src/__tests__/AC-HND`
+(v1.5 2569-11-12 ตารางนี้ตรงกับชื่อ test ที่มีจริงในโค้ดทุกแถว ใช้ทำ RTM ได้)
 
 | AC ID | ชื่อ test | ทดสอบอย่างไร |
 |---|---|---|
 | AC-HND-01 | `TestAC_HND_01_RequestNotApproved` | คำขอสถานะยังไม่อนุมัติ เรียก POST handover ได้ 409 ไม่มี Loan อุปกรณ์ยัง `available` |
-| AC-HND-02 | `TestAC_HND_02_AuthApiVerifiedAndCardChecked` | verifier คืน verified + `cardChecked=true` ได้ 201 และ Loan มีชื่อ นามสกุล รหัสนักศึกษา เวลา / `cardChecked=false` ได้ 422 |
+| AC-HND-02 | `TestAC_HND_02_AuthApiVerifiedAndCardChecked` (verify-borrower) + `TestAC_HND_02_HandoverRecordsBorrower` (บันทึก) + `frontend/src/__tests__/AC-HND-02.test.jsx` | verifier คืน verified + `cardChecked=true` ได้ 201 และ Loan มีชื่อ นามสกุล รหัสนักศึกษา เวลา / `cardChecked=false` ได้ 422 / หน้าจอไม่ติ๊กตรวจบัตรส่งไม่ได้ |
 | AC-HND-03 | `TestAC_HND_03_AuthApiTimeoutCardOnly` | verifier ค้างจน context หมดเวลา (timeout สั้นใน test) ได้ `unavailable` แล้วบันทึกด้วย `card_only` ได้ 201 / ไม่ยืนยันบัตรได้ 422 |
 | AC-HND-04 | `TestAC_HND_04_ItemNotAvailable` | อุปกรณ์ `unavailable` และ `borrowed` ได้ 409 สถานะไม่เปลี่ยน |
 | AC-HND-05 | `TestAC_HND_05_DueAt1600SameDay` | clock = 2569-11-12 10:00 Asia/Bangkok ได้ `handed_over_at` 10:00 และ `due_at` 16:00 วันเดียวกัน |
 | AC-HND-06 | `TestAC_HND_06_TwoJpgPhotosSaved` | แนบ JPG 2 รูป รูปละ 2 MB ได้ 201 มี `handover_photo` 2 แถวผูก Loan และมีไฟล์บนดิสก์ |
 | AC-HND-07 | `TestAC_HND_07_HandoverCreatesLoan` | ได้ Loan 1 แถว `returned_at` ว่าง อุปกรณ์ `borrowed` คำขอเป็นสถานะส่งมอบแล้ว |
-| AC-HND-08 | `TestAC_HND_08_AuditLogged` | หลังบันทึกสำเร็จ มี audit log ระบุผู้ทำ เวลา รหัสครุภัณฑ์ รหัสคำขอ ผลลัพธ์ (กรณีไม่สำเร็จรอ Q-HND-14) |
+| AC-HND-08 | `TestAC_HND_08_AuditLogged` | หลังบันทึกสำเร็จและไม่สำเร็จ มี audit log ระบุผู้ทำ เวลา รหัสครุภัณฑ์ รหัสคำขอ ผลลัพธ์ (Q-HND-14 ปิด 2569-11-12) |
 | AC-HND-09 | `TestAC_HND_09_StudentForbidden` | token นักศึกษา ได้ 403 ไม่มี Loan |
 | AC-HND-10 | `TestAC_HND_10_BorrowerMismatch` | verifier คืนนักศึกษา B สำหรับคำขอของ A ได้ 409 อุปกรณ์ยัง `available` |
-| AC-HND-11 | `TestAC_HND_11_HandoverAfter1600` | clock = 16:30 ได้ 201 `handed_over_at` 16:30 อุปกรณ์ `borrowed` **ไม่ตรวจ `due_at`** จนกว่าจะตอบ Q-HND-03 |
-| AC-HND-12 | `TestAC_HND_12_InvalidPhotos` | (ก) 1 รูป (ข) GIF (ค) 11 MB ทุกกรณีได้ 422 ไม่มี Loan และไม่มีไฟล์ค้างบนดิสก์ |
+| AC-HND-11 | `TestAC_HND_11_HandoverAfter1600` | clock = 16:30 ได้ 201 `handed_over_at` 16:30 อุปกรณ์ `borrowed` และ `due_at` 16:00 ของวันถัดไป (Q-HND-03 ปิด 2569-11-12) |
+| AC-HND-12 | `TestAC_HND_12_InvalidPhotos` + `frontend/src/__tests__/AC-HND-12.test.jsx` | (ก) 1 รูป (ข) GIF (ค) 11 MB ทุกกรณีได้ 422 ไม่มี Loan และไม่มีไฟล์ค้างบนดิสก์ / หน้าจอไม่ส่งไปหลังบ้าน |
 | AC-HND-13 | `TestAC_HND_13_OtherRequestUntouched` | คำขอ X ส่งมอบสำเร็จ คำขอ Y สถานะไม่เปลี่ยน แล้วส่งมอบ Y ได้ 409 `ITEM_NOT_AVAILABLE`  (Given ไม่เกิดในระบบจริงหลัง Q-SH-06 ปิดบางส่วน รอทีมตัดสิน) |
 | AC-HND-14 | `TestAC_HND_14_ListApprovedOnly` + `frontend/src/__tests__/AC-HND-14.test.jsx` | API คืนเฉพาะ 2 คำขอที่อนุมัติแล้วและยังไม่ส่งมอบ / หน้าจอแสดง 2 แถว |
 
-เพิ่มเติม (ไม่มี AC แยก): test ส่งมอบพร้อมกัน 2 goroutine ชิ้นเดียวกัน สำเร็จได้แค่ 1 (ยืนยัน `FOR UPDATE` ของ FR-HND-04)
+test อื่นที่ไม่มี AC แยก (ตรวจช่อง "เสร็จเมื่อ" ของ task หรือ Constraint):
+| ชื่อ test | ไฟล์ | รองรับ | task |
+|---|---|---|---|
+| `TestHandover_NonStaffForbidden` | handler_test.go | CON-HND-01, IF-IDP-01, CON-TECH-03 | T-03 |
+| `TestVerifyBorrower_OtherResults` | handler_test.go | FR-HND-02 (mismatch, 422, 404) | T-09 |
+| `TestHandover_ConcurrentSameItem` | repository_test.go | FR-HND-04, DOM-REQ-01 (`FOR UPDATE`) | T-18 |
+| `TestHandover_OvernightDueAt` | handler_test.go | FR-HND-05 ยืมค้างคืน (Q-SH-04, Q-HND-07) spec ยังไม่มี AC | T-30 |
+| `TestRepository_CreateHandover` | repository_test.go | FR-HND-04, FR-HND-07, CON-DATA-01 | T-06 |
+| `TestMigration_HandoverIdentityMethod`, `TestMigration_HandoverPhotoContentType`, `TestMigration_HandoverNoCardNumberColumn` | migration_test.go | CON-TECH-01, FR-HND-02, 03, 06 (ไม่มีคอลัมน์เลขบัตร) | T-02 |
+| `TestPhotoStore_SaveAndRemove` | photostore_test.go | FR-HND-06 | T-07 |
+| `TestVerifier_Mock` | verifier_test.go | FR-HND-02, IF-IDP-01 | T-08 |
+| `AC-HND-02.test.jsx` กรณี "T-12 ..." | frontend | FR-HND-02 (ยังไม่ยืนยันหรือ mismatch บันทึกไม่ได้) | T-12 |
 
 ## 7. ลำดับงาน
-1. migration ใช้เลข 0006 และ 0007 (ทีมกำหนด 2569-11-11) `borrow_request` (0003) ของ 002 merge แล้ว (FR-HND-01, 07)
+1. migration ใช้เลข 0006 และ 0009 (0006 ทีมกำหนด 2569-11-11, 0009 แทน 0007 ทีมเลือก 2569-11-12) `borrow_request` (0003) ของ 002 merge แล้ว (FR-HND-01, 07)
 2. เพิ่มค่าที่ตั้งได้ใน `config.go` และ `frontend/src/config.js` (FR-HND-02, 05, 06)
 3. migration `0006_handover`: ตาราง `handover` (ไม่แก้ `loan`) และ `handover_photo` แล้ว migration แยกสำหรับค่า action ของ `audit_log` (FR-HND-03, 06, 08)
 4. repository + transaction ส่งมอบ ล็อกอุปกรณ์ (FR-HND-04, 07, AC-HND-04, 07, 13)
@@ -142,32 +156,27 @@ test หลังบ้านอยู่ที่ `backend/internal/handover/ha
 10. หน้าจอ `HandoverList` และ `HandoverForm` (FR-HND-01, 02, 03, 06)
 
 ## 8. สิ่งที่ยังไม่ทำ
-ส่วนที่เกี่ยวข้องกับแต่ละข้อจะยังไม่สร้างจนกว่าจะได้คำตอบ
+ข้อที่ยังเปิด ส่วนที่เกี่ยวข้องจะยังไม่สร้างจนกว่าจะได้คำตอบ ข้อที่ปิดแล้วเก็บไว้เพื่อตามรอย
 
-- Q-HND-03 ส่งมอบยืมปกติหลัง 16:00 น. แล้วกำหนดคืนคือเวลาไหน (FR-HND-05, AC-HND-11) ถ้าเป็น 16:00 วันเดียวกัน ผู้ยืมเกินกำหนดทันทีและ FR-BRQ-06 ของ 002 จะปฏิเสธคำขอใหม่ -> ถามนักคอมพิวเตอร์
-  ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (การคำนวณ `due_at` เมื่อส่งมอบหลัง 16:00)
-- Q-HND-04 "ใช้งานได้เฉพาะภายในพื้นที่มหาวิทยาลัย" ระบบต้องทำอะไร -> ถามนักคอมพิวเตอร์
-  ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ
+- Q-HND-03 [ปิดแล้ว 2569-11-12] ส่งมอบหลัง 16:00 กำหนดคืน = 16:00 ของวันถัดไป ส่งมอบตรง 16:00:00 นับเป็นวันเดียวกัน (FR-HND-05, AC-HND-11) ทำแล้วใน T-25
+- Q-HND-04 [ปิดแล้ว 2569-11-12] "ใช้งานได้เฉพาะภายในพื้นที่มหาวิทยาลัย" เป็นกฎที่เจ้าหน้าที่แจ้งผู้ยืม ระบบไม่ทำอะไร (T-31 ยกเลิก)
 - Q-HND-05 [ปิดแล้ว 2569-11-11 data-model v9 + migration 0003] ส่งมอบได้เมื่อ `approved` ตั้งเป็น `handed_over` ใช้ `requester_id`, `item_id`, `end_at` ของ `borrow_request`
   ไม่ต้องรอแล้ว
-- Q-HND-06 ค่า `action` ของ audit log สำหรับการส่งมอบ (จองในกลุ่ม)
-  ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (ใช้ชื่อชั่วคราว `handover` ใน plan เท่านั้น)
-- Q-HND-07 เทอมนี้ต้องทดสอบการส่งมอบยืมแบบค้างคืนไหม (004 spec v1 ตัด UC-14 ออก รอ Q-APV-01 ระหว่างนี้คำขอค้างคืนไปไม่ถึง `approved`) -> ทีมตัดสิน + เจ้าของ 004
-  ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (plan รองรับเฉพาะ `loan_type = normal` กฎกำหนดคืนค้างคืนรู้แล้วจาก Q-SH-04)
+- Q-HND-06 [ปิดแล้ว 2569-11-12] ค่า `action` = `handover` ใน migration 0009 (หลัง 0008 ของ 004 ไม่แก้ไฟล์ของ 004) ทำแล้วใน T-26
+- Q-HND-07 [ปิดแล้ว 2569-11-12] ทำการส่งมอบยืมค้างคืนเทอมนี้ กำหนดคืน 16:00 ของวันสิ้นสุดการยืมตามคำขอ ทำแล้วใน T-30 (spec ยังไม่มี AC ของค้างคืน)
+  ยังเปิด (ยังไม่มี ID): ส่งมอบค้างคืนหลังวันสิ้นสุดการยืม กำหนดคืนเป็นอย่างไร -> ทีมตกลงและระบุใน spec ก่อนทำ
 - Q-HND-09 การบันทึกการส่งมอบต้องตอบสนองภายในกี่วินาที -> ถามเจ้าหน้าที่
   ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (ไม่มี test ด้านเวลา)
-- Q-HND-10 "ไม่เกิน 10 MB" ต่อรูปหรือรวม และแนบได้มากสุดกี่รูป -> ถามเจ้าหน้าที่
-  ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (การตรวจขนาดรูป)
+- Q-HND-10 [ปิดแล้ว 2569-11-12] 10 MB ต่อรูป ไม่จำกัดจำนวนรูป ทำแล้วใน T-28
 - Q-HND-11 [ปิดแล้ว 2569-11-11] ผู้ยืมล็อกอินบัญชีมหาวิทยาลัยบนเครื่องเจ้าหน้าที่ (ASM-HND-09)
-  ไม่ต้องรอแล้ว prototype ใช้ verifier จำลอง ตัวจริงรอ Q-SH-03 (T-29)
+  ไม่ต้องรอแล้ว prototype ใช้ verifier จำลอง ทีมตัดสิน 2569-11-12 เทอมนี้ไม่เชื่อม Auth API จริง (T-29 ยกเลิกเทอมนี้)
 - Q-HND-13 [ปิดแล้ว 2569-11-11] เจ้าหน้าที่พิมพ์ชื่อและนามสกุลตามบัตรนักศึกษาหรือบัตรประชาชน (ASM-HND-10)
   ไม่ต้องรอแล้ว
-- Q-HND-14 การส่งมอบที่ไม่สำเร็จต้องบันทึก audit log ด้วยไหม -> ถามเจ้าหน้าที่
-  ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ
+- Q-HND-14 [ปิดแล้ว 2569-11-12] บันทึกทั้งสำเร็จและไม่สำเร็จ outcome: นักศึกษาเรียกบันทึกการส่งมอบ = forbidden กรณีอื่น = error ดูรายการและยืนยันผู้ยืมไม่เก็บ ทำแล้วใน T-27
 - Q-HND-15 ย้าย CON-HND-01 ไป constraints.md ไหม -> ทีม
   ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ (ไม่กระทบโค้ด กระทบแค่ที่อยู่ของข้อความ)
 - Q-SH-04 [ปิดแล้ว 2569-11-11] กำหนดคืนยืมค้างคืน = 16:00 ของวันที่สิ้นสุดการยืมที่ผู้ขอระบุ (005 แปลงตอนส่งมอบ ตาม CR-003)
-  ไม่ต้องรอแล้ว แปลงจาก `borrow_request.end_at` ใช้ได้เมื่อ Q-HND-07 ตอบว่าทำค้างคืน
+  ไม่ต้องรอแล้ว แปลงจาก `borrow_request.end_at` (ใช้แล้วใน T-30)
 - Q-SH-06 [ปิดบางส่วน 2569-11-11] 004 ปฏิเสธคำขออื่นของชิ้นเดียวกันอัตโนมัติเมื่ออนุมัติ (005 ไม่แตะตาม ASM-HND-08 ยังสอดคล้อง)
   ผลต่อ plan: Given ของ AC-HND-13 ไม่เกิดในระบบจริง test ของ AC-HND-13 ยังเขียนได้ด้วยข้อมูลที่ตั้งเอง แต่ทีมต้องตัดสินว่าแก้หรือยกเลิก AC นี้ (ผ่าน CR)
 - Q-SH-08 ระบบยืนยันตัวตนเชื่อมต่อไม่ได้ตอนเข้าใช้ทั่วไป -> ถามนักเทคโนโลยีสารสนเทศ
@@ -179,7 +188,7 @@ test หลังบ้านอยู่ที่ `backend/internal/handover/ha
   ยังเหลือ: เก็บรูปนานเท่าไร -> ถามนักเทคโนโลยีสารสนเทศ และควรตกลงกับ 006 ให้ใช้ที่เก็บแบบเดียวกัน (RQ-04 รูปตอนรับคืน)
 - Q-P2 [ปิดบางส่วน 2569-11-11] 004 ให้อุปกรณ์ 1 ชิ้นมีคำขออนุมัติแล้วได้ทีละ 1 รายการ (เดิมอ้าง AC-APV-08 ซึ่งไม่มีแล้วใน 004 spec v1 ตอนนี้คือ FR-APV-01 (ค))
   แก้ AC-HND-13 และ AC-HND-14 ใน spec Draft v2.3 แล้ว อ้าง FR-APV-01 (ค) ตั้งแต่ Draft v2.5
-  ยังเปิด: ส่งมอบหลัง 16:00 กับข้อความใน Email ของ 004 (เนื้อหา Email รอ Q-APV-03 ของ 004, กำหนดคืนรอ Q-HND-03)
+  ยังเปิด: ส่งมอบหลัง 16:00 กับข้อความใน Email ของ 004 (เนื้อหา Email รอ Q-APV-03 ของ 004, กำหนดคืนตอบแล้วใน Q-HND-03)
   และจะจำกัดให้เจ้าหน้าที่ส่งมอบได้เฉพาะอุปกรณ์ภาควิชาตนเองไหม (004 spec v1 ยังเปิดที่ Q-APV-08) -> ทีมตัดสิน
 - Q-P3 [หมดไปแล้ว 2569-11-11] 004 spec v1 ไม่มีตารางที่เก็บกำหนดคืนตอนอนุมัติ ช่วงรับก่อน 16:00 และงานปฏิเสธอัตโนมัติ 16:00 แล้ว 005 เป็นที่เดียวที่บันทึกกำหนดคืน (ตรงกับ DM-05)
 - Q-P4 [ปิดแล้ว 2569-11-11 ทีมเลือกทางที่ 1] ลงทะเบียน `FORBIDDEN_ROLE` (403), `REQUEST_NOT_APPROVED` (409), `BORROWER_MISMATCH` (409) ในตาราง CON-TECH-03 ของ `constraints.md`
