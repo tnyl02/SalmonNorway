@@ -4377,3 +4377,26 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
   - `prompt-log.md`: เก็บทั้งสองฝั่ง ของ main ก่อนแล้วตามด้วยของ 004
   - `specs/004-approve-request/plan.md` ข้อ 8: ปิดเรื่อง auth.Middleware ไม่มี message (001 แก้แล้ว)
 - ข้อสังเกตของ AI: FORBIDDEN_ROLE ข้อความของ 001 กับ 004 ต่างกัน (หน้าจอเลือกจากรหัส 004 ใช้ข้อความตาม FR-APV-01 ซ) ไม่ต้องแก้; TestAC_APV_05 (T-27) ตรวจข้อความของ 401 เพิ่มได้แล้ว ยังไม่แก้ รอสั่ง
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-35 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "เขียน title กับ description ให้หน่อยจะเอาขึ้น main" (AI ร่าง PR title/description และเตือนว่า test ยังไม่ได้รัน), "ต้องทำอะไรต่อ"
+- คำสั่ง: "/implement T-35"
+- ไฟล์ที่แก้: `backend/internal/approve/service_test.go` (`concurrencyDB` สร้างฐานข้อมูลแยกใน container เดิม รัน migration + seed.sql + approve_dev.sql แล้วลบทิ้งตอนจบ, `TestAC_APV_10` 3 กรณี อนุมัติ+อนุมัติ / อนุมัติ+ปฏิเสธ / ปฏิเสธ+ปฏิเสธ ด้วย 2 goroutine เริ่มพร้อมกัน ตรวจสำเร็จ 1 ได้ ErrDecidedConcurrently 1 และมี approval_decision 1 แถว Email 1 ฉบับ), `specs/004-approve-request/tasks.md`
+- ไม่แก้โค้ดหลัก เพราะการล็อกแถว (T-07) และการแยกกรณีกดพร้อมกัน (T-23) ทำไว้แล้ว
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน ตอนรันให้ใช้ `go test ./internal/approve/ -run TestAC_APV_10 -count=20`
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): ใช้ฐานข้อมูลแยกต่อการรัน เพราะ devTx (transaction เดียว) ไม่มีการแย่งกันจริง และข้อมูลที่ commit แล้วลบไม่ได้ (approval_decision / audit_log แก้หรือลบไม่ได้); loadedAt ย้อน 1 ชั่วโมงกันเวลาของ container กับเครื่องไม่ตรงกัน
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-35 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจสอบแล่วผ่าน"
+- สิ่งที่แก้: tasks.md T-35 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
