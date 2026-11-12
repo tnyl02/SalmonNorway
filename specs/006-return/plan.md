@@ -1,5 +1,5 @@
 # Implementation Plan: บันทึกการรับคืนอุปกรณ์ (Return)
-Spec: SPEC-RET-006 (specs/006-return/spec.md, Draft v2.1) | Plan status: Draft v1.1 | Updated: 2569-11-11
+Spec: SPEC-RET-006 (specs/006-return/spec.md, Draft v2.2) | Plan status: Draft v1.2 | Updated: 2569-11-12 (รวม main: path /v1/returns, migration 0010, CON-TECH-03)
 ทีมตัดสิน 2569-11-11: **ไม่ทำ CR-003** และถอดส่วนที่ต้องทำ CR ออก: FR-RET-05 (รูปตอนรับคืน) ยกเลิก, UC-04 ไม่ทำ
 FR-RET-04 อยู่ใน plan (data-model.md ให้ 006 ยืนยันลำดับกับ UC-07 เอง) / ปิดการยืมแบบสูญหาย Q-01, ระงับคำขอค้าง Q-08, ขยาย DOM-AUDIT-01 Q-09 **ไม่อยู่ใน plan** (ดูข้อ 8)
 
@@ -22,7 +22,7 @@ FR-RET-04 อยู่ใน plan (data-model.md ให้ 006 ยืนยั�
 | Auth จำลอง `Authorization: Bearer mock-<รหัสผู้ใช้>` | ASM-02 (รอ Q-SH-03) | ใช้ `auth.Principal{UserID, Role, DepartmentID}` ของ 001 T-03 |
 
 ## 3. โมเดลข้อมูล
-ใช้ตารางร่วมที่มีแล้ว (`backend/db/migrations/0001`, `0002`) และเพิ่มด้วย migration ใหม่ 1 ไฟล์ (`0009_return.up.sql` จองใน data-model.md)
+ใช้ตารางร่วมที่มีแล้ว (`backend/db/migrations/0001`, `0002`) และเพิ่มด้วย migration ใหม่ 1 ไฟล์ (`0010_return.up.sql` ต่อจาก 0009 ของ 005 บันทึกใน data-model.md)
 
 **`loan` (DM-05 ใช้ร่วม) เพิ่มคอลัมน์ ว่างได้ทั้งหมด เพื่อไม่ให้กระทบ 001 และ 005:**
 | คอลัมน์ | ชนิด | รองรับ |
@@ -54,15 +54,15 @@ FR-RET-04 อยู่ใน plan (data-model.md ให้ 006 ยืนยั�
 
 | Method / path | รองรับ | input | output หลัก |
 |---|---|---|---|
-| `GET /api/v1/returns/open-loans` | FR-RET-01(ข), FR-RET-06 | - | `[{loanId, assetCode, modelName, borrowerId, loanType, dueAt, isOverdue}]` เรียงตาม `dueAt` |
-| `GET /api/v1/returns/lookup?assetCode=` | FR-RET-01(ก) | รหัสครุภัณฑ์ | การยืมที่ยังไม่คืน 1 รายการ (รูปแบบเดียวกับแถวด้านบน) |
-| `POST /api/v1/returns` | FR-RET-02, 03, 04, 06, 07 | form (urlencoded หรือ multipart): `assetCode`, `condition` (`normal`/`damaged`) | `{loanId, assetCode, returnedAt, condition, returnedLate, itemStatus}` |
-| `GET /api/v1/returns/loans/{loanId}` | FR-RET-06 | - | `{loanId, assetCode, borrowerId, dueAt, returnedAt, condition, returnedLate}` |
+| `GET /v1/returns/open-loans` | FR-RET-01(ข), FR-RET-06 | - | `[{loanId, assetCode, modelName, borrowerId, loanType, dueAt, isOverdue}]` เรียงตาม `dueAt` |
+| `GET /v1/returns/lookup?assetCode=` | FR-RET-01(ก) | รหัสครุภัณฑ์ | การยืมที่ยังไม่คืน 1 รายการ (รูปแบบเดียวกับแถวด้านบน) |
+| `POST /v1/returns` | FR-RET-02, 03, 04, 06, 07 | form (urlencoded หรือ multipart): `assetCode`, `condition` (`normal`/`damaged`) | `{loanId, assetCode, returnedAt, condition, returnedLate, itemStatus}` |
+| `GET /v1/returns/loans/{loanId}` | FR-RET-06 | - | `{loanId, assetCode, borrowerId, dueAt, returnedAt, condition, returnedLate}` |
 
 `isOverdue` ของรายการที่ยังไม่คืน = `now() > due_at` คำนวณที่ server (FR-RET-06 ส่วน "เห็นการยืมที่เลยกำหนดคืนแล้ว")
 ไม่รับเวลาจาก client: ถ้า form มีฟิลด์เวลาใดๆ ให้ไม่สนใจ (AC-RET-09)
 
-**ลำดับใน `POST /api/v1/returns` (1 transaction):**
+**ลำดับใน `POST /v1/returns` (1 transaction):**
 1. ตรวจ `condition` ก่อนแตะ DB
 2. `SELECT ... FROM loan JOIN equipment_item ... WHERE asset_code = $1 AND returned_at IS NULL FOR UPDATE`
    ไม่พบ: 409 `NO_OPEN_LOAN` (AC-RET-03) / ต่างภาควิชา: 403 `FORBIDDEN_DEPARTMENT` (AC-RET-11) / สถานะไม่ใช่ `borrowed`: 409 `NO_OPEN_LOAN`
@@ -72,7 +72,7 @@ FR-RET-04 อยู่ใน plan (data-model.md ให้ 006 ยืนยั�
 6. commit ถ้าขั้นไหนพลาดให้ rollback ทั้งหมด และเขียน audit `outcome='error'`/`'forbidden'` นอก transaction
 บันทึกพร้อมกัน 2 คน: `FOR UPDATE` ทำให้คนที่สองเห็น `returned_at` แล้ว ได้ 409 `NO_OPEN_LOAN`
 
-**Error contract:**
+**Error contract** (ทุก error ตอบ `{"code", "message"}` ตาม CON-TECH-03 ข้อความอยู่ใน `config.ReturnMessages`):
 | กรณี | HTTP | code | AC |
 |---|---|---|---|
 | ไม่มี/หมดอายุ token | 401 | `UNAUTHENTICATED` (ของ 001) | - |
@@ -80,6 +80,7 @@ FR-RET-04 อยู่ใน plan (data-model.md ให้ 006 ยืนยั�
 | อุปกรณ์ภาควิชาอื่น | 403 | `FORBIDDEN_DEPARTMENT` | AC-RET-11 |
 | ไม่มีการยืมที่ยังไม่คืน | 409 | `NO_OPEN_LOAN` | AC-RET-03 |
 | ไม่ระบุสภาพ / ค่าไม่รู้จัก (รวม `lost`) | 422 | `CONDITION_REQUIRED` | AC-RET-04 |
+| ไม่พบการยืม (รายละเอียด) | 404 | `LOAN_NOT_FOUND` (เพิ่มใน T-11 ยังไม่ลงทะเบียนในรายการกลาง Q-10) | - |
 | DB ล่ม | 503 | `UPSTREAM_UNAVAILABLE` (ของ 001) | - |
 
 **หน้าจอ** (spec ไม่มีหมวด UI และไม่มี UI ID ไม่มี mockup ทีมออกแบบเอง):
@@ -94,6 +95,7 @@ FR-RET-04 อยู่ใน plan (data-model.md ให้ 006 ยืนยั�
 |---|---|---|
 | CON-TECH-01 | ข้อ 2, 3: ใช้ PostgreSQL ตารางร่วม + migration ใหม่ | ใช้แล้ว |
 | CON-TECH-02 | ข้อ 2: ผ่าน reverse proxy HTTPS และ Docker Compose ที่มีอยู่ | ใช้แล้ว |
+| CON-TECH-03 | ข้อ 4: error ทุกตัว `{code, message}` (`errorBody` ใน handler.go) | ใช้แล้ว (รหัส NO_OPEN_LOAN, CONDITION_REQUIRED, LOAN_NOT_FOUND ยังไม่ลงทะเบียน รอ Q-10) |
 | CON-DATA-01 | ข้อ 3, 4: เขียนได้เฉพาะ `available` / `unavailable` จาก `borrowed` CHECK เดิมของ 0001 กันค่าอื่น | ใช้แล้ว |
 | CON-DATA-03 | ข้อ 4: หาการยืมด้วย `asset_code` (UNIQUE) ใน lookup และ POST | ใช้แล้ว |
 | DOM-AUDIT-01 | ข้อ 3: action `return_list`, `return_lookup`, `return_detail` (อ่าน) และ `return` (เขียน) ด้วยคอลัมน์ DM-07 เดิม | ใช้แล้ว (ส่วนขยายไปการเขียนตาม Q-09 ไม่มี CR ใช้เท่าที่ DM-07 มี) |
@@ -131,7 +133,7 @@ FR-RET-04 อยู่ใน plan (data-model.md ให้ 006 ยืนยั�
 NFR-DATA-01 ตรวจโดย AC-EQS-05 ของ 001 (ไม่ทำ test ซ้ำใน 006)
 
 ## 7. ลำดับงาน
-1. Migration `0009_return.up.sql` (คอลัมน์ `loan`, ค่า action ใหม่ของ `audit_log`) + แถวใหม่ใน data-model.md (FR-RET-02, 06, 07)
+1. Migration `0010_return.up.sql` (คอลัมน์ `loan`, ค่า action ใหม่ของ `audit_log`) + แถวใหม่ใน data-model.md (FR-RET-02, 06, 07)
 2. ค่าใน `config.go` / `config.js` ตามตารางข้อ 5 (FR-RET-02 ถึง 04)
 3. Repository + สิทธิ์ (staff + ภาควิชา) และ `GET /returns/lookup` (FR-RET-01(ก), AC-RET-03, 08, 11)
 4. `POST /returns` สภาพปกติ: transaction ปิดการยืม + `available` + audit (FR-RET-02, 03, 07, AC-RET-01, 04, 07, 09)
@@ -159,5 +161,5 @@ Open points ของ plan (ไม่ใช่ข้อกำหนด ทีม
 - Q-P1 หน้ารายการที่ยังไม่คืนต้องแบ่งหน้าไหม spec ไม่บอก plan คืนทั้งหมดของภาควิชา (ขนาดข้อมูล prototype เล็ก)
 - Q-P2 [ไม่ใช้แล้ว 2569-11-11 เพราะ FR-RET-05 ยกเลิก]
 - Q-P3 [ไม่ใช้แล้ว 2569-11-11 เพราะ FR-RET-05 ยกเลิก]
-- Q-P4 [ปิดแล้ว 2569-11-10, เปลี่ยนเลข 2569-11-11] เดิมใช้ `0006_return.up.sql` แต่ 0006 และ 0007 เป็นของ 005 ส่วน 0004 และ 0005 เป็นของ 003, 0008 เป็นของ 004 จึงย้ายไป `0009_return.up.sql`
+- Q-P4 [ปิดแล้ว 2569-11-10, เปลี่ยนเลข 2569-11-11] เดิมใช้ `0006_return.up.sql` แต่ 0006 และ 0007 เป็นของ 005 ส่วน 0004 และ 0005 เป็นของ 003, 0008 เป็นของ 004 จึงย้ายไป `0009_return.up.sql` / 2569-11-12 ตอนรวม main พบว่า 0009 เป็นของ 005 แล้ว ย้ายเป็น `0010_return.up.sql`
 - Q-P5 หน้าจอแสดง `borrowerId` แทนชื่อ เพราะยังไม่มีที่มาของชื่อผู้ยืม (ประเด็นเดียวกับ 001 จาก T-02)

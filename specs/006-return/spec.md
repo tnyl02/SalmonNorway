@@ -1,7 +1,7 @@
 # specs/006-return/spec.md
 # Feature: บันทึกการรับคืนอุปกรณ์ (Return)
 Spec ID: SPEC-RET-006 | Source: US-010, RQ-11, RQ-13, RQ-25 | Use case: UC-09
-Owner: 660710737 นายวรรัตน์ หลักฐาน (@660710737) | Status: Draft v2.1 | Updated: 2569-11-11 (ถอดส่วนที่ต้องทำ CR-003 ออก ดู Clarifications 2569-11-11, อ้าง 000-shared v3)
+Owner: 660710737 นายวรรัตน์ หลักฐาน (@660710737) | Status: Draft v2.2 | Updated: 2569-11-12 (รวม main: เพิ่ม CON-TECH-03 ดู Clarifications 2569-11-12)
 Backlog: BL-10 (specs/backlog.md)
 
 ## Goal
@@ -33,6 +33,7 @@ Backlog: BL-10 (specs/backlog.md)
 ใช้ร่วม (ข้อความเต็มอยู่ที่ specs/000-shared/constraints.md ห้าม copy มาไว้ที่นี่):
 - CON-TECH-01
 - CON-TECH-02
+- CON-TECH-03 (รูปแบบ error ที่ฟีเจอร์อื่นเพิ่มใน CR-004 ระหว่างที่ 006 ทำงาน รหัส NO_OPEN_LOAN, CONDITION_REQUIRED, LOAN_NOT_FOUND ยังไม่ได้ลงทะเบียน ดู Q-10)
 - CON-DATA-01
 - CON-DATA-03
 - DOM-AUDIT-01 (การขยายให้ครอบการเขียนเป็นการแก้ของกลาง ต้องทำ CR ดู Q-09)
@@ -143,6 +144,8 @@ Backlog: BL-10 (specs/backlog.md)
 - Q-09 ขยาย DOM-AUDIT-01 ให้ครอบทั้งการอ่านและการเขียน (ทีมตัดสิน 2569-11-10) เป็นการแก้ของกลาง ต้องทำ CR (ยังไม่ทำ ใช้ DM-07 เดิม)
   กระทบ 001 (AC-EQS-11, Q-11 ของ 001) -> ทีม
 - Q-SH-08 [ของกลาง ดู specs/000-shared/constraints.md] ระบบยืนยันตัวตนเชื่อมต่อไม่ได้ ระบบต้องทำอย่างไร (กระทบ AC-RET-08)
+- Q-10 รหัส error ของ 006 ที่ยังไม่อยู่ในรายการกลางของ CON-TECH-03 (NO_OPEN_LOAN, CONDITION_REQUIRED, LOAN_NOT_FOUND) จะลงทะเบียน
+  หรือเปลี่ยนไปใช้รหัสกลาง (เช่น VALIDATION_FAILED แทน CONDITION_REQUIRED) ต้องแก้ constraints.md ซึ่งเป็นไฟล์กลาง -> ทีม
 
 ## Clarifications
 ### Session 2569-11-10 (เจ้าของฟีเจอร์ตอบ ดู prompt-log.md)
@@ -169,6 +172,11 @@ Backlog: BL-10 (specs/backlog.md)
 - Q: คืนมาชำรุดแต่มีคำขอค้าง -> A: "ไม่พร้อมใช้งาน" ระงับคำขอและแจ้งผู้ขอ เสนอใน CR-003 (Q-08)
   (คำตอบแรกให้สถานะ "ส่งซ่อม/ไม่พร้อมให้ยืม" ขัด CON-DATA-01 ถามซ้ำแล้ว)
 
+### Session 2569-11-12 (รวม main 002-005 เข้า 006)
+- Q: data-model กำหนดให้ UC-09 (006) ตั้งสถานะคำขอยืมเป็น Returned แต่ spec ไม่มี FR -> A: ทีมตัดสินไม่ทำ (ไม่จำเป็นสำหรับ prototype ไม่เพิ่ม FR)
+- Q: CON-TECH-03 (CR-004) เพิ่มระหว่างทาง error ของ 006 ไม่มี message -> A: เพิ่ม CON-TECH-03 ในใช้ร่วม และใส่ message ทุก error
+  รหัสที่ยังไม่ลงทะเบียนในรายการกลางเป็น Q-10
+
 ### Session 2569-11-11 (ถอดส่วนที่ต้องทำ CR-003)
 - Q: มีอะไรที่ต้องเขียน CR-003 ไหม -> A: (AI ตรวจ) รูปตอนรับคืน (ดึง BL-16 Could เข้า prototype) และการรวม UC-04
 - Q: ถอดอะไรออก -> A: ถอดรูป (FR-RET-05, AC-RET-05, AC-RET-12, ASM-06 ยกเลิก) และ UC-04 (กลับเป็น Won't)
@@ -184,6 +192,7 @@ Backlog: BL-10 (specs/backlog.md)
 | (ยกเลิก 2569-11-11) | FR-RET-05 | AC-RET-05, AC-RET-12 (ยกเลิก) |
 | ASM-07, DOM-LOAN-01 | FR-RET-06 | AC-RET-06, AC-RET-13 |
 | RQ-25, DOM-AUDIT-01 | FR-RET-07 | AC-RET-07 |
+| CON-TECH-03 | Constraints | test รูปแบบ error ใน handler_test.go (ไม่มี AC ของ 006) |
 | IF-IDP-01 | Constraints | AC-RET-08 |
 | NFR-DATA-01 | Quality Requirements | AC-EQS-05 (ของ 001) |
 | DOM-REQ-01 | Constraints | - (ต้องทำ CR ถ้าจะทำ Q-08) |

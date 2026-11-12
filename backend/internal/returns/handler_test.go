@@ -912,8 +912,8 @@ func TestAC_RET_11_OtherDepartmentForbidden(t *testing.T) {
 
 	// Then: 403 ทุกทาง (ไม่บอกใบ้ว่ามีการยืมค้างหรือไม่) และไม่มีข้อมูลการยืมใน body
 	for name, rec := range recs {
-		if rec.Code != http.StatusForbidden || strings.TrimSpace(rec.Body.String()) != `{"code":"FORBIDDEN_DEPARTMENT"}` {
-			t.Errorf("%s: status = %d body=%s, want 403 และ body มีแค่ code FORBIDDEN_DEPARTMENT", name, rec.Code, rec.Body.String())
+		if rec.Code != http.StatusForbidden || !isErrorOnly(rec, "FORBIDDEN_DEPARTMENT") {
+			t.Errorf("%s: status = %d body=%s, want 403 และ body มีแค่ code FORBIDDEN_DEPARTMENT กับ message", name, rec.Code, rec.Body.String())
 		}
 	}
 	var returnedAt *time.Time
@@ -959,8 +959,8 @@ func TestAC_RET_08_StudentForbidden(t *testing.T) {
 
 	// Then: 403 FORBIDDEN_ROLE ทุก endpoint body มีแค่ code
 	for name, rec := range recs {
-		if rec.Code != http.StatusForbidden || strings.TrimSpace(rec.Body.String()) != `{"code":"FORBIDDEN_ROLE"}` {
-			t.Errorf("%s: status = %d body=%s, want 403 และ body มีแค่ code FORBIDDEN_ROLE", name, rec.Code, rec.Body.String())
+		if rec.Code != http.StatusForbidden || !isErrorOnly(rec, "FORBIDDEN_ROLE") {
+			t.Errorf("%s: status = %d body=%s, want 403 และ body มีแค่ code FORBIDDEN_ROLE กับ message", name, rec.Code, rec.Body.String())
 		}
 	}
 	var returnedAt *time.Time
@@ -1077,5 +1077,51 @@ func TestAC_RET_07_ReturnAudited(t *testing.T) {
 	if len(st) != 2 || st[0].Action != "return" || st[1].Action != "return_list" ||
 		st[0].Outcome != "forbidden" || st[1].Outcome != "forbidden" || st[0].Role != "student" {
 		t.Errorf("audit ของนักศึกษา = %+v, want return และ return_list outcome forbidden", st)
+	}
+}
+
+// isErrorOnly ตรวจว่า body เป็น error ตาม CON-TECH-03 และมีแค่ code กับ message (ไม่มีข้อมูลการยืมหลุดออกไป)
+func isErrorOnly(rec *httptest.ResponseRecorder, code string) bool {
+	var body map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		return false
+	}
+	msg, _ := body["message"].(string)
+	return len(body) == 2 && body["code"] == code && msg != ""
+}
+
+// CON-TECH-03: ทุก error ของ 006 ตอบ {"code", "message"} และ message เป็นข้อความไทยไม่ว่าง (ใช้ร่วม 002-005)
+func TestReturns_ErrorBodyFollowsConTech03(t *testing.T) {
+	pool := testPool(t)
+	router := newTestRouter(pool)
+	insertItemWithoutLoan(t, pool, "T29-AVAILABLE", "available")
+
+	cases := map[string]struct {
+		rec  *httptest.ResponseRecorder
+		code string
+	}{
+		"401 ไม่มี token":     {call(router, http.MethodGet, "/v1/returns/open-loans", ""), "UNAUTHENTICATED"},
+		"403 นักศึกษา":        {call(router, http.MethodGet, "/v1/returns/open-loans", "mock-student-001"), "FORBIDDEN_ROLE"},
+		"409 ไม่มีการยืมค้าง": {call(router, http.MethodGet, "/v1/returns/lookup?assetCode=T29-AVAILABLE", "mock-staff-001"), "NO_OPEN_LOAN"},
+		"422 ไม่ระบุสภาพ":     {postReturn(t, router, "mock-staff-001", map[string]string{"assetCode": "T29-AVAILABLE"}), "CONDITION_REQUIRED"},
+		"404 ไม่พบการยืม":     {call(router, http.MethodGet, "/v1/returns/loans/999999", "mock-staff-001"), "LOAN_NOT_FOUND"},
+	}
+	for name, c := range cases {
+		var body map[string]any
+		if err := json.Unmarshal(c.rec.Body.Bytes(), &body); err != nil {
+			t.Errorf("%s: body ไม่ใช่ JSON: %s", name, c.rec.Body.String())
+			continue
+		}
+		msg, _ := body["message"].(string)
+		if name == "401 ไม่มี token" {
+			// 401 มาจาก auth.Middleware ของ 001 ตรวจแค่ code (รูปแบบ message เป็นของ 001)
+			if body["code"] != c.code {
+				t.Errorf("%s: code = %v, want %s", name, body["code"], c.code)
+			}
+			continue
+		}
+		if body["code"] != c.code || msg == "" {
+			t.Errorf("%s: body = %s, want code %s และ message ภาษาไทยไม่ว่าง", name, c.rec.Body.String(), c.code)
+		}
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"salmonnorway/backend/internal/auth"
+	"salmonnorway/backend/internal/config"
 )
 
 // Handler รวม endpoint ของการรับคืนตาม plan.md ข้อ 4 (FR-RET-01 ถึง FR-RET-07)
@@ -99,7 +100,7 @@ func (h *Handler) loanDetail(w http.ResponseWriter, r *http.Request) {
 	e.Query = map[string]string{"loanId": r.PathValue("loanId")}
 	loanID, err := strconv.Atoi(r.PathValue("loanId"))
 	if err != nil {
-		h.respond(w, r, e, http.StatusNotFound, map[string]string{"code": "LOAN_NOT_FOUND"})
+		h.respond(w, r, e, http.StatusNotFound, errorBody("LOAN_NOT_FOUND"))
 		return
 	}
 	d, err := h.svc.repo.GetLoan(r.Context(), loanID, p.DepartmentID)
@@ -133,17 +134,29 @@ func (h *Handler) openLoans(w http.ResponseWriter, r *http.Request) {
 func errorResponse(err error, op string) (int, any) {
 	switch {
 	case errors.Is(err, ErrForbiddenDepartment):
-		return http.StatusForbidden, map[string]string{"code": "FORBIDDEN_DEPARTMENT"} // AC-RET-11
+		return http.StatusForbidden, errorBody("FORBIDDEN_DEPARTMENT") // AC-RET-11
 	case errors.Is(err, ErrUnknownCondition):
-		return http.StatusUnprocessableEntity, map[string]string{"code": "CONDITION_REQUIRED"} // AC-RET-04
+		return http.StatusUnprocessableEntity, errorBody("CONDITION_REQUIRED") // AC-RET-04
 	case errors.Is(err, ErrNoOpenLoan):
-		return http.StatusConflict, map[string]string{"code": "NO_OPEN_LOAN"} // AC-RET-03
+		return http.StatusConflict, errorBody("NO_OPEN_LOAN") // AC-RET-03
 	case errors.Is(err, ErrLoanNotFound):
-		return http.StatusNotFound, map[string]string{"code": "LOAN_NOT_FOUND"}
+		return http.StatusNotFound, errorBody("LOAN_NOT_FOUND")
 	default:
 		log.Printf("returns: %s: %v", op, err)
-		return http.StatusServiceUnavailable, map[string]any{"code": "UPSTREAM_UNAVAILABLE", "retryable": true}
+		return http.StatusServiceUnavailable, unavailableBody()
 	}
+}
+
+// errorBody คือ body ของ error ตาม CON-TECH-03: {"code", "message"} ข้อความจาก config.ReturnMessages
+func errorBody(code string) map[string]any {
+	return map[string]any{"code": code, "message": config.ReturnMessages[code]}
+}
+
+// unavailableBody คือ 503 ที่ลองใหม่ได้ (UPSTREAM_UNAVAILABLE ตาม CON-TECH-03)
+func unavailableBody() map[string]any {
+	b := errorBody("UPSTREAM_UNAVAILABLE")
+	b["retryable"] = true
+	return b
 }
 
 // respond เขียน audit ของ request นี้ก่อน แล้วจึงตอบ (DOM-AUDIT-01 "ทุกครั้งที่เข้าถึง")
@@ -152,7 +165,7 @@ func (h *Handler) respond(w http.ResponseWriter, r *http.Request, e AuditEntry, 
 	e.Outcome = outcomeFor(status)
 	if err := h.svc.repo.WriteAudit(r.Context(), e); err != nil {
 		log.Printf("returns: write audit: %v", err)
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"code": "UPSTREAM_UNAVAILABLE", "retryable": true})
+		writeJSON(w, http.StatusServiceUnavailable, unavailableBody())
 		return
 	}
 	writeJSON(w, status, body)
@@ -168,7 +181,7 @@ func (h *Handler) staffOnly(action string, next http.HandlerFunc) http.HandlerFu
 			return
 		}
 		if p.Role != auth.RoleStaff {
-			h.respond(w, r, newAudit(p, action), http.StatusForbidden, map[string]string{"code": "FORBIDDEN_ROLE"})
+			h.respond(w, r, newAudit(p, action), http.StatusForbidden, errorBody("FORBIDDEN_ROLE"))
 			return
 		}
 		next(w, r)
@@ -179,7 +192,7 @@ func (h *Handler) staffOnly(action string, next http.HandlerFunc) http.HandlerFu
 func principal(w http.ResponseWriter, r *http.Request) (auth.Principal, bool) {
 	p, ok := auth.FromContext(r.Context())
 	if !ok {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"code": "UNAUTHENTICATED"})
+		writeJSON(w, http.StatusUnauthorized, errorBody("UNAUTHENTICATED"))
 	}
 	return p, ok
 }
