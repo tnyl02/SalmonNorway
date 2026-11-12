@@ -176,7 +176,7 @@ frontend: vitest ใน `frontend/src/pages/MyPendingRequests/__tests__/` ใช
 | AC-CXL-04 | `TestAC_CXL_04_ApprovedBeforeConfirm` | ดึงรายการ (เห็นคำขอ) -> UPDATE ในฐานข้อมูลเป็น `approved` (จำลอง 004) -> POST cancel -> 409 `ALREADY_APPROVED` สถานะยัง `approved` |
 | AC-CXL-05 | `TestAC_CXL_05_OtherRequestsOnSameItemUnchanged` | 2 คำขอของ student-001 และ student-002 บนอุปกรณ์ชิ้นเดียวกัน -> ยกเลิกของ 001 -> ของ 002 ยัง `requested` อุปกรณ์ยัง `available` |
 | AC-CXL-06 | `TestAC_CXL_06_AuditLogAttempts` | ยกเลิกสำเร็จ 1, คำขอ approved 1, คำขอของผู้อื่น 1 -> audit_log 3 แถว actor student-001 outcome `ok` 1 แถว `forbidden` 2 แถว พร้อม request_id และ cause ใน query |
-| AC-CXL-07 | `TestAC_CXL_07_ExpiredSessionNoCancel` (Go) + `AC_CXL_07 redirects to login with returnTo` (vitest) | ไม่มี token -> 401 สถานะไม่เปลี่ยน audit_log ไม่มีแถวใหม่ / หน้าจอได้ 401 -> ไปหน้า login พร้อม `returnTo` |
+| AC-CXL-07 | `TestAC_CXL_07_ExpiredSessionNoCancel` (Go) + `AC_CXL_07 redirects to login and back` (vitest) | ไม่มี token -> 401 สถานะไม่เปลี่ยน audit_log ไม่มีแถวใหม่ / หน้าจอได้ 401 -> หน้าเข้าสู่ระบบจำลองพร้อมข้อความ ล็อกอินแล้วกลับแท็บเดิม ไม่ยกเลิกซ้ำ (กลไกของ 001 T-21 ดูข้อ 4) |
 | AC-CXL-08 | `TestAC_CXL_08_ListOwnPendingSorted` | student-001 มี requested 2 (เวลาต่างกัน) approved 1 rejected 1 cancelled 1 และ student-002 มี requested 1 -> GET ได้ 2 รายการของ 001 เรียงใหม่ไปเก่า มี modelName assetCode submittedAt |
 | AC-CXL-09 | `AC_CXL_09 confirm dialog cancel then confirm` (vitest) | กดยกเลิก -> กดไม่ยืนยัน (ไม่เรียก API แถวยังอยู่) -> กดยกเลิก -> พิมพ์เหตุผล -> ยืนยัน -> แถวหายไป |
 | AC-CXL-10 | `TestAC_CXL_10_CancelOvernightApprovedByOfficer` | seed คำขอค้างคืน `approved_by_officer` และ `pending_advisor_approval` (ASM-04 ใช้ seed) -> ยกเลิกได้ทั้งคู่ |
@@ -188,7 +188,8 @@ frontend: vitest ใน `frontend/src/pages/MyPendingRequests/__tests__/` ใช
 | AC-CXL-16 | `TestAC_CXL_16_NotifyFailureStillCancelled` | Notifier ปลอมคืน error -> 200 สถานะ `cancelled` และ audit_log มีแถว action `notify` outcome `error` |
 | AC-CXL-17 | `AC_CXL_17` (สคริปต์ k6 `tests/load/cancel_request.js`) | 50 VU เปิดรายการและยกเลิก (seed คำขอพอสำหรับทุก VU) threshold `http_req_duration p(95) < 15000` |
 
-ทดสอบเพิ่ม (ไม่มี AC ตรง): API ไม่ส่งข้อมูลคำขอของผู้อื่นใน GET, `returnTo` ที่เป็น URL ภายนอกถูกปฏิเสธ, ไม่มีโค้ดของ 003 เขียน `equipment_item`
+ทดสอบเพิ่ม (ไม่มี AC ตรง): API ไม่ส่งข้อมูลคำขอของผู้อื่นใน GET, ไม่มีโค้ดของ 003 เขียน `equipment_item`
+(การปฏิเสธหน้าเดิมที่เป็น URL ภายนอกอยู่ใน `safePageKey` ของ App.jsx ทดสอบโดย 001 ใน AC-EQS-09.test.jsx ไม่ใช่ test ของ 003)
 
 ## 7. ลำดับงาน
 1. migration `0004_staff_contact` และ test ว่าตาราง `borrow_request` ของ 002 (0003) ตรงกับที่ 003 ใช้ + seed คำขอทุกสถานะ (ทั้งปกติและค้างคืน) ของ student-001/002 และ Email เจ้าหน้าที่จำลอง ต้องรอ 002 push 0003 (ASM-01, ASM-10, ASM-11, CON-CXL-02)

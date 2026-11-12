@@ -5332,3 +5332,15 @@ T-13 มีแค่ `service.go` ในช่องไฟล์ที่แต�
   - canRequestLoan ส่งเป็น false ชัด ๆ (ไม่ omitempty) และหน้าจอแสดงปุ่มเฉพาะเมื่อได้ true จากหลังบ้าน ไม่ดูสถานะเอง (plan ข้อ 6.7)
 - ยังขาด: ต่อ onRequestLoan กับฟอร์มของ 002 ใน App.jsx (รอ 002 สร้างฟอร์มและตกลงวิธีเปิด) / test-cases ชุด ค (AC-EQS-04, 05, 06, 14) ทำได้แล้ว
 main
+
+---
+
+## 2569-11-12 pull main (001 PR #20, #21, 004 PR #22) ตรวจข้อแจ้งของ 001 และแก้ plan ข้อ 6 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- pull: fast-forward ไม่มี conflict ไม่มีไฟล์ของ 003 เปลี่ยน go test ทุก package ผ่าน npm test 89 ผ่าน
+- ตรวจข้อแจ้งของ 001 (PR #14-#20): ข้อ 1 (401 ไปหน้าล็อกอิน) ทำแล้วใน T-26, ข้อ 5 (timeoutMs, 405) ไม่กระทบ 003, ข้อ 6 (CHANGELOG ข้อความหลง) ลบแล้ว
+  ข้อ 3 (returnTo) plan ข้อ 4 แก้แล้วใน v1.6 แต่ข้อ 6 ยังค้าง 2 บรรทัด (AI ตกหล่นตอน v1.6)
+- ไฟล์ที่แก้: specs/003-cancel-request/plan.md บรรทัด 179 ชื่อ test เป็น AC_CXL_07 redirects to login and back และคำอธิบายตามกลไกของ 001, บรรทัด 191 ตัด returnTo URL ภายนอกออกจาก test ของ 003 (อยู่ใน safePageKey ทดสอบโดย 001)
+- ยิงหลังบ้านจริง (405 ของ 001 T-40): GET ที่ /v1/borrow-requests/3001/cancel -> 405 Allow: POST {code:METHOD_NOT_ALLOWED, message}, DELETE ที่ /v1/my/pending-requests -> 405 Allow: GET, HEAD, ไม่มี token -> 401 ก่อน, GET ปกติ 200 คำขอ 3001 สถานะไม่เปลี่ยน
