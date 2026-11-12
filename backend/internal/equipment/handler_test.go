@@ -764,3 +764,41 @@ func TestAC_EQS_08_SlowDBTimeout(t *testing.T) {
 		t.Errorf("ตอบหลัง %v ค้างนานเกิน EquipmentDBTimeout %v", elapsed, config.EquipmentDBTimeout)
 	}
 }
+
+// T-39 เสร็จเมื่อ: 404 ของ 001 ตอบ body {code: ITEM_NOT_FOUND, message} ไม่มีช่องอื่น (CON-TECH-03)
+// และรุ่นที่เป็นตัวเลขแต่ไม่มีอยู่ ยังได้ 200 รายการว่าง (plan.md ข้อ 5)
+func TestCON_TECH_03_ItemNotFound(t *testing.T) {
+	srv := newTestServer(t)
+
+	for _, c := range []struct{ name, path string }{
+		{"รหัสครุภัณฑ์ที่ไม่มี (FR-EQS-04)", PathPrefix + "items/NO-SUCH-CODE"},
+		{"รหัสรุ่นที่ไม่ใช่ตัวเลข (FR-EQS-01)", PathPrefix + "models/abc/items"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			rec := get(t, srv, c.path, tokenStudentDept1)
+			if rec.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, ต้องเป็น 404", rec.Code)
+			}
+			body := decode[map[string]any](t, rec)
+			if len(body) != 2 {
+				t.Errorf("body ต้องมีแค่ code และ message ได้ %v", body)
+			}
+			if body["code"] != platform.CodeItemNotFound {
+				t.Errorf("code = %v, ต้องเป็น %s", body["code"], platform.CodeItemNotFound)
+			}
+			if msg, _ := body["message"].(string); msg == "" || msg == platform.CodeItemNotFound {
+				t.Errorf("message ต้องเป็นข้อความภาษาไทยที่ไม่ว่าง ได้ %q", msg)
+			}
+		})
+	}
+
+	t.Run("รุ่นที่เป็นตัวเลขแต่ไม่มีอยู่ ได้ 200 รายการว่าง", func(t *testing.T) {
+		rec := get(t, srv, PathPrefix+"models/9999/items", tokenStudentDept1)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, ต้องเป็น 200", rec.Code)
+		}
+		if body := decode[ListDTO[ItemRow]](t, rec); body.Items == nil || len(body.Items) != 0 {
+			t.Errorf("ต้องได้ items เป็น [] ได้ %+v", body.Items)
+		}
+	})
+}

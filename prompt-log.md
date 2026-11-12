@@ -5151,3 +5151,21 @@ T-13 มีแค่ `service.go` ในช่องไฟล์ที่แต�
 - สิ่งที่ต้องทำก่อนเริ่ม T-40: แจ้งทีมในกลุ่ม เพราะ 405 ของทุกฟีเจอร์จะเปลี่ยน (test ที่มีอยู่ตรวจแค่ status ของ 001 และ 002 จึงไม่พัง)
 - ข้อความ "ไม่รองรับการเรียกแบบนี้" ของ METHOD_NOT_ALLOWED AI เสนอเอง ไม่ได้มาจาก spec
 - สิ่งที่ AI ไม่ได้ทำ: ไม่แก้โค้ด ไม่ commit
+
+---
+
+## 2569-11-12 /implement T-39 ตอบ 404 ด้วย {code, message} รหัส ITEM_NOT_FOUND (CON-TECH-03)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ของกลาง `backend/internal/platform/apierror.go` เพิ่มรหัส ITEM_NOT_FOUND ที่ 001 ลงทะเบียนใน constraints.md v5.3)
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement T-39`
+- ไฟล์ที่แก้: `backend/internal/platform/apierror.go` (CodeItemNotFound และข้อความ "ไม่พบอุปกรณ์รหัสนี้" ตาม plan ข้อ 5),
+  `backend/internal/platform/apierror_test.go` (เพิ่ม CodeItemNotFound ใน TestErrorMessage_AllCodesHaveMessage และ TestCON_TECH_03_ItemNotFoundBody),
+  `backend/internal/equipment/handler.go` (2 จุดที่เคยใช้ http.NotFound: รหัสรุ่นไม่ใช่ตัวเลข และไม่มีรหัสครุภัณฑ์),
+  `backend/internal/equipment/handler_test.go` (TestCON_TECH_03_ItemNotFound), `specs/001-equipment-status/tasks.md` (สถานะ T-39)
+- test: `TestCON_TECH_03_ItemNotFound` ผ่าน (รหัสครุภัณฑ์ที่ไม่มี และรหัสรุ่น "abc" ได้ 404 body มีแค่ code ITEM_NOT_FOUND กับ message /
+  รุ่น 9999 ได้ 200 items []) / `TestCON_TECH_03_ItemNotFoundBody` ผ่าน / test เดิม TestItems_UnknownModel, TestItemDetail_...Is404 ยังผ่าน
+  หลังบ้านทั้งระบบ `go test ./...` ผ่าน 10 package หน้าจอ 31 ไฟล์ 81 test ผ่าน
+- สิ่งที่ไม่ได้ทำ: 405 METHOD_NOT_ALLOWED เป็นของ T-40 / ไม่แก้หน้าจอ (ErrorState แสดง serverMessage ของ 404 ได้อยู่แล้ว)
+- ไม่มีเรื่องที่ต้องเดา: รหัส ข้อความ และกรณีรุ่นตัวเลขที่ไม่มีอยู่ (200 รายการว่าง) มีใน plan ข้อ 5 และช่อง "เสร็จเมื่อ" ครบ

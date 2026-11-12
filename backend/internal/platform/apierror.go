@@ -13,6 +13,7 @@ const (
 	CodeForbiddenDepartment = "FORBIDDEN_DEPARTMENT" // 403 อุปกรณ์ของภาควิชาอื่น (FR-EQS-10, DOM-ACCESS-01) ใช้ใน T-18
 	CodeForbiddenRole       = "FORBIDDEN_ROLE"       // 403 บทบาทนี้ไม่มีสิทธิ์ เช่น นักศึกษาเรียกสรุปของเจ้าหน้าที่ (FR-EQS-07, T-17)
 	CodeUpstreamUnavailable = "UPSTREAM_UNAVAILABLE" // 503 ฐานข้อมูลไม่ตอบ (FR-EQS-08)
+	CodeItemNotFound        = "ITEM_NOT_FOUND"       // 404 ไม่มีรหัสครุภัณฑ์นี้ หรือรหัสรุ่นไม่ถูกต้อง (FR-EQS-01, FR-EQS-04, 001 ลงทะเบียน 2569-11-12, T-39)
 )
 
 // errorMessages คือข้อความภาษาไทยของแต่ละรหัส (CON-TECH-03 ต้องมี message)
@@ -24,6 +25,7 @@ var errorMessages = map[string]string{
 	CodeForbiddenDepartment: "ไม่มีสิทธิ์เข้าถึงอุปกรณ์ของภาควิชาอื่น",
 	CodeForbiddenRole:       "เฉพาะเจ้าหน้าที่เท่านั้นที่ดูข้อมูลนี้ได้",
 	CodeUpstreamUnavailable: "ดึงข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
+	CodeItemNotFound:        "ไม่พบอุปกรณ์รหัสนี้",
 }
 
 // ErrorBody คือ body ของ error ตามรูปแบบกลาง {"code", "message"} ไม่มีช่องอื่น (CON-TECH-03)
