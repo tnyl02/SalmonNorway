@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"salmonnorway/backend/internal/audit"
+	"salmonnorway/backend/internal/auth"
 	"salmonnorway/backend/internal/platform"
 )
 
@@ -17,12 +19,13 @@ const PathPrefix = "/v1/equipment/"
 
 // Handler รับ HTTP request ของฟีเจอร์ 001 ทุก endpoint ต้องอยู่หลัง auth.Middleware (IF-IDP-01, NFR-SEC-01)
 type Handler struct {
-	svc *Service
+	svc     *Service
+	auditDB audit.DB // ฐานข้อมูลเดียวกับ repository ใช้เขียน audit_log (DOM-AUDIT-01)
 }
 
-// NewHandler สร้าง Handler
+// NewHandler สร้าง Handler เขียน audit ลงฐานข้อมูลเดียวกับที่อ่านข้อมูลอุปกรณ์ (plan.md ข้อ 6.4 synchronous ใน request เดียวกัน)
 func NewHandler(svc *Service) *Handler {
-	return &Handler{svc: svc}
+	return &Handler{svc: svc, auditDB: svc.repo.db}
 }
 
 // Routes คืน router ของฟีเจอร์นี้ ให้ main.go ห่อด้วย auth.Middleware แล้วผูกกับ PathPrefix
@@ -64,17 +67,48 @@ func (h *Handler) listItems(w http.ResponseWriter, r *http.Request) {
 }
 
 // getItem: GET /v1/equipment/items/{assetCode} รายละเอียดอุปกรณ์รายชิ้น พร้อมกำหนดคืนเมื่อถูกยืม (FR-EQS-04, AC-EQS-04)
+// ทุกการเปิดรายละเอียดบันทึก audit_log ผู้เข้าถึง เวลา รหัสครุภัณฑ์ รวมกรณีถูกปฏิเสธ (DOM-AUDIT-01, AC-EQS-11, plan.md ข้อ 6.4)
 func (h *Handler) getItem(w http.ResponseWriter, r *http.Request) {
-	item, found, err := h.svc.GetItem(r.Context(), r.PathValue("assetCode"))
-	if err != nil {
+	assetCode := r.PathValue("assetCode")
+	item, found, err := h.svc.GetItem(r.Context(), assetCode)
+	switch {
+	case errors.Is(err, ErrForbiddenDepartment):
+		if h.auditDetail(r, assetCode, audit.OutcomeForbidden) != nil {
+			writeUpstreamError(w, err)
+			return
+		}
 		writeServiceError(w, err)
 		return
+	case err != nil:
+		_ = h.auditDetail(r, assetCode, audit.OutcomeError) // ตอบ 503 อยู่แล้ว ไม่สนผลของการเขียน audit
+		writeServiceError(w, err)
+		return
+	case !found:
+		http.NotFound(w, r) // ไม่มีรหัสครุภัณฑ์นี้ ไม่มีข้อมูลอุปกรณ์ถูกเข้าถึง จึงไม่บันทึก (plan ไม่ได้กำหนด error code ของกรณีนี้)
+		return
 	}
-	if !found {
-		http.NotFound(w, r) // ไม่มีรหัสครุภัณฑ์นี้ (plan ไม่ได้กำหนด error code ของกรณีนี้)
+	// เขียน audit ไม่สำเร็จ = ไม่ส่งข้อมูล ตอบ 503 (fail closed ตาม plan.md ข้อ 6.4 เพราะ spec ระบุ "ทุกครั้ง" รอยืนยัน Q-P4 ดู T-29)
+	if err := h.auditDetail(r, assetCode, audit.OutcomeOK); err != nil {
+		writeUpstreamError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, item)
+}
+
+// auditDetail บันทึกการเปิดรายละเอียด 1 ครั้ง (DOM-AUDIT-01) ผู้ใช้มาจาก auth.Middleware (IF-IDP-01)
+func (h *Handler) auditDetail(r *http.Request, assetCode, outcome string) error {
+	p, ok := auth.FromContext(r.Context())
+	if !ok {
+		return errors.New("audit: no principal in context")
+	}
+	_, err := audit.Write(r.Context(), h.auditDB, audit.Entry{
+		ActorID:   p.UserID,
+		ActorRole: string(p.Role),
+		Action:    audit.ActionDetail,
+		AssetCode: assetCode,
+		Outcome:   outcome,
+	})
+	return err
 }
 
 // summary: GET /v1/equipment/summary จำนวนอุปกรณ์แยกตามสถานะ เฉพาะเจ้าหน้าที่ (FR-EQS-07)

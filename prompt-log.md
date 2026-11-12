@@ -3190,3 +3190,27 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
     (ข้อแลกเปลี่ยนตาม plan 6.1: 403 บอกได้ว่ารหัสนั้นมีอยู่จริง แต่ spec สั่งให้แจ้งไม่มีสิทธิ์)
   - หน้าจอแสดง message จากหลังบ้านผ่าน ErrorState ถ้าไม่มี message ใช้ "ดึงข้อมูลอุปกรณ์ไม่สำเร็จ" เดิม
   - หน้ารายการ (EquipmentList.jsx) ยังใช้ข้อความ error เดิม ไม่อยู่ในไฟล์ของ T-18 นักศึกษาจะไม่ได้ 403 จากรายการเว้นแต่ส่ง department เอง (T-20 แตะไฟล์นี้)
+
+---
+
+## 2569-11-12 /implement-all เฟส 11: T-19 บันทึก audit log เมื่อเปิดรายละเอียด
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (สร้างของกลาง `backend/internal/audit/` ที่ 003 รอใช้)
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement-all ... เฟส 11` (task เดียวของเฟส)
+- ไฟล์ที่สร้าง: `backend/internal/audit/writer.go` (Write, Entry, ค่าคงที่ action และ outcome, interface DB ที่ใช้ได้ทั้ง pool และ pgx.Tx),
+  `backend/internal/audit/writer_test.go`
+- ไฟล์ที่แก้: `backend/internal/equipment/handler.go` (getItem บันทึก audit ทุกการเปิดรายละเอียด, auditDetail)
+- test: `TestAC_EQS_11_DetailWritesAudit` ผ่าน (มีแถว actor student-001, actor_role student, เวลาใกล้ปัจจุบัน, asset_code CS-NB-0002, outcome ok),
+  `TestAudit_ForbiddenDetailIsRecorded` ผ่าน (403 ภาควิชาอื่นบันทึก outcome forbidden), `TestAudit_WriteFailsThenNoData` ผ่าน
+  (เขียน audit ไม่สำเร็จได้ 503 ไม่มีข้อมูลอุปกรณ์), `TestWrite_WorksInTransaction` ผ่าน (ยกเลิก transaction แล้วไม่มีแถวค้าง / ช่องว่างเป็น NULL)
+  test หลังบ้านทั้งระบบผ่าน หน้าจอ 50 test ผ่าน
+- ลองจริง: หลังบ้านที่ port 8010 student-002 เปิด CS-NB-0004 ได้ 200 แล้วตาราง audit_log มีแถว detail ok ของ student-002
+- ทำภายในไฟล์ที่กำหนดได้: test ของ AC-EQS-11 อยู่ใน audit/writer_test.go เรียกผ่าน handler จริง (แยก package audit_test)
+  handler ได้ฐานข้อมูลสำหรับ audit จาก repository ใน NewHandler ไม่ต้องแก้ main.go
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้):
+  - เขียน audit ไม่สำเร็จตอบ 503 ไม่ส่งข้อมูล (fail closed) ตามที่ plan ข้อ 6.4 เสนอ ยังรอยืนยัน Q-P4 (T-29 แก้ได้จุดเดียวใน getItem)
+  - รหัสครุภัณฑ์ที่ไม่มีอยู่ (404) ไม่บันทึก เพราะไม่มีข้อมูลอุปกรณ์ถูกเข้าถึง plan ไม่ได้บอกกรณีนี้
+  - Write ใช้ INSERT ... RETURNING ผ่าน QueryRow ทำให้ใช้ได้ทั้ง pool และ transaction โดยไม่ต้องเพิ่มเมธอด Exec ให้ repository
+  - การดูรายการและการค้นหายังไม่บันทึก (รอ Q-11 ดู T-29) แต่มีค่าคงที่ ActionList, ActionSearch ไว้แล้ว
