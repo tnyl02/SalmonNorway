@@ -4424,3 +4424,35 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - คำสั่ง: "ตรวจสอบแล่วผ่าน"
 - สิ่งที่แก้: tasks.md T-36 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
 - สถานะรวม: T-01 ถึง T-36 เสร็จ (เฟส 0 ถึง 18) เหลือ T-37, T-38 รอ Q-APV-04 และ T-39 รอ Q-SH-03 / test ทั้งหมดยังไม่ได้รัน
+
+---
+
+## 2569-11-12 คำสั่ง: ติดตั้งเครื่องมือและรัน test รวมของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ติดตั้งอะไรยังไงบ้าง", "go mod download แล้วไม่มีอะไรเกิดขึ้น", ทีมรัน test เองในเทอร์มินัลแล้ววางผลในแชต (AI เริ่มรันให้แต่ทีมหยุดไว้ และรันเอง)
+- เครื่อง: Go 1.27.4 (ติดตั้งด้วย winget), Docker 29.9.2, Node v24
+- ผล test (รันครั้งแรกหลัง implement T-01 ถึง T-36 ตามลำดับการทดสอบที่ทีมตัดสิน):
+  - `go build ./...` ผ่าน
+  - `go test ./internal/config/ ./internal/platform/ ./internal/approve/` ok ทั้ง 3 package (platform / approve ใช้ ~498 วินาที รอบแรกเพราะ Docker โหลด postgres:16)
+  - `go test ./internal/approve/ -run TestAC_APV_10 -count=20` ok (8.2 วินาที)
+  - `go test ./...` ok ทุก package (approve, audit, auth, borrowrequest, cancelrequest, cancelrequest/migrationtest, config, equipment, handover, platform)
+  - `npm test` 31 ไฟล์ 81 test ผ่าน
+- ไม่มี test ไหนไม่ผ่าน จึงไม่ได้แก้โค้ด
+- สิ่งที่แก้: tasks.md สถานะ T-01 ถึง T-36 เปลี่ยนหมายเหตุ "ยังไม่ได้รัน" เป็น "test ผ่าน 2569-11-12" และเพิ่มผลรวมในหัวไฟล์
+- ยังไม่ได้ทำ: ลองจุดตรวจด้วยมือ (หน้าจอจริง, curl, โหลด approve_dev.sql ด้วย psql) / T-37, T-38 รอ Q-APV-04 / T-39 รอ Q-SH-03
+
+---
+
+## 2569-11-12 คำสั่ง: เปิดระบบจริงเพื่อลองหน้าจอของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ถ้าจะดูหน้าจริงของระบบที่เขียนใช้คำสั่งอะไร" แล้วแจ้งปัญหาระหว่างเปิดระบบ
+- ปัญหาที่พบและวิธีแก้:
+  1. `go run ./cmd/server` ได้ password authentication failed -> พอร์ต 5432 ถูก container ของโปรเจกต์อื่นในเครื่อง (grocery-store-backend-db-1) ใช้อยู่ ทีมหยุด container นั้นเอง
+  2. db ของ SalmonNorway ค้างสถานะ Created และไม่ได้เปิดพอร์ตออกมา (สร้างตอนพอร์ตชน) -> `docker compose ... up -d --force-recreate db`
+  3. ชื่อภาษาไทยในหน้าอนุมัติเป็น ???? -> ตรวจแล้วข้อมูลในฐานข้อมูลเป็น `?` จริง (hex 3f) เพราะคำสั่งที่ AI ให้ไป `Get-Content approve_dev.sql | docker ... psql` บน Windows PowerShell 5.1 แปลงอักษรไทยเป็น ? ก่อนส่ง -> ให้ล้างฐานข้อมูล (`down -v`) แล้วโหลดใหม่ด้วย `docker compose cp` + `psql -f`
+- สิ่งที่แก้: `specs/004-approve-request/tasks.md` (คำสั่งโหลด approve_dev.sql ในหัวไฟล์) และคอมเมนต์หัวไฟล์ `backend/db/seed/approve_dev.sql` ให้ใช้ cp + psql -f และเตือนเรื่อง PowerShell
+- ข้อสังเกต: `handover_dev.sql` ของ 005 เขียนคำสั่งโหลดแบบ `<` เหมือนกัน คนที่ใช้ Windows อาจเจอปัญหาเดียวกัน ควรแจ้ง 005
