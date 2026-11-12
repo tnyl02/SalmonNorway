@@ -101,3 +101,18 @@ func TestAuth_ValidToken_PassesPrincipal(t *testing.T) {
 		t.Errorf("principal = %+v, want %+v", got, want)
 	}
 }
+
+// AC-EQS-09 (IF-IDP-01) ส่วนหลังบ้าน: session หมดอายุ (token ที่ระบบยืนยันตัวตนไม่รับแล้ว) ได้ 401 UNAUTHENTICATED พร้อมข้อความ
+// หน้าจอใช้ 401 นี้พาไปหน้าเข้าสู่ระบบ (frontend AC-EQS-09.test.jsx)
+func TestAC_EQS_09_ExpiredSessionIs401(t *testing.T) {
+	// Given: token เดิมที่ระบบยืนยันตัวตนไม่รู้จักแล้ว (หมดอายุ)
+	rec, called, _ := serve(t, NewMockProvider(), "Bearer mock-expired-session")
+
+	// Then: 401 UNAUTHENTICATED มีข้อความให้หน้าจอแสดง และไม่เข้าถึงข้อมูล
+	if rec.Code != http.StatusUnauthorized || called {
+		t.Fatalf("status = %d, called = %v ต้องเป็น 401 และไม่เรียก handler", rec.Code, called)
+	}
+	if code := errorCode(t, rec); code != "UNAUTHENTICATED" {
+		t.Errorf("code = %q, want UNAUTHENTICATED", code)
+	}
+}

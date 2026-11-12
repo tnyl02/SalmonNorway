@@ -391,11 +391,11 @@ Spec: SPEC-EQS-001 (spec.md Draft v5) | Plan: plan.md Draft v1.7 | tasks v2.2: 2
 ### T-21 จัดการ 401 บนหน้าจอ: ไปหน้าล็อกอินจำลองพร้อมข้อความ แล้วกลับหน้าเดิม
 - รองรับ: IF-IDP-01, NFR-SEC-01
 - ตรวจด้วย: AC-EQS-09
-- ไฟล์ที่แตะ: `frontend/src/api/client.js`, `frontend/src/pages/Login/MockLogin.jsx`, `frontend/src/__tests__/AC-EQS-09.test.jsx`, `backend/internal/auth/middleware_test.go`
+- ไฟล์ที่แตะ: `frontend/src/api/client.js`, `frontend/src/pages/Login/MockLogin.jsx`, `frontend/src/__tests__/AC-EQS-09.test.jsx`, `backend/internal/auth/middleware_test.go`, `frontend/src/App.jsx` (แสดงหน้าล็อกอินเมื่อได้ 401 และจำหน้าเดิม) เพิ่มตามที่ทีมตัดสิน 2569-11-12
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-03, T-06
 - เสร็จเมื่อ: `AC-EQS-09.test.jsx` ผ่าน (401 -> ไปหน้าล็อกอินพร้อมข้อความ -> กลับ path เดิม) และ returnTo ภายนอกระบบถูกปฏิเสธ
-- สถานะ: พร้อมทำ (หน้าล็อกอินเป็นแบบจำลอง เพราะการยืนยันตัวตนเป็นระบบภายนอก IF-IDP-01 ไม่ใช่ use case ของระบบนี้)
+- สถานะ: เสร็จ รอทีมตรวจ (หน้าล็อกอินเป็นแบบจำลอง เพราะการยืนยันตัวตนเป็นระบบภายนอก IF-IDP-01 ไม่ใช่ use case ของระบบนี้)
 
 #### จุดตรวจเฟส 13
 - คนลองเองตาม AC-EQS-09:
