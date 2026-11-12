@@ -5472,3 +5472,17 @@ main
   - `backend/internal/handover/handler_test.go` TestAC_HND_08_AuditLogged เพิ่ม 4 กรณีไม่สำเร็จ: อุปกรณ์ไม่ว่าง, ไม่ยืนยันการตรวจบัตร, ผู้ยืมไม่ใช่ผู้ส่งคำขอ (error) และนักศึกษาเรียกเอง (forbidden และ verify-borrower ของนักศึกษาไม่มี audit)
 - ผล test (container golang:1.25): TestAC_HND_08_AuditLogged 5 กรณีผ่าน TestHandover_NonStaffForbidden, TestAC_HND_09_StudentForbidden, TestAC_HND_14_ListApprovedOnly ยังผ่าน `go test ./...` ผ่านทุก package go vet และ gofmt ผ่าน
 - สิ่งที่ AI ตัดสินเอง (ทีมควรตรวจ): ไม่เขียน audit ของนักศึกษาที่เรียกดูรายการหรือยืนยันผู้ยืม เพราะไม่ใช่ "การส่งมอบ" ตาม FR-HND-08
+
+---
+
+## 2569-11-12 ปิด Q-HND-04, Q-HND-07 และยกเลิก T-29, T-31 (spec v2.8)
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำถามของ AI และคำตอบของทีม:
+  - Q-HND-07 (T-30) เทอมนี้ต้องทำการส่งมอบยืมแบบค้างคืนไหม -> "ทำ (กำหนดคืน 16:00 ของ end_at)"
+  - Q-HND-04 (T-31) "ใช้งานได้เฉพาะภายในพื้นที่มหาวิทยาลัย" ระบบต้องทำอะไร -> "เป็นแค่กฎที่เจ้าหน้าที่แจ้ง"
+  - Q-SH-03 (T-29) เทอมนี้เชื่อม Auth API จริงไหม -> "ไม่เชื่อม ใช้ตัวจำลอง"
+- แก้ spec.md เป็น Draft v2.8: Scope ส่วนค้างคืน ปิด Q-HND-04, Q-HND-07 และเพิ่มคำตอบใน Clarifications ไม่แก้ Q-SH-03 ในไฟล์ร่วม (เป็นของกลาง บันทึกเฉพาะผลต่อ 005)
+- tasks.md: T-29 ยกเลิกเทอมนี้, T-31 ยกเลิก, T-30 พร้อมทำ / plan.md: แถว DOM-LOAN-01 ในตารางตรวจ Constraints
