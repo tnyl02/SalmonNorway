@@ -7,11 +7,14 @@ import { MOCK_TOKEN } from '../config.js'
 export const BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
 // ApiError บอกว่าหลังบ้านตอบไม่สำเร็จ status คือ HTTP status code ส่วน code มาจาก Error contract ใน plan.md
+// serverMessage คือข้อความภาษาไทยจากหลังบ้าน (CON-TECH-03) ใช้ชื่อเดียวกับ api/handover.js ของ 005
+// หน้าจอแสดง serverMessage ได้ แต่ตัดสินใจจาก code เท่านั้น
 export class ApiError extends Error {
-  constructor(status, code) {
+  constructor(status, code, serverMessage) {
     super(`API ${status} ${code ?? ''}`.trim())
     this.status = status
     this.code = code
+    this.serverMessage = serverMessage
   }
 }
 
@@ -41,13 +44,13 @@ async function postJSON(path, body) {
 
 // apiError อ่าน code จาก Error contract ใน plan.md (ถ้าอ่านไม่ได้ code เป็น undefined)
 async function apiError(res) {
-  let code
+  let body
   try {
-    code = (await res.json()).code
+    body = await res.json()
   } catch {
-    code = undefined
+    body = undefined
   }
-  return new ApiError(res.status, code)
+  return new ApiError(res.status, body?.code, body?.message)
 }
 
 // 001 FR-EQS-02: แปลงตัวกรอง { categories: [...], statuses: [...] } เป็น query string

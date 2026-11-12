@@ -36,11 +36,12 @@ func (h *Handler) Routes() http.Handler {
 	return mux
 }
 
-// listModels: GET /v1/equipment/models?category=&status= รายการรุ่นพร้อมจำนวนว่าง/ทั้งหมด (FR-EQS-01, FR-EQS-02, AC-EQS-01, AC-EQS-02)
+// listModels: GET /v1/equipment/models?category=&status=&department= รายการรุ่นพร้อมจำนวนว่าง/ทั้งหมด (FR-EQS-01, FR-EQS-02, AC-EQS-01, AC-EQS-02)
+// นักศึกษาเห็นเฉพาะภาควิชาของตน และขอ department อื่นได้ 403 (FR-EQS-10, AC-EQS-13)
 func (h *Handler) listModels(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.svc.ListModels(r.Context(), filterFrom(r))
+	rows, err := h.svc.ListModels(r.Context(), filterFrom(r), requestedDepartment(r))
 	if err != nil {
-		writeUpstreamError(w, err)
+		writeServiceError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, ListDTO[ModelRowDTO]{Items: nonNil(rows), Total: len(rows)})
@@ -56,7 +57,7 @@ func (h *Handler) listItems(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := h.svc.ListItems(r.Context(), modelID, filterFrom(r))
 	if err != nil {
-		writeUpstreamError(w, err)
+		writeServiceError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, ListDTO[ItemRow]{Items: nonNil(items), Total: len(items)})
@@ -66,7 +67,7 @@ func (h *Handler) listItems(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) getItem(w http.ResponseWriter, r *http.Request) {
 	item, found, err := h.svc.GetItem(r.Context(), r.PathValue("assetCode"))
 	if err != nil {
-		writeUpstreamError(w, err)
+		writeServiceError(w, err)
 		return
 	}
 	if !found {
@@ -89,6 +90,31 @@ func (h *Handler) summary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// requestedDepartment อ่าน ?department= (plan.md ข้อ 5) ไม่ได้ส่ง = 0 / ค่าที่ไม่ใช่รหัสภาควิชา = -1 (ไม่ตรงกับภาควิชาใด)
+// ตอนนี้ใช้ตรวจสิทธิ์ของนักศึกษาอย่างเดียว เจ้าหน้าที่ไม่ได้กรองด้วยค่านี้ (ทีมตัดสิน 2569-11-12 รอ Q-P3)
+func requestedDepartment(r *http.Request) int {
+	v := r.URL.Query().Get("department")
+	if v == "" {
+		return 0
+	}
+	id, err := strconv.Atoi(v)
+	if err != nil || id <= 0 {
+		return -1
+	}
+	return id
+}
+
+// writeServiceError แปลง error จาก service เป็นคำตอบตาม CON-TECH-03
+//   - ขอข้อมูลภาควิชาอื่น -> 403 FORBIDDEN_DEPARTMENT ไม่มีข้อมูลอุปกรณ์ใน body (FR-EQS-10, AC-EQS-13)
+//   - อื่น ๆ -> 503 UPSTREAM_UNAVAILABLE (FR-EQS-08)
+func writeServiceError(w http.ResponseWriter, err error) {
+	if errors.Is(err, ErrForbiddenDepartment) {
+		platform.WriteError(w, http.StatusForbidden, platform.CodeForbiddenDepartment)
+		return
+	}
+	writeUpstreamError(w, err)
 }
 
 // filterFrom อ่านตัวกรองจาก query string (FR-EQS-02) เลือกได้หลายค่าในแต่ละตัวกรอง (Q-15)

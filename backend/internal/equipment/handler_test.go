@@ -593,3 +593,83 @@ SELECT count(*) FILTER (WHERE status = 'available'), count(*) FILTER (WHERE stat
 		t.Errorf("body ต้องเป็น {code: FORBIDDEN_ROLE, message: ข้อความไทย} ได้ %v", e)
 	}
 }
+
+// AC-EQS-13 (FR-EQS-10, DOM-ACCESS-01)
+//
+//	Given นักศึกษาภาควิชา A ยืนยันตัวตนแล้ว และอุปกรณ์เป็นของภาควิชา B
+//	When  เปิดหน้ารายการอุปกรณ์ หรือเรียกรายละเอียดอุปกรณ์ของภาควิชา B โดยตรง
+//	Then  แจ้งว่าไม่มีสิทธิ์เข้าถึง และไม่มีข้อมูลอุปกรณ์ของภาควิชา B ถูกส่งกลับ
+func TestAC_EQS_13_OtherDepartment403(t *testing.T) {
+	// Given: นักศึกษาภาควิชา 2 (mock-student-101) / อุปกรณ์ภาควิชา 1 คือรุ่น 1, 2 และ CS-NB-*, CS-PJ-*
+	srv := newTestServer(t)
+	const studentDept2 = "mock-student-101"
+
+	// When: เปิดหน้ารายการอุปกรณ์
+	rec := get(t, srv, PathPrefix+"models", studentDept2)
+
+	// Then: เห็นเฉพาะรุ่นของภาควิชาตน ไม่มีข้อมูลรุ่นของภาควิชา 1 ปนมา
+	if rec.Code != http.StatusOK {
+		t.Fatalf("รายการรุ่น status = %d", rec.Code)
+	}
+	for _, m := range decode[ListDTO[ModelRowDTO]](t, rec).Items {
+		if m.ModelID != 3 {
+			t.Errorf("นักศึกษาภาควิชา 2 เห็นรุ่น %d (%s) ของภาควิชาอื่น", m.ModelID, m.Name)
+		}
+	}
+
+	// When: ขอข้อมูลของภาควิชา 1 โดยตรง 3 ทาง
+	// Then: 403 FORBIDDEN_DEPARTMENT body มีแค่ code และ message ไม่มีข้อมูลอุปกรณ์
+	for _, path := range []string{
+		PathPrefix + "items/CS-NB-0001",      // รายละเอียดรายชิ้น
+		PathPrefix + "models/1/items",        // รายชิ้นของรุ่นภาควิชาอื่น
+		PathPrefix + "models?department=1",   // ระบุภาควิชาอื่นในรายการ
+		PathPrefix + "models?department=abc", // ค่าภาควิชาที่ไม่ถูกต้อง
+	} {
+		rec := get(t, srv, path, studentDept2)
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("%s status = %d ต้องเป็น 403", path, rec.Code)
+			continue
+		}
+		raw := rec.Body.String()
+		e := decode[map[string]string](t, rec)
+		if e["code"] != "FORBIDDEN_DEPARTMENT" || e["message"] == "" || len(e) != 2 {
+			t.Errorf("%s body ต้องเป็น {code: FORBIDDEN_DEPARTMENT, message} ได้ %s", path, raw)
+		}
+		if strings.Contains(raw, "CS-") || strings.Contains(raw, "Notebook") || strings.Contains(raw, "status") {
+			t.Errorf("%s ส่งข้อมูลอุปกรณ์ของภาควิชาอื่นกลับไป: %s", path, raw)
+		}
+	}
+
+	// ภาควิชาของตนยังเปิดได้ปกติ และระบุ department ของตนได้
+	if rec := get(t, srv, PathPrefix+"items/XX-NB-0001", studentDept2); rec.Code != http.StatusOK {
+		t.Errorf("อุปกรณ์ภาควิชาตนเอง status = %d ต้องเป็น 200", rec.Code)
+	}
+	if rec := get(t, srv, PathPrefix+"models?department=2", studentDept2); rec.Code != http.StatusOK {
+		t.Errorf("ระบุภาควิชาตนเอง status = %d ต้องเป็น 200", rec.Code)
+	}
+}
+
+// FR-EQS-10 กลับด้าน: นักศึกษาภาควิชา 1 ไม่เห็นรุ่นของภาควิชา 2 / เจ้าหน้าที่เห็นทุกภาควิชา (plan.md ข้อ 6.1 รอ Q-P3)
+func TestFR_EQS_10_ScopeByRole(t *testing.T) {
+	srv := newTestServer(t)
+
+	student := modelsByID(t, srv, url.Values{})
+	if _, ok := student[3]; ok {
+		t.Error("นักศึกษาภาควิชา 1 เห็นรุ่น 3 ของภาควิชา 2")
+	}
+	if rec := get(t, srv, PathPrefix+"items/XX-NB-0001", tokenStudentDept1); rec.Code != http.StatusForbidden {
+		t.Errorf("นักศึกษาภาควิชา 1 เปิด XX-NB-0001 status = %d ต้องเป็น 403", rec.Code)
+	}
+
+	rec := get(t, srv, PathPrefix+"models", "mock-staff-001")
+	ids := map[int]bool{}
+	for _, m := range decode[ListDTO[ModelRowDTO]](t, rec).Items {
+		ids[m.ModelID] = true
+	}
+	if !ids[1] || !ids[2] || !ids[3] {
+		t.Errorf("เจ้าหน้าที่ต้องเห็นทุกภาควิชา (รุ่น 1, 2, 3) ได้ %v", ids)
+	}
+	if rec := get(t, srv, PathPrefix+"items/XX-NB-0001", "mock-staff-001"); rec.Code != http.StatusOK {
+		t.Errorf("เจ้าหน้าที่เปิด XX-NB-0001 status = %d ต้องเป็น 200", rec.Code)
+	}
+}

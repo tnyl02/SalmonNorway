@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../../api/client.js'
 import { TIME_ZONE } from '../../config.js'
 import StatusBadge, { OverdueBadge } from '../../components/StatusBadge.jsx'
+import ErrorState from '../../components/ErrorState.jsx'
 
 // ปี พ.ศ. = ปี ค.ศ. + 543 ใช้แสดงวันที่แบบตัวอย่างใน spec ("2569-10-10 16:00" ใน AC-EQS-14)
 const BUDDHIST_YEAR_OFFSET = 543
@@ -31,20 +32,21 @@ export function formatDueAt(iso) {
 // ปุ่มส่งคำขอยืม (T-34 รอ Q-16) ยังไม่มีในตอนนี้
 export default function EquipmentDetail({ assetCode, client = api, onBack }) {
   const [item, setItem] = useState(null)
-  const [failed, setFailed] = useState(false)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     let active = true
     setItem(null)
-    setFailed(false)
+    setError(null)
     client
       .getItem(assetCode)
       .then((res) => active && setItem(res))
-      .catch(() => {
+      .catch((err) => {
         // FR-EQS-08: ไม่แสดงข้อมูลเก่า ปุ่มลองใหม่และ test ของกรณีนี้อยู่ใน T-20
+        // FR-EQS-10: 403 ภาควิชาอื่น แสดงข้อความไม่มีสิทธิ์ ไม่มีข้อมูลอุปกรณ์
         if (active) {
           setItem(null)
-          setFailed(true)
+          setError(err)
         }
       })
     return () => {
@@ -61,8 +63,8 @@ export default function EquipmentDetail({ assetCode, client = api, onBack }) {
       )}
       <h2 className="font-mono text-lg font-semibold text-slate-900">{assetCode}</h2>
 
-      {failed ? (
-        <p role="alert" className="text-red-700">ดึงข้อมูลอุปกรณ์ไม่สำเร็จ</p>
+      {error ? (
+        <ErrorState error={error} />
       ) : item == null ? (
         <p className="text-slate-600">กำลังโหลด...</p>
       ) : (

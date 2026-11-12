@@ -3161,3 +3161,32 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
   - สรุปนับทุกภาควิชา ตาม plan ข้อ 6.1 (ขอบเขตของเจ้าหน้าที่รอ Q-P3 ดู T-28)
   - ส่วนนักศึกษาไม่เห็นผู้ยืม: DTO ของนักศึกษาไม่มีช่องผู้ยืมอยู่แล้วตั้งแต่ T-05, T-12 task นี้เพิ่ม test ยืนยันทั้ง 3 endpoint
   - ยังไม่มีหน้าจอของสรุป (T-17 เป็นงานหลังบ้าน และ FR-EQS-07 ส่วนสรุปยังไม่มี AC)
+
+---
+
+## 2569-11-12 /implement-all เฟส 10: T-18 จำกัดทุก query ของนักศึกษาด้วยภาควิชา และตอบ 403 เมื่อขอข้ามภาควิชา
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ `frontend/src/api/client.js` ที่ 003 ใช้ร่วม เพิ่ม serverMessage แบบเดียวกับ api/handover.js ของ 005)
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement-all ... เฟส 10` (task เดียวของเฟส)
+- คำถามที่ AI ถามก่อนทำ และคำตอบของทีม (Pannathorn J):
+  1. ต้องแตะ service.go, client.js, EquipmentDetail.jsx เพิ่ม -> ทีมตอบ: เพิ่มทั้ง 3 ไฟล์ (เพิ่มในช่องไฟล์ที่แตะแล้ว)
+  2. เจ้าหน้าที่ส่ง ?department= มาต้องทำอะไร -> ทีมตอบ: ยังไม่ทำ เจ้าหน้าที่เห็นทุกภาควิชาตาม plan 6.1 รอ Q-P3
+- ไฟล์ที่แก้:
+  - `backend/internal/equipment/repository.go`: Filter.DepartmentID, เงื่อนไขภาควิชาในทุก query รายการ ($4), GetItem คืน department_id, ModelDepartment
+  - `backend/internal/equipment/service.go`: scopeFor (นโยบายเดียว นักศึกษา = ภาควิชาตน / เจ้าหน้าที่ = ทุกภาควิชา / ไม่มีผู้ใช้ = ปฏิเสธ),
+    ErrForbiddenDepartment, ListModels รับ requestedDept, ListItems และ GetItem ตรวจภาควิชาก่อนสร้าง DTO
+  - `backend/internal/equipment/handler.go`: requestedDepartment, writeServiceError (403 FORBIDDEN_DEPARTMENT / 503)
+  - `backend/internal/equipment/handler_test.go`, `frontend/src/api/client.js` (ApiError.serverMessage), `frontend/src/pages/EquipmentDetail/EquipmentDetail.jsx` (ใช้ ErrorState)
+- ไฟล์ที่สร้าง: `frontend/src/components/ErrorState.jsx`, `frontend/src/__tests__/AC-EQS-13.test.jsx`
+- test: `TestAC_EQS_13_OtherDepartment403` ผ่าน (นักศึกษาภาควิชา 2: รายการเห็นแค่รุ่น 3 / รายละเอียด CS-NB-0001, รายชิ้นรุ่น 1,
+  ?department=1, ?department=abc ได้ 403 FORBIDDEN_DEPARTMENT ไม่มีข้อมูลอุปกรณ์ใน body / ของภาควิชาตนยังเปิดได้),
+  `TestFR_EQS_10_ScopeByRole` ผ่าน (นักศึกษาภาควิชา 1 ไม่เห็นรุ่น 3 / เจ้าหน้าที่เห็นทุกภาควิชา),
+  `AC-EQS-13.test.jsx` 3 test ผ่าน / test หลังบ้านทั้งระบบผ่าน หน้าจอ 26 ไฟล์ 50 test ผ่าน (รวม TC-CXL ของ 003) `vite build` ผ่าน
+- ลองจริง: หลังบ้านที่ port 8010 mock-student-101 เปิด CS-NB-0001 ได้ 403 + ข้อความไทย / รายการเห็นแค่รุ่น C / XX-NB-0001 ได้ 200
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้):
+  - รุ่นหรือรหัสครุภัณฑ์ที่ไม่มีอยู่จริงยังได้รายการว่าง / 404 แบบเดิม ตรวจภาควิชาเฉพาะของที่มีอยู่
+    (ข้อแลกเปลี่ยนตาม plan 6.1: 403 บอกได้ว่ารหัสนั้นมีอยู่จริง แต่ spec สั่งให้แจ้งไม่มีสิทธิ์)
+  - หน้าจอแสดง message จากหลังบ้านผ่าน ErrorState ถ้าไม่มี message ใช้ "ดึงข้อมูลอุปกรณ์ไม่สำเร็จ" เดิม
+  - หน้ารายการ (EquipmentList.jsx) ยังใช้ข้อความ error เดิม ไม่อยู่ในไฟล์ของ T-18 นักศึกษาจะไม่ได้ 403 จากรายการเว้นแต่ส่ง department เอง (T-20 แตะไฟล์นี้)

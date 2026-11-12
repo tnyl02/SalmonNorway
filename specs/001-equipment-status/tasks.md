@@ -322,11 +322,11 @@ Spec: SPEC-EQS-001 (spec.md Draft v5) | Plan: plan.md Draft v1.7 | tasks v2.2: 2
 ### T-18 จำกัดทุก query ของนักศึกษาด้วยภาควิชา และตอบ 403 เมื่อขอข้ามภาควิชา
 - รองรับ: FR-EQS-10, DOM-ACCESS-01, IF-IDP-01
 - ตรวจด้วย: AC-EQS-13
-- ไฟล์ที่แตะ: `backend/internal/equipment/repository.go`, `backend/internal/equipment/handler.go`, `backend/internal/equipment/handler_test.go`, `frontend/src/components/ErrorState.jsx`, `frontend/src/__tests__/AC-EQS-13.test.jsx`
+- ไฟล์ที่แตะ: `backend/internal/equipment/repository.go`, `backend/internal/equipment/handler.go`, `backend/internal/equipment/handler_test.go`, `frontend/src/components/ErrorState.jsx`, `frontend/src/__tests__/AC-EQS-13.test.jsx`, `backend/internal/equipment/service.go` (scopeFor ส่งภาควิชาผ่าน service), `frontend/src/api/client.js` (เก็บ message), `frontend/src/pages/EquipmentDetail/EquipmentDetail.jsx` (แสดง ErrorState) เพิ่มตามที่ทีมตัดสิน 2569-11-12
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `TestAC_EQS_13_OtherDepartment403` ผ่าน ทั้งจาก list และเรียกรายละเอียดตรง body ไม่มีข้อมูลอุปกรณ์
-- สถานะ: พร้อมทำ (ขอบเขตของเจ้าหน้าที่รอ Q-P3 ดู T-28 / ภาควิชาเดียวหรือหลายภาควิชา Q-19 ไม่กระทบวิธีตรวจ เพราะเทียบภาควิชาของผู้ใช้กับของอุปกรณ์เหมือนกัน)
+- สถานะ: เสร็จ รอทีมตรวจ (ขอบเขตของเจ้าหน้าที่รอ Q-P3 ดู T-28 / ภาควิชาเดียวหรือหลายภาควิชา Q-19 ไม่กระทบวิธีตรวจ เพราะเทียบภาควิชาของผู้ใช้กับของอุปกรณ์เหมือนกัน)
 
 #### จุดตรวจเฟส 10
 - คนลองเองตาม AC-EQS-13:
