@@ -333,7 +333,7 @@ Updated: 2569-11-12
 - ต้องทำหลัง: T-07
 - เสร็จเมื่อ: `TestAC_APV_16` ผ่านด้วยนาฬิกาจำลอง: เลย `LoanNormalReturnHour` (16:00 น.) ของวันที่เริ่มยืม (Asia/Bangkok) ได้ 409 `APPROVAL_CUTOFF_PASSED` สถานะคงเดิม คำขอนั้นยังเป็นคำขอแรก (คำขอถัดไปยังได้ `NOT_FIRST_IN_QUEUE`) และปฏิเสธเองได้ (ID ของ AC-APV-16 รอ Q-APV-13 ถ้าทีมเปลี่ยน ID ให้เปลี่ยนชื่อ test ตาม)
 - สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / test ผ่าน 2569-11-12: `TestAC_APV_16`, `TestApprove_BeforeCutoffAllowed`)
-- แก้ 2569-11-12 (Q-APV-26 พบตอน /testcases แถว TC-APV-01-5): 16:00:00 น. ตรงนับว่าเลยแล้ว เปลี่ยนเงื่อนไขใน service.go จาก `After` เป็น `!Before` / ตรวจด้วย `TestTC_APV_01_5_ApproveAt1600` (รอผู้สั่งรัน test)
+- แก้ 2569-11-12 (Q-APV-26 พบตอน /testcases แถว TC-APV-01-5): 16:00:00 น. ตรงนับว่าเลยแล้ว เปลี่ยนเงื่อนไขใน service.go จาก `After` เป็น `!Before` / ตรวจด้วย `TestTC_APV_01_5_ApproveAt1600` (test ผ่าน 2569-11-12 พร้อม `TestAC_APV_16`, `TestApprove_BeforeCutoffAllowed`)
 
 ### T-22 แสดงข้อความ APPROVAL_CUTOFF_PASSED บนหน้าจอ
 - รองรับ: FR-APV-01 (ซ)

@@ -5402,3 +5402,14 @@ main
   `specs/004-approve-request/tasks.md` (T-21 รองรับ Q-APV-26 และบรรทัดบันทึกการแก้), `specs/CHANGELOG.md` (แก้บรรทัดในหัวข้อ Q-APV-26 ของวันนี้ที่ยังไม่ได้ commit)
 - ไม่แก้ test: TestTC_APV_01_5 เขียนตามแถวไว้แล้ว / TestAC_APV_16 (เลย 1 นาที) และ TestApprove_BeforeCutoffAllowed (ก่อน 1 นาที) ไม่กระทบ
 - ผล test: `go vet ./internal/approve/` ผ่าน / go test รอผู้สั่งรัน (ต้องเปิด Docker)
+
+---
+
+## 2569-11-12 ผล test ของ TC AC-APV-01 หลังแก้เวลาตัด (Q-APV-26)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (รันเองแล้ววางผล)
+- ฟีเจอร์: 004-approve-request
+- คำสั่งที่รัน: `go test ./internal/approve/ -run "TestTC_APV_01|TestAC_APV_16|TestApprove_BeforeCutoffAllowed" -v`
+- ผล: ผ่านทั้ง 12 test (TestAC_APV_16, TestApprove_BeforeCutoffAllowed, TestTC_APV_01_1, 4 ถึง 12 รวม TestTC_APV_01_5_ApproveAt1600)
+  vitest TC-APV-01-2 ผ่านไปก่อนหน้านี้แล้ว / TC-APV-01-3 เป็นแถว "คน" ยังไม่ได้ลอง
+- แก้ tasks.md T-21: บรรทัดบันทึกการแก้เปลี่ยนจาก "รอผู้สั่งรัน test" เป็น test ผ่าน
