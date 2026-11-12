@@ -1,6 +1,7 @@
 package equipment
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -9,6 +10,7 @@ import (
 
 	"salmonnorway/backend/internal/audit"
 	"salmonnorway/backend/internal/auth"
+	"salmonnorway/backend/internal/config"
 	"salmonnorway/backend/internal/platform"
 )
 
@@ -36,7 +38,17 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET "+PathPrefix+"items/{assetCode}", h.getItem)
 	mux.HandleFunc("GET "+PathPrefix+"summary", h.summary)
 	// ไม่มี endpoint ที่เขียนข้อมูล ฟีเจอร์นี้อ่านอย่างเดียว (CON-DATA-02) method อื่นได้ 405 จาก router
-	return mux
+	return withDBTimeout(mux)
+}
+
+// withDBTimeout จำกัดเวลารอฐานข้อมูลของทุก endpoint ของฟีเจอร์นี้ไว้ที่ config.EquipmentDBTimeout (FR-EQS-08, Q-08, T-26)
+// query ที่เกินเวลาคืน error แล้ว handler ตอบ 503 UPSTREAM_UNAVAILABLE ผ่าน writeServiceError / writeUpstreamError
+func withDBTimeout(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), config.EquipmentDBTimeout)
+		defer cancel()
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 // listModels: GET /v1/equipment/models?category=&status=&department= รายการรุ่นพร้อมจำนวนว่าง/ทั้งหมด (FR-EQS-01, FR-EQS-02, AC-EQS-01, AC-EQS-02)

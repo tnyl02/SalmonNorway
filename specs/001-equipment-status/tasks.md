@@ -1,9 +1,9 @@
 # Tasks: ตรวจสอบสถานะอุปกรณ์ (Equipment Status)
-Spec: SPEC-EQS-001 (spec.md Draft v5) | Plan: plan.md Draft v1.7 | tasks v2.2: 2569-11-12 (v2.1 2569-11-11, v2 2569-11-10, v1 2569-11-02) | Owner: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05)
+Spec: SPEC-EQS-001 (spec.md Draft v5.1) | Plan: plan.md Draft v1.8 | tasks v2.3: 2569-11-12 (v2.2 2569-11-12, v2.1 2569-11-11, v2 2569-11-10, v1 2569-11-02) | Owner: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05)
 
 สรุป
-- 15 เฟสที่ใช้งาน (ฐานราก + 13 เฟสตาม AC + รอคำตอบ) รวม 38 task: เสร็จ 18, พร้อมทำ 8, รอ Q-xx 10, ยกเลิก 2 (T-15, T-25)
-- รอ Q-xx 10 task: แบ่งหน้า (Q-05), วิธีค้นหา (Q-06), timeout (Q-08), จอมือถือ (Q-09), ขอบเขตเจ้าหน้าที่ (Q-P3), audit ของรายการ (Q-11, Q-P4),
+- 15 เฟสที่ใช้งาน (ฐานราก + 13 เฟสตาม AC + รอคำตอบ) รวม 38 task: เสร็จ 18, พร้อมทำ 9, รอ Q-xx 9, ยกเลิก 2 (T-15, T-25)
+- รอ Q-xx 9 task: แบ่งหน้า (Q-05), วิธีค้นหา (Q-06), จอมือถือ (Q-09), ขอบเขตเจ้าหน้าที่ (Q-P3), audit ของรายการ (Q-11, Q-P4),
   auth จริง (Q-SH-03), รีเฟรชเอง (Q-18), ชื่อผู้ยืม (Q-20), load test (Q-17)
 - เฟสแรกที่ลองใช้งานได้จริง: เฟส 1 (เห็นรายการรุ่นและรายชิ้นบนหน้าจอ)
 
@@ -382,7 +382,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v5) | Plan: plan.md Draft v1.7 | tasks v2.2: 2
   Given หยุด container ฐานข้อมูล (`docker compose -f deploy/docker-compose.yml stop db`)
   When เปิดหน้ารายการอุปกรณ์
   Then เห็นข้อความผิดพลาดพร้อมปุ่มลองใหม่ ไม่มีรายการเก่าค้าง
-- ยังขาด: timeout (Q-08)
+- ยังขาด: timeout (Q-08 ปิดแล้ว 2569-11-12 ทำใน T-26)
 
 ---
 
@@ -469,11 +469,14 @@ T-22 ย้ายไปเฟส 16 เพราะยังไม่รู้�
 ### T-26 ตั้ง timeout ของ query และ request
 - รองรับ: FR-EQS-08
 - ตรวจด้วย: AC-EQS-08
-- ไฟล์ที่แตะ: `backend/internal/config/config.go`, `frontend/src/config.js`, `frontend/src/api/client.js`
+- ไฟล์ที่แตะ: `backend/internal/config/config.go`, `frontend/src/config.js`, `frontend/src/api/client.js`,
+  `backend/internal/equipment/handler.go`, `backend/internal/equipment/handler_test.go`, `frontend/src/__tests__/AC-EQS-08.test.jsx`
+  (3 ไฟล์หลังทีมเพิ่ม 2569-11-12 ตอนทำ T-26: ต้องห่อ context ของ endpoint และต้องมีที่วาง test)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-20
-- เสร็จเมื่อ: `TestAC_EQS_08_SlowDBTimeout` ผ่าน ด้วยค่าที่ได้จากคำตอบ
-- สถานะ: รอ Q-08
+- เสร็จเมื่อ: `TestAC_EQS_08_SlowDBTimeout` ผ่าน (ฐานข้อมูลตอบช้ากว่า 5 วินาที -> 503 `UPSTREAM_UNAVAILABLE` พร้อม message)
+  และหน้าจอเลิกรอเมื่อหลังบ้านไม่ตอบภายใน 6 วินาที แสดงข้อผิดพลาดพร้อมปุ่มลองใหม่ ตัวเลขทั้งสองอยู่ใน config ตามกฎข้อ 9
+- สถานะ: เสร็จ
 
 ### T-27 ตรวจหน้าจอที่ความกว้างมือถือ
 - รองรับ: NFR-USE-01
@@ -607,7 +610,7 @@ NFR-USE-01 ต้องทดสอบกับผู้ใช้จริง 10
 | Q-04 ประเภทอุปกรณ์ตายตัวหรือเพิ่มได้ | ไม่มี (ใช้ข้อมูลตั้งต้น ตาม backlog) |
 | Q-05 แบ่งหน้ากี่รายการ | T-23 |
 | Q-06 วิธีจับคู่คำค้น | T-24 |
-| Q-08 timeout | T-26 |
+| Q-08 timeout [ปิดแล้ว 2569-11-12: หลังบ้าน 5 วินาที หน้าจอ 6 วินาที] | T-26 (พร้อมทำ) |
 | Q-09 ความกว้างจอมือถือ | T-27 |
 | Q-11 audit ของรายการ/ค้นหา | T-29 |
 | Q-17 1,000 รายการ / 50 คน วัดอย่างไร | T-22 |

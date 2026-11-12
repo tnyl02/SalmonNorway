@@ -14,6 +14,13 @@ import (
 // 003 ใช้ค่าเดียวกันแสดงเวลาที่ส่งคำขอ (FR-CXL-06)
 const TimeZone = "Asia/Bangkok"
 
+// ---- 001-equipment-status ----
+
+// EquipmentDBTimeout คือเวลารอฐานข้อมูลของทุก endpoint ของ 001 เกินนี้ถือว่าดึงข้อมูลไม่สำเร็จ ตอบ 503 UPSTREAM_UNAVAILABLE
+// (FR-EQS-08, AC-EQS-08, Q-08 ทีมตัดสิน 2569-11-12) ต้องน้อยกว่า EQUIPMENT_REQUEST_TIMEOUT_MS ใน frontend/src/config.js
+// เพื่อให้หน้าจอได้ 503 พร้อม message ก่อนหน้าจอเลิกรอเอง
+const EquipmentDBTimeout = 5 * time.Second
+
 // ---- 003-cancel-request (plan.md ข้อ 5 ของ 003, T-03) ----
 
 // CancellableStatuses คือสถานะของคำขอที่นักศึกษายังยกเลิกได้ (CON-CXL-02, FR-CXL-01, ASM-04)

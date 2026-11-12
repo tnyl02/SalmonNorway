@@ -3301,3 +3301,56 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
   - หน้าจอเรียงตาม queuePosition ซ้ำ แม้ 002 ส่งมาเรียงแล้ว
   - client ที่ไม่มี listItemRequests (client จำลองของ test เดิม) นับเป็นกรณี 002 ไม่ตอบ จึงไม่ต้องแก้ test เดิมตัวอื่น
 - ยังลองกับระบบจริงไม่ได้: endpoint ของ 002 (T-18 ของ 002) ยังไม่มีใน main ตอนนี้หน้าจะได้ 404 และไม่แสดงส่วนนี้
+
+---
+
+## 2569-11-12 ปิด Q-08 (timeout ของ FR-EQS-08 / AC-EQS-08)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status
+- เครื่องมือ: Claude Code
+- คำสั่ง: "003 และ 005: PR #14 ทำให้ 401 / 403 มี message ภาษาไทย และหน้าจอไปหน้าล็อกอินจำลองเมื่อได้ 401 (มีผลกับแท็บของ 003 ด้วย) test ของทุกฟีเจอร์ยังผ่าน มีผลยังไง"
+  -> AI วิเคราะห์ผลกระทบ ไม่แก้ไฟล์ สรุป: 003 ได้พฤติกรรมของ AC-CXL-07 จาก App แล้ว แต่ T-26 ของ 003 ยังไม่มี vitest
+  และ plan 003 ข้อ 129 เขียน returnTo เป็น path ส่วน 005 แสดง message ใหม่ในฟอร์ม แต่ไม่ไปหน้าล็อกอิน (handover.html แยกจาก App)
+  test ผ่านเพราะ test ของ 003 / 005 ใช้ client จำลอง และตรวจแค่ code
+- คำสั่ง: "ทำ T26 31 32 ไปแล้วใช่มั้ย ของ001" -> AI ตอบ: T-31, T-32 เสร็จ T-26 รอ Q-08
+- คำสั่ง: "คำถาม Q-08 ใน spec.md:166 ควรตอบว่าอะไร" -> AI เสนอ 5 วินาที (เท่ากับ CancelDBTimeout ของ 003, มากกว่า p95 3 วินาที
+  ของ NFR-PERF-01) และหน้าจอรอนานกว่าหลังบ้านเล็กน้อย (6 วินาที) ตัวเลือกอื่น 3 วินาที / 10 วินาที
+- คำตอบของทีม (Pannathorn J): "งั้นเอาที่แนะนำเลย" -> หลังบ้าน 5 วินาที หน้าจอ 6 วินาที
+- ไฟล์ที่แก้: `specs/001-equipment-status/spec.md` (v5.1 ปิด Q-08 + Clarifications), `plan.md` (v1.8 ข้อ 6.2),
+  `tasks.md` (v2.3 T-26 พร้อมทำ), `specs/CHANGELOG.md`, `specs/README.md` (เวอร์ชัน), `docs/srs/SRS.md` (ตาราง 4.3 แถว FR-EQS-08)
+- ไม่ได้แก้โค้ด ตัวเลขจะเข้า `config.go` / `config.js` ตอนทำ T-26
+- Q-08 เดิมให้ถามนักคอมพิวเตอร์ ทีมตัดสินเองแทน
+
+---
+
+## 2569-11-12 /implement T-26 ตั้ง timeout ของ query และ request (001)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ `frontend/src/api/client.js` ที่ 002, 003 ใช้ร่วม: เพิ่มตัวเลือก timeout ใน getJSON
+  ใช้เฉพาะฟังก์ชันของ 001 request ของ 002, 003 ทำงานเหมือนเดิม)
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement T-26`
+- คำถามที่ AI ถามก่อนทำ และคำตอบของทีม (Pannathorn J):
+  1. ช่อง "ไฟล์ที่แตะ" มีแค่ config.go, config.js, client.js ไม่พอทำ timeout ของฐานข้อมูลและไม่มีที่วาง test
+     -> เพิ่ม `backend/internal/equipment/handler.go`, `handler_test.go`, `frontend/src/__tests__/AC-EQS-08.test.jsx`
+  2. client.js ใช้ร่วมกับ 003 (ยกเลิกคำขอรอส่ง Email ยอมช้าถึง 15 วินาที NFR-PERF-CXL-01) timeout 6 วินาทีใช้กับ request ไหน
+     -> เฉพาะ request ของ 001 (listModels, listItems, getItem)
+  3. test ฐานข้อมูลช้าทำแบบไหน -> ล็อกตาราง equipment_item จริงใน testcontainers ใช้ 5 วินาทีจริงจาก config
+- ไฟล์ที่แก้:
+  - `backend/internal/config/config.go`: `EquipmentDBTimeout = 5 * time.Second` (FR-EQS-08, Q-08)
+  - `backend/internal/equipment/handler.go`: `withDBTimeout` ห่อ router ของ 001 ทุก endpoint ด้วย context.WithTimeout
+    เกินเวลา query คืน error แล้วตอบ 503 `UPSTREAM_UNAVAILABLE` ผ่านทางเดิม
+  - `backend/internal/equipment/handler_test.go`: `TestAC_EQS_08_SlowDBTimeout`
+  - `frontend/src/config.js`: `EQUIPMENT_REQUEST_TIMEOUT_MS = 6000` (FR-EQS-08, Q-08)
+  - `frontend/src/api/client.js`: getJSON รับ `{ timeoutMs }` ใช้ AbortController ส่งเฉพาะจาก listModels, listItems, getItem
+  - `frontend/src/__tests__/AC-EQS-08.test.jsx`: 2 test ใหม่ (หน้าจอเลิกรอเมื่อครบ 6 วินาที / request ของ 003 ไม่ถูกตัด)
+  - `specs/001-equipment-status/tasks.md`: ไฟล์ที่แตะและสถานะของ T-26
+- test: `TestAC_EQS_08_SlowDBTimeout` ผ่าน (รอครบ 5 วินาทีแล้วได้ 503 พร้อม message ไม่ส่งรายการ) `go vet ./...` ผ่าน
+  `go test ./...` ผ่านทุก package / vitest 29 ไฟล์ 61 test ผ่าน `vite build` ผ่าน
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้):
+  - หน้าจอเลิกรอแล้วแสดงข้อความเดิมของหน้าจอ "ดึงข้อมูลอุปกรณ์ไม่สำเร็จ" พร้อมปุ่มลองใหม่ (แบบเดียวกับต่อหลังบ้านไม่ได้)
+    ไม่สร้างข้อความหรือรหัสใหม่
+  - listItemRequests (endpoint ของ 002 ที่หน้ารายละเอียดของ 001 เรียก) ไม่ได้ใส่ timeout ตามคำตอบข้อ 2
+  - การเขียน audit ของหน้ารายละเอียดอยู่ใน context เดียวกัน จึงถูกจำกัด 5 วินาทีด้วย
+- คำเตือน act ใน `setup.test.jsx` มีอยู่ก่อน T-26 ไม่ได้แก้

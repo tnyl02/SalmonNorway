@@ -17,6 +17,7 @@ import (
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 
 	"salmonnorway/backend/internal/auth"
+	"salmonnorway/backend/internal/config"
 	"salmonnorway/backend/internal/platform"
 )
 
@@ -713,5 +714,53 @@ func TestAC_EQS_08_DBDown503(t *testing.T) {
 		if cc := rec.Header().Get("Cache-Control"); cc != "no-store" {
 			t.Errorf("%s error ต้องไม่ถูก cache (NFR-DATA-01) ได้ Cache-Control %q", path, cc)
 		}
+	}
+}
+
+// AC-EQS-08 (FR-EQS-08) ส่วนฐานข้อมูลตอบช้า (T-26, Q-08)
+//
+//	Given ฐานข้อมูลไม่ตอบสนอง (ต่อได้ แต่ query ค้างนานกว่า config.EquipmentDBTimeout)
+//	When  เปิดหน้ารายการอุปกรณ์
+//	Then  ได้ 503 UPSTREAM_UNAVAILABLE พร้อม message เมื่อครบ config.EquipmentDBTimeout ไม่ค้างไปเรื่อย ๆ และไม่ส่งข้อมูลใด ๆ
+//
+// ใช้เวลาจริงตาม config (ทีมตัดสิน 2569-11-12 ตอนทำ T-26) test นี้จึงใช้เวลาราว 5 วินาที
+func TestAC_EQS_08_SlowDBTimeout(t *testing.T) {
+	pool := testPool(t)
+	srv := newTestServer(t)
+
+	// Given: transaction อื่นล็อกตาราง equipment_item ไว้ query ของหน้ารายการต้องรอ (จำลองฐานข้อมูลค้าง)
+	ctx := context.Background()
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := tx.Exec(ctx, "LOCK TABLE equipment_item IN ACCESS EXCLUSIVE MODE"); err != nil {
+		t.Fatal(err)
+	}
+
+	// When: เปิดหน้ารายการอุปกรณ์
+	start := time.Now()
+	rec := get(t, srv, PathPrefix+"models", tokenStudentDept1)
+	elapsed := time.Since(start)
+
+	// Then: 503 UPSTREAM_UNAVAILABLE พร้อม message ตาม CON-TECH-03 ไม่มีรายการ
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d ต้องเป็น 503", rec.Code)
+	}
+	raw := rec.Body.String()
+	e := decode[map[string]string](t, rec)
+	if e["code"] != "UPSTREAM_UNAVAILABLE" || e["message"] == "" || len(e) != 2 {
+		t.Errorf("body ต้องเป็น {code: UPSTREAM_UNAVAILABLE, message} ได้ %s", raw)
+	}
+	if strings.Contains(raw, "items") {
+		t.Errorf("ส่งข้อมูลกลับไป: %s", raw)
+	}
+	// รอครบเวลาที่ตั้งก่อนตัด (ไม่ตัด query ที่ช้ากว่า p95 แต่ยังอยู่ในเวลา) และไม่ค้างนานเกิน
+	if elapsed < config.EquipmentDBTimeout {
+		t.Errorf("ตอบหลัง %v เร็วกว่า EquipmentDBTimeout %v", elapsed, config.EquipmentDBTimeout)
+	}
+	if elapsed > config.EquipmentDBTimeout+2*time.Second {
+		t.Errorf("ตอบหลัง %v ค้างนานเกิน EquipmentDBTimeout %v", elapsed, config.EquipmentDBTimeout)
 	}
 }
