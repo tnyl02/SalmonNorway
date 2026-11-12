@@ -5486,3 +5486,18 @@ main
   - Q-SH-03 (T-29) เทอมนี้เชื่อม Auth API จริงไหม -> "ไม่เชื่อม ใช้ตัวจำลอง"
 - แก้ spec.md เป็น Draft v2.8: Scope ส่วนค้างคืน ปิด Q-HND-04, Q-HND-07 และเพิ่มคำตอบใน Clarifications ไม่แก้ Q-SH-03 ในไฟล์ร่วม (เป็นของกลาง บันทึกเฉพาะผลต่อ 005)
 - tasks.md: T-29 ยกเลิกเทอมนี้, T-31 ยกเลิก, T-30 พร้อมทำ / plan.md: แถว DOM-LOAN-01 ในตารางตรวจ Constraints
+
+---
+
+## 2569-11-12 /implement T-30 ส่งมอบยืมแบบค้างคืน
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ทำ task ต่อไปได้เลย หากส่วนไหนไม่รู้ให้ถาม" (Q-HND-07 ปิดแล้วใน spec v2.8: ทำเทอมนี้ กำหนดคืน 16:00 ของ end_at)
+- ไฟล์ที่แก้:
+  - `backend/internal/config/config.go` เพิ่ม LoanOvernightReturnHour = LoanNormalReturnHour ในบล็อกของ 005 (Q-SH-04 ไม่ประกาศเลข 16 ซ้ำ)
+  - `backend/internal/handover/service.go` dueAt อ่าน loan_type และ end_at ของคำขอ ค้างคืนใช้ overnightDueAt (16:00 ของวันสิ้นสุดตาม Asia/Bangkok) ปกติใช้ normalDueAt เดิม
+  - `backend/internal/handover/handler_test.go` (ไม่อยู่ในช่องไฟล์ที่แตะ ต้องมี test ยืนยัน "เสร็จเมื่อ") TestHandover_OvernightDueAt
+- ผล test (container golang:1.25): TestHandover_OvernightDueAt ผ่าน TestAC_HND_05, TestAC_HND_11, TestAC_HND_01 ยังผ่าน `go test ./...` ผ่านทุก package go vet และ gofmt ผ่าน
+- ข้อสังเกตให้ทีม: spec ไม่มี AC ของการยืมค้างคืน (test ตั้งชื่อตาม task ไม่ใช่ AC ID) ควรเสนอเพิ่ม AC / ส่งมอบหลังวันสิ้นสุดการยืม กำหนดคืนจะอยู่ในอดีต spec ไม่ได้บอกว่าต้องทำอย่างไร AI ไม่ได้เพิ่มการตรวจ

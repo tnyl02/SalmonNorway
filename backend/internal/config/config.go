@@ -270,6 +270,10 @@ func getenv(key, fallback string) string {
 // แล้วใช้ผลการตรวจบัตรแทน (FR-HND-02, ASM-HND-02, IF-IDP-01)
 const BorrowerAuthTimeout = 10 * time.Second
 
+// LoanOvernightReturnHour คือชั่วโมงที่ต้องคืนของการยืมแบบค้างคืน = 16:00 ของวันสิ้นสุดการยืมที่ผู้ขอระบุ
+// (FR-HND-05, Q-SH-04, Q-HND-07 ปิด 2569-11-12, T-30) เป็นค่าเดียวกับ DOM-LOAN-01 จึงอ้าง LoanNormalReturnHour ของ 002 ไม่ประกาศเลขซ้ำ
+const LoanOvernightReturnHour = LoanNormalReturnHour
+
 // HandoverMinPhotos คือจำนวนรูปสภาพอุปกรณ์ขั้นต่ำที่ต้องแนบตอนส่งมอบ (FR-HND-06, ASM-HND-07)
 const HandoverMinPhotos = 2
 

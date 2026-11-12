@@ -758,6 +758,38 @@ func TestAC_HND_11_HandoverAfter1600(t *testing.T) {
 	}
 }
 
+// T-30 เสร็จเมื่อ: ส่งมอบคำขอค้างคืนได้ loan_type = overnight และ due_at = 16:00 ของวันสิ้นสุดการยืม (FR-HND-05, Q-SH-04, Q-HND-07)
+// spec ยังไม่มี AC ของค้างคืน (tasks.md T-30) และ 004 ยังไม่ทำ UC-14 จึงตั้งคำขอค้างคืน approved เอง
+// end_at 2569-11-14 01:00 Asia/Bangkok = 2569-11-13 ใน UTC ใช้ตรวจว่าวันที่นับตาม Asia/Bangkok
+func TestHandover_OvernightDueAt(t *testing.T) {
+	pool := testPool(t)
+	itemID := createItem(t, pool, "T30-ON-0001", "available")
+	endAt := bangkok(t, 2026, time.November, 14, 1, 0)
+	var requestID int
+	if err := pool.QueryRow(context.Background(),
+		`INSERT INTO borrow_request (requester_id, requester_name, student_code, item_id, loan_type, purpose, start_at, end_at, status)
+		 VALUES ('student-001', 'ผู้ขอทดสอบ', 'student-001', $1, 'overnight', 'study', now(), $2, 'approved') RETURNING id`,
+		itemID, endAt).Scan(&requestID); err != nil {
+		t.Fatalf("เพิ่มคำขอค้างคืนไม่สำเร็จ: %v", err)
+	}
+
+	rec := postHandover(t, routesAt(pool, bangkok(t, 2026, time.November, 12, 10, 0)), tokenStaff, requestID, validForm(tokenStudentA), twoJPEGs())
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("HTTP %d: %s", rec.Code, rec.Body.String())
+	}
+	var loanType string
+	var dueAt time.Time
+	if err := pool.QueryRow(context.Background(),
+		`SELECT l.loan_type, l.due_at FROM handover h JOIN loan l ON l.id = h.loan_id WHERE h.request_id = $1`,
+		requestID).Scan(&loanType, &dueAt); err != nil {
+		t.Fatal(err)
+	}
+	want := bangkok(t, 2026, time.November, 14, 16, 0)
+	if loanType != "overnight" || !dueAt.Equal(want) {
+		t.Errorf("loan_type = %q กำหนดคืน = %v ต้องเป็น overnight และ %v", loanType, dueAt.In(want.Location()), want)
+	}
+}
+
 // auditRow คือแถว audit_log ของการส่งมอบ 1 แถว (DM-07)
 type auditRow struct {
 	actorID, actorRole, assetCode, outcome string

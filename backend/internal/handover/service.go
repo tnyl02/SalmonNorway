@@ -135,6 +135,10 @@ func (s *Service) handover(ctx context.Context, in HandoverInput) (HandoverOutpu
 	}
 
 	now := s.now() // FR-HND-05 เวลาส่งมอบจริง
+	dueAt, err := s.dueAt(ctx, in.RequestID, now)
+	if err != nil {
+		return HandoverOutput{}, err
+	}
 	rec := HandoverRecord{
 		RequestID:         in.RequestID,
 		BorrowerUserID:    borrowerID,
@@ -145,7 +149,7 @@ func (s *Service) handover(ctx context.Context, in HandoverInput) (HandoverOutpu
 		CardChecked:       in.CardChecked,
 		HandedOverBy:      in.StaffID,
 		HandedOverAt:      now,
-		DueAt:             normalDueAt(now),
+		DueAt:             dueAt,
 	}
 	res, err := s.repo.CreateHandover(ctx, rec, config.HandoverReadyStatuses(), photoSaver{store: s.photos, photos: photos})
 	if err != nil {
@@ -175,6 +179,36 @@ func (s *Service) identifyBorrower(ctx context.Context, in HandoverInput) (userI
 		return "", "", ErrRequestNotFound
 	}
 	return requesterID, identityCardOnly, nil
+}
+
+// dueAt คือกำหนดคืนตามประเภทการยืมของคำขอ (FR-HND-05, DOM-LOAN-01, Q-SH-04)
+// ยืมปกติ = normalDueAt / ยืมค้างคืน = overnightDueAt จากวันสิ้นสุดการยืมใน borrow_request.end_at (CR-003, T-30)
+func (s *Service) dueAt(ctx context.Context, requestID int, handedOverAt time.Time) (time.Time, error) {
+	var loanType string
+	var endAt time.Time
+	err := s.requesters.QueryRow(ctx,
+		`SELECT loan_type, end_at FROM borrow_request WHERE id = $1`, requestID).Scan(&loanType, &endAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return time.Time{}, ErrRequestNotFound
+	}
+	if err != nil {
+		return time.Time{}, err
+	}
+	if loanType == config.LoanTypeOvernight {
+		return overnightDueAt(endAt), nil
+	}
+	return normalDueAt(handedOverAt), nil
+}
+
+// overnightDueAt คือกำหนดคืนของการยืมแบบค้างคืน = LoanOvernightReturnHour:00 ของวันสิ้นสุดการยืมตามเขตเวลา TimeZone
+// (FR-HND-05, Q-SH-04, Q-HND-07 ปิด 2569-11-12, T-30) วันที่นับตาม Asia/Bangkok ไม่ใช่ UTC
+func overnightDueAt(endAt time.Time) time.Time {
+	loc, err := time.LoadLocation(config.TimeZone)
+	if err != nil {
+		loc = time.UTC
+	}
+	t := endAt.In(loc)
+	return time.Date(t.Year(), t.Month(), t.Day(), config.LoanOvernightReturnHour, 0, 0, 0, loc)
 }
 
 // normalDueAt คือกำหนดคืนของการยืมแบบปกติ = LoanNormalReturnHour:00 (ค่าของ 002 ใน config.go) ของวันที่ส่งมอบตามเขตเวลา TimeZone (FR-HND-05, DOM-LOAN-01)
