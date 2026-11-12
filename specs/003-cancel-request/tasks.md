@@ -559,6 +559,20 @@ Spec: SPEC-CXL-003 (spec.md Draft v3.2) | Plan: plan.md Draft v1.1 | สร้�
 
 ---
 
+## เฟส 18: รูปแบบ error ตาม CON-TECH-03 (CR-006)
+
+### T-33 เปลี่ยนรูปแบบ error เป็น {code, message} และใช้รหัสจากรายการกลาง
+- รองรับ: CON-TECH-03, FR-CXL-02, FR-CXL-03, FR-CXL-08, CR-006
+- ตรวจด้วย: AC-CXL-02, AC-CXL-03, AC-CXL-11, AC-CXL-13, AC-CXL-14, TC-CXL-08-6, 14-4, 14-5, 14-6 (แก้ตาม CR-006)
+- ไฟล์ที่แตะ: `backend/internal/cancelrequest/errors.go` (ใหม่ รหัสและข้อความ), `backend/internal/cancelrequest/dto.go`, `backend/internal/cancelrequest/handler.go`, `backend/internal/cancelrequest/service.go` (สถานะของคำขอใน error 409), test ใน `backend/internal/cancelrequest/` ที่ตรวจรหัสเดิม (รวม tc_ac_cxl_08_test.go, tc_ac_cxl_14_test.go ตาม test-cases.md ที่แก้แล้ว)
+- แบบหน้าจอ: ไม่มี (หน้าจอตัดสินจาก code อยู่แล้ว รหัส 404 / 409 ไม่เปลี่ยน)
+- ต้องทำหลัง: T-09, T-15, T-17, T-19, T-23
+- เสร็จเมื่อ: ทุก error ของ 003 เป็น `{code, message}` (ไม่มี retryable) เจ้าหน้าที่ได้ 403 `FORBIDDEN_ROLE`, เหตุผลผิดได้ 422 `VALIDATION_FAILED` fields reason,
+  409 แนบ `status` ของคำขอ และ test ทั้งหมดของ 003 ผ่าน
+- สถานะ: เสร็จ
+
+---
+
 ## ตารางตรวจความครบ
 
 ### 1. AC -> task

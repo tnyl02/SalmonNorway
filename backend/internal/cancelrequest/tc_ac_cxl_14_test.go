@@ -65,10 +65,10 @@ func TestTC_CXL_14_4_Reason201Rejected(t *testing.T) {
 	// When A ยกเลิกพร้อมเหตุผลนั้น
 	rec := tcCancel(t, srv, id, strings.Repeat("a", 201), tcTokenA)
 
-	// Then (1) ได้ 400 REASON_TOO_LONG
-	tcWantStatus(t, rec, http.StatusBadRequest)
-	if code := tcDecode[tcErrorBody](t, rec).Code; code != "REASON_TOO_LONG" {
-		t.Errorf("code = %q ต้องเป็น REASON_TOO_LONG", code)
+	// Then (1) ได้ 422 VALIDATION_FAILED แนบ fields reason (แก้ตาม CR-006)
+	tcWantStatus(t, rec, http.StatusUnprocessableEntity)
+	if b := tcDecode[tcErrorBody](t, rec); b.Code != "VALIDATION_FAILED" || len(b.Fields) != 1 || b.Fields[0] != "reason" {
+		t.Errorf("body = %+v ต้องเป็น VALIDATION_FAILED fields [reason]", b)
 	}
 	// Then (2) สถานะยังเป็น requested
 	if s := tcRow(t, id).Status; s != "requested" {
@@ -89,10 +89,10 @@ func TestTC_CXL_14_5_ThaiCharacterCounting(t *testing.T) {
 	// When A ยกเลิกพร้อมเหตุผลนั้น
 	rec := tcCancel(t, srv, id, reason, tcTokenA)
 
-	// Then (1) ได้ 400 REASON_TOO_LONG เพราะนับตาม code point ได้ 201
-	tcWantStatus(t, rec, http.StatusBadRequest)
-	if code := tcDecode[tcErrorBody](t, rec).Code; code != "REASON_TOO_LONG" {
-		t.Errorf("code = %q ต้องเป็น REASON_TOO_LONG", code)
+	// Then (1) ได้ 422 VALIDATION_FAILED เพราะนับตาม code point ได้ 201 (แก้ตาม CR-006)
+	tcWantStatus(t, rec, http.StatusUnprocessableEntity)
+	if code := tcDecode[tcErrorBody](t, rec).Code; code != "VALIDATION_FAILED" {
+		t.Errorf("code = %q ต้องเป็น VALIDATION_FAILED", code)
 	}
 	// Then (2) สถานะยังเป็น requested
 	if s := tcRow(t, id).Status; s != "requested" {
@@ -111,10 +111,10 @@ func TestTC_CXL_14_6_EmptyReasonRejected(t *testing.T) {
 		// When ยกเลิกด้วย reason "" แล้วยกเลิกด้วย reason "   " (ช่องว่างล้วน)
 		rec := tcCancel(t, srv, id, reason, tcTokenA)
 
-		// Then (1) ได้ 400 REASON_REQUIRED ทั้ง 2 ครั้ง
-		tcWantStatus(t, rec, http.StatusBadRequest)
-		if code := tcDecode[tcErrorBody](t, rec).Code; code != "REASON_REQUIRED" {
-			t.Errorf("reason %q: code = %q ต้องเป็น REASON_REQUIRED", reason, code)
+		// Then (1) ได้ 422 VALIDATION_FAILED ทั้ง 2 ครั้ง (แก้ตาม CR-006)
+		tcWantStatus(t, rec, http.StatusUnprocessableEntity)
+		if code := tcDecode[tcErrorBody](t, rec).Code; code != "VALIDATION_FAILED" {
+			t.Errorf("reason %q: code = %q ต้องเป็น VALIDATION_FAILED", reason, code)
 		}
 	}
 	// Then (2) สถานะยังเป็น requested และ cancel_reason ว่าง

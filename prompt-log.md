@@ -3111,3 +3111,57 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
   - tasks v2.2: เฟส 15 ใหม่ T-38 (หน้าจอเท่านั้น หลังบ้านเป็นของ 002), เฟสรอคำตอบเลื่อนเป็น 16, ตาราง AC / Constraint / FR
 - สิ่งที่ AI ไม่ได้ทำ: ไม่แก้โค้ด ไม่ commit ไม่ได้แก้บรรทัด " 003-cancel-request" ที่เหลือค้างใน CHANGELOG (มาจาก commit ของ 003)
 - เรื่องที่ spec ยังไม่บอก (เสนอทีม): ไม่มีคำขอค้าง หรือ 002 ไม่ตอบ หน้าจอแสดงข้อความอะไร (ตอนนี้ไม่แสดงส่วนนี้)
+
+---
+
+## 2569-11-12 /verify specs/003-cancel-request/ (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- ฟีเจอร์: 003-cancel-request
+- เครื่องมือ: Claude Code (คำสั่ง /verify ไม่ได้ติดตั้งใน session AI อ่าน .claude/commands/verify.md แล้วทำตามเอง แก้เฉพาะ rtm.md และ prompt-log.md)
+- ผล test: go test -p 1 ./... ผ่าน 114 (ของ 003 47) ไม่ผ่าน 0, npm test ผ่าน 47 (ของ 003 23) ไม่ผ่าน 0, k6 AC-CXL-17 ผ่าน (รันด้วยมือ)
+- ตารางไปข้างหน้า 22 แถว: ครบ 12, ยังไม่ถึง 3 (FR-CXL-05, FR-CXL-09 ส่วน audit และมี F-04 ด้วย, IF-IDP-01), รอ Q-xx 0,
+  ช่องโหว่ 7 (FR-CXL-03, FR-CXL-10, NFR-SEC-01, NFR-AVAIL-01, NFR-PERF-CXL-01, CON-TECH-02, CON-TECH-03)
+- ข้อค้นพบใหม่: F-01 (CON-TECH-03 รูปแบบและรหัส error), F-02 (ไม่มี test เจ้าหน้าที่ POST cancel ได้ 403), F-03 (ไม่มี HTTPS),
+  F-04 (ส่ง Email แบบรอผลไม่มีเวลาจำกัด), F-05 (ตัวเลขฝังใน k6 script), F-06 (body อ่านไม่ได้ / id ไม่ใช่ตัวเลข AI เลือกเอง),
+  F-07 (FR-CXL-10 ไม่มี AC), F-08 (NFR-AVAIL-01 และ TLS ไม่มี AC)
+- หมายเหตุเอกสาร: Q-SH-05 ใน spec/plan ยังเป็นรอคำตอบ (001 ปิดแล้ว), Status ของ spec ยังเป็น v3.7
+
+---
+
+## 2569-11-12 แก้ข้อค้นพบ F-02 ของ rtm.md (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: F-02 เพิ่ม TestFR_CXL_03_StaffCancelForbidden ใน handler_test.go เจ้าหน้าที่ POST cancel ต้องได้ 403 STUDENT_ONLY และสถานะคำขอไม่เปลี่ยน ไม่ต้องแก้โค้ด
+- ไฟล์ที่แก้: backend/internal/cancelrequest/handler_test.go (เพิ่ม test), specs/003-cancel-request/rtm.md (ช่องทีมตัดสินของ F-02 และหัวข้อแก้แล้ว)
+- ผล test: test ใหม่ผ่าน package cancelrequest ผ่านทั้งหมด
+- ยืนยันว่า test จับปัญหาได้: ปิดบรรทัดตรวจบทบาทใน service.go: Cancel ชั่วคราว test ไม่ผ่าน (404 แทน 403) แล้ว git checkout คืนไฟล์ ไม่มีการแก้โค้ดค้าง
+
+
+---
+
+## 2569-11-12 แก้ข้อค้นพบ F-01 (และ F-06) ของ rtm.md ด้วย CR-006 (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- สิ่งที่สั่ง: แก้ F-01 ให้ 003 ใช้รูปแบบ error ตาม CON-TECH-03 ถามผลกระทบกับเพื่อนก่อนแก้ แล้วถามเจ้าของ CR-004 (ธัญลักษณ์ 002)
+- คำตอบของเจ้าของ CR-004: ใช้ VALIDATION_FAILED 422, ลงทะเบียน REQUEST_NOT_FOUND แถวเดียวร่วมกับ 004, FORBIDDEN_ROLE มีแล้ว, แนะนำแนบ status, ตัด retryable
+- เจ้าของ 003 ตัดสิน: แยก ALREADY_APPROVED กับ NOT_CANCELLABLE, แนบ status ใน 409, ข้อความ VALIDATION_FAILED ข้อความเดียว "กรุณาระบุเหตุผลการยกเลิกไม่เกิน 200 ตัวอักษร",
+  REQUEST_NOT_FOUND ข้อความ "ไม่พบคำขอ", อนุมัติแก้ 4 แถวใน test-cases.md (TC-CXL-08-6, 14-4, 14-5, 14-6)
+- ไฟล์ที่แก้ (เอกสาร): specs/changes/CR-006.md (ใหม่), specs/000-shared/constraints.md (v5.2 ของกลาง แก้เพราะ 003), specs/003-cancel-request/spec.md (Draft v3.8),
+  plan.md ข้อ 4, test-cases.md 4 แถว, tasks.md (T-33), rtm.md (F-01, F-06), specs/CHANGELOG.md
+- ไฟล์ที่แก้ (โค้ด): backend/internal/cancelrequest/errors.go (ใหม่), dto.go, handler.go, service.go, handler_test.go, notifier_test.go, tc_helpers_test.go,
+  tc_ac_cxl_08_test.go, tc_ac_cxl_14_test.go (TestTC_ แก้ตาม test-cases.md ที่เจ้าของอนุมัติ ไม่ได้แก้ให้ผ่าน)
+- สิ่งที่ AI เลือกเอง: ข้อความของ FORBIDDEN_ROLE, ALREADY_APPROVED, UPSTREAM_UNAVAILABLE, UNAUTHENTICATED (ไม่ได้มาจาก spec), ใช้ StatusError ห่อ error เพื่อแนบสถานะ
+- ผล test: go test -p 1 ./... ผ่านทุก package (ของ 003 48) npm test ผ่าน 47 หน้าจอไม่ต้องแก้
+- ยังต้องทำ: แจ้งเจ้าของ 004 ว่า REQUEST_NOT_FOUND ลงทะเบียนแถวร่วมแล้ว และ 003 ใช้ข้อความ "ไม่พบคำขอ", T-33 รอเจ้าของตรวจ
+
+---
+
+## 2569-11-12 ตรวจ T-33 (CR-006 รูปแบบ error) (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- เจ้าของตรวจ: รัน go test และเปิดหน้าเว็บ ตรวจ response ใน Network (409 แนบ status มี message ไม่มี retryable, 403 FORBIDDEN_ROLE ของเจ้าหน้าที่) แจ้งว่า "ผ่าน"
+- เปลี่ยนสถานะ T-33 ใน tasks.md เป็น เสร็จ

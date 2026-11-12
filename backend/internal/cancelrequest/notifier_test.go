@@ -83,7 +83,7 @@ func TestNotify_NotSentWhenNotCancelled(t *testing.T) {
 	id := tcInsert(t, tcUserA, tcItemAvailable, "normal", "approved", time.Now())
 
 	tcWantStatus(t, tcCancel(t, srv, id, "ไม่ต้องใช้อุปกรณ์แล้ว", tcTokenA), http.StatusConflict)
-	tcWantStatus(t, tcCancel(t, srv, id, "   ", tcTokenA), http.StatusBadRequest)
+	tcWantStatus(t, tcCancel(t, srv, id, "   ", tcTokenA), http.StatusUnprocessableEntity)
 
 	if len(fake.sent) != 0 {
 		t.Errorf("ยกเลิกไม่สำเร็จต้องไม่ส่ง Email ได้ %d ข้อความ", len(fake.sent))
@@ -140,7 +140,6 @@ func TestNotify_ReportsFailure(t *testing.T) {
 		t.Errorf("ส่งสำเร็จต้องได้ nil ได้ %v", err)
 	}
 }
-
 
 // AC-CXL-16 (FR-CXL-09) T-28 ส่วนที่ไม่เกี่ยวกับ audit (ส่วนบันทึก audit_log notify error อยู่ใน T-32)
 //

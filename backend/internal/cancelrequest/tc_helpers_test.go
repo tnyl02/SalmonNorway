@@ -216,7 +216,10 @@ type tcCancelBody struct {
 }
 
 type tcErrorBody struct {
-	Code string `json:"code"`
+	Code    string   `json:"code"`
+	Message string   `json:"message"`
+	Fields  []string `json:"fields"`
+	Status  string   `json:"status"`
 }
 
 func tcDecode[T any](t *testing.T, rec *httptest.ResponseRecorder) T {

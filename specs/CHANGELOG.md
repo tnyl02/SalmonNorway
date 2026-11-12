@@ -3,6 +3,18 @@
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
  003-cancel-request
+## [SPEC-CXL-003 Draft v3.8 + constraints v5.2 + plan + test-cases + tasks T-33] - 2569-11-12
+ตาม CR-006 (แก้ไขต่อจาก CR-004) ข้อค้นพบ F-01 ของ /verify
+
+### Changed
+- spec 003: เพิ่ม CON-TECH-03 ในรายการใช้ร่วม, ASM-10 รายละเอียด Email ที่ทีมตัดสินตอนทำ T-27 (บันทึกแล้วแต่ยังไม่ได้ขึ้นเวอร์ชัน), Q-SH-05 ปิดแล้วโดย CR-005
+- constraints.md v5.2: ลงทะเบียน REQUEST_NOT_FOUND (003, 004), ALREADY_APPROVED, NOT_CANCELLABLE และเติม 003 ใน UNAUTHENTICATED, UPSTREAM_UNAVAILABLE, VALIDATION_FAILED, FORBIDDEN_ROLE
+- plan 003 ข้อ 4: ตาราง error เป็น {code, message} STUDENT_ONLY -> FORBIDDEN_ROLE, REASON_* -> 422 VALIDATION_FAILED, 409 แนบ status, ตัด retryable
+- test-cases 003: TC-CXL-08-6, 14-4, 14-5, 14-6 เปลี่ยนรหัสและ HTTP ที่ตรวจ (เจ้าของ 003 อนุมัติ)
+
+### Added
+- specs/changes/CR-006.md, tasks.md T-33 (เฟส 18)
+
 ## [SPEC-EQS-001 Draft v5 + plan v1.7 + tasks v2.2] - 2569-11-12
 CR-005 ตัดสินแล้ว (รับทั้งหมด 2569-11-12) ดู [CR-005](changes/CR-005.md)
 

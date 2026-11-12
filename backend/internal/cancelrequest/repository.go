@@ -132,4 +132,3 @@ func (r *Repository) CancelledNotice(ctx context.Context, tx pgx.Tx, requestID i
 	}
 	return n, rows.Err()
 }
-

@@ -85,25 +85,24 @@ staff_contact(department_id INT REFERENCES department(id), email TEXT NOT NULL)
 
 | Method / path | รองรับ | input / output หลัก |
 |---|---|---|
-| `GET /api/v1/my/pending-requests` | FR-CXL-06, FR-CXL-03 | out: `{items:[{requestId, modelName, assetCode, submittedAt}]}` เฉพาะ `requester_id = UserID` และสถานะที่ยกเลิกได้ เรียง `submitted_at DESC, id DESC` (ASM-13) ไม่มีรายการ = `items: []` เจ้าหน้าที่ -> 403 `STUDENT_ONLY` (ASM-13) |
+| `GET /api/v1/my/pending-requests` | FR-CXL-06, FR-CXL-03 | out: `{items:[{requestId, modelName, assetCode, submittedAt}]}` เฉพาะ `requester_id = UserID` และสถานะที่ยกเลิกได้ เรียง `submitted_at DESC, id DESC` (ASM-13) ไม่มีรายการ = `items: []` เจ้าหน้าที่ -> 403 `FORBIDDEN_ROLE` (ASM-13, CR-006) |
 | `POST /api/v1/borrow-requests/{id}/cancel` | FR-CXL-01..05, 08, 09 | in: `{reason}` / out 200: `{requestId, status:"cancelled"}` |
 
-ตาราง error ของ `POST .../cancel`
+ตาราง error ของ `POST .../cancel` (รูปแบบ `{code, message}` ตาม CON-TECH-03 แก้ตาม CR-006 2569-11-12 message ของแต่ละรหัสอยู่ใน CR-006)
 
 | กรณี | HTTP | body | อ้างอิง |
 |---|---|---|---|
-| เหตุผลว่างหรือมีแต่ช่องว่าง | 400 | `{code:"REASON_REQUIRED"}` | FR-CXL-08, AC-CXL-14 |
-| เหตุผลเกิน 200 ตัวอักษร | 400 | `{code:"REASON_TOO_LONG"}` | FR-CXL-08, AC-CXL-14 |
-| ไม่มีคำขอนี้ หรือเป็นคำขอของผู้อื่น | 404 | `{code:"REQUEST_NOT_FOUND"}` หน้าจอแสดง "ไม่พบคำขอ" | FR-CXL-03, AC-CXL-03 |
-| คำขอเป็น `approved` | 409 | `{code:"ALREADY_APPROVED"}` หน้าจอแจ้งว่าได้รับการอนุมัติแล้ว | FR-CXL-02, FR-CXL-04, AC-CXL-02, 04 |
-| `rejected`, `handed_over`, `returned`, `cancelled` | 409 | `{code:"NOT_CANCELLABLE"}` หน้าจอแสดง "คำขอนี้ยกเลิกไม่ได้" | FR-CXL-02, AC-CXL-11 |
+| เหตุผลว่าง มีแต่ช่องว่าง หรือเกิน 200 ตัวอักษร หรือ body อ่านไม่ได้ | 422 | `{code:"VALIDATION_FAILED", message, fields:["reason"]}` | FR-CXL-08, AC-CXL-14, CR-006 |
+| ไม่มีคำขอนี้ หรือเป็นคำขอของผู้อื่น | 404 | `{code:"REQUEST_NOT_FOUND", message}` หน้าจอแสดง "ไม่พบคำขอ" | FR-CXL-03, AC-CXL-03 |
+| คำขอเป็น `approved` | 409 | `{code:"ALREADY_APPROVED", message, status:"approved"}` หน้าจอแจ้งว่าได้รับการอนุมัติแล้ว | FR-CXL-02, FR-CXL-04, AC-CXL-02, 04 |
+| `rejected`, `handed_over`, `returned`, `cancelled` | 409 | `{code:"NOT_CANCELLABLE", message, status}` หน้าจอแสดง "คำขอนี้ยกเลิกไม่ได้" | FR-CXL-02, AC-CXL-11 |
 | session หมดอายุ / ไม่มี token | 401 | `{code:"UNAUTHENTICATED"}` (จาก middleware กลาง) | AC-CXL-07 |
-| ผู้ใช้บทบาทเจ้าหน้าที่ | 403 | `{code:"STUDENT_ONLY"}` ใช้ทั้ง GET และ POST | FR-CXL-03, ASM-13 |
-| ฐานข้อมูลไม่ตอบสนอง | 503 | `{code:"UPSTREAM_UNAVAILABLE", retryable:true}` | FR-CXL-01, ASM-06, AC-CXL-13 |
+| ผู้ใช้บทบาทเจ้าหน้าที่ | 403 | `{code:"FORBIDDEN_ROLE", message}` ใช้ทั้ง GET และ POST | FR-CXL-03, ASM-13 |
+| ฐานข้อมูลไม่ตอบสนอง | 503 | `{code:"UPSTREAM_UNAVAILABLE", message}` (ตัด retryable ตาม CR-006 503 ลองใหม่ได้เสมอ) | FR-CXL-01, ASM-06, AC-CXL-13 |
 | Email ส่งไม่สำเร็จ | 200 | ยกเลิกสำเร็จตามปกติ | FR-CXL-09, AC-CXL-16 |
 
 ### ลำดับการทำงานของการยกเลิก (FR-CXL-04, FR-CXL-05, FR-CXL-09)
-1. ตรวจเหตุผล (trim แล้วไม่ว่าง และไม่เกิน `CancelReasonMaxLen`) ไม่ผ่าน -> 400 (ยังไม่แตะฐานข้อมูล)
+1. ตรวจเหตุผล (trim แล้วไม่ว่าง และไม่เกิน `CancelReasonMaxLen`) ไม่ผ่าน -> 422 VALIDATION_FAILED (ยังไม่แตะฐานข้อมูล)
 2. เปิด transaction แล้วรัน
    `UPDATE borrow_request SET status='cancelled', cancel_reason=$reason, cancelled_at=now() WHERE id=$id AND requester_id=$uid AND status = ANY($cancellable) RETURNING ...`
    - ได้ 1 แถว = ยกเลิกสำเร็จ (ฐานข้อมูลตัดสินจากสถานะ ณ เวลาที่บันทึก ถ้า 004 อนุมัติไปก่อน คำสั่งนี้จะไม่เจอแถว)
@@ -209,7 +208,7 @@ frontend: vitest ใน `frontend/src/pages/MyPendingRequests/__tests__/` ใช
 - **Q-16** (จาก FR-CXL-10 ตอบเมื่อนำเข้า scope) เจ้าหน้าที่ยกเลิกจากหน้าไหน ต้องระบุเหตุผลไหม ต้องแจ้งนักศึกษาไหม และยกเลิกได้เฉพาะคำขอของภาควิชาตนเองใช่ไหม? -> ถามเจ้าหน้าที่
   ส่วนที่เกี่ยวข้องกับข้อนี้จะยังไม่สร้างจนกว่าจะได้คำตอบ: FR-CXL-10 ทั้งหมด (ไม่ทำใน prototype)
 - **Q-SH-03** auth service ใช้โปรโตคอลอะไร และส่ง role + ภาควิชามาในรูปแบบใด -> ใช้ auth จำลองของกลางไปก่อน ไม่เขียน Provider ตัวจริง
-- **Q-SH-05** ลำดับและเวลาของคำขอที่มาก่อน แสดงให้ใครเห็น -> หน้า "คำขอที่รออนุมัติของฉัน" ไม่แสดงลำดับคิวจนกว่าจะได้คำตอบ
+- ~~Q-SH-05~~ ปิดแล้วโดย CR-005 ของ 001 (เจ้าหน้าที่เห็นลำดับคำขอ นักศึกษาไม่เห็น) ลำดับและเวลาของคำขอที่มาก่อน แสดงให้ใครเห็น -> หน้า "คำขอที่รออนุมัติของฉัน" ไม่แสดงลำดับคิวจนกว่าจะได้คำตอบ
 - ~~Q-SH-06~~ ปิดแล้ว: คำขออื่นของชิ้นเดียวกันถูก 004 ปฏิเสธอัตโนมัติเป็น `rejected` 003 ไม่เปลี่ยนคำขออื่นเอง และตอบ `NOT_CANCELLABLE` ตาม AC-CXL-11
 - **Q-SH-08** ระบบยืนยันตัวตนเชื่อมต่อไม่ได้ ต้องทำอย่างไร -> ใช้พฤติกรรม 401 ของ middleware กลางไปก่อน
 

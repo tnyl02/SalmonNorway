@@ -12,13 +12,13 @@ import (
 	"salmonnorway/backend/internal/config"
 )
 
-// ErrStudentOnly คือผู้ใช้ไม่ใช่นักศึกษา ตอบ 403 STUDENT_ONLY (FR-CXL-03, ASM-13)
+// ErrStudentOnly คือผู้ใช้ไม่ใช่นักศึกษา ตอบ 403 FORBIDDEN_ROLE (FR-CXL-03, ASM-13, CR-006)
 var ErrStudentOnly = errors.New("student only")
 
-// ErrReasonRequired คือเหตุผลว่างหรือมีแต่ช่องว่าง ตอบ 400 REASON_REQUIRED (FR-CXL-08)
+// ErrReasonRequired คือเหตุผลว่างหรือมีแต่ช่องว่าง ตอบ 422 VALIDATION_FAILED (FR-CXL-08, CR-006)
 var ErrReasonRequired = errors.New("reason required")
 
-// ErrReasonTooLong คือเหตุผลยาวเกิน config.CancelReasonMaxLen ตอบ 400 REASON_TOO_LONG (FR-CXL-08, Q-14)
+// ErrReasonTooLong คือเหตุผลยาวเกิน config.CancelReasonMaxLen ตอบ 422 VALIDATION_FAILED (FR-CXL-08, Q-14, CR-006)
 var ErrReasonTooLong = errors.New("reason too long")
 
 // ValidateReason ตรวจเหตุผลการยกเลิก (FR-CXL-08, ASM-13)
@@ -121,9 +121,9 @@ func (s *Service) Cancel(ctx context.Context, p auth.Principal, requestID int, r
 		case !found:
 			return CancelResultDTO{}, ErrRequestNotFound // ไม่มี หรือไม่ใช่ของผู้ขอคนนี้ (FR-CXL-03)
 		case status == statusApproved:
-			return CancelResultDTO{}, ErrAlreadyApproved
+			return CancelResultDTO{}, &StatusError{Err: ErrAlreadyApproved, Status: status} // แนบ status ใน 409 (CR-006)
 		default:
-			return CancelResultDTO{}, ErrNotCancelled
+			return CancelResultDTO{}, &StatusError{Err: ErrNotCancelled, Status: status}
 		}
 	}
 	// อ่านข้อมูลสำหรับ Email ใน transaction เดียวกัน แต่ส่งหลัง commit เท่านั้น (FR-CXL-09, plan.md ข้อ 4 ขั้น 4)
@@ -152,4 +152,3 @@ func (s *Service) notify(ctx context.Context, n CancelNotice) error {
 	}
 	return err
 }
-

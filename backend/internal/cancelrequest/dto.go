@@ -28,8 +28,11 @@ type CancelResultDTO struct {
 	Status    string `json:"status"`
 }
 
-// ErrorDTO คือ body เมื่อตอบไม่สำเร็จ ตามตาราง error ใน plan.md ข้อ 4
+// ErrorDTO คือ body เมื่อตอบไม่สำเร็จ รูปแบบ {code, message} ตาม CON-TECH-03 (plan.md ข้อ 4, CR-006)
+// Fields แนบเฉพาะ VALIDATION_FAILED, Status แนบเฉพาะ 409 (สถานะปัจจุบันของคำขอ)
 type ErrorDTO struct {
-	Code      string `json:"code"`
-	Retryable bool   `json:"retryable,omitempty"`
+	Code    string   `json:"code"`
+	Message string   `json:"message"`
+	Fields  []string `json:"fields,omitempty"`
+	Status  string   `json:"status,omitempty"`
 }
