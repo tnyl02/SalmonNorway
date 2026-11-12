@@ -2,10 +2,28 @@
 //   Given ฐานข้อมูลไม่ตอบสนอง
 //   When  เปิดหน้ารายการอุปกรณ์
 //   Then  แสดงข้อความผิดพลาดพร้อมปุ่มลองใหม่ ไม่แสดงหน้าจอค้างและไม่แสดงข้อมูลเก่า
-// กรณีต่อได้แต่ช้า (ต้องรอกี่วินาที) รอ Q-08 ดู T-26
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { ApiError } from '../api/client.js'
+// กรณีต่อได้แต่ช้า: หน้าจอรอไม่เกิน EQUIPMENT_REQUEST_TIMEOUT_MS (Q-08, T-26) ใช้ client จริงกับ fetch จำลองที่ไม่ตอบ
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, vi } from 'vitest'
+import { ApiError, api } from '../api/client.js'
+import { DEFAULT_ERROR_MESSAGE } from '../components/ErrorState.jsx'
+import { EQUIPMENT_REQUEST_TIMEOUT_MS } from '../config.js'
 import EquipmentList from '../pages/EquipmentList/EquipmentList.jsx'
+
+afterEach(() => {
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
+})
+
+// fetch จำลองที่ไม่ตอบเลย จนกว่า request ถูกยกเลิกด้วย signal (หลังบ้านค้าง)
+function hangingFetch() {
+  return vi.fn(
+    (url, init = {}) =>
+      new Promise((_, reject) => {
+        init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+      }),
+  )
+}
 
 const DOWN_MESSAGE = 'ดึงข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง'
 const MODELS = [
@@ -61,4 +79,48 @@ test('AC-EQS-08 เคยโหลดสำเร็จแล้วฐานข�
   expect(await screen.findByRole('button', { name: /Notebook ตัวอย่างรุ่น A/ })).toBeTruthy()
   await waitFor(() => expect(client.state.calls).toBeGreaterThan(callsBefore))
   expect(screen.queryByRole('alert')).toBeNull()
+})
+
+// AC-EQS-08 (FR-EQS-08) กรณีหลังบ้านค้าง (T-26, Q-08)
+//   Given หลังบ้านไม่ตอบเลย
+//   When  เปิดหน้ารายการอุปกรณ์
+//   Then  รอไม่เกิน EQUIPMENT_REQUEST_TIMEOUT_MS แล้วแสดงข้อความผิดพลาดพร้อมปุ่มลองใหม่ ไม่ค้างที่ "กำลังโหลด"
+test('AC-EQS-08 หลังบ้านไม่ตอบ หน้าจอเลิกรอเมื่อครบ EQUIPMENT_REQUEST_TIMEOUT_MS แล้วแสดงข้อผิดพลาดพร้อมปุ่มลองใหม่', async () => {
+  // Given: หลังบ้านไม่ตอบเลย
+  vi.useFakeTimers()
+  vi.stubGlobal('fetch', hangingFetch())
+
+  // When: เปิดหน้ารายการอุปกรณ์ด้วย client จริง
+  render(<EquipmentList client={api} />)
+
+  // ยังไม่ครบเวลา: ยังรออยู่ ไม่แสดงข้อผิดพลาดเร็วเกิน
+  await act(() => vi.advanceTimersByTimeAsync(EQUIPMENT_REQUEST_TIMEOUT_MS - 1))
+  expect(screen.queryByRole('alert')).toBeNull()
+  expect(screen.getByText('กำลังโหลด...')).toBeTruthy()
+
+  // Then: ครบเวลาแล้วแสดงข้อความผิดพลาดพร้อมปุ่มลองใหม่ และไม่ค้างที่ "กำลังโหลด..."
+  await act(() => vi.advanceTimersByTimeAsync(1))
+  vi.useRealTimers()
+  expect((await screen.findByRole('alert')).textContent).toBe(DEFAULT_ERROR_MESSAGE)
+  expect(screen.getByRole('button', { name: 'ลองใหม่' })).toBeTruthy()
+  expect(screen.queryByText('กำลังโหลด...')).toBeNull()
+})
+
+// T-26 timeout ใช้เฉพาะ request ของ 001 (ทีมตัดสิน 2569-11-12) request ของ 003 ต้องรอหลังบ้านเหมือนเดิม
+// เพราะ 003 ยอมให้ช้าได้ถึง 15 วินาที (NFR-PERF-CXL-01)
+test('T-26 request ของ 003 ไม่ถูกตัดที่ EQUIPMENT_REQUEST_TIMEOUT_MS', async () => {
+  vi.useFakeTimers()
+  const fetchMock = hangingFetch()
+  vi.stubGlobal('fetch', fetchMock)
+
+  let settled = false
+  const done = () => {
+    settled = true
+  }
+  api.listMyPendingRequests().then(done, done)
+  api.cancelRequest(101, 'ไม่ต้องใช้อุปกรณ์แล้ว').then(done, done)
+  await vi.advanceTimersByTimeAsync(EQUIPMENT_REQUEST_TIMEOUT_MS * 2)
+
+  expect(settled).toBe(false)
+  for (const [, init] of fetchMock.mock.calls) expect(init.signal).toBeUndefined()
 })

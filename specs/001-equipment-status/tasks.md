@@ -469,12 +469,14 @@ T-22 ย้ายไปเฟส 16 เพราะยังไม่รู้�
 ### T-26 ตั้ง timeout ของ query และ request
 - รองรับ: FR-EQS-08
 - ตรวจด้วย: AC-EQS-08
-- ไฟล์ที่แตะ: `backend/internal/config/config.go`, `frontend/src/config.js`, `frontend/src/api/client.js`
+- ไฟล์ที่แตะ: `backend/internal/config/config.go`, `frontend/src/config.js`, `frontend/src/api/client.js`,
+  `backend/internal/equipment/handler.go`, `backend/internal/equipment/handler_test.go`, `frontend/src/__tests__/AC-EQS-08.test.jsx`
+  (3 ไฟล์หลังทีมเพิ่ม 2569-11-12 ตอนทำ T-26: ต้องห่อ context ของ endpoint และต้องมีที่วาง test)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-20
 - เสร็จเมื่อ: `TestAC_EQS_08_SlowDBTimeout` ผ่าน (ฐานข้อมูลตอบช้ากว่า 5 วินาที -> 503 `UPSTREAM_UNAVAILABLE` พร้อม message)
   และหน้าจอเลิกรอเมื่อหลังบ้านไม่ตอบภายใน 6 วินาที แสดงข้อผิดพลาดพร้อมปุ่มลองใหม่ ตัวเลขทั้งสองอยู่ใน config ตามกฎข้อ 9
-- สถานะ: พร้อมทำ (Q-08 ปิดแล้ว 2569-11-12)
+- สถานะ: เสร็จ รอทีมตรวจ
 
 ### T-27 ตรวจหน้าจอที่ความกว้างมือถือ
 - รองรับ: NFR-USE-01

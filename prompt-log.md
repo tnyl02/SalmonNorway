@@ -3321,3 +3321,36 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
   `tasks.md` (v2.3 T-26 พร้อมทำ), `specs/CHANGELOG.md`, `specs/README.md` (เวอร์ชัน), `docs/srs/SRS.md` (ตาราง 4.3 แถว FR-EQS-08)
 - ไม่ได้แก้โค้ด ตัวเลขจะเข้า `config.go` / `config.js` ตอนทำ T-26
 - Q-08 เดิมให้ถามนักคอมพิวเตอร์ ทีมตัดสินเองแทน
+
+---
+
+## 2569-11-12 /implement T-26 ตั้ง timeout ของ query และ request (001)
+
+- ผู้สั่ง: Pannathorn J
+- ฟีเจอร์: 001-equipment-status (แก้ `frontend/src/api/client.js` ที่ 002, 003 ใช้ร่วม: เพิ่มตัวเลือก timeout ใน getJSON
+  ใช้เฉพาะฟังก์ชันของ 001 request ของ 002, 003 ทำงานเหมือนเดิม)
+- เครื่องมือ: Claude Code
+- คำสั่ง: `/implement T-26`
+- คำถามที่ AI ถามก่อนทำ และคำตอบของทีม (Pannathorn J):
+  1. ช่อง "ไฟล์ที่แตะ" มีแค่ config.go, config.js, client.js ไม่พอทำ timeout ของฐานข้อมูลและไม่มีที่วาง test
+     -> เพิ่ม `backend/internal/equipment/handler.go`, `handler_test.go`, `frontend/src/__tests__/AC-EQS-08.test.jsx`
+  2. client.js ใช้ร่วมกับ 003 (ยกเลิกคำขอรอส่ง Email ยอมช้าถึง 15 วินาที NFR-PERF-CXL-01) timeout 6 วินาทีใช้กับ request ไหน
+     -> เฉพาะ request ของ 001 (listModels, listItems, getItem)
+  3. test ฐานข้อมูลช้าทำแบบไหน -> ล็อกตาราง equipment_item จริงใน testcontainers ใช้ 5 วินาทีจริงจาก config
+- ไฟล์ที่แก้:
+  - `backend/internal/config/config.go`: `EquipmentDBTimeout = 5 * time.Second` (FR-EQS-08, Q-08)
+  - `backend/internal/equipment/handler.go`: `withDBTimeout` ห่อ router ของ 001 ทุก endpoint ด้วย context.WithTimeout
+    เกินเวลา query คืน error แล้วตอบ 503 `UPSTREAM_UNAVAILABLE` ผ่านทางเดิม
+  - `backend/internal/equipment/handler_test.go`: `TestAC_EQS_08_SlowDBTimeout`
+  - `frontend/src/config.js`: `EQUIPMENT_REQUEST_TIMEOUT_MS = 6000` (FR-EQS-08, Q-08)
+  - `frontend/src/api/client.js`: getJSON รับ `{ timeoutMs }` ใช้ AbortController ส่งเฉพาะจาก listModels, listItems, getItem
+  - `frontend/src/__tests__/AC-EQS-08.test.jsx`: 2 test ใหม่ (หน้าจอเลิกรอเมื่อครบ 6 วินาที / request ของ 003 ไม่ถูกตัด)
+  - `specs/001-equipment-status/tasks.md`: ไฟล์ที่แตะและสถานะของ T-26
+- test: `TestAC_EQS_08_SlowDBTimeout` ผ่าน (รอครบ 5 วินาทีแล้วได้ 503 พร้อม message ไม่ส่งรายการ) `go vet ./...` ผ่าน
+  `go test ./...` ผ่านทุก package / vitest 29 ไฟล์ 61 test ผ่าน `vite build` ผ่าน
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้):
+  - หน้าจอเลิกรอแล้วแสดงข้อความเดิมของหน้าจอ "ดึงข้อมูลอุปกรณ์ไม่สำเร็จ" พร้อมปุ่มลองใหม่ (แบบเดียวกับต่อหลังบ้านไม่ได้)
+    ไม่สร้างข้อความหรือรหัสใหม่
+  - listItemRequests (endpoint ของ 002 ที่หน้ารายละเอียดของ 001 เรียก) ไม่ได้ใส่ timeout ตามคำตอบข้อ 2
+  - การเขียน audit ของหน้ารายละเอียดอยู่ใน context เดียวกัน จึงถูกจำกัด 5 วินาทีด้วย
+- คำเตือน act ใน `setup.test.jsx` มีอยู่ก่อน T-26 ไม่ได้แก้
