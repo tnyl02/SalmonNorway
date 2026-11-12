@@ -600,3 +600,47 @@ func TestAC_BRQ_08(t *testing.T) {
 		t.Errorf("แถวที่สองต้องมีผลลัพธ์ forbidden แต่ได้ %q", got[1].outcome)
 	}
 }
+
+// studentCtxDept จำลองนักศึกษาที่สังกัดภาควิชาที่ระบุ ใช้ทดสอบกรณีข้ามภาควิชา (IF-IDP-01, DM-08)
+func studentCtxDept(userID string, departmentID int) context.Context {
+	return auth.WithPrincipal(context.Background(),
+		auth.Principal{UserID: userID, Role: auth.RoleStudent, DepartmentID: departmentID})
+}
+
+// AC-BRQ-01 กับ AC-BRQ-07 กรณีที่เงื่อนไขซ้อนกัน (FR-BRQ-01, FR-BRQ-07, Q-BRQ-15)
+// Given ผู้ขอสังกัดภาควิชา 2 และอุปกรณ์เป็นของภาควิชา 1 ซึ่งสถานะไม่ใช่ "ว่าง" อยู่แล้ว
+// When  ส่งคำขอยืมอุปกรณ์ชิ้นนั้น
+// Then  ต้องถูกปฏิเสธด้วยเหตุผลข้ามภาควิชา ไม่ใช่เหตุผลอุปกรณ์ไม่ว่าง
+//
+//	และต้องไม่มีสถานะของอุปกรณ์ติดมากับ error เลย (ทีมตัดสิน 2569-11-12 ปิด Q-BRQ-15)
+func TestCheckOrder_DepartmentBeforeItemStatus(t *testing.T) {
+	pool := testPool(t)
+	svc := NewServiceWithClock(NewRepository(pool), testClock())
+	ctx := studentCtxDept("student-201", 2) // ภาควิชา 2
+
+	// ข้อมูลตั้งต้น: CS-NB-0004 เป็นของภาควิชา 1 และถูกยืมอยู่ / CS-PJ-0002 เป็นของภาควิชา 1 และไม่พร้อมใช้งาน
+	for _, assetCode := range []string{"CS-NB-0004", "CS-PJ-0002"} {
+		_, err := svc.Create(ctx, newTestRequest(assetCode))
+
+		if !errors.Is(err, ErrForbiddenDepartment) {
+			t.Errorf("%s: ต้องได้ ErrForbiddenDepartment แต่ได้ %v", assetCode, err)
+		}
+		if errors.Is(err, ErrItemNotAvailable) {
+			t.Errorf("%s: ต้องไม่ถูกปฏิเสธด้วยเหตุผลอุปกรณ์ไม่ว่าง เพราะจะบอกเป็นนัยว่าอุปกรณ์ชิ้นนั้นมีอยู่", assetCode)
+		}
+		var notAvail *ItemNotAvailableError
+		if errors.As(err, &notAvail) {
+			t.Errorf("%s: ต้องไม่มีสถานะอุปกรณ์ติดมากับ error แต่ได้ %q", assetCode, notAvail.Status)
+		}
+	}
+
+	// ตัวเทียบ: ผู้ขอภาควิชาเดียวกับอุปกรณ์ ยังได้เหตุผลอุปกรณ์ไม่ว่างพร้อมสถานะล่าสุดตามเดิม (FR-BRQ-01)
+	_, err := svc.Create(studentCtxDept("student-202", 1), newTestRequest("CS-NB-0004"))
+	if !errors.Is(err, ErrItemNotAvailable) {
+		t.Fatalf("ผู้ขอภาควิชาเดียวกันต้องได้ ErrItemNotAvailable แต่ได้ %v", err)
+	}
+	var notAvail *ItemNotAvailableError
+	if !errors.As(err, &notAvail) || notAvail.Status == "" {
+		t.Error("ผู้ขอที่มีสิทธิ์เห็นอุปกรณ์ต้องได้สถานะล่าสุดกลับไปด้วย (FR-BRQ-01)")
+	}
+}
