@@ -517,3 +517,86 @@ func TestOverdue_OnTimeReturnDoesNotBlock(t *testing.T) {
 		t.Errorf("คืนตรงเวลาต้องส่งคำขอได้ทันที แต่ได้ error: %v", err)
 	}
 }
+
+// AC-BRQ-08 (FR-BRQ-08)
+// Given มีผู้ขอที่ส่งคำขอสำเร็จ 1 ครั้ง และถูกปฏิเสธ 1 ครั้ง
+// When  ตรวจ audit log
+// Then  ต้องมีบันทึกครบทั้ง 2 ครั้ง ระบุผู้ขอ เวลา รหัสครุภัณฑ์ และผลลัพธ์ของแต่ละครั้ง
+//
+// ตาราง audit_log เป็น append-only (trigger ของ migration 0002) ลบแถวทิ้งไม่ได้
+// test จึงใช้ผู้ขอเฉพาะของตัวเอง แล้วอ่านเฉพาะแถวของผู้ขอคนนั้น
+func TestAC_BRQ_08(t *testing.T) {
+	pool := testPool(t)
+	const requester = "student-016"
+	const assetCode = "CS-NB-0003"
+	ctx := studentCtx(requester)
+	svc := NewServiceWithClock(NewRepository(pool), testClock())
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM borrow_request WHERE requester_id = $1`, requester)
+	})
+
+	// Given: ส่งสำเร็จ 1 ครั้ง
+	if _, err := svc.CreateWithAttachment(ctx, newTestRequest(assetCode), nil); err != nil {
+		t.Fatalf("คำขอใบแรกต้องสำเร็จ แต่ได้ error: %v", err)
+	}
+	// Given: ถูกปฏิเสธ 1 ครั้ง (ส่งซ้ำของชิ้นเดิม FR-BRQ-05 ข)
+	if _, err := svc.CreateWithAttachment(ctx, newTestRequest(assetCode), nil); !errors.Is(err, ErrDuplicateRequest) {
+		t.Fatalf("คำขอใบที่สองต้องถูกปฏิเสธด้วย ErrDuplicateRequest แต่ได้ %v", err)
+	}
+
+	// When: อ่าน audit log ของผู้ขอคนนี้
+	rows, err := pool.Query(ctx, `
+		SELECT actor_id, actor_role, action, asset_code, outcome, occurred_at
+		FROM audit_log WHERE actor_id = $1 ORDER BY id`, requester)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	type logRow struct {
+		actorID, actorRole, action, outcome string
+		assetCode                           *string
+		occurredAt                          time.Time
+	}
+	var got []logRow
+	for rows.Next() {
+		var r logRow
+		if err := rows.Scan(&r.actorID, &r.actorRole, &r.action, &r.assetCode, &r.outcome, &r.occurredAt); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, r)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Then: ครบ 2 แถว ทั้งที่สำเร็จและที่ถูกปฏิเสธ
+	if len(got) != 2 {
+		t.Fatalf("ต้องมีบันทึก 2 แถว (สำเร็จ 1 ถูกปฏิเสธ 1) แต่พบ %d แถว", len(got))
+	}
+	for i, r := range got {
+		// Then: ระบุผู้ขอ
+		if r.actorID != requester || r.actorRole != string(auth.RoleStudent) {
+			t.Errorf("แถวที่ %d ต้องระบุผู้ขอเป็น %s (student) แต่ได้ %s (%s)", i+1, requester, r.actorID, r.actorRole)
+		}
+		// Then: เป็นการกระทำ "ส่งคำขอยืม" ค่าเดียวทั้งสำเร็จและถูกปฏิเสธ (DM-07, Q-BRQ-07)
+		if r.action != config.AuditActionRequest {
+			t.Errorf("แถวที่ %d ต้องเป็น action %q แต่ได้ %q", i+1, config.AuditActionRequest, r.action)
+		}
+		// Then: ระบุรหัสครุภัณฑ์
+		if r.assetCode == nil || *r.assetCode != assetCode {
+			t.Errorf("แถวที่ %d ต้องระบุรหัสครุภัณฑ์ %s แต่ได้ %v", i+1, assetCode, r.assetCode)
+		}
+		// Then: ระบุเวลา
+		if d := time.Since(r.occurredAt); d < -time.Minute || d > time.Minute {
+			t.Errorf("แถวที่ %d เวลาที่บันทึกต้องใกล้เคียงเวลาจริง แต่ต่างกัน %v", i+1, d)
+		}
+	}
+	// Then: ผลลัพธ์ของแต่ละครั้งต่างกัน ครั้งแรกสำเร็จ ครั้งที่สองถูกปฏิเสธ
+	if got[0].outcome != "ok" {
+		t.Errorf("แถวแรกต้องมีผลลัพธ์ ok แต่ได้ %q", got[0].outcome)
+	}
+	if got[1].outcome != "forbidden" {
+		t.Errorf("แถวที่สองต้องมีผลลัพธ์ forbidden แต่ได้ %q", got[1].outcome)
+	}
+}

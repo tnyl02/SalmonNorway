@@ -3,9 +3,11 @@ package borrowrequest
 import (
 	"context"
 	"errors"
+	"log"
 	"strings"
 	"time"
 
+	"salmonnorway/backend/internal/audit"
 	"salmonnorway/backend/internal/auth"
 	"salmonnorway/backend/internal/config"
 )
@@ -79,6 +81,13 @@ func (s *Service) Create(ctx context.Context, in NewRequest) (Request, error) {
 // ชื่อไฟล์ต้องมีรหัสคำขออยู่ด้วยตาม plan.md ข้อ 3 จึงต้องสร้างคำขอก่อนแล้วค่อยเก็บไฟล์
 // ถ้าเก็บไฟล์หรือบันทึก path ไม่สำเร็จ จะลบคำขอใบนั้นทิ้ง ไม่ปล่อยให้มีคำขอค้างที่ไม่มีไฟล์แนบ (FR-BRQ-09)
 func (s *Service) CreateWithAttachment(ctx context.Context, in NewRequest, up *Upload) (Request, error) {
+	req, err := s.createRequest(ctx, in, up)
+	s.auditRequest(ctx, in.AssetCode, err) // บันทึกทุกผลลัพธ์ ทั้งสำเร็จและถูกปฏิเสธ (FR-BRQ-08)
+	return req, err
+}
+
+// createRequest คืองานหลักของ CreateWithAttachment แยกออกมาเพื่อให้บันทึก audit ได้ที่เดียวจบ
+func (s *Service) createRequest(ctx context.Context, in NewRequest, up *Upload) (Request, error) {
 	req, err := s.Create(ctx, in)
 	if err != nil || up == nil {
 		return req, err
@@ -124,6 +133,57 @@ func (s *Service) OpenAttachment(ctx context.Context, requestID int) (string, er
 		return "", ErrNotRequestOwner
 	}
 	return att.Path, nil
+}
+
+// auditRequest บันทึก audit log ของการส่งคำขอ 1 ครั้ง ทั้งกรณีสำเร็จและถูกปฏิเสธ (FR-BRQ-08, RQ-25, DM-07)
+// บันทึกผู้ขอ เวลา (ฐานข้อมูลใส่ให้) รหัสครุภัณฑ์ และผลลัพธ์ ตามที่ AC-BRQ-08 กำหนด
+// ใช้ตาราง audit_log ของกลางผ่าน audit.Write และใช้ค่า action จาก config ที่เดียว (AGENTS.md กฎข้อ 9)
+//
+// ไม่บันทึกเมื่อไม่รู้ว่าผู้ขอเป็นใคร เพราะ audit ต้องระบุผู้เข้าถึงเสมอ (DM-07)
+// เขียนแบบ best-effort ถ้าบันทึกไม่สำเร็จจะไม่ล้มคำขอที่สร้างสำเร็จไปแล้ว เพราะการย้อนกลับตอนนี้
+// จะทิ้งไฟล์แนบค้างและขัด FR-BRQ-09 ต่างจาก 001 ที่เลือก fail closed **ทีมต้องตัดสินว่าจะเอาแบบไหน**
+func (s *Service) auditRequest(ctx context.Context, assetCode string, cause error) {
+	p, ok := auth.FromContext(ctx)
+	if !ok || !p.Complete() {
+		return
+	}
+
+	// ไม่ผูก RequestID ไว้กับแถว audit แม้คำขอจะสร้างสำเร็จ
+	// เพราะ audit_log เป็น append-only (trigger ของ migration 0002) แต่คำขอถูกลบได้
+	// เช่นทางย้อนกลับตอนเก็บไฟล์แนบไม่สำเร็จใน T-14 ถ้ามี foreign key ชี้อยู่ การลบจะทำไม่ได้เลย
+	// AC-BRQ-08 ต้องการแค่ผู้ขอ เวลา รหัสครุภัณฑ์ และผลลัพธ์ ซึ่ง 4 ช่องนี้ครบแล้ว
+	// (DM-07 เขียนว่า request_id ว่างได้ ถ้าทีมอยากให้ผูกด้วย ต้องยอมรับว่าคำขอนั้นลบไม่ได้อีก)
+	entry := audit.Entry{
+		ActorID:   p.UserID,
+		ActorRole: string(p.Role),
+		Action:    config.AuditActionRequest,
+		AssetCode: assetCode,
+		Outcome:   auditOutcome(cause),
+	}
+
+	if _, err := audit.Write(ctx, s.repo.db, entry); err != nil {
+		log.Printf("borrowrequest audit: เขียน audit log ไม่สำเร็จ actor=%s asset=%s: %v", p.UserID, assetCode, err)
+	}
+}
+
+// auditOutcome แปลงผลของการส่งคำขอเป็นค่า outcome 1 ใน 3 ค่าที่ audit_log รับ (DM-07, migration 0002)
+//   - สำเร็จ = ok
+//   - ถูกปฏิเสธด้วยกฎของฟีเจอร์ (ต่างภาควิชา อุปกรณ์ไม่ว่าง คำขอซ้ำ มีของเกินกำหนด) = forbidden
+//   - ระบบขัดข้อง เช่น ฐานข้อมูลหรือที่เก็บไฟล์ไม่ตอบ = error
+//
+// ตารางมีแค่ 3 ค่า การแยก "ถูกปฏิเสธตามกฎ" ออกจาก "ไม่มีสิทธิ์" ต้องเพิ่มค่าใหม่ใน CHECK ซึ่งต้องทำ CR
+func auditOutcome(cause error) string {
+	switch {
+	case cause == nil:
+		return audit.OutcomeOK
+	case errors.Is(cause, ErrForbiddenDepartment),
+		errors.Is(cause, ErrItemNotAvailable),
+		errors.Is(cause, ErrDuplicateRequest),
+		errors.Is(cause, ErrHasOverdueLoan):
+		return audit.OutcomeForbidden
+	default:
+		return audit.OutcomeError
+	}
 }
 
 // hasOverdueLoan บอกว่าผู้ขอยังถูกกฎคืนเกินกำหนดห้ามส่งคำขออยู่หรือไม่ (FR-BRQ-06)
