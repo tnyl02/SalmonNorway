@@ -1,6 +1,17 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client.js'
-import { APPROVAL_MESSAGES, PURPOSE_OPTIONS, PURPOSE_OTHER, TIME_ZONE } from '../../config.js'
+import {
+  APPROVAL_EMPTY_LIST,
+  APPROVAL_MESSAGES,
+  APPROVAL_REASON_MAX_LENGTH,
+  APPROVAL_REASON_TOO_LONG,
+  PURPOSE_OPTIONS,
+  PURPOSE_OTHER,
+  TIME_ZONE,
+} from '../../config.js'
+
+// รหัสภายในหน้าจอสำหรับเหตุผลยาวเกิน (Q-APV-28) หลังบ้านตอบ VALIDATION_FAILED เหมือนกรณีไม่ระบุเหตุผล แต่ข้อความต่างกัน
+const REASON_TOO_LONG = 'REASON_TOO_LONG'
 
 // แสดงวันเวลาตามเขตเวลา Asia/Bangkok (glossary)
 const dateTime = new Intl.DateTimeFormat('th-TH', { timeZone: TIME_ZONE, dateStyle: 'medium', timeStyle: 'short' })
@@ -54,6 +65,11 @@ export default function ApproveRequests({ client = api }) {
       setActionError('VALIDATION_FAILED')
       return
     }
+    // ยาวเกินกำหนด นับตาม code point แบบเดียวกับหลังบ้าน (FR-APV-01 ง, Q-APV-28) ไม่ส่งไปหลังบ้าน
+    if ([...reason].length > APPROVAL_REASON_MAX_LENGTH) {
+      setActionError(REASON_TOO_LONG)
+      return
+    }
     return decide(requestId, () => client.rejectRequest(requestId, reason, list.loadedAt))
   }
 
@@ -84,9 +100,14 @@ export default function ApproveRequests({ client = api }) {
       <h2 className="text-lg font-semibold text-slate-900">คำขอยืมที่รอพิจารณา</h2>
       {actionError && (
         <p role="alert" className="text-red-700">
-          {APPROVAL_MESSAGES[actionError] ?? APPROVAL_MESSAGES.UPSTREAM_UNAVAILABLE}
+          {actionError === REASON_TOO_LONG
+            ? APPROVAL_REASON_TOO_LONG
+            : (APPROVAL_MESSAGES[actionError] ?? APPROVAL_MESSAGES.UPSTREAM_UNAVAILABLE)}
         </p>
       )}
+      {/* ไม่มีคำขอที่รอพิจารณา แสดงข้อความแทนตาราง (FR-APV-01 ก, Q-APV-31) */}
+      {list.items.length === 0 && <p className="text-slate-600">{APPROVAL_EMPTY_LIST}</p>}
+      {list.items.length > 0 && (
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b">
@@ -176,6 +197,7 @@ export default function ApproveRequests({ client = api }) {
           ))}
         </tbody>
       </table>
+      )}
     </section>
   )
 }

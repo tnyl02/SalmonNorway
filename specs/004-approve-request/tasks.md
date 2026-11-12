@@ -94,6 +94,7 @@ Updated: 2569-11-12
 - ต้องทำหลัง: T-05
 - เสร็จเมื่อ: vitest `AC-APV-11` ผ่านด้วย client จำลอง แสดงชื่อผู้ขอ อุปกรณ์ วัตถุประสงค์ ช่วงเวลาที่ต้องการยืม เรียงตามเวลาที่ส่ง
 - สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / test ผ่าน 2569-11-12: vitest `AC-APV-11`)
+- แก้ 2569-11-12 (Q-APV-31 พบตอน /testcases แถว TC-APV-11-5): ไม่มีคำขอแสดง "ไม่มีคำขอที่รออนุมัติ" แทนตาราง (`APPROVAL_EMPTY_LIST` ใน config.js) / ตรวจด้วย vitest `TC-APV-11-5.test.jsx`
 
 #### จุดตรวจเฟส 1
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_11` (repository + HTTP), vitest `AC-APV-11` และ test ของเฟส 0
@@ -187,6 +188,7 @@ Updated: 2569-11-12
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `TestAC_APV_06` ผ่าน: ตอบ 422 `VALIDATION_FAILED` ระบุช่อง `reason` พร้อมข้อความ "กรุณาระบุเหตุผลในการปฏิเสธ" และสถานะคงเดิม
 - สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / test ผ่าน 2569-11-12: `TestAC_APV_06`)
+- แก้ 2569-11-12 (Q-APV-28 พบตอน /testcases แถว TC-APV-06-6): เหตุผลยาวเกิน `ApprovalRejectReasonMaxLength` (500 นับตาม code point) ได้ 422 `VALIDATION_FAILED` ข้อความ `ApprovalReasonTooLongMessage` ใน `service.go`, `handler.go`, `config.go` / ตรวจด้วย `TestTC_APV_06_6_VeryLongReason`
 
 ### T-13 แสดงข้อความเมื่อไม่ระบุเหตุผลบนหน้าจอ
 - รองรับ: FR-APV-01 (ซ)
@@ -196,6 +198,7 @@ Updated: 2569-11-12
 - ต้องทำหลัง: T-11, T-12
 - เสร็จเมื่อ: vitest `AC-APV-06` ผ่าน แสดง "กรุณาระบุเหตุผลในการปฏิเสธ" จาก `APPROVAL_MESSAGES` และคำขอยังอยู่ในรายการ
 - สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / test ผ่าน 2569-11-12: vitest `AC-APV-06`)
+- แก้ 2569-11-12 (Q-APV-28 พบตอน /testcases แถว TC-APV-06-6): หน้าจอไม่ส่งเหตุผลที่ยาวเกิน `APPROVAL_REASON_MAX_LENGTH` (นับตาม code point) แสดง "เหตุผลต้องไม่เกิน 500 ตัวอักษร" ใน `ApproveRequests.jsx` และ `config.js`
 
 #### จุดตรวจเฟส 4
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_06`, vitest `AC-APV-06` และ test ของเฟส 0 ถึง 3

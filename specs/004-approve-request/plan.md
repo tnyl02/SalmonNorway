@@ -1,5 +1,5 @@
 # Implementation Plan: อนุมัติคำขอยืมปกติ (Approve Request)
-Spec: SPEC-APV-004 (specs/004-approve-request/spec.md, Draft v2.1) | Plan status: Draft v1.1 | Updated: 2569-11-12 (ตามคำตอบ Q-APV-14 ถึง 21)
+Spec: SPEC-APV-004 (specs/004-approve-request/spec.md, Draft v2.1) | Plan status: Draft v1.1 | Updated: 2569-11-12 (ตามคำตอบ Q-APV-14 ถึง 21 / Q-APV-28, 31 จาก test cases)
 Owner: 660710758 นางสาวณัฐสุดา กัญญาบุญ (@natsuda05)
 อ้างอิง: specs/000-shared/{constraints.md v5, data-model.md v9, glossary.md}, migration 0003 ของ 002
 
@@ -68,7 +68,7 @@ error (CON-TECH-03) ข้อความตาม FR-APV-01 (ซ) อยู่�
 | `FORBIDDEN_ROLE` | 403 | ไม่ใช่เจ้าหน้าที่ | มีแล้ว (004 ลงทะเบียน) | AC-APV-05 |
 | `FORBIDDEN_DEPARTMENT` | 403 | อุปกรณ์ภาควิชาอื่น (ข้อความ Q-APV-18) | มีแล้ว | AC-APV-12 |
 | `ITEM_NOT_AVAILABLE` | 409 | อุปกรณ์ไม่ "ว่าง" | มีแล้ว | AC-APV-08 |
-| `VALIDATION_FAILED` | 422 | ไม่ระบุเหตุผลการปฏิเสธ (field `reason`) | มีแล้ว | AC-APV-06 |
+| `VALIDATION_FAILED` | 422 | ไม่ระบุเหตุผลการปฏิเสธ หรือเหตุผลยาวเกิน 500 ตัวอักษร (field `reason` ข้อความต่างกัน Q-APV-28) | มีแล้ว | AC-APV-06 |
 | `REQUEST_CANCELLED` | 409 | คำขอ `cancelled` | ลงทะเบียนแล้ว 2569-11-12 (Q-APV-19) | AC-APV-09 |
 | `REQUEST_ALREADY_DECIDED` | 409 | พิจารณาไปแล้วก่อนหน้าจอโหลด | ลงทะเบียนแล้ว 2569-11-12 (Q-APV-19) | AC-APV-09 |
 | `REQUEST_DECIDED_CONCURRENTLY` | 409 | ถูกพิจารณาหลังหน้าจอโหลด (กดพร้อมกัน) | ลงทะเบียนแล้ว 2569-11-12 (Q-APV-19) | AC-APV-10 |
@@ -111,6 +111,8 @@ error (CON-TECH-03) ข้อความตาม FR-APV-01 (ซ) อยู่�
 | เหตุผล "คำขอยังคงค้างอยู่และไม่ได้รับการพิจารณาภายในเวลาที่กำหนด" | FR-APV-01 ฉ | `ApprovalAutoRejectReason` (config.go) |
 | แนวทาง "หากยังต้องการยืมอุปกรณ์ สามารถยื่นคำขอใหม่ได้" | FR-APV-02 ค | ใน `ApprovalEmailTemplates` (config.go) |
 | ข้อความ error 9 ข้อความ | FR-APV-01 ซ, ASM-07, Q-APV-18 | `ApprovalMessages` (config.go) และ `APPROVAL_MESSAGES` (config.js) |
+| เหตุผลการปฏิเสธไม่เกิน 500 ตัวอักษร นับตาม code point และข้อความ "เหตุผลต้องไม่เกิน 500 ตัวอักษร" | FR-APV-01 ง ซ, Q-APV-28 | `ApprovalRejectReasonMaxLength`, `ApprovalReasonTooLongMessage` (config.go) และ `APPROVAL_REASON_MAX_LENGTH`, `APPROVAL_REASON_TOO_LONG` (config.js) |
+| ข้อความหน้ารายการว่าง "ไม่มีคำขอที่รออนุมัติ" | FR-APV-01 ก, Q-APV-31 | `APPROVAL_EMPTY_LIST` (config.js) |
 | ค่า action `approve`, `reject`, `auto_reject` | RQ-25, DM-07 | `AuditActionApprove`, `AuditActionReject`, `AuditActionAutoReject` (config.go) |
 
 ## 6. แผนทดสอบจาก Acceptance Criteria

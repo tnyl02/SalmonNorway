@@ -2,6 +2,15 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [SPEC-APV-004 Draft v2.1 Q-APV-27 ถึง 31 คำถามจาก test cases] - 2569-11-12
+ทีมตอบ 5 คำถามที่พบตอน /testcases AC-APV-02, 06, 11 ผ่านหน้าเว็บ ขยายความ FR-APV-01 (ก)(ข)(ง)(ซ) ไม่เปลี่ยน ID และไม่เปลี่ยน AC
+### Changed
+- `specs/004-approve-request/spec.md`: FR-APV-01 (ก) เวลาที่ส่งเท่ากันเรียงตามรหัสคำขอ (Q-APV-30) และหน้ารายการว่างแสดง "ไม่มีคำขอที่รออนุมัติ" (Q-APV-31) / (ข) ปฏิเสธคำขอที่ไม่ใช่คำขอแรกได้ (Q-APV-27) / (ง) เหตุผลไม่เกิน 500 ตัวอักษร นับตาม code point (Q-APV-28) และตรวจเหตุผลก่อนสถานะ (Q-APV-29) / (ซ) เพิ่มข้อความ "เหตุผลต้องไม่เกิน 500 ตัวอักษร" / Q-APV-27 ถึง 31 ปิดแล้ว และ Clarifications
+- `specs/004-approve-request/plan.md`: ตาราง error แถว `VALIDATION_FAILED` และตารางค่าที่ตั้งได้ 2 แถว
+- `specs/004-approve-request/tasks.md`: บันทึกการแก้ใต้ T-06, T-12, T-13
+- `specs/004-approve-request/test-cases.md`: Then ของ TC-APV-02-7, 06-6, 06-7, 11-4, 11-5 และ When ของ 06-6
+- โค้ด: `config.go` (`ApprovalRejectReasonMaxLength`, `ApprovalReasonTooLongMessage`), `service.go` (`ErrReasonTooLong`), `handler.go`, `frontend/src/config.js`, `ApproveRequests.jsx` (ตรวจความยาวและข้อความรายการว่าง)
+
 ## [SPEC-APV-004 Draft v2.1 Q-APV-26 อนุมัติตอน 16:00:00 น. ตรงไม่ได้] - 2569-11-12
 ทีมตอบคำถามที่พบตอน /testcases AC-APV-01 (แถว TC-APV-01-5) เป็นการขยายความ "เลย 16:00 น." ใน FR-APV-01 (ค) ไม่เปลี่ยน ID และไม่เปลี่ยน AC
 ### Changed

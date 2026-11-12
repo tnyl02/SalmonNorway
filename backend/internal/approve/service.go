@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"salmonnorway/backend/internal/auth"
 	"salmonnorway/backend/internal/config"
@@ -226,6 +227,9 @@ func (s *Service) rejectSuperseded(ctx context.Context, tx *Repository, p auth.P
 // ErrReasonRequired เกิดเมื่อปฏิเสธโดยไม่ระบุเหตุผล (FR-APV-01 ง, AC-APV-06, CON-TECH-03 VALIDATION_FAILED ช่อง reason)
 var ErrReasonRequired = errors.New("ต้องระบุเหตุผลในการปฏิเสธ")
 
+// ErrReasonTooLong เกิดเมื่อเหตุผลการปฏิเสธยาวเกิน config.ApprovalRejectReasonMaxLength (FR-APV-01 ง, Q-APV-28, VALIDATION_FAILED ช่อง reason)
+var ErrReasonTooLong = errors.New("เหตุผลในการปฏิเสธยาวเกินกำหนด")
+
 // Reject ปฏิเสธคำขอยืมแบบปกติ 1 ใบพร้อมเหตุผลที่เจ้าหน้าที่ระบุ ใน transaction เดียว (FR-APV-01 ง ฌ, AC-APV-02)
 //   - คำขอเป็น rejected บันทึกเหตุผลใน approval_decision และ audit_log action reject (RQ-25)
 //   - ไม่เปลี่ยนสถานะอุปกรณ์ (CON-DATA-01)
@@ -239,6 +243,11 @@ func (s *Service) Reject(ctx context.Context, requestID int, reason string, load
 	// FR-APV-01 (ง)(ซ), AC-APV-06: ต้องระบุเหตุผล ว่างหรือมีแต่ช่องว่างไม่นับ ไม่เปิด transaction เลย สถานะจึงคงเดิม
 	if strings.TrimSpace(reason) == "" {
 		return Result{}, ErrReasonRequired
+	}
+	// FR-APV-01 (ง), Q-APV-28: ไม่เกิน ApprovalRejectReasonMaxLength นับตาม code point แบบเดียวกับ 003
+	// ตรวจก่อนดูสถานะคำขอ เหมือนกรณีไม่ระบุเหตุผล (Q-APV-29)
+	if utf8.RuneCountInString(reason) > config.ApprovalRejectReasonMaxLength {
+		return Result{}, ErrReasonTooLong
 	}
 	var out Result
 	err = s.repo.inTx(ctx, func(tx *Repository) error {

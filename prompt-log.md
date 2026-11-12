@@ -5413,3 +5413,68 @@ main
 - ผล: ผ่านทั้ง 12 test (TestAC_APV_16, TestApprove_BeforeCutoffAllowed, TestTC_APV_01_1, 4 ถึง 12 รวม TestTC_APV_01_5_ApproveAt1600)
   vitest TC-APV-01-2 ผ่านไปก่อนหน้านี้แล้ว / TC-APV-01-3 เป็นแถว "คน" ยังไม่ได้ลอง
 - แก้ tasks.md T-21: บรรทัดบันทึกการแก้เปลี่ยนจาก "รอผู้สั่งรัน test" เป็น test ผ่าน
+
+---
+
+## 2569-11-12 /testcases AC-APV-02, 06, 11 (โหมดร่าง)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcases AC-APV-02, 06, 11`
+- โหมด: ร่าง ยังไม่เขียนโค้ด test
+- TC ที่เสนอ (สถานะ "ร่าง" ทุกแถว ต่อท้ายตาราง ไม่แก้แถวเดิม): TC-APV-02-1 ถึง 11, TC-APV-06-1 ถึง 8, TC-APV-11-1 ถึง 8 รวม 27 แถว
+- ส่วนของ Then ที่ spec ไม่ได้บอก (เสนอเป็นคำถามให้ทีม):
+  1. TC-APV-02-7 ปฏิเสธคำขอที่ไม่ใช่คำขอแรกได้หรือไม่
+  2. TC-APV-06-6 เหตุผลการปฏิเสธยาวสูงสุดเท่าไร
+  3. TC-APV-06-7 ไม่มีเหตุผล และคำขอถูกยกเลิกแล้ว ตอบรหัสไหน
+  4. TC-APV-11-4 เวลาที่ส่งเท่ากัน เรียงอย่างไร
+  5. TC-APV-11-5 หน้ารายการว่างแสดงข้อความอะไร
+
+---
+
+## 2569-11-12 /testcases AC-APV-02, 06, 11 (โหมดเขียน test)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcases` (ไม่ได้ระบุ AC)
+- คำถามที่ AI ถามก่อนทำ และคำตอบของทีม (ผู้สั่ง):
+  1. จะเขียน test ของ AC ไหน -> AC-APV-02, 06, 11 (ทุกแถวสถานะ "ใช้ได้" แล้ว)
+  2. 5 แถวที่สถานะ "ใช้ได้" แต่ Then ยังเป็น "spec ไม่ได้บอก" (TC-APV-02-7, 06-6, 06-7, 11-4, 11-5) -> ข้ามไว้ก่อน เขียนเป็น skip ไม่มี assert
+- ไฟล์ที่สร้าง: `backend/internal/approve/tc_ac_apv_02_06_11_test.go` (21 test: ตรวจจริง 17, skip 4),
+  `frontend/src/__tests__/TC-APV-02-2.test.jsx`, `TC-APV-06-2.test.jsx`, `TC-APV-06-5.test.jsx`, `TC-APV-11-2.test.jsx` (ตรวจจริง 4), `TC-APV-11-5.test.jsx` (skip 1),
+  `frontend/src/__tests__/helpers/apvFakeClient.js` (client จำลองใช้ร่วมของ 004)
+  ไม่แก้โค้ดของระบบ ไม่แก้ test เดิม
+- TC-APV-02-3 ช่อง "ตรวจด้วย" เป็น "คน" ไม่เขียนโค้ด
+- ผล test (AI รัน):
+  - `go test ./internal/approve/ -run "TestTC_APV_" -count=1 -v`: ผ่าน 27 (01 ทั้ง 10 ตัว และชุดใหม่ 17 ตัว) skip 4 (02-7, 06-6, 06-7, 11-4)
+  - `npx vitest run src/__tests__/TC-APV-`: ผ่าน 5 ไฟล์ (01-2, 02-2, 06-2, 06-5, 11-2) skip 1 (11-5)
+
+---
+
+## 2569-11-12 ทีมตอบคำถามจาก test cases (Q-APV-27 ถึง 31) แก้ spec โค้ด และ test
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ทำเป็น html ตอบคำถามให้หน่อย" แล้ว "ตอบแล้ว"
+- AI ทำหน้าเว็บคำถาม 5 ข้อ (https://claude.ai/artifact/7GcUrjzzJYKKYpfUhMfNhG) แล้วอ่านคำตอบจากที่เก็บของหน้านั้น
+- คำตอบของทีม (ผู้สั่ง) และ ID ที่ AI ตั้ง (ข้อถัดจาก Q-APV-26 ปิดทันทีพร้อมคำตอบ):
+  1. Q-APV-27 (TC-APV-02-7) ปฏิเสธคำขอที่ไม่ใช่คำขอแรกได้หรือไม่ -> ได้ (ตรงกับโค้ด)
+  2. Q-APV-28 (TC-APV-06-6) เหตุผลยาวสูงสุด -> 500 ตัวอักษร
+  3. Q-APV-29 (TC-APV-06-7) ยกเลิกแล้วและไม่มีเหตุผล -> VALIDATION_FAILED (ตรงกับโค้ด)
+  4. Q-APV-30 (TC-APV-11-4) เวลาที่ส่งเท่ากัน -> รหัสคำขอน้อยก่อน (ตรงกับโค้ด)
+  5. Q-APV-31 (TC-APV-11-5) หน้ารายการว่าง -> "ไม่มีคำขอที่รออนุมัติ"
+- คำถามที่ AI ถามต่อ และคำตอบของทีม (ผู้สั่ง):
+  1. ข้อความเมื่อเหตุผลยาวเกิน -> "เหตุผลต้องไม่เกิน 500 ตัวอักษร" (รหัสเดิม VALIDATION_FAILED)
+  2. นับ 500 แบบไหน -> นับตาม code point เหมือน 003
+  3. ข้อ 2 และ 5 ต้องแก้โค้ด จะให้แก้เลยไหม -> แก้เลยทั้ง 2 ข้อ
+- ไฟล์ที่แก้: `specs/004-approve-request/spec.md`, `plan.md`, `tasks.md` (T-06, T-12, T-13), `test-cases.md` (Then 5 แถว และ When ของ 06-6), `specs/CHANGELOG.md`,
+  `backend/internal/config/config.go`, `backend/internal/approve/service.go`, `backend/internal/approve/handler.go`,
+  `backend/internal/approve/tc_ac_apv_02_06_11_test.go` (TestTC_APV_02_7, 06_6, 06_7, 11_4 จาก skip เป็น assert ตามแถว),
+  `frontend/src/config.js`, `frontend/src/pages/ApproveRequest/ApproveRequests.jsx`, `frontend/src/__tests__/TC-APV-11-5.test.jsx` (จาก skip เป็น assert)
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้): หน้าจอตรวจความยาวก่อนส่ง และใช้รหัสภายในหน้าจอ `REASON_TOO_LONG` เลือกข้อความ เพราะหลังบ้านตอบ VALIDATION_FAILED เหมือนกรณีไม่ระบุเหตุผล
+  / ถ้าไม่มีคำขอ แสดงข้อความแทนตาราง (ไม่แสดงหัวตารางเปล่า)
+- ผล test (AI รัน): `go test ./internal/approve/ -count=1` ผ่าน ไม่มี skip / `go test ./internal/config/` ผ่าน / `go vet ./...` ผ่าน /
+  `npx vitest run` ผ่าน 38 ไฟล์ 95 test / ยังไม่ได้รัน `go test ./...` ทั้งระบบ
