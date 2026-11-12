@@ -106,6 +106,8 @@ Response (ตัวอย่างแถวรุ่น): `{modelId, name, categ
 - availableCount/totalCount นับเฉพาะชิ้นที่ตรงตัวกรอง (Q-15) รูปแบบตัวเลขบนหน้าจอเมื่อกรองตามที่ตกลงใน AC-EQS-15
 
 Response (รายชิ้น): `{assetCode, status, dueAt?, isOverdue?, canRequestLoan, borrowerName?}`
+- ตารางรายชิ้น (`.../models/{modelId}/items`) ส่งแค่ `{assetCode, status, canRequestLoan}` ส่วน `dueAt`, `isOverdue` มีเฉพาะหน้ารายละเอียด
+  ตารางรายชิ้นไม่แสดงกำหนดคืน (ทีมตัดสิน 2569-11-12 ตอนตรวจ TC-EQS-04-4)
 - `canRequestLoan = (status == 'available')` คำนวณที่ server ตาม FR-04/05/06
   ส่งทั้งในตารางรายชิ้น (`.../models/{modelId}/items`) และหน้ารายละเอียด เพราะปุ่มอยู่ทั้งสองหน้า (Q-16 ปิดแล้ว 2569-11-11)
 - `isOverdue = (status == 'borrowed' && now(Asia/Bangkok) > dueAt)` เทียบวันที่และเวลา คำนวณที่ server (CR-001, CR-002)

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 )
 
 // insertTempModel เพิ่มรุ่นทดสอบในภาควิชา 1 ประเภท "คอมพิวเตอร์พกพา" พร้อมชิ้นตามสถานะที่ให้ คืนรหัสรุ่น
@@ -58,4 +59,39 @@ func errorBody(t *testing.T, raw string) map[string]string {
 		t.Fatalf("body ไม่ใช่ JSON ของ error: %v (%s)", err, raw)
 	}
 	return e
+}
+
+// insertLoanItem จำลอง UC-08 ส่งมอบชิ้นใหม่ของรุ่น A (ภาควิชา 1) ประเภทการยืมและกำหนดคืนตามที่ให้ แล้วลบทิ้งหลัง test
+// loanType: normal (ยืมปกติ) / overnight (ยืมค้างคืน) ตาม DM-05
+func insertLoanItem(t *testing.T, code, loanType string, dueAt time.Time) {
+	t.Helper()
+	pool := testPool(t)
+	ctx := context.Background()
+	_, err := pool.Exec(ctx, `
+WITH item AS (
+  INSERT INTO equipment_item (asset_code, model_id, status) VALUES ($1, 1, 'borrowed') RETURNING id
+)
+INSERT INTO loan (item_id, borrower_id, loan_type, due_at)
+SELECT id, 'student-001', $2, $3 FROM item`, code, loanType, dueAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(ctx, `DELETE FROM loan WHERE item_id = (SELECT id FROM equipment_item WHERE asset_code = $1)`, code)
+		_, _ = pool.Exec(ctx, `DELETE FROM equipment_item WHERE asset_code = $1`, code)
+	})
+}
+
+// returnItem จำลอง UC-09 รับคืน: ปิดการยืมที่ค้างอยู่ แล้วตั้งสถานะใหม่ (available = สภาพปกติ, unavailable = ชำรุด)
+func returnItem(t *testing.T, code string, newStatus Status) {
+	t.Helper()
+	pool := testPool(t)
+	ctx := context.Background()
+	if _, err := pool.Exec(ctx, `UPDATE loan SET returned_at = now()
+WHERE item_id = (SELECT id FROM equipment_item WHERE asset_code = $1) AND returned_at IS NULL`, code); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE equipment_item SET status = $2, updated_at = now() WHERE asset_code = $1`, code, string(newStatus)); err != nil {
+		t.Fatal(err)
+	}
 }
