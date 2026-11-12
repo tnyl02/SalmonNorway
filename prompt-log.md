@@ -4069,3 +4069,26 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - ฟีเจอร์: 004-approve-request
 - คำสั่ง: "ตรวจสอบแล่วผ่าน"
 - สิ่งที่แก้: tasks.md T-33 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)
+
+---
+
+## 2569-11-12 คำสั่ง: /implement T-34 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม .claude/commands/implement.md เพราะ /implement ไม่ได้ติดตั้งใน session)
+- คำสั่งก่อนหน้า: "ตรวจสอบแล่วผ่าน" (T-33 -> เสร็จ)
+- คำสั่ง: "/implement T-34"
+- ไฟล์ที่สร้าง: `frontend/src/pages/ApproveRequest/FailedEmails.jsx` (ตาราง ผู้ขอ / อุปกรณ์ / Email / สาเหตุ / เวลา พร้อมปุ่ม "ส่งซ้ำ" ส่งแล้วแถวหาย error แสดงตามรหัส), `FailedEmails.test.jsx` (2 test `AC-APV-14`)
+- ไฟล์ที่แก้: `frontend/src/api/client.js` (`getFailedEmails`, `resendEmail`), `frontend/src/approve-main.jsx` (แสดง FailedEmails ต่อจาก ApproveRequests ในหน้า /approve.html), `frontend/src/config.js` (`APPROVAL_EMAIL_KIND_LABELS`), `specs/004-approve-request/tasks.md`
+- ผล test: ยังไม่ได้รัน ตามลำดับการทดสอบที่ทีมตัดสิน / `client.js`, `config.js` ผ่าน `node --check`
+- สิ่งที่ AI เลือกเอง (ทีมตรวจ): ไม่มี mockup ทีมออกแบบเอง; หัวข้อ "Email ที่ส่งไม่สำเร็จ" ใช้คำจาก FR-APV-02 (ง), หัวคอลัมน์และข้อความแบบ Email (ผลอนุมัติ / ผลปฏิเสธ / ปฏิเสธอัตโนมัติ) ทีมออกแบบเอง; รายการว่างแสดงแค่หัวตาราง (spec ไม่มีข้อความ); ไม่โหลดรายการใหม่เองหลังมี Email ล้มเพิ่ม (ต้องรีเฟรชหน้า)
+
+---
+
+## 2569-11-12 คำสั่ง: ทีมตรวจ T-34 ของ 004-approve-request
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ (เจ้าของฟีเจอร์ 004)
+- ฟีเจอร์: 004-approve-request
+- คำสั่ง: "ตรวจสอบแล่วผ่าน"
+- สิ่งที่แก้: tasks.md T-34 "เสร็จ รอทีมตรวจ" -> "เสร็จ" (test ยังไม่ได้รัน)

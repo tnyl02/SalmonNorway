@@ -32,6 +32,13 @@ export const APPROVAL_MESSAGES = {
   UPSTREAM_UNAVAILABLE: 'ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง',
   REQUEST_NOT_FOUND: 'ไม่พบคำขอนี้',
 }
+// แบบของ Email ที่แสดงในรายการ "Email ที่ส่งไม่สำเร็จ" (FR-APV-02 ก ข ค, T-34) ค่า key ตรงกับ kind ของหลังบ้าน
+// ข้อความทีมออกแบบเอง ไม่ได้มาจาก spec
+export const APPROVAL_EMAIL_KIND_LABELS = {
+  approved: 'ผลอนุมัติ',
+  rejected: 'ผลปฏิเสธ',
+  auto_rejected: 'ปฏิเสธอัตโนมัติ',
+}
 // ---- จบ 004-approve-request ----
 
 // token ของผู้ใช้จำลองที่หน้าจอส่งไปกับทุก request (IF-IDP-01 ใช้ระบบยืนยันตัวตนจำลองไปก่อน รอ Q-SH-03)

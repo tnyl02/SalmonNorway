@@ -546,11 +546,11 @@ Updated: 2569-11-12
 ### T-34 สร้างหน้าจอ FailedEmails พร้อมปุ่มส่งซ้ำ
 - รองรับ: FR-APV-02 (ง), ASM-08
 - ตรวจด้วย: AC-APV-14
-- ไฟล์ที่แตะ: `frontend/src/pages/ApproveRequest/FailedEmails.jsx`, `frontend/src/pages/ApproveRequest/FailedEmails.test.jsx`, `frontend/src/api/client.js` (เพิ่ม `getFailedEmails`, `resendEmail`), `frontend/src/approve-main.jsx` (แสดงต่อจาก ApproveRequests ในหน้า /approve.html)
+- ไฟล์ที่แตะ: `frontend/src/pages/ApproveRequest/FailedEmails.jsx`, `frontend/src/pages/ApproveRequest/FailedEmails.test.jsx`, `frontend/src/api/client.js` (เพิ่ม `getFailedEmails`, `resendEmail`), `frontend/src/approve-main.jsx` (แสดงต่อจาก ApproveRequests ในหน้า /approve.html), `frontend/src/config.js` (`APPROVAL_EMAIL_KIND_LABELS`)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-09, T-33
 - เสร็จเมื่อ: vitest `AC-APV-14` ผ่าน แสดงรายการ "Email ที่ส่งไม่สำเร็จ" พร้อมสาเหตุและเวลา กดส่งซ้ำแล้วรายการหายไป
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / ยังไม่ได้รัน vitest `AC-APV-14` ตามลำดับการทดสอบที่ทีมตัดสิน)
 
 #### จุดตรวจเฟส 17
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_14`, test ของ `sender_test.go`, vitest `AC-APV-14` และ test ของเฟส 0 ถึง 16

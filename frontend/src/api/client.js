@@ -86,6 +86,13 @@ export const api = {
   rejectRequest: (requestId, reason, loadedAt) =>
     postJSON(`/v1/approvals/requests/${encodeURIComponent(requestId)}/reject`, { reason, loadedAt }),
 
+  // 004 FR-APV-02 (ง): Email ที่ส่งไม่สำเร็จของภาควิชาเจ้าหน้าที่
+  //   -> { items: [{ emailId, requestId, kind, requesterName, modelName, assetCode, attempts, lastError, lastAttemptAt }] }
+  getFailedEmails: () => getJSON('/v1/approvals/failed-emails'),
+
+  // 004 FR-APV-02 (ง): ส่ง Email ซ้ำโดยไม่พิจารณาใหม่ -> { emailId, status } (pending = เข้าคิวแล้ว)
+  resendEmail: (emailId) => postJSON(`/v1/approvals/emails/${encodeURIComponent(emailId)}/resend`, {}),
+
   // 003 FR-CXL-06: คำขอที่ยังยกเลิกได้ของผู้ใช้ที่เข้าสู่ระบบ เรียงใหม่ไปเก่า (plan.md ข้อ 4 ของ 003)
   //   -> { items: [{ requestId, modelName, assetCode, submittedAt }] }
   listMyPendingRequests: () => getJSON('/v1/my/pending-requests'),

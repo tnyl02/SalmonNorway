@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import ApproveRequests from './pages/ApproveRequest/ApproveRequests.jsx'
+import FailedEmails from './pages/ApproveRequest/FailedEmails.jsx'
 
 // จุดเริ่มของหน้าอนุมัติคำขอยืมปกติ (004-approve-request, UC-12) เปิดจาก frontend/approve.html
 // เฉพาะเจ้าหน้าที่ (ASM-01) หลังบ้านตรวจบทบาทและภาควิชาทุก request (AC-APV-05, ASM-06)
@@ -10,6 +11,8 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <main className="mx-auto max-w-4xl p-4 sm:p-6">
       <ApproveRequests />
+      {/* รายการ Email ที่ส่งไม่สำเร็จ อยู่หน้าเดียวกับรายการคำขอ (FR-APV-02 ง "บนหน้าของ 004", T-34) */}
+      <FailedEmails />
     </main>
   </StrictMode>,
 )
