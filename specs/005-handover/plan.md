@@ -22,7 +22,7 @@ Owner: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn10121
 
 ## 3. โมเดลข้อมูล
 ตาราง `equipment_item`, `loan` (0001) และ `audit_log` (0002) มีแล้ว ตาราง `borrow_request` เป็นของ 002 (migration 0003)
-ฟีเจอร์นี้เพิ่มด้วย migration ใหม่ 2 ไฟล์ เลข **0006 และ 0007** (ทีมกำหนด 2569-11-11 ถัดจาก 0004, 0005 ของ 003) `0006_handover.up.sql` และ `0007_audit_log_handover_action.up.sql`
+ฟีเจอร์นี้เพิ่มด้วย migration ใหม่ 2 ไฟล์ เลข **0006 และ 0009** (0006 ทีมกำหนด 2569-11-11 / ไฟล์ action ย้ายจาก 0007 เป็น 0009 ทีมเลือก 2569-11-12 เพราะ 0008 ของ 004 สร้าง CHECK ใหม่) `0006_handover.up.sql` และ `0009_audit_log_handover_action.up.sql`
 
 | Entity / การเปลี่ยน | ฟิลด์หลัก | รองรับ |
 |---|---|---|
@@ -40,7 +40,7 @@ Owner: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn10121
 - ไม่ `ALTER TABLE loan` ข้อมูลการส่งมอบอยู่ในตาราง `handover` ของ 005 เอง seed และ test ของ 001 ที่ INSERT `loan` 4 คอลัมน์จึงไม่พัง
   และไม่ต้องแก้ DM-05 ใน data-model.md (ตามกติกา "ฟิลด์ที่ใช้เฉพาะฟีเจอร์เดียวอยู่ใน plan.md ของฟีเจอร์นั้น")
 - เลข migration: 0003 ของ 002, 0004 และ 0005 ของ 003 (จองแล้ว) 005 ใช้ 2 เลขถัดไปที่ว่าง ต้องจองในกลุ่มก่อนสร้างไฟล์
-  ไฟล์แรก `0006_handover` (ตาราง `handover`, `handover_photo`) ไฟล์ที่สอง `0007_audit_log_handover_action` (รอ Q-HND-06)
+  ไฟล์แรก `0006_handover` (ตาราง `handover`, `handover_photo`) ไฟล์ที่สอง `0009_audit_log_handover_action` (Q-HND-06 ปิดแล้ว)
 - migration ของ action ต้อง `DROP CONSTRAINT` แล้วสร้าง CHECK ใหม่ที่มี**ทุกค่าที่มีอยู่ ณ เวลานั้น** ใช้ชื่อเดิม `audit_log_action_check` ตามที่ 0003 ของ 002 ตกลงกับ 003 (ตอนนี้มี list, search, detail, cancel, request บวก notify ของ 003 และของ 004 ถ้าไฟล์มาก่อน) บวก `handover` เพื่อไม่ลบค่าของคนอื่น
 
 ## 4. API / หน้าจอ
@@ -130,7 +130,7 @@ test หลังบ้านอยู่ที่ `backend/internal/handover/ha
 เพิ่มเติม (ไม่มี AC แยก): test ส่งมอบพร้อมกัน 2 goroutine ชิ้นเดียวกัน สำเร็จได้แค่ 1 (ยืนยัน `FOR UPDATE` ของ FR-HND-04)
 
 ## 7. ลำดับงาน
-1. migration ใช้เลข 0006 และ 0007 (ทีมกำหนด 2569-11-11) `borrow_request` (0003) ของ 002 merge แล้ว (FR-HND-01, 07)
+1. migration ใช้เลข 0006 และ 0009 (0006 ทีมกำหนด 2569-11-11, 0009 แทน 0007 ทีมเลือก 2569-11-12) `borrow_request` (0003) ของ 002 merge แล้ว (FR-HND-01, 07)
 2. เพิ่มค่าที่ตั้งได้ใน `config.go` และ `frontend/src/config.js` (FR-HND-02, 05, 06)
 3. migration `0006_handover`: ตาราง `handover` (ไม่แก้ `loan`) และ `handover_photo` แล้ว migration แยกสำหรับค่า action ของ `audit_log` (FR-HND-03, 06, 08)
 4. repository + transaction ส่งมอบ ล็อกอุปกรณ์ (FR-HND-04, 07, AC-HND-04, 07, 13)

@@ -14,7 +14,7 @@ import (
 )
 
 // auditActionHandover คือค่า action ของ audit_log สำหรับการส่งมอบ (DM-07, FR-HND-08, Q-HND-06 ปิด 2569-11-12)
-// อยู่ใน CHECK ด้วย migration 0007 ของ 005
+// อยู่ใน CHECK ด้วย migration 0009 ของ 005
 const auditActionHandover = "handover"
 
 // ค่าสถานะในฐานข้อมูลที่ 005 อ่านและเขียน (CON-DATA-01, data-model.md ตารางสถานะของคำขอยืม)

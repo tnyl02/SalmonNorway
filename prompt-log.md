@@ -5501,3 +5501,19 @@ main
   - `backend/internal/handover/handler_test.go` (ไม่อยู่ในช่องไฟล์ที่แตะ ต้องมี test ยืนยัน "เสร็จเมื่อ") TestHandover_OvernightDueAt
 - ผล test (container golang:1.25): TestHandover_OvernightDueAt ผ่าน TestAC_HND_05, TestAC_HND_11, TestAC_HND_01 ยังผ่าน `go test ./...` ผ่านทุก package go vet และ gofmt ผ่าน
 - ข้อสังเกตให้ทีม: spec ไม่มี AC ของการยืมค้างคืน (test ตั้งชื่อตาม task ไม่ใช่ AC ID) ควรเสนอเพิ่ม AC / ส่งมอบหลังวันสิ้นสุดการยืม กำหนดคืนจะอยู่ในอดีต spec ไม่ได้บอกว่าต้องทำอย่างไร AI ไม่ได้เพิ่มการตรวจ
+
+---
+
+## 2569-11-12 T-26 ย้าย migration จาก 0007 เป็น 0009 (ไม่แก้ไฟล์ของ 004)
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ส่วนอะไรที่กระทบคนอื่น ลองหาทางที่ไม่ให้กระทบมาก่อน แล้วเอามาเสนอกู" และ "เวลา commit ไปแค่ 005: T-21 done หรือ 005: T-21 review อะไรแค่นี้"
+- AI เสนอ 2 ทาง: (ก) ใช้เลข 0009 หลัง 0008 ไม่แตะไฟล์ของ 004 (ข) ใช้ 0007 แล้วให้เจ้าของ 004 แก้ 0008 เอง คำตอบของทีม: "ทาง ก (0009)"
+- คำสั่งเพิ่ม: "เช็คด้วยนะว่าเลขไหนใครใช้อะไรไปแล้ว อย่าให้ไปซ้ำใคร"
+- ผลการตรวจเลข migration (git fetch ทุก branch บน origin และค้น specs, docs, prompt-log ของทุก branch):
+  0001, 0002 (001) / 0003 (002) / 0004, 0005 (003) / 0006 (005) / 0007 จองให้ 005 ไม่มีไฟล์ / 0008 (004) / 0009 ขึ้นไป ไม่มีไฟล์และไม่มีบันทึกจองในทุก branch (006-return ยังไม่มี migration)
+- สิ่งที่แก้: คืน `0008_approval.up.sql`, `0008_approval.down.sql` เป็นแบบ main ทุกบรรทัด, ลบ `0007_audit_log_handover_action.up.sql`, สร้าง `0009_audit_log_handover_action.up.sql` และ `.down.sql` (CHECK รวมค่าของ 001 ถึง 004 + handover), แก้คอมเมนต์ใน repository.go และเลข migration ใน spec.md (Q-HND-06), plan.md, tasks.md
+- ผล test (container golang:1.25): `go test ./...` ผ่านทุก package รวม TestAC_HND_08_AuditLogged 5 กรณี และ test migration ของ 001, 003, 004 gofmt ผ่าน
+- ต้องทำต่อ: แจ้งกลุ่มว่า 005 ใช้ 0009 (เลข 0007 ที่จองไว้ว่าง)

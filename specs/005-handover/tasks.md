@@ -433,11 +433,11 @@ Spec: SPEC-HND-005 (spec.md Draft v2.6) | Plan: plan.md Draft v1.4 | tasks v1.4:
 ### T-26 เขียน audit log เมื่อส่งมอบสำเร็จ
 - รองรับ: FR-HND-08, DOM-AUDIT-01, CON-DATA-03
 - ตรวจด้วย: AC-HND-08
-- ไฟล์ที่แตะ: `backend/db/migrations/0007_audit_log_handover_action.up.sql` (ทีมกำหนดเลข 0007 2569-11-11 CHECK ใหม่ต้องมีทุกค่าเดิมของทุกฟีเจอร์ ณ เวลานั้น บวกค่าของ 005), `backend/internal/handover/repository.go` (ใช้ `backend/internal/audit/writer.go` ของ 001 ถ้ามีแล้ว ถ้ายังไม่มี INSERT เองแบบแผนสำรองของ 003), `backend/internal/handover/handler_test.go`, `specs/000-shared/data-model.md` (เพิ่มแถว action ของ 005 ในตาราง DM-07 แจ้งเจ้าของ 001)
+- ไฟล์ที่แตะ: `backend/db/migrations/0009_audit_log_handover_action.up.sql` และ `.down.sql` (เดิมกำหนด 0007 ย้ายเป็น 0009 ทีมเลือก 2569-11-12 เพราะ 0008 ของ 004 สร้าง CHECK ใหม่ จะได้ไม่แก้ไฟล์ของ 004 CHECK ใหม่ต้องมีทุกค่าเดิมของทุกฟีเจอร์ ณ เวลานั้น บวกค่าของ 005), `backend/internal/handover/repository.go` (ใช้ `backend/internal/audit/writer.go` ของ 001 ถ้ามีแล้ว ถ้ายังไม่มี INSERT เองแบบแผนสำรองของ 003), `backend/internal/handover/handler_test.go`, `specs/000-shared/data-model.md` (เพิ่มแถว action ของ 005 ในตาราง DM-07 แจ้งเจ้าของ 001)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `TestAC_HND_08_AuditLogged` ผ่านกรณีสำเร็จ (มีแถวระบุผู้ทำ เวลา รหัสครุภัณฑ์ รหัสคำขอ ผลลัพธ์) และ `TestMigration_AuditLogAction` ของ 001 กับ test ของ 003 ที่ใช้ action `cancel`, `notify` ยังผ่าน
-- สถานะ: เสร็จ รอทีมตรวจ (ไฟล์ที่ต่างจากช่องไฟล์ที่แตะ: แก้ `0008_approval.up.sql`, `0008_approval.down.sql` ของ 004 ให้มี `handover` เพราะ 0008 สร้าง CHECK ใหม่หลัง 0007 ต้องแจ้งเจ้าของ 004 / แก้ cleanup ใน `repository_test.go` เพราะ audit_log ลบไม่ได้ / ไม่แก้ `data-model.md` เพราะทีมตัดสิน 2569-11-12 ตามคอมเมนต์ใน 0008 ว่าค่า action ใหม่กำหนดใน migration ไม่เขียนใน data-model.md)
+- สถานะ: เสร็จ รอทีมตรวจ (ไม่แก้ไฟล์ของ 004 / ต้องจองเลข 0009 ในกลุ่ม เลข 0007 ที่จองไว้ไม่ได้ใช้ / แก้ cleanup ใน `repository_test.go` เพราะ audit_log ลบไม่ได้ / ไม่แก้ `data-model.md` เพราะทีมตัดสิน 2569-11-12 ตามคอมเมนต์ใน 0008 ว่าค่า action ใหม่กำหนดใน migration ไม่เขียนใน data-model.md)
 
 ### T-27 เขียน audit log เมื่อส่งมอบไม่สำเร็จ
 - รองรับ: FR-HND-08, DOM-AUDIT-01
@@ -558,4 +558,4 @@ FR ทุกข้อมี AC แต่ส่วนยืมแบบค้า�
 | Q-P3 [หมดไปแล้ว] 004 spec v1 ไม่มีที่เก็บกำหนดคืนตอนอนุมัติ 005 เป็นที่เดียวที่บันทึกกำหนดคืน | ไม่มี task รอ |
 | Q-P4 [ปิดแล้ว] ลงทะเบียน `FORBIDDEN_ROLE`, `REQUEST_NOT_APPROVED`, `BORROWER_MISMATCH` ใน CON-TECH-03 แล้ว | ไม่มี task รอ |
 
-นอกจากนี้ยังต้องทำก่อนเริ่ม (ไม่ใช่ Open Question): แจ้งกลุ่มว่า 005 ใช้ migration 0006, 0007 (T-02, T-26), merge 003 ก่อนแตะ `App.jsx`/`client.js`, แจ้ง 006 เรื่อง volume `photos`
+นอกจากนี้ยังต้องทำก่อนเริ่ม (ไม่ใช่ Open Question): แจ้งกลุ่มว่า 005 ใช้ migration 0006 (T-02) และ 0009 แทน 0007 (T-26), merge 003 ก่อนแตะ `App.jsx`/`client.js`, แจ้ง 006 เรื่อง volume `photos`
