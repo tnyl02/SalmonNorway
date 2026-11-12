@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"salmonnorway/backend/internal/auth"
 	"salmonnorway/backend/internal/config"
@@ -1117,6 +1118,91 @@ func TestAC_BRQ_05(t *testing.T) {
 		}
 		if body := strings.TrimSpace(w.Body.String()); body != "[]" {
 			t.Errorf("ต้องได้รายการว่าง [] แต่ได้ %s", body)
+		}
+	})
+}
+
+// countAudit นับแถว audit ของการส่งคำขอของผู้ใช้คนนั้น (ตาราง append-only ลบไม่ได้ จึงนับก่อนและหลัง)
+func countAudit(t *testing.T, pool *pgxpool.Pool, actorID string) int {
+	t.Helper()
+	var n int
+	if err := pool.QueryRow(context.Background(),
+		`SELECT count(*) FROM audit_log WHERE actor_id = $1 AND action = $2`,
+		actorID, config.AuditActionRequest).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+// lastAuditOutcome คืน outcome และรหัสครุภัณฑ์ของแถว audit ล่าสุดของผู้ใช้คนนั้น
+func lastAuditOutcome(t *testing.T, pool *pgxpool.Pool, actorID string) (string, *string) {
+	t.Helper()
+	var outcome string
+	var assetCode *string
+	if err := pool.QueryRow(context.Background(), `
+		SELECT outcome, asset_code FROM audit_log
+		WHERE actor_id = $1 AND action = $2 ORDER BY id DESC LIMIT 1`,
+		actorID, config.AuditActionRequest).Scan(&outcome, &assetCode); err != nil {
+		t.Fatal(err)
+	}
+	return outcome, assetCode
+}
+
+// T-24 เสร็จเมื่อ: คำขอที่ถูกปฏิเสธตั้งแต่การตรวจข้อมูล (422) ต้องมี audit เพิ่มขึ้น 1 แถว
+// รองรับ FR-BRQ-08 ที่สั่งให้บันทึก "ทุกครั้งที่มีการส่งคำขอ ทั้งกรณีสำเร็จและถูกปฏิเสธ"
+// (ทีมตัดสิน 2569-11-12 ว่าคำว่า "ถูกปฏิเสธ" รวมกรณี 422 ที่ไม่ถึง service ด้วย)
+func TestAuditOnValidationRejected(t *testing.T) {
+	t.Setenv("ATTACHMENT_DIR", t.TempDir())
+	pool := testPool(t)
+	srv := newTestServer(t)
+	const actor = "student-001"
+	const assetCode = "CS-NB-0003"
+
+	t.Run("ข้อมูลไม่ครบ", func(t *testing.T) {
+		before := countAudit(t, pool, actor)
+
+		w := postRequest(t, srv, tokenStudentDept1, bodyWithout(assetCode, "studentCode"))
+		if w.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("ข้อมูลไม่ครบต้องได้ 422 แต่ได้ %d body=%s", w.Code, w.Body.String())
+		}
+
+		if after := countAudit(t, pool, actor); after != before+1 {
+			t.Fatalf("ต้องมี audit เพิ่ม 1 แถว แต่ก่อนมี %d หลังมี %d", before, after)
+		}
+		outcome, logged := lastAuditOutcome(t, pool, actor)
+		if outcome != "forbidden" {
+			t.Errorf("คำขอที่ถูกปฏิเสธต้องบันทึก outcome forbidden แต่ได้ %q", outcome)
+		}
+		if logged == nil || *logged != assetCode {
+			t.Errorf("ต้องบันทึกรหัสครุภัณฑ์ %s ด้วย แต่ได้ %v", assetCode, logged)
+		}
+	})
+
+	t.Run("ไฟล์แนบผิดชนิด", func(t *testing.T) {
+		before := countAudit(t, pool, actor)
+
+		ct, body := multipartForm(t, assetCode, config.LoanTypeOvernight,
+			&testFile{name: "memo.txt", contentType: "text/plain", content: []byte("ไม่ใช่ PDF")})
+		w := postMultipart(t, srv, tokenStudentDept1, ct, body)
+		if w.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("ไฟล์ผิดชนิดต้องได้ 422 แต่ได้ %d body=%s", w.Code, w.Body.String())
+		}
+
+		if after := countAudit(t, pool, actor); after != before+1 {
+			t.Fatalf("ต้องมี audit เพิ่ม 1 แถว แต่ก่อนมี %d หลังมี %d", before, after)
+		}
+	})
+
+	t.Run("body ที่อ่านไม่ออก", func(t *testing.T) {
+		before := countAudit(t, pool, actor)
+
+		w := postRequest(t, srv, tokenStudentDept1, "{ ไม่ใช่ JSON")
+		if w.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("body ที่อ่านไม่ออกต้องได้ 422 แต่ได้ %d", w.Code)
+		}
+
+		if after := countAudit(t, pool, actor); after != before+1 {
+			t.Fatalf("ต้องมี audit เพิ่ม 1 แถว แต่ก่อนมี %d หลังมี %d", before, after)
 		}
 	})
 }

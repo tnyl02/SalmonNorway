@@ -84,11 +84,13 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		// ส่งมาพร้อมไฟล์แนบ (plan.md ข้อ 4) ใช้กับการยืมค้างคืนเป็นหลัก
 		var err error
 		if in, up, err = parseCreateForm(r); err != nil {
+			h.svc.AuditValidationRejected(r.Context(), in.AssetCode) // ถูกปฏิเสธก็ต้องบันทึก (FR-BRQ-08, T-24)
 			writeError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "รูปแบบข้อมูลที่ส่งมาไม่ถูกต้อง")
 			return
 		}
 	} else if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		// body ที่อ่านไม่ออก ไม่ใช่ข้อมูลที่ส่งมาไม่ครบ (การตรวจความครบถ้วนรายช่องเป็นงานของ T-06)
+		h.svc.AuditValidationRejected(r.Context(), in.AssetCode) // ถูกปฏิเสธก็ต้องบันทึก (FR-BRQ-08, T-24)
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_FAILED", "รูปแบบข้อมูลที่ส่งมาไม่ถูกต้อง")
 		return
 	}
@@ -98,6 +100,8 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	newReq := in.toNewRequest()
 	problems := append(missingFields(newReq), attachmentProblems(newReq.LoanType, up)...)
 	if len(problems) > 0 {
+		// คำขอที่ถูกปฏิเสธตั้งแต่ตรงนี้ก็ต้องมี audit เหมือนกัน (FR-BRQ-08 "ทั้งกรณีสำเร็จและถูกปฏิเสธ", T-24)
+		h.svc.AuditValidationRejected(r.Context(), newReq.AssetCode)
 		writeValidationError(w, problems)
 		return
 	}

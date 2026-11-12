@@ -61,8 +61,8 @@ RETURNING id, submitted_at`
 // คืน ErrItemNotAvailable เมื่อไม่มีอุปกรณ์รหัสนั้น หรือสถานะไม่ใช่ "ว่าง" แล้ว (CON-DATA-01)
 func (r *Repository) Create(ctx context.Context, requesterID string, in NewRequest, status string) (Request, error) {
 	// ตรวจขอบเขตภาควิชาก่อนทุกอย่าง เพื่อไม่ให้ผู้ขอต่างภาควิชารู้แม้แต่สถานะของอุปกรณ์ (FR-BRQ-07)
-	// **ลำดับการตรวจเมื่อข้ามภาควิชาและอุปกรณ์ไม่ว่างพร้อมกัน ยังรอ Q-BRQ-15 (ดู T-21)**
-	// ระหว่างรอคำตอบเลือกทางที่ปลอดภัยกว่าคือไม่เปิดเผยอะไรเลย
+	// ลำดับนี้คือคำตอบของ Q-BRQ-15 (ทีมตัดสิน 2569-11-12): ตรวจภาควิชาก่อนเสมอ
+	// คนต่างภาควิชาได้ 403 โดยไม่รู้สถานะอุปกรณ์ FR-BRQ-07 ชนะ FR-BRQ-01 เมื่อสองข้อนี้ชนกัน
 	if err := r.checkDepartment(ctx, in.AssetCode); err != nil {
 		return Request{}, err
 	}

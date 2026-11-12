@@ -170,6 +170,17 @@ func (s *Service) auditRequest(ctx context.Context, assetCode string, cause erro
 	}
 }
 
+// ErrValidationRejected ใช้บอก audit ว่าคำขอถูกปฏิเสธตั้งแต่การตรวจข้อมูลที่ handler (FR-BRQ-03, FR-BRQ-10)
+// ไม่ได้ถูกส่งกลับไปให้ผู้ขอ handler ตอบ 422 VALIDATION_FAILED พร้อมรายชื่อช่องที่ผิดเองอยู่แล้ว
+var ErrValidationRejected = errors.New("คำขอถูกปฏิเสธตั้งแต่การตรวจข้อมูล")
+
+// AuditValidationRejected บันทึก audit ของคำขอที่ถูกปฏิเสธก่อนถึง service (FR-BRQ-08, T-24)
+// FR-BRQ-08 สั่งให้บันทึก "ทุกครั้งที่มีการส่งคำขอ ทั้งกรณีสำเร็จและถูกปฏิเสธ"
+// คำขอที่ข้อมูลไม่ครบหรือไฟล์ผิดกติกาก็นับเป็นการส่งคำขอที่ถูกปฏิเสธ (ทีมตัดสิน 2569-11-12)
+func (s *Service) AuditValidationRejected(ctx context.Context, assetCode string) {
+	s.auditRequest(ctx, assetCode, ErrValidationRejected)
+}
+
 // auditOutcome แปลงผลของการส่งคำขอเป็นค่า outcome 1 ใน 3 ค่าที่ audit_log รับ (DM-07, migration 0002)
 //   - สำเร็จ = ok
 //   - ถูกปฏิเสธด้วยกฎของฟีเจอร์ (ต่างภาควิชา อุปกรณ์ไม่ว่าง คำขอซ้ำ มีของเกินกำหนด) = forbidden
@@ -183,7 +194,8 @@ func auditOutcome(cause error) string {
 	case errors.Is(cause, ErrForbiddenDepartment),
 		errors.Is(cause, ErrItemNotAvailable),
 		errors.Is(cause, ErrDuplicateRequest),
-		errors.Is(cause, ErrHasOverdueLoan):
+		errors.Is(cause, ErrHasOverdueLoan),
+		errors.Is(cause, ErrValidationRejected):
 		return audit.OutcomeForbidden
 	default:
 		return audit.OutcomeError
