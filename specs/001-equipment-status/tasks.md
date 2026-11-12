@@ -416,11 +416,11 @@ T-22 ย้ายไปเฟส 16 เพราะยังไม่รู้�
 ### T-38 แสดงคำขอยืมที่ค้างอยู่บนหน้ารายละเอียด (เฉพาะเจ้าหน้าที่)
 - รองรับ: FR-EQS-11, DOM-REQ-01, DOM-PRIV-01, CON-TECH-03 (403 `FORBIDDEN_ROLE`)
 - ตรวจด้วย: AC-EQS-17
-- ไฟล์ที่แตะ: `frontend/src/api/client.js` (listItemRequests เรียก endpoint ของ 002), `frontend/src/components/RequestQueue.jsx` (ใหม่), `frontend/src/pages/EquipmentDetail/EquipmentDetail.jsx`, `frontend/src/__tests__/AC-EQS-17.test.jsx`
+- ไฟล์ที่แตะ: `frontend/src/api/client.js` (listItemRequests เรียก endpoint ของ 002), `frontend/src/components/RequestQueue.jsx` (ใหม่), `frontend/src/pages/EquipmentDetail/EquipmentDetail.jsx`, `frontend/src/__tests__/AC-EQS-17.test.jsx`, `frontend/src/__tests__/AC-EQS-05.test.jsx` (นับเฉพาะ request ของรายละเอียด เพิ่มตามที่ทีมตัดสิน 2569-11-12)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-11, T-13
 - เสร็จเมื่อ: `AC-EQS-17.test.jsx` ผ่าน (เจ้าหน้าที่: 2 คำขอ ลำดับ 1 = A, 2 = B พร้อมเวลาที่ส่งและชื่อผู้ขอ / นักศึกษา: client ตอบ 403 `FORBIDDEN_ROLE` แล้วไม่มีส่วนนี้และไม่มีชื่อผู้ขอ / 002 ไม่ตอบ: สถานะและกำหนดคืนยังแสดง)
-- สถานะ: พร้อมทำ (หลังบ้านเป็นของ 002 ไม่มี task หลังบ้านของ 001 / ลองระบบจริงได้หลัง 002 ทำ endpoint เสร็จ / ข้อความเมื่อไม่มีคำขอหรือ 002 ไม่ตอบ spec ไม่บอก ตอนนี้ไม่แสดงส่วนนี้ ดู "สิ่งที่ยังไม่ทำ")
+- สถานะ: เสร็จ รอทีมตรวจ (หลังบ้านเป็นของ 002 ไม่มี task หลังบ้านของ 001 / ลองระบบจริงได้หลัง 002 ทำ endpoint เสร็จ / ข้อความเมื่อไม่มีคำขอหรือ 002 ไม่ตอบ spec ไม่บอก ตอนนี้ไม่แสดงส่วนนี้ ดู "สิ่งที่ยังไม่ทำ")
 
 #### จุดตรวจเฟส 15
 - test ที่ต้องผ่านทั้งหมด: test ทุกเฟสก่อนหน้า + `AC-EQS-17.test.jsx`
