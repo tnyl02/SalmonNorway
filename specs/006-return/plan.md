@@ -115,7 +115,7 @@ FR-RET-04 อยู่ใน plan (data-model.md ให้ 006 ยืนยั�
 
 | AC ID | ชื่อ test | ทดสอบอย่างไร |
 |---|---|---|
-| AC-RET-01 | `TestAC_RET_01_NormalReturnBecomesAvailable` | seed loan เปิด + item `borrowed` -> POST `normal` + 1 JPG -> 200, `returned_at` ไม่ว่าง, item `available` |
+| AC-RET-01 | `TestAC_RET_01_NormalReturnBecomesAvailable` | seed loan เปิด + item `borrowed` -> POST `normal` -> 200, `returned_at` ไม่ว่าง, item `available` |
 | AC-RET-02 | `TestAC_RET_02_DamagedReturnBecomesUnavailable` | POST `damaged` -> item `unavailable`; ตรวจว่ามี UPDATE สถานะครั้งเดียวด้วย trigger นับ/เก็บประวัติสถานะใน test schema ว่าไม่เคยเป็น `available` |
 | AC-RET-03 | `TestAC_RET_03_NoOpenLoanRejected` | item `available` และ `unavailable` -> lookup/POST ได้ 409 `NO_OPEN_LOAN`, สถานะไม่เปลี่ยน |
 | AC-RET-04 | `TestAC_RET_04_ConditionRequired` | ไม่ส่ง `condition` และส่ง `lost` -> 422 `CONDITION_REQUIRED`, loan ไม่เปลี่ยน; frontend test: ตัวเลือกมีแค่ ปกติ/ชำรุด |
