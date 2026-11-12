@@ -373,11 +373,13 @@ Updated: 2569-11-11
 ### T-19 สร้างหน้าจอแบบฟอร์มคำขอยืม
 - รองรับ: FR-BRQ-01, FR-BRQ-02, FR-BRQ-03, FR-BRQ-10, NFR-USE-01
 - ตรวจด้วย: AC-BRQ-02, AC-BRQ-03, AC-BRQ-10, AC-BRQ-14 (ส่วนที่ผู้ใช้เห็นบนหน้าจอ)
-- ไฟล์ที่แตะ: `frontend/src/pages/BorrowRequest/BorrowRequestForm.jsx`, `frontend/src/api/client.js`, `frontend/src/config.js`
+- ไฟล์ที่แตะ: `frontend/src/pages/BorrowRequest/BorrowRequestForm.jsx`, `frontend/src/api/client.js`,
+  `frontend/src/config.js`, `frontend/src/App.jsx` (เพิ่มเมื่อ 2569-11-12 ทีมตัดสิน เพราะทีมไม่ใช้ router
+  หน้าของทุกฟีเจอร์ต้องเพิ่มแถวในตาราง PAGES ของ App.jsx ถึงจะเปิดเข้าได้ แบบเดียวกับที่ 003 ทำ)
 - แบบหน้าจอ: ไม่มี mockup ทีมออกแบบเอง (spec ยังไม่มีหมวดหน้าจอ)
 - ต้องทำหลัง: T-14
 - เสร็จเมื่อ: กรอกฟอร์มบนหน้าจอแล้วส่งคำขอสำเร็จ และ test หน้าจอด้วย client จำลองผ่าน
-- สถานะ: พร้อมทำ (Q-BRQ-14 ปิดแล้ว 2569-11-12 เจ้าของฟีเจอร์ออกแบบหน้าจอเอง)
+- สถานะ: เสร็จ รอทีมตรวจ
 
 ### T-20 แสดงข้อความแจ้งผลและข้อผิดพลาดบนหน้าจอ
 - รองรับ: FR-BRQ-01, FR-BRQ-03, FR-BRQ-06, FR-BRQ-09, FR-BRQ-10, CON-TECH-03
