@@ -2,52 +2,121 @@
 // ตอน test ให้ส่ง client จำลองเข้าไปในหน้าจอแทน ไม่ต้องรันหลังบ้านจริง
 // เรียกผ่าน /api (ดู proxy ใน vite.config.js) หลังบ้านต้องรันอยู่ที่ port 8000
 // ฟังก์ชันของแต่ละ endpoint ให้ task ของฟีเจอร์นั้นเพิ่มเอง (เช่น T-06 ของ 001)
-import { MOCK_TOKEN } from '../config.js'
+import { EQUIPMENT_REQUEST_TIMEOUT_MS, MOCK_TOKEN } from '../config.js'
 
 export const BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
 // ApiError บอกว่าหลังบ้านตอบไม่สำเร็จ status คือ HTTP status code ส่วน code มาจาก Error contract ใน plan.md
+// serverMessage คือข้อความภาษาไทยจากหลังบ้าน (CON-TECH-03) ใช้ชื่อเดียวกับ api/handover.js ของ 005
+// หน้าจอแสดง serverMessage ได้ แต่ตัดสินใจจาก code เท่านั้น
 export class ApiError extends Error {
-  constructor(status, code) {
+  constructor(status, code, serverMessage) {
     super(`API ${status} ${code ?? ''}`.trim())
     this.status = status
     this.code = code
+    this.serverMessage = serverMessage
   }
 }
 
-// ทุก request ต้องยืนยันตัวตน (IF-IDP-01, NFR-SEC-01) ส่ง token จำลองจาก config.js ไปก่อน (T-21 จะเปลี่ยนเป็นหน้าล็อกอินจำลอง)
+// ---- session จำลอง (IF-IDP-01, AC-EQS-09, T-21 ของ 001) ทีมเลือกเอง ไม่ได้มาจาก spec รอ Q-SH-03 ----
+// token เก็บใน sessionStorage ของ browser ลบ token ทิ้ง = session หมดอายุ (request ถัดไปได้ 401)
+// เปิดระบบครั้งแรกใช้ MOCK_TOKEN จาก config.js (VITE_MOCK_TOKEN หรือค่าเริ่มต้น) เหมือนเดิม ฟีเจอร์อื่นไม่ต้องเปลี่ยนวิธีลอง
+const TOKEN_KEY = 'salmon.mockToken'
+let memoryToken = null // ใช้แทนเมื่อ browser ไม่ให้ใช้ sessionStorage
+
+function tokenStore() {
+  try {
+    return window.sessionStorage
+  } catch {
+    return null
+  }
+}
+
+// getToken คืน token ปัจจุบัน null = ไม่มี session
+export function getToken() {
+  const s = tokenStore()
+  return s ? s.getItem(TOKEN_KEY) : memoryToken
+}
+
+// setToken ตั้ง token หลังล็อกอินจำลอง ส่ง null = ลบ session
+export function setToken(token) {
+  const s = tokenStore()
+  if (!s) {
+    memoryToken = token
+  } else if (token) {
+    s.setItem(TOKEN_KEY, token)
+  } else {
+    s.removeItem(TOKEN_KEY)
+  }
+}
+
+if (getToken() == null) setToken(MOCK_TOKEN)
+
+function authHeaders() {
+  const token = getToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+// onUnauthorized ลงทะเบียนให้ถูกเรียกทุกครั้งที่หลังบ้านตอบ 401 (App ใช้แสดงหน้าล็อกอินจำลอง) คืนฟังก์ชันยกเลิก
+const unauthorizedListeners = new Set()
+export function onUnauthorized(listener) {
+  unauthorizedListeners.add(listener)
+  return () => unauthorizedListeners.delete(listener)
+}
+
+// failed แปลง response ที่ไม่สำเร็จเป็น ApiError และแจ้งผู้ฟังเมื่อเป็น 401 (AC-EQS-09)
+async function failed(res) {
+  const err = await apiError(res)
+  if (res.status === 401) unauthorizedListeners.forEach((listener) => listener(err))
+  return err
+}
+
+// ทุก request ต้องยืนยันตัวตน (IF-IDP-01, NFR-SEC-01) ส่ง token จาก session จำลอง
 // cache: 'no-store' ให้เบราว์เซอร์ถามหลังบ้านทุกครั้ง ไม่ใช้ข้อมูลเก่า (NFR-DATA-01, plan.md ข้อ 6.2)
 // หลังบ้านส่ง Cache-Control: no-store มาด้วย (platform.NoStore)
-async function getJSON(path) {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
-    cache: 'no-store',
-  })
-  if (!res.ok) throw await apiError(res)
-  return res.json()
+// timeoutMs (ถ้าส่งมา) คือเวลารอหลังบ้านทั้งหมดรวมการอ่าน body เกินแล้วยกเลิก request (FR-EQS-08, Q-08, T-26)
+// fetch ถูกยกเลิกจะ throw AbortError ซึ่งไม่ใช่ ApiError หน้าจอจึงแสดงข้อความเดิมพร้อมปุ่มลองใหม่ เหมือนต่อหลังบ้านไม่ได้
+// ไม่ส่ง timeoutMs = รอจนกว่าหลังบ้านตอบ (พฤติกรรมเดิม ใช้กับ request ของ 002, 003)
+async function getJSON(path, { timeoutMs } = {}) {
+  const controller = timeoutMs ? new AbortController() : null
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      headers: authHeaders(),
+      cache: 'no-store',
+      ...(controller ? { signal: controller.signal } : {}),
+    })
+    if (!res.ok) throw await failed(res)
+    return await res.json()
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
 }
+
+// EQUIPMENT_TIMEOUT ใช้กับ request ของ 001 เท่านั้น (FR-EQS-08, Q-08, ทีมตัดสิน 2569-11-12 ตอนทำ T-26)
+const EQUIPMENT_TIMEOUT = { timeoutMs: EQUIPMENT_REQUEST_TIMEOUT_MS }
 
 // postJSON ส่ง body เป็น JSON แบบเดียวกับ getJSON (token, no-store, ApiError) เพิ่มโดย 003 T-07 ฟีเจอร์อื่นใช้ร่วมได้
 async function postJSON(path, body) {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${MOCK_TOKEN}`, 'Content-Type': 'application/json' },
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
     cache: 'no-store',
     body: JSON.stringify(body),
   })
-  if (!res.ok) throw await apiError(res)
+  if (!res.ok) throw await failed(res)
   return res.json()
 }
 
 // apiError อ่าน code จาก Error contract ใน plan.md (ถ้าอ่านไม่ได้ code เป็น undefined)
 async function apiError(res) {
-  let code
+  let body
   try {
-    code = (await res.json()).code
+    body = await res.json()
   } catch {
-    code = undefined
+    body = undefined
   }
-  return new ApiError(res.status, code)
+  return new ApiError(res.status, body?.code, body?.message)
 }
 
 // 001 FR-EQS-02: แปลงตัวกรอง { categories: [...], statuses: [...] } เป็น query string
@@ -63,14 +132,18 @@ function filterQuery(filter = {}) {
 export const api = {
   // 001 FR-EQS-01, FR-EQS-02: รายการรุ่น 1 แถว = 1 รุ่น ตามตัวกรอง
   //   -> { items: [{ modelId, name, category, availableCount, totalCount }], total }
-  listModels: (filter) => getJSON(`/v1/equipment/models${filterQuery(filter)}`),
+  listModels: (filter) => getJSON(`/v1/equipment/models${filterQuery(filter)}`, EQUIPMENT_TIMEOUT),
 
   // 001 FR-EQS-01, FR-EQS-02: อุปกรณ์รายชิ้นของรุ่น ตามตัวกรองเดียวกัน -> { items: [{ assetCode, status }], total }
   listItems: (modelId, filter) =>
-    getJSON(`/v1/equipment/models/${encodeURIComponent(modelId)}/items${filterQuery(filter)}`),
+    getJSON(`/v1/equipment/models/${encodeURIComponent(modelId)}/items${filterQuery(filter)}`, EQUIPMENT_TIMEOUT),
 
   // 001 FR-EQS-04: รายละเอียดอุปกรณ์รายชิ้น -> { assetCode, status, dueAt? } (dueAt มีเฉพาะถูกยืม)
-  getItem: (assetCode) => getJSON(`/v1/equipment/items/${encodeURIComponent(assetCode)}`),
+  getItem: (assetCode) => getJSON(`/v1/equipment/items/${encodeURIComponent(assetCode)}`, EQUIPMENT_TIMEOUT),
+
+  // 001 FR-EQS-11 (T-38): คำขอยืมที่ค้างอยู่ของอุปกรณ์ชิ้นนี้ เรียก endpoint ของ 002 (FR-BRQ-05 ก, สัญญาใน CR-005)
+  //   -> [{ requestId, queuePosition, submittedAt, requesterName }] หรือ throw ApiError(403 FORBIDDEN_ROLE) เมื่อไม่ใช่เจ้าหน้าที่
+  listItemRequests: (assetCode) => getJSON(`/v1/equipment/items/${encodeURIComponent(assetCode)}/requests`),
 
   // 004 FR-APV-01 (ก)(ข): คำขอยืมปกติที่รอพิจารณาของภาควิชาเจ้าหน้าที่ เรียงตามเวลาที่ส่ง
   //   -> { items: [{ requestId, requesterName, studentCode, modelName, assetCode, purpose, purposeOther?,

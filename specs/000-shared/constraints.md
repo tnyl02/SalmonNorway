@@ -23,7 +23,7 @@ Status: v5.1 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบ�
   | `BORROWER_MISMATCH` | 409 | ผู้ที่ยืนยันตัวตนไม่ใช่ผู้ส่งคำขอ | 005 (ลงทะเบียน 2569-11-11) |
   | `DUPLICATE_REQUEST` | 409 | ผู้ขอคนเดิมมีคำขอที่ยังไม่จบของอุปกรณ์ชิ้นเดิมอยู่แล้ว | 002 |
   | `HAS_OVERDUE_LOAN` | 409 | ผู้ขอมีอุปกรณ์ที่คืนเกินกำหนดค้างอยู่ | 002 |
-  | `FORBIDDEN_ROLE` | 403 | ยืนยันตัวตนได้และบทบาทรู้จัก แต่บทบาทนี้ไม่มีสิทธิ์ทำรายการนี้ (เช่น นักศึกษาเรียกการอนุมัติ) | 004, 005 |
+  | `FORBIDDEN_ROLE` | 403 | ยืนยันตัวตนได้และบทบาทรู้จัก แต่บทบาทนี้ไม่มีสิทธิ์ทำรายการนี้ (เช่น นักศึกษาเรียกการอนุมัติ) | 001, 004, 005 |
   | `REQUEST_CANCELLED` | 409 | คำขอถูกผู้ขอยกเลิกแล้ว (`cancelled`) จึงพิจารณาไม่ได้ | 004 |
   | `REQUEST_ALREADY_DECIDED` | 409 | คำขอได้รับการพิจารณาไปแล้วก่อนที่หน้าจอของผู้เรียกจะโหลด | 004 |
   | `REQUEST_DECIDED_CONCURRENTLY` | 409 | คำขอเพิ่งถูกพิจารณาโดยผู้อื่นหลังหน้าจอของผู้เรียกโหลด (กดพร้อมกัน) | 004 |
@@ -72,8 +72,9 @@ Status: v5.1 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบ�
 - Q-SH-05 [ปิดแล้ว 2569-11-11 ทีมตัดสิน] (จาก DOM-REQ-01) ลำดับและเวลาของคำขอที่มาก่อน
   แสดง**เฉพาะเจ้าหน้าที่** ที่**หน้ารายละเอียดอุปกรณ์ของ 001** และเจ้าหน้าที่เห็นชื่อผู้ขอรายอื่นได้
   (ไม่ขัด DOM-PRIV-01 เพราะนักศึกษายังไม่เห็นชื่อผู้อื่น)
-  **001 ต้องเพิ่ม FR ผ่าน CR** ตามที่ spec 001 เขียนเงื่อนไขนี้ไว้เอง ส่วน 002 เป็นผู้บันทึกเวลาที่ส่งให้
-  กระทบ: 001 (เพิ่ม FR), 002 (FR-BRQ-05), 004
+  001 เพิ่ม FR-EQS-11 และ AC-EQS-17 แล้ว (CR-005 อนุมัติ 2569-11-12) ส่วน 002 เป็นผู้บันทึกเวลาที่ส่งให้
+  ผ่าน `GET /api/v1/equipment/items/{assetCode}/requests` นักศึกษาได้ 403 `FORBIDDEN_ROLE` (สัญญา API ใน specs/changes/CR-005.md)
+  กระทบ: 001 (FR-EQS-11), 002 (FR-BRQ-05), 004
 - Q-SH-06 [ปิดบางส่วน 2569-11-11 ทีมตัดสิน] (จาก DOM-REQ-01) เมื่อคำขอหนึ่งได้รับอนุมัติแล้ว
   คำขอที่เหลือของอุปกรณ์ชิ้นเดียวกัน **ถูกปฏิเสธอัตโนมัติ** (ผู้ทำคือ 004)
   ยังไม่ตอบ: ต้องแจ้งผู้ขอที่ถูกปฏิเสธตาม RQ-21 ไหม และเจ้าหน้าที่ต้องอนุมัติตามลำดับที่มาก่อนหรือข้ามได้?
@@ -94,7 +95,7 @@ Status: v5.1 | Updated: 2569-11-11 (เพิ่ม CON-TECH-03 รูปแบ�
 |---|---|
 | CON-TECH-01 | 001-equipment-status, 002-borrow-request, 003-cancel-request, 004-approve-request, 005-handover |
 | CON-TECH-02 | 001-equipment-status, 002-borrow-request, 003-cancel-request, 004-approve-request, 005-handover |
-| CON-TECH-03 | 001-equipment-status (รหัสเดิม 4 ตัว), 002-borrow-request, 004-approve-request, 005-handover (ใช้ FORBIDDEN_ROLE ร่วมกับ 004, ลงทะเบียน REQUEST_NOT_APPROVED, BORROWER_MISMATCH) |
+| CON-TECH-03 | 001-equipment-status (รหัสเดิม 4 ตัว และ FORBIDDEN_ROLE ใน T-17), 002-borrow-request, 004-approve-request, 005-handover (ใช้ FORBIDDEN_ROLE ร่วมกับ 004, ลงทะเบียน REQUEST_NOT_APPROVED, BORROWER_MISMATCH) |
 | CON-DATA-01 | 001-equipment-status, 002-borrow-request (ส่งคำขอได้เฉพาะชิ้นที่ "ว่าง"), 003-cancel-request (ยกเลิกไม่เปลี่ยนสถานะอุปกรณ์), 004-approve-request (สถานะอุปกรณ์ยังเป็น ว่าง หลังอนุมัติ), 005-handover |
 | CON-DATA-03 | 001-equipment-status, 002-borrow-request, 005-handover |
 | DOM-PRIV-01 | 001-equipment-status, 002-borrow-request (ไม่เปิดเผยชื่อผู้ขอรายอื่น FR-BRQ-05) |

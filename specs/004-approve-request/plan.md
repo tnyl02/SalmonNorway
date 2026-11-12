@@ -78,7 +78,7 @@ error (CON-TECH-03) ข้อความตาม FR-APV-01 (ซ) อยู่�
 | `UPSTREAM_UNAVAILABLE` | 503 | ฐานข้อมูลไม่ตอบ | มีแล้ว (Q-APV-24) | ไม่มี AC |
 
 - แยก `REQUEST_ALREADY_DECIDED` กับ `REQUEST_DECIDED_CONCURRENTLY` ด้วยการเทียบ `approval_decision.decided_at` กับ `loaded_at` ที่หน้าจอส่งมา (ทีมเลือกเอง ไม่ได้มาจาก spec)
-- auth.Middleware ของกลางตอบแค่ `{code}` ไม่มี `message` ดูข้อ 8 / handler ของ 004 ตอบครบทั้ง `code` และ `message`
+- auth.Middleware ของกลางตอบ `{code, message}` แล้ว (001 แก้ 2569-11-12 ดูข้อ 8) / handler ของ 004 ตอบครบทั้ง `code` และ `message`
 - หน้าจอ (ไม่มี mockup ทีมออกแบบเอง ไม่มี UI ID ใน spec):
   - `ApproveRequests` รายการคำขอ ปุ่มอนุมัติ (เฉพาะแถว `is_first`) ปุ่มปฏิเสธพร้อมช่องเหตุผล และแสดงข้อความ error ตามรหัส
   - `FailedEmails` รายการ Email ที่ส่งไม่สำเร็จ ปุ่มส่งซ้ำ
@@ -89,7 +89,7 @@ error (CON-TECH-03) ข้อความตาม FR-APV-01 (ซ) อยู่�
 |---|---|---|
 | CON-TECH-01 | ตาราง `approval_decision`, `approval_email` และ migration ของ 004 ใน PostgreSQL (ข้อ 3) | ใช้แล้ว |
 | CON-TECH-02 | route อยู่ใน server เดิมหลัง proxy HTTPS และ Docker ของกลาง (ข้อ 2, 4) | ใช้แล้ว |
-| CON-TECH-03 | ตาราง error ข้อ 4 รหัสใหม่ 5 ตัวลงทะเบียนแล้ว 2569-11-12 (Q-APV-19) | ใช้แล้ว (middleware ของกลางยังไม่มี message ดูข้อ 8) |
+| CON-TECH-03 | ตาราง error ข้อ 4 รหัสใหม่ 5 ตัวลงทะเบียนแล้ว 2569-11-12 (Q-APV-19) | ใช้แล้ว |
 | CON-DATA-01 | อนุมัติได้เฉพาะอุปกรณ์ `available` และไม่เปลี่ยนสถานะอุปกรณ์ (ข้อ 3, `ITEM_NOT_AVAILABLE`) | ใช้แล้ว |
 | DOM-REQ-01 | เรียงตาม submitted_at, `is_first`, `NOT_FIRST_IN_QUEUE`, ปฏิเสธคำขออื่นเมื่อมีคำขอได้อนุมัติ (ข้อ 3, 4) | ใช้แล้ว |
 | DOM-LOAN-01 | เวลาตัด 16:00 น. ของวันที่เริ่มยืม (`APPROVAL_CUTOFF_PASSED`) / กำหนดคืนใน Email = end_at ที่ 002 ตรวจแล้ว | ใช้แล้ว |
@@ -166,6 +166,6 @@ vitest อยู่ที่ `frontend/src/pages/ApproveRequest/ApproveRequests.
 เรื่องที่พบตอนทำ plan (004 ไม่ตัดสินเอง):
 - **ชื่อเจ้าหน้าที่ไม่มีใน Principal (DM-08, IF-IDP-01)** แต่ spec ต้องการชื่อผู้อนุมัติ / ผู้พิจารณาใน Email (FR-APV-02 ก ข) และชื่อเจ้าหน้าที่ในประวัติ (FR-APV-01 ฌ)
   -> เสนอรวมใน CR เดียวกับ Email (Q-APV-04) ให้ระบบยืนยันตัวตนส่งชื่อและ Email มาด้วย ระหว่างรอ `actor_name` ว่างได้
-- **`auth.Middleware` ของกลางตอบแค่ `{code}` ไม่มี `message`** ไม่ครบ CON-TECH-03 -> แจ้งเจ้าของ 001 (ไม่แก้ใน 004)
+- **`auth.Middleware` ของกลางตอบแค่ `{code}` ไม่มี `message`** [ปิดแล้ว 2569-11-12] 001 แก้ใน T-37 ของ 001 ตอบ `{code, message}` ผ่าน `platform.WriteError` แล้ว (merge จาก main PR #16)
 - **ค่า action `approve`, `reject`, `auto_reject` และเลข migration 0008** [ปิดแล้ว 2569-11-12 ทีมตัดสิน] ยังไม่ต้องเขียนใน data-model.md กำหนดใน migration 0008 ที่ฐานข้อมูลเท่านั้น
 - **ลำดับ migration**: ตกลงลำดับ merge ให้ 0004 ถึง 0007 ขึ้นก่อน 0008 เพราะ golang-migrate ไม่รันเลขที่น้อยกว่าเวอร์ชันที่ฐานข้อมูลอยู่แล้ว

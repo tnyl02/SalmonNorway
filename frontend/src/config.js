@@ -51,6 +51,13 @@ export const MOCK_TOKEN = import.meta.env.VITE_MOCK_TOKEN ?? 'mock-student-001'
 // 003 ใช้ค่าเดียวกันแสดงเวลาที่ส่งคำขอ (FR-CXL-06)
 export const TIME_ZONE = 'Asia/Bangkok'
 
+// ---- 001-equipment-status ----
+
+// เวลาที่หน้าจอรอหลังบ้านของ 001 (รายการรุ่น รายชิ้น รายละเอียด) เกินนี้ถือว่าดึงข้อมูลไม่สำเร็จ แสดงข้อผิดพลาดพร้อมปุ่มลองใหม่
+// (FR-EQS-08, AC-EQS-08, Q-08 ทีมตัดสิน 2569-11-12) ต้องมากกว่า EquipmentDBTimeout (5 วินาที) ใน backend/internal/config/config.go
+// เพื่อให้ได้ 503 พร้อม message จากหลังบ้านก่อน ใช้เฉพาะ request ของ 001 ไม่ใช้กับ 002, 003 (ทีมตัดสิน 2569-11-12 ตอนทำ T-26)
+export const EQUIPMENT_REQUEST_TIMEOUT_MS = 6000
+
 // ---- 003-cancel-request (plan.md ข้อ 5 ของ 003, T-03) ----
 
 // ความยาวสูงสุดของเหตุผลการยกเลิก นับตาม code point เหมือนหลังบ้าน (FR-CXL-08, Q-14, ASM-13)

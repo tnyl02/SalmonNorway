@@ -1,9 +1,9 @@
 # Tasks: ตรวจสอบสถานะอุปกรณ์ (Equipment Status)
-Spec: SPEC-EQS-001 (spec.md Draft v4.4) | Plan: plan.md Draft v1.6 | tasks v2.1: 2569-11-11 (v2 2569-11-10, v1 2569-11-02) | Owner: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05)
+Spec: SPEC-EQS-001 (spec.md Draft v5.1) | Plan: plan.md Draft v1.8 | tasks v2.3: 2569-11-12 (v2.2 2569-11-12, v2.1 2569-11-11, v2 2569-11-10, v1 2569-11-02) | Owner: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05)
 
 สรุป
-- 14 เฟสที่ใช้งาน (ฐานราก + 12 เฟสตาม AC + รอคำตอบ) รวม 37 task: เสร็จ 18, พร้อมทำ 7, รอ Q-xx 10, ยกเลิก 2 (T-15, T-25)
-- รอ Q-xx 10 task: แบ่งหน้า (Q-05), วิธีค้นหา (Q-06), timeout (Q-08), จอมือถือ (Q-09), ขอบเขตเจ้าหน้าที่ (Q-P3), audit ของรายการ (Q-11, Q-P4),
+- 15 เฟสที่ใช้งาน (ฐานราก + 13 เฟสตาม AC + รอคำตอบ) รวม 38 task: เสร็จ 18, พร้อมทำ 9, รอ Q-xx 9, ยกเลิก 2 (T-15, T-25)
+- รอ Q-xx 9 task: แบ่งหน้า (Q-05), วิธีค้นหา (Q-06), จอมือถือ (Q-09), ขอบเขตเจ้าหน้าที่ (Q-P3), audit ของรายการ (Q-11, Q-P4),
   auth จริง (Q-SH-03), รีเฟรชเอง (Q-18), ชื่อผู้ยืม (Q-20), load test (Q-17)
 - เฟสแรกที่ลองใช้งานได้จริง: เฟส 1 (เห็นรายการรุ่นและรายชิ้นบนหน้าจอ)
 
@@ -18,6 +18,9 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.4) | Plan: plan.md Draft v1.6 | tasks v2.1:
 - Q-16 ปิด: T-34 จาก "รอ Q-16" เป็น "พร้อมทำ" ปุ่มอยู่ทั้งตารางรายชิ้นและหน้ารายละเอียด ขอยืมรายชิ้น
 - CON-TECH-03 (CR-004): เพิ่ม T-37 ให้ error ทุกตัวมี `{code, message}` ในเฟส 12 ก่อน T-20
 - Q-SH-05 ปิด: ต้องเพิ่ม FR ผ่าน CR-005 ยังไม่มี task จนกว่าทีมอนุมัติ แล้วรัน /tasks ใหม่
+
+เปลี่ยนจาก v2.1 (v2.2 2569-11-12 ตาม spec v5 และ plan v1.7 แก้เฉพาะจุด):
+- CR-005 อนุมัติ: เพิ่มเฟส 15 ใหม่ T-38 (FR-EQS-11, AC-EQS-17) เฟสรอคำตอบเลื่อนจาก 15 เป็น 16 เลข task เดิมไม่เปลี่ยน
 
 เทคโนโลยีตาม plan.md ข้อ 2: Go (net/http + pgx), PostgreSQL 16, React + Vite (ทีมเลือกเอง ไม่ได้มาจาก spec ยกเว้น PostgreSQL / HTTPS / Docker)
 คำสั่งเปิดระบบ (ใช้ในทุกจุดตรวจ):
@@ -299,11 +302,11 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.4) | Plan: plan.md Draft v1.6 | tasks v2.1:
 ### T-17 แยก DTO ให้นักศึกษาไม่มีข้อมูลผู้ยืม และ API สรุปจำนวนตามสถานะสำหรับเจ้าหน้าที่
 - รองรับ: FR-EQS-07 (ส่วนนักศึกษาไม่เห็นผู้ยืม และสรุปตามสถานะ), DOM-PRIV-01
 - ตรวจด้วย: AC-EQS-07 (ส่วนนักศึกษา)
-- ไฟล์ที่แตะ: `backend/internal/equipment/dto.go`, `backend/internal/equipment/handler.go`, `backend/internal/equipment/handler_test.go`
+- ไฟล์ที่แตะ: `backend/internal/equipment/dto.go`, `backend/internal/equipment/handler.go`, `backend/internal/equipment/handler_test.go`, `backend/internal/equipment/repository.go`, `backend/internal/equipment/service.go` (query สรุปตามสถานะ), `backend/internal/platform/apierror.go` (รหัส FORBIDDEN_ROLE) เพิ่มตามที่ทีมตัดสิน 2569-11-12
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-12
 - เสร็จเมื่อ: `TestAC_EQS_07_StudentNoBorrower` ผ่าน (response ของนักศึกษาไม่มีคำว่า borrower เลย) และ `TestFR_EQS_07_StaffSummaryByStatus` ผ่าน (เจ้าหน้าที่ได้จำนวนแยก 3 สถานะ นักศึกษาเรียกได้ 403)
-- สถานะ: พร้อมทำ (ชื่อผู้ยืมฝั่งเจ้าหน้าที่ย้ายไป T-36 รอ Q-20)
+- สถานะ: เสร็จ 
 
 #### จุดตรวจเฟส 9
 - คนลองเองตาม AC-EQS-07:
@@ -319,11 +322,11 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.4) | Plan: plan.md Draft v1.6 | tasks v2.1:
 ### T-18 จำกัดทุก query ของนักศึกษาด้วยภาควิชา และตอบ 403 เมื่อขอข้ามภาควิชา
 - รองรับ: FR-EQS-10, DOM-ACCESS-01, IF-IDP-01
 - ตรวจด้วย: AC-EQS-13
-- ไฟล์ที่แตะ: `backend/internal/equipment/repository.go`, `backend/internal/equipment/handler.go`, `backend/internal/equipment/handler_test.go`, `frontend/src/components/ErrorState.jsx`, `frontend/src/__tests__/AC-EQS-13.test.jsx`
+- ไฟล์ที่แตะ: `backend/internal/equipment/repository.go`, `backend/internal/equipment/handler.go`, `backend/internal/equipment/handler_test.go`, `frontend/src/components/ErrorState.jsx`, `frontend/src/__tests__/AC-EQS-13.test.jsx`, `backend/internal/equipment/service.go` (scopeFor ส่งภาควิชาผ่าน service), `frontend/src/api/client.js` (เก็บ message), `frontend/src/pages/EquipmentDetail/EquipmentDetail.jsx` (แสดง ErrorState) เพิ่มตามที่ทีมตัดสิน 2569-11-12
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `TestAC_EQS_13_OtherDepartment403` ผ่าน ทั้งจาก list และเรียกรายละเอียดตรง body ไม่มีข้อมูลอุปกรณ์
-- สถานะ: พร้อมทำ (ขอบเขตของเจ้าหน้าที่รอ Q-P3 ดู T-28 / ภาควิชาเดียวหรือหลายภาควิชา Q-19 ไม่กระทบวิธีตรวจ เพราะเทียบภาควิชาของผู้ใช้กับของอุปกรณ์เหมือนกัน)
+- สถานะ: เสร็จ 
 
 #### จุดตรวจเฟส 10
 - คนลองเองตาม AC-EQS-13:
@@ -343,7 +346,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.4) | Plan: plan.md Draft v1.6 | tasks v2.1:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-10, T-31
 - เสร็จเมื่อ: `TestAC_EQS_11_DetailWritesAudit` ผ่าน (มีแถว action=detail ที่มีผู้เข้าถึง เวลา รหัสครุภัณฑ์)
-- สถานะ: พร้อมทำ (การดูรายการ/ค้นหารอ Q-11 ดู T-29, ถ้าเขียน audit ไม่สำเร็จทำอย่างไรรอ Q-P4 ดู T-29)
+- สถานะ: เสร็จ 
 
 #### จุดตรวจเฟส 11
 - คนลองเองตาม AC-EQS-11:
@@ -363,7 +366,7 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.4) | Plan: plan.md Draft v1.6 | tasks v2.1:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-03, T-10
 - เสร็จเมื่อ: `TestCON_TECH_03_ErrorBodyHasCodeAndMessage` ผ่าน (401, 403 PRINCIPAL_INCOMPLETE และ 503 มีทั้ง code และ message ไม่มีช่องอื่น) และ test ของ auth เดิมยังผ่าน
-- สถานะ: พร้อมทำ (ข้อความ message เป็นข้อเสนอใน plan ข้อ 5 ทีมตรวจก่อนทำ / 404, 405 ยังไม่มีรหัสในรายการกลาง ดู "สิ่งที่ยังไม่ทำ")
+- สถานะ: เสร็จ 
 
 ### T-20 ตอบ 503 เมื่อต่อฐานข้อมูลไม่ได้ และหน้าจอแสดงปุ่มลองใหม่โดยไม่แสดงข้อมูลเก่า
 - รองรับ: FR-EQS-08
@@ -372,14 +375,14 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.4) | Plan: plan.md Draft v1.6 | tasks v2.1:
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-06, T-37
 - เสร็จเมื่อ: `TestAC_EQS_08_DBDown503` ผ่าน (ปิดการเชื่อมต่อ -> 503 `UPSTREAM_UNAVAILABLE` พร้อม message ตาม CON-TECH-03) และ `AC-EQS-08.test.jsx` ผ่าน (รายการเดิมถูกล้างก่อนแสดง error)
-- สถานะ: พร้อมทำ (กรณีต่อได้แต่ช้า ต้องรอกี่วินาทีรอ Q-08 ดู T-26)
+- สถานะ: เสร็จ
 
 #### จุดตรวจเฟส 12
 - คนลองเองตาม AC-EQS-08:
   Given หยุด container ฐานข้อมูล (`docker compose -f deploy/docker-compose.yml stop db`)
   When เปิดหน้ารายการอุปกรณ์
   Then เห็นข้อความผิดพลาดพร้อมปุ่มลองใหม่ ไม่มีรายการเก่าค้าง
-- ยังขาด: timeout (Q-08)
+- ยังขาด: timeout (Q-08 ปิดแล้ว 2569-11-12 ทำใน T-26)
 
 ---
 
@@ -388,11 +391,11 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.4) | Plan: plan.md Draft v1.6 | tasks v2.1:
 ### T-21 จัดการ 401 บนหน้าจอ: ไปหน้าล็อกอินจำลองพร้อมข้อความ แล้วกลับหน้าเดิม
 - รองรับ: IF-IDP-01, NFR-SEC-01
 - ตรวจด้วย: AC-EQS-09
-- ไฟล์ที่แตะ: `frontend/src/api/client.js`, `frontend/src/pages/Login/MockLogin.jsx`, `frontend/src/__tests__/AC-EQS-09.test.jsx`, `backend/internal/auth/middleware_test.go`
+- ไฟล์ที่แตะ: `frontend/src/api/client.js`, `frontend/src/pages/Login/MockLogin.jsx`, `frontend/src/__tests__/AC-EQS-09.test.jsx`, `backend/internal/auth/middleware_test.go`, `frontend/src/App.jsx` (แสดงหน้าล็อกอินเมื่อได้ 401 และจำหน้าเดิม) เพิ่มตามที่ทีมตัดสิน 2569-11-12
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-03, T-06
 - เสร็จเมื่อ: `AC-EQS-09.test.jsx` ผ่าน (401 -> ไปหน้าล็อกอินพร้อมข้อความ -> กลับ path เดิม) และ returnTo ภายนอกระบบถูกปฏิเสธ
-- สถานะ: พร้อมทำ (หน้าล็อกอินเป็นแบบจำลอง เพราะการยืนยันตัวตนเป็นระบบภายนอก IF-IDP-01 ไม่ใช่ use case ของระบบนี้)
+- สถานะ: เสร็จ 
 
 #### จุดตรวจเฟส 13
 - คนลองเองตาม AC-EQS-09:
@@ -404,11 +407,33 @@ Spec: SPEC-EQS-001 (spec.md Draft v4.4) | Plan: plan.md Draft v1.6 | tasks v2.1:
 ---
 
 ## เฟส 14: [ย้ายไปเฟสรอคำตอบ] ประสิทธิภาพ (AC-EQS-10)
-T-22 ย้ายไปเฟส 15 เพราะยังไม่รู้ว่าต้องวัดอะไร (Q-17: 1,000 รายการนับชิ้นหรือรุ่น 50 คนวัดอย่างไร)
+T-22 ย้ายไปเฟส 16 เพราะยังไม่รู้ว่าต้องวัดอะไร (Q-17: 1,000 รายการนับชิ้นหรือรุ่น 50 คนวัดอย่างไร)
 
 ---
 
-## เฟส 15: รอคำตอบ
+## เฟส 15: เจ้าหน้าที่เห็นลำดับคำขอที่ค้างอยู่ (AC-EQS-17)
+
+### T-38 แสดงคำขอยืมที่ค้างอยู่บนหน้ารายละเอียด (เฉพาะเจ้าหน้าที่)
+- รองรับ: FR-EQS-11, DOM-REQ-01, DOM-PRIV-01, CON-TECH-03 (403 `FORBIDDEN_ROLE`)
+- ตรวจด้วย: AC-EQS-17
+- ไฟล์ที่แตะ: `frontend/src/api/client.js` (listItemRequests เรียก endpoint ของ 002), `frontend/src/components/RequestQueue.jsx` (ใหม่), `frontend/src/pages/EquipmentDetail/EquipmentDetail.jsx`, `frontend/src/__tests__/AC-EQS-17.test.jsx`, `frontend/src/__tests__/AC-EQS-05.test.jsx` (นับเฉพาะ request ของรายละเอียด เพิ่มตามที่ทีมตัดสิน 2569-11-12)
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: T-11, T-13
+- เสร็จเมื่อ: `AC-EQS-17.test.jsx` ผ่าน (เจ้าหน้าที่: 2 คำขอ ลำดับ 1 = A, 2 = B พร้อมเวลาที่ส่งและชื่อผู้ขอ / นักศึกษา: client ตอบ 403 `FORBIDDEN_ROLE` แล้วไม่มีส่วนนี้และไม่มีชื่อผู้ขอ / 002 ไม่ตอบ: สถานะและกำหนดคืนยังแสดง)
+- สถานะ: เสร็จ
+
+#### จุดตรวจเฟส 15
+- test ที่ต้องผ่านทั้งหมด: test ทุกเฟสก่อนหน้า + `AC-EQS-17.test.jsx`
+- เปิดระบบ: ตามคำสั่งด้านบน ต้องมี endpoint `GET /v1/equipment/items/{assetCode}/requests` ของ 002 ใน main แล้ว
+- คนลองเองตาม AC-EQS-17:
+  Given ส่งคำขอยืม CS-NB-0001 จากผู้ใช้ 2 คน (ผ่านฟอร์มหรือ API ของ 002) A ส่งก่อน B
+  When  เปิดรายละเอียด CS-NB-0001 ด้วย `VITE_MOCK_TOKEN=mock-staff-001` แล้วเปิดอีกครั้งด้วย token นักศึกษา
+  Then  เจ้าหน้าที่เห็น 2 คำขอ ลำดับ 1 = A, 2 = B พร้อมเวลาที่ส่งและชื่อ / นักศึกษาไม่เห็นส่วนนี้
+- ยังขาด: ข้อความเมื่อไม่มีคำขอหรือ 002 ไม่ตอบ (spec ไม่บอก)
+
+---
+
+## เฟส 16: รอคำตอบ
 
 ### T-22 ทดสอบโหลด 1,000 รายการ ผู้ใช้พร้อมกัน 50 คน
 - รองรับ: NFR-PERF-01
@@ -444,11 +469,14 @@ T-22 ย้ายไปเฟส 15 เพราะยังไม่รู้�
 ### T-26 ตั้ง timeout ของ query และ request
 - รองรับ: FR-EQS-08
 - ตรวจด้วย: AC-EQS-08
-- ไฟล์ที่แตะ: `backend/internal/config/config.go`, `frontend/src/config.js`, `frontend/src/api/client.js`
+- ไฟล์ที่แตะ: `backend/internal/config/config.go`, `frontend/src/config.js`, `frontend/src/api/client.js`,
+  `backend/internal/equipment/handler.go`, `backend/internal/equipment/handler_test.go`, `frontend/src/__tests__/AC-EQS-08.test.jsx`
+  (3 ไฟล์หลังทีมเพิ่ม 2569-11-12 ตอนทำ T-26: ต้องห่อ context ของ endpoint และต้องมีที่วาง test)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-20
-- เสร็จเมื่อ: `TestAC_EQS_08_SlowDBTimeout` ผ่าน ด้วยค่าที่ได้จากคำตอบ
-- สถานะ: รอ Q-08
+- เสร็จเมื่อ: `TestAC_EQS_08_SlowDBTimeout` ผ่าน (ฐานข้อมูลตอบช้ากว่า 5 วินาที -> 503 `UPSTREAM_UNAVAILABLE` พร้อม message)
+  และหน้าจอเลิกรอเมื่อหลังบ้านไม่ตอบภายใน 6 วินาที แสดงข้อผิดพลาดพร้อมปุ่มลองใหม่ ตัวเลขทั้งสองอยู่ใน config ตามกฎข้อ 9
+- สถานะ: เสร็จ
 
 ### T-27 ตรวจหน้าจอที่ความกว้างมือถือ
 - รองรับ: NFR-USE-01
@@ -536,6 +564,7 @@ T-22 ย้ายไปเฟส 15 เพราะยังไม่รู้�
 | AC-EQS-14 | T-12, T-13, T-34 |
 | AC-EQS-15 | T-32, T-33 |
 | AC-EQS-16 | T-32, T-33 |
+| AC-EQS-17 | T-38 |
 
 ### 2. Constraint -> task (รวมที่ใช้ร่วมจาก specs/000-shared/constraints.md)
 | Constraint ID | task ที่ทำให้เป็นจริง |
@@ -546,11 +575,11 @@ T-22 ย้ายไปเฟส 15 เพราะยังไม่รู้�
 | CON-DATA-01 | T-02, T-12, T-14 |
 | CON-DATA-02 | T-10 |
 | CON-DATA-03 | T-02, T-05 |
-| DOM-PRIV-01 | T-12, T-17, T-36 |
+| DOM-PRIV-01 | T-12, T-17, T-36, T-38 |
 | DOM-AUDIT-01 | T-31, T-19, T-29 |
 | DOM-ACCESS-01 | T-18, T-28 |
 | DOM-LOAN-01 | T-12 |
-| DOM-REQ-01 | T-04 |
+| DOM-REQ-01 | T-04, T-38 |
 | IF-IDP-01 | T-03, T-04, T-18, T-21, T-30 |
 
 หมายเหตุ CON-TECH-02 และ NFR-SEC-01 (TLS 1.2): การตั้ง reverse proxy ด้วย HTTPS เป็นงานของทั้งระบบ ไม่ใช่ของฟีเจอร์นี้คนเดียว
@@ -559,16 +588,17 @@ T-22 ย้ายไปเฟส 15 เพราะยังไม่รู้�
 ### 3. FR -> AC -> เฟส
 | FR ID | AC ที่ตรวจ FR นี้ | เฟส |
 |---|---|---|
-| FR-EQS-01 | AC-EQS-01, AC-EQS-15 | 1, 2, 15 |
-| FR-EQS-02 | AC-EQS-02, AC-EQS-15, AC-EQS-16 | 2, 15 |
+| FR-EQS-01 | AC-EQS-01, AC-EQS-15 | 1, 2, 16 |
+| FR-EQS-02 | AC-EQS-02, AC-EQS-15, AC-EQS-16 | 2, 16 |
 | FR-EQS-03 | AC-EQS-03 | 3 |
-| FR-EQS-04 | AC-EQS-04, AC-EQS-14 | 4, 5, 15 |
-| FR-EQS-05 | AC-EQS-06 | 6, 15 |
-| FR-EQS-06 | AC-EQS-05 | 8, 15 |
-| FR-EQS-07 | AC-EQS-07 (เฉพาะชื่อผู้ยืม) | 9, 15 |
-| FR-EQS-08 | AC-EQS-08 | 12, 15 |
+| FR-EQS-04 | AC-EQS-04, AC-EQS-14 | 4, 5, 16 |
+| FR-EQS-05 | AC-EQS-06 | 6, 16 |
+| FR-EQS-06 | AC-EQS-05 | 8, 16 |
+| FR-EQS-07 | AC-EQS-07 (เฉพาะชื่อผู้ยืม) | 9, 16 |
+| FR-EQS-08 | AC-EQS-08 | 12, 16 |
 | FR-EQS-09 | (ยกเลิกโดย CR-002) | - |
 | FR-EQS-10 | AC-EQS-13 | 10 |
+| FR-EQS-11 | AC-EQS-17 | 15 |
 
 FR-EQS-07 ส่วน "สรุปจำนวนอุปกรณ์แยกตามสถานะ" ไม่มี AC ควรเสนอทีมเพิ่ม (T-17 ใช้ test ชื่อ TestFR_EQS_07_StaffSummaryByStatus ไปก่อน)
 NFR ที่ไม่มี AC: NFR-SEC-01 (บางส่วนตรวจผ่าน AC-EQS-09), NFR-AVAIL-01, NFR-USE-01 -> ไม่มี AC ควรเสนอทีมเพิ่ม
@@ -580,7 +610,7 @@ NFR-USE-01 ต้องทดสอบกับผู้ใช้จริง 10
 | Q-04 ประเภทอุปกรณ์ตายตัวหรือเพิ่มได้ | ไม่มี (ใช้ข้อมูลตั้งต้น ตาม backlog) |
 | Q-05 แบ่งหน้ากี่รายการ | T-23 |
 | Q-06 วิธีจับคู่คำค้น | T-24 |
-| Q-08 timeout | T-26 |
+| Q-08 timeout [ปิดแล้ว 2569-11-12: หลังบ้าน 5 วินาที หน้าจอ 6 วินาที] | T-26 (พร้อมทำ) |
 | Q-09 ความกว้างจอมือถือ | T-27 |
 | Q-11 audit ของรายการ/ค้นหา | T-29 |
 | Q-17 1,000 รายการ / 50 คน วัดอย่างไร | T-22 |
@@ -591,12 +621,12 @@ NFR-USE-01 ต้องทดสอบกับผู้ใช้จริง 10
 | Q-P3 ขอบเขตภาควิชาของเจ้าหน้าที่ | T-28 |
 | Q-P4 เขียน audit ไม่สำเร็จ | T-29 |
 | Q-SH-03 โปรโตคอล auth | T-30 |
-| CR-005 (จาก Q-SH-05) เจ้าหน้าที่เห็นลำดับคำขอที่หน้ารายละเอียด FR-EQS-11, AC-EQS-17 รออนุมัติ | ยังไม่มี task รัน /tasks หลังอนุมัติ |
 | Q-SH-08 auth ล่มตอนใช้งานทั่วไป | ไม่มี task (ถ้าได้คำตอบ ต้องเพิ่ม AC และ task ต่อจาก T-21) |
 | Q-SH-09 คืนแล้วชำรุด ใครเปลี่ยนสถานะ | ไม่มี (001 อ่านอย่างเดียว กระทบ 006) |
-| ปิดแล้ว: Q-01, 02, 03, 07, 10, 12, 13, 14, 15, 16, Q-SH-01, Q-SH-02, Q-SH-04 (ไม่กระทบโค้ด), Q-SH-05 (ไป CR-005), Q-P2 (ตอบใน Q-15), Q-P5 | - |
+| ปิดแล้ว: Q-01, 02, 03, 07, 10, 12, 13, 14, 15, 16, Q-SH-01, Q-SH-02, Q-SH-04 (ไม่กระทบโค้ด), Q-SH-05 (CR-005 อนุมัติ T-38), Q-P2 (ตอบใน Q-15), Q-P5 | - |
 
 เรื่องที่ spec ยังไม่บอก และยังไม่มี Q (เสนอทีมเพิ่ม ห้ามเดา):
+- FR-EQS-11: ไม่มีคำขอค้างเลย หรือ endpoint ของ 002 ไม่ตอบ หน้าจอแสดงข้อความอะไร (T-38 ตอนนี้ไม่แสดงส่วนนี้ทั้งสองกรณี)
 - CON-TECH-03: 404 (รหัสครุภัณฑ์หรือรุ่นที่ไม่มี) และ 405 (method ที่ไม่รองรับ) ยังไม่มีรหัสในรายการกลาง ตอนนี้ตอบข้อความธรรมดา ต้องให้ทีมเพิ่มรหัสก่อน
 - T-34: วิธีเปิดฟอร์มของ 002 พร้อม assetCode (ไม่มี router) ต้องตกลงกับ 002
 - FR-EQS-07: สรุปจำนวนแยกตามสถานะยังไม่มี AC
