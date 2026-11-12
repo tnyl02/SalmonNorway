@@ -4609,3 +4609,12 @@ AI จึง**ไม่เพิ่มแถวใหม่** เพราะจ
 - AI ทำ: ปิด server.exe เดิม, ลบ container salmon-db และ volume salmon-pgdata, สร้างใหม่ (postgres:16 พอร์ต 5433), เปิดหลังบ้าน (migration + seed.sql อัตโนมัติ),
   โหลด seed_003_cancel_request.sql, approve_dev.sql (004), handover_dev.sql (005) ตามลำดับ ไม่แตะไฟล์ใน repo
 - ผล: คำขอ 20 ใบ (003 8 ใบ เวลาส่งเป็นวันนี้ ไม่ถูกปฏิเสธ) audit_log ว่าง staff_contact 1 แถว GET /v1/my/pending-requests ของ student-001 ได้ 8 รายการ (ของ 003 4 รายการ ของ 004/005 4 รายการ)
+
+---
+
+## 2569-11-12 แก้หัวไฟล์ tasks.md (003-cancel-request)
+
+- ผู้สั่ง: 660710763 นางสาวนภัสนัน ดีเสมอ (@napatsanan-np)
+- เครื่องมือ: Claude Code
+- ไฟล์ที่แก้: specs/003-cancel-request/tasks.md บรรทัด 2 อ้าง spec Draft v3.9 / plan Draft v1.7 (เดิม v3.2 / v1.1) วันที่แก้ 2569-11-12, บรรทัด 5 จำนวนเฟส 20 (เดิมเขียน 18 ไม่นับเฟส 18, 19 ที่เพิ่มทีหลัง) และเสร็จครบ 34 task
+- ไม่เปลี่ยนเนื้อหา task
