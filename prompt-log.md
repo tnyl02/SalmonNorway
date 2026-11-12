@@ -2342,3 +2342,16 @@ T-13 มีแค่ `service.go` ในช่องไฟล์ที่แต�
   (`TestAC_BRQ_10` มี 4 กรณีย่อย: ไม่แนบไฟล์ / ชนิดที่ไม่รับ / ใหญ่เกิน 10MB / แนบ PDF ถูกต้อง)
 - `go test ./... -count=1`: ทุกแพ็กเกจ ok
 - `go vet ./internal/borrowrequest/`: ไม่มีข้อความเตือน
+
+### จุดตรวจเฟส 9 ส่วนของ T-14 (ทีมลองเองด้วยมือ 2569-11-12)
+
+- ผู้ลอง: ธัญลักษณ์ ด. (@tnyl02) ด้วย `curl -F` ผ่าน multipart จริง
+- ยืมค้างคืนไม่แนบไฟล์: **422** `{"code":"VALIDATION_FAILED","fields":["attachment"]}`
+- ยิงใหม่พร้อมแนบ `/tmp/memo.pdf` (79 ไบต์, `type=application/pdf`): **201** requestId 11
+- `ls backend/var/attachments` เห็น `11-memo.pdf` ขนาด 79 ไบต์ เท่าไฟล์ต้นฉบับ
+  และในตารางมี `attachment_path` = `var/attachments/11-memo.pdf` ชี้ไฟล์เดียวกัน
+  ชื่อไฟล์ขึ้นต้นด้วยรหัสคำขอตาม plan.md ข้อ 3
+- ข้อสังเกต: สิทธิ์ไฟล์ขึ้นเป็น `-rwxrwxrwx` ทั้งที่โค้ดเขียนด้วย 0600
+  เพราะโฟลเดอร์อยู่บนไดรฟ์ Windows ที่ WSL mount มา ซึ่งไม่เก็บ mode bits ของ Linux
+  บนเซิร์ฟเวอร์จริงหรือใน container จะได้ 0600 ตามที่เขียน ไม่ใช่ข้อบกพร่องของโค้ด
+- ล้างข้อมูลที่ลองไว้: ลบคำขอของ student-001 และลบโฟลเดอร์ `backend/var/attachments`
