@@ -673,3 +673,45 @@ func TestFR_EQS_10_ScopeByRole(t *testing.T) {
 		t.Errorf("เจ้าหน้าที่เปิด XX-NB-0001 status = %d ต้องเป็น 200", rec.Code)
 	}
 }
+
+// AC-EQS-08 (FR-EQS-08) ส่วนหลังบ้าน
+//
+//	Given ฐานข้อมูลไม่ตอบสนอง
+//	When  เปิดหน้ารายการอุปกรณ์
+//	Then  แจ้งข้อผิดพลาด (503 UPSTREAM_UNAVAILABLE พร้อม message) และไม่ส่งข้อมูลเก่าหรือรายการใด ๆ
+func TestAC_EQS_08_DBDown503(t *testing.T) {
+	// Given: connection pool ที่ชี้ไปฐานข้อมูลที่ไม่มีอยู่ (port 1 ไม่มีใครฟัง) แทนการหยุด container จริง
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	down, err := pgxpool.New(ctx, "postgres://salmon:salmon@127.0.0.1:1/salmon?sslmode=disable&connect_timeout=1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer down.Close()
+	h := NewHandler(NewService(NewRepository(down)))
+	mux := http.NewServeMux()
+	mux.Handle(PathPrefix, auth.Middleware(auth.NewMockProvider(), h.Routes()))
+	srv := platform.NoStore(mux)
+
+	// When: เปิดหน้ารายการอุปกรณ์ (และหน้าอื่นที่อ่านฐานข้อมูล)
+	for _, path := range []string{PathPrefix + "models", PathPrefix + "models/1/items", PathPrefix + "items/CS-NB-0001"} {
+		rec := get(t, srv, path, tokenStudentDept1)
+
+		// Then: 503 UPSTREAM_UNAVAILABLE ตาม CON-TECH-03 มีแค่ code และ message ไม่มี items หรือข้อมูลอุปกรณ์
+		if rec.Code != http.StatusServiceUnavailable {
+			t.Errorf("%s status = %d ต้องเป็น 503", path, rec.Code)
+			continue
+		}
+		raw := rec.Body.String()
+		e := decode[map[string]string](t, rec)
+		if e["code"] != "UPSTREAM_UNAVAILABLE" || e["message"] == "" || len(e) != 2 {
+			t.Errorf("%s body ต้องเป็น {code: UPSTREAM_UNAVAILABLE, message} ได้ %s", path, raw)
+		}
+		if strings.Contains(raw, "items") || strings.Contains(raw, "CS-NB") {
+			t.Errorf("%s ส่งข้อมูลเก่ากลับไป: %s", path, raw)
+		}
+		if cc := rec.Header().Get("Cache-Control"); cc != "no-store" {
+			t.Errorf("%s error ต้องไม่ถูก cache (NFR-DATA-01) ได้ Cache-Control %q", path, cc)
+		}
+	}
+}
