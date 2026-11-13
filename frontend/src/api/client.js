@@ -202,10 +202,14 @@ export const api = {
   //                  startAt, endAt, submittedAt, loanType, isFirst, attachmentUrl? }], loadedAt }
   getApprovalRequests: () => getJSON('/v1/approvals/requests'),
 
-  // 004 FR-APV-01 (ค): อนุมัติคำขอ ส่ง loadedAt ที่ได้จาก getApprovalRequests
+  // 004 FR-APV-01 (ค), FR-APV-03 (ข): อนุมัติคำขอ ส่ง loadedAt ที่ได้จาก getApprovalRequests
+  //   advisorName บังคับเฉพาะคำขอค้างคืน ยืมปกติไม่ส่ง (Q-APV-44, plan.md v2 ข้อ 4)
   //   -> { requestId, status, decidedAt, rejectedRequestIds }
-  approveRequest: (requestId, loadedAt) =>
-    postJSON(`/v1/approvals/requests/${encodeURIComponent(requestId)}/approve`, { loadedAt }),
+  approveRequest: (requestId, loadedAt, advisorName) =>
+    postJSON(
+      `/v1/approvals/requests/${encodeURIComponent(requestId)}/approve`,
+      advisorName === undefined ? { loadedAt } : { loadedAt, advisorName },
+    ),
 
   // 004 FR-APV-01 (ง): ปฏิเสธคำขอพร้อมเหตุผล -> { requestId, status, decidedAt, rejectedRequestIds }
   rejectRequest: (requestId, reason, loadedAt) =>
