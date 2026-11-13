@@ -56,7 +56,7 @@ func (s *Service) ListPending(ctx context.Context) (items []PendingRequest, load
 }
 
 // ErrRequestNotFound เกิดเมื่อไม่มีคำขอรหัสนี้ (FR-APV-01 ซ, Q-APV-25)
-// v3: การอนุมัติรับคำขอค้างคืนแล้ว (T-44) การปฏิเสธคำขอค้างคืนยังได้ error นี้จนกว่าจะทำ T-48
+// v3: การอนุมัติ (T-44) และการปฏิเสธ (T-48) รับคำขอค้างคืนแล้ว error นี้จึงเกิดเฉพาะเมื่อไม่มีคำขอรหัสนี้
 var ErrRequestNotFound = errors.New("ไม่พบคำขอรหัสนี้")
 
 // คำขอไม่ได้อยู่ในสถานะ requested แล้ว อนุมัติหรือปฏิเสธไม่ได้ แยก 3 กรณีตาม FR-APV-01 (ซ) (T-23, AC-APV-09, AC-APV-10)
@@ -282,7 +282,8 @@ var ErrReasonRequired = errors.New("ต้องระบุเหตุผล�
 // ErrReasonTooLong เกิดเมื่อเหตุผลการปฏิเสธยาวเกิน config.ApprovalRejectReasonMaxLength (FR-APV-01 ง, Q-APV-28, VALIDATION_FAILED ช่อง reason)
 var ErrReasonTooLong = errors.New("เหตุผลในการปฏิเสธยาวเกินกำหนด")
 
-// Reject ปฏิเสธคำขอยืมแบบปกติ 1 ใบพร้อมเหตุผลที่เจ้าหน้าที่ระบุ ใน transaction เดียว (FR-APV-01 ง ฌ, AC-APV-02)
+// Reject ปฏิเสธคำขอยืม 1 ใบพร้อมเหตุผลที่เจ้าหน้าที่ระบุ ใน transaction เดียว (FR-APV-01 ง ฌ, AC-APV-02)
+// ใช้กับคำขอค้างคืนด้วยกฎเดียวกัน ไม่ต้องระบุชื่ออาจารย์ ไม่บันทึก approval_step (FR-APV-03 จ, Q-APV-43, AC-APV-25, T-48)
 //   - คำขอเป็น rejected บันทึกเหตุผลใน approval_decision และ audit_log action reject (RQ-25)
 //   - ไม่เปลี่ยนสถานะอุปกรณ์ (CON-DATA-01)
 //
@@ -300,7 +301,7 @@ func (s *Service) Reject(ctx context.Context, requestID int, reason string, load
 		if err != nil {
 			return err
 		}
-		if !ok || target.LoanType != config.LoanTypeNormal {
+		if !ok {
 			return ErrRequestNotFound
 		}
 		// ASM-06, IF-IDP-01: พิจารณาได้เฉพาะคำขอของอุปกรณ์ภาควิชาเดียวกับเจ้าหน้าที่ (AC-APV-12, T-25)

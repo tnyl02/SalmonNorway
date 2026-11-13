@@ -1013,3 +1013,96 @@ func TestAC_APV_24(t *testing.T) {
 		t.Errorf("C ต้องมี Email ผลอนุมัติ 1 ฉบับ แต่ได้ %v", k)
 	}
 }
+
+// AC-APV-25 (FR-APV-03 จ, FR-APV-02 ข)
+// Given คำขอค้างคืนสถานะ requested (C ของ AP-TEST-0001 ใน approve_dev.sql)
+// When  เจ้าหน้าที่ปฏิเสธพร้อมเหตุผล
+// Then  คำขอเป็น rejected และผู้ขอได้รับ Email ผลปฏิเสธตาม FR-APV-02 (ข) ภายใน 60 วินาที
+//
+//	(T-48 เสร็จเมื่อ: ไม่มี advisor_name ไม่มี approval_step / กฎเหตุผลเดิมใช้กับค้างคืนด้วย Q-APV-43)
+func TestAC_APV_25(t *testing.T) {
+	const reason = "เอกสารไม่มีลายเซ็นอาจารย์"
+	ctx := staffCtx("staff-001", 1)
+	bg := context.Background()
+
+	t.Run("ปฏิเสธพร้อมเหตุผล", func(t *testing.T) {
+		tx := devTx(t)
+		clock := &fakeClock{t: time.Now()}
+		svc := NewService(NewRepository(tx))
+		svc.now = clock.Now
+		mailer := &fakeMailer{}
+		sender := &Sender{db: tx, mailer: mailer, resolver: MockRecipientResolver{}, now: clock.Now}
+		c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+
+		// When
+		res, err := svc.Reject(ctx, c, reason, time.Time{})
+		if err != nil {
+			t.Fatalf("ปฏิเสธคำขอค้างคืนต้องสำเร็จ แต่ได้ %v", err)
+		}
+
+		// Then: rejected ประวัติมีเหตุผล ไม่มีชื่ออาจารย์และ approval_step (Q-APV-43)
+		if res.Status != config.StatusRejected || tcRequestStatus(t, tx, c) != config.StatusRejected {
+			t.Errorf("คำขอต้องเป็น rejected แต่ได้ %+v", res)
+		}
+		assertHistory(t, tx, c, config.ApprovalKindRejected, reason, "staff-001", config.AuditActionReject)
+		var advisor *string
+		if err := tx.QueryRow(bg, `SELECT advisor_name FROM approval_decision WHERE request_id = $1`, c).Scan(&advisor); err != nil {
+			t.Fatal(err)
+		}
+		if advisor != nil {
+			t.Errorf("การปฏิเสธต้องไม่มี advisor_name แต่ได้ %q", *advisor)
+		}
+		var steps int
+		if err := tx.QueryRow(bg, `SELECT count(*) FROM approval_step WHERE request_id = $1`, c).Scan(&steps); err != nil {
+			t.Fatal(err)
+		}
+		if steps != 0 {
+			t.Errorf("การปฏิเสธต้องไม่มี approval_step แต่มี %d แถว", steps)
+		}
+		// การปฏิเสธไม่ปฏิเสธตามคำขออื่น A และ B ยังเป็น requested
+		for _, who := range []string{"student-001", "student-002"} {
+			if s := tcRequestStatus(t, tx, requestIDOf(t, tx, "AP-TEST-0001", who)); s != config.StatusRequested {
+				t.Errorf("คำขอของ %s ต้องยังเป็น requested แต่ได้ %q", who, s)
+			}
+		}
+
+		// Then: ตัวส่งรอบถัดไปส่ง Email ผลปฏิเสธถึงผู้ขอภายใน 60 วินาที (FR-APV-02 ข)
+		decidedAt := clock.Now()
+		clock.Advance(config.ApprovalSenderPollInterval)
+		if err := sender.SendDue(bg); err != nil {
+			t.Fatal(err)
+		}
+		if len(mailer.sent) != 1 {
+			t.Fatalf("ต้องส่ง Email 1 ฉบับ แต่ได้ %d", len(mailer.sent))
+		}
+		e := mailer.sent[0]
+		if e.To != "student-003@example.com" || e.Subject != config.ApprovalEmailSubjects[config.ApprovalKindRejected] ||
+			!strings.Contains(e.Body, "เหตุผลในการปฏิเสธ: "+reason) {
+			t.Errorf("Email ผลปฏิเสธไม่ถูกต้อง: %+v", e)
+		}
+		if d := clock.Now().Sub(decidedAt); d > config.ApprovalEmailDeadline {
+			t.Errorf("ต้องส่งภายใน %v แต่ใช้ %v", config.ApprovalEmailDeadline, d)
+		}
+	})
+
+	// กฎเหตุผลเดิมของ FR-APV-01 (ง) ใช้กับค้างคืนด้วย (FR-APV-03 จ)
+	for _, tc := range []struct {
+		name, reason string
+		want         error
+	}{
+		{"เหตุผลว่าง", "", ErrReasonRequired},
+		{"เหตุผลมีแต่ช่องว่าง", "   ", ErrReasonRequired},
+		{"เหตุผลยาว 501 ตัวอักษร", strings.Repeat("ก", config.ApprovalRejectReasonMaxLength+1), ErrReasonTooLong},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tx := devTx(t)
+			c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+			if _, err := NewService(NewRepository(tx)).Reject(ctx, c, tc.reason, time.Time{}); err != tc.want {
+				t.Fatalf("ต้องได้ %v แต่ได้ %v", tc.want, err)
+			}
+			if s := tcRequestStatus(t, tx, c); s != config.StatusRequested {
+				t.Errorf("สถานะต้องคงเดิม requested แต่ได้ %q", s)
+			}
+		})
+	}
+}
