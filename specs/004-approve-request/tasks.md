@@ -647,7 +647,7 @@ Updated: 2569-11-13 (v2: CR-009 เฟส 19 ถึง 25, T-40 ถึง T-50 /
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-04, T-40
 - เสร็จเมื่อ: `TestAC_APV_11` ที่แก้ตาม v3 ผ่าน: รายการมีคำขอค้างคืน `requested` ของภาควิชาตนเองพร้อม `loanType` / `isFirst` คิดเฉพาะยืมปกติ (Q-APV-23 คงเดิม) / คำขอที่มีไฟล์แนบมี `attachmentUrl` = `/v1/loan-requests/{id}/attachment`
-- สถานะ: เสร็จ รอทีมตรวจ (2569-11-13 `TestAC_APV_11`, `TestAC_APV_11_HTTP`, `TestListPending_OvernightDoesNotBlockQueue` ผ่าน / `TestTC_APV_11_1` และ `TestTC_APV_11_3` ไม่ผ่านตามคาด เพราะแถวในตารางยังยึดว่าค้างคืนไม่ขึ้นรายการ รอทีมแก้แถว TC-APV-11-1 และ 11-3 ก่อน ห้ามแก้ test ให้ผ่าน)
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestAC_APV_11`, `TestAC_APV_11_HTTP`, `TestListPending_OvernightDoesNotBlockQueue` / `TestTC_APV_11_1` และ `TestTC_APV_11_3` ยังไม่ผ่าน รอทีมแก้แถว TC-APV-11-1 และ 11-3 ใน test-cases.md ก่อน)
 
 ### T-43 แสดงประเภทการยืมและลิงก์ใบบันทึกข้อความบนหน้าจอ
 - รองรับ: FR-APV-03 (ก), Q-APV-41
