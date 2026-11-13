@@ -5,7 +5,7 @@
 ## [SPEC-APV-004 Draft v3.3] - 2569-11-13
 ทีมตอบ TC-APV-19-7 ผ่านหน้าเว็บ ทาง ก
 ### Added
-- ASM-13 [ID เสนอ]: AC-APV-19 ใช้กับระบบที่ deploy ด้วย deploy/docker-compose.yml ซึ่งตั้ง cert / การรันในเครื่องพัฒนาและ test ที่ไม่ตั้ง cert ใช้ HTTP ได้ ไม่ต้องแก้โค้ด
+- ASM-13 (ทีมอนุมัติ ID 2569-11-13): AC-APV-19 ใช้กับระบบที่ deploy ด้วย deploy/docker-compose.yml ซึ่งตั้ง cert / การรันในเครื่องพัฒนาและ test ที่ไม่ตั้ง cert ใช้ HTTP ได้ ไม่ต้องแก้โค้ด
 ### Changed
 - test-cases TC-APV-19-7 เขียน Then ใหม่แทน "spec ไม่ได้บอก" และ TestTC_APV_19_7 เพิ่ม assert ตามแถว
 
