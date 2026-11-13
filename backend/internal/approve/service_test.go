@@ -954,3 +954,62 @@ func TestAC_APV_23(t *testing.T) {
 		t.Errorf("rejectedRequestIds ต้องเป็น X (%d) และคำขอปกติ (%d) แต่ได้ %v", x, normal, res.RejectedBy)
 	}
 }
+
+// AC-APV-24 (FR-APV-03 ฉ, FR-APV-01 จ, FR-APV-02 ข)
+// Given อุปกรณ์ชิ้นเดียวกันมีคำขอค้างคืน C และคำขอปกติ A สถานะ requested (AP-TEST-0001 ใน approve_dev.sql มี A, B ปกติ และ C ค้างคืน)
+// When  เจ้าหน้าที่อนุมัติ C
+// Then  C เป็น approved A เป็น rejected ด้วยเหตุผล "อุปกรณ์ชิ้นนี้ได้รับการอนุมัติให้คำขออื่นแล้ว" และผู้ขอ A ได้รับ Email ผลปฏิเสธ
+//
+//	(T-47 เสร็จเมื่อ: ผู้ดำเนินการคือเจ้าหน้าที่ และมี approval_email ผลปฏิเสธของ A) B ถูกปฏิเสธตามแบบเดียวกัน
+func TestAC_APV_24(t *testing.T) {
+	tx := devTx(t)
+	bg := context.Background()
+	c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+	a := requestIDOf(t, tx, "AP-TEST-0001", "student-001")
+	b := requestIDOf(t, tx, "AP-TEST-0001", "student-002")
+
+	// When
+	res, err := NewService(NewRepository(tx)).ApproveWithAdvisor(staffCtx("staff-001", 1), c, time.Now(), "อ.สมชาย ใจดี")
+	if err != nil {
+		t.Fatalf("อนุมัติ C ต้องสำเร็จ แต่ได้ %v", err)
+	}
+
+	// Then: C approved
+	if s := tcRequestStatus(t, tx, c); s != config.StatusApproved {
+		t.Errorf("C ต้องเป็น approved แต่ได้ %q", s)
+	}
+	// Then: A (และ B) rejected เหตุผลของการปฏิเสธตาม ผู้ดำเนินการคือเจ้าหน้าที่ (FR-APV-01 จ)
+	for name, id := range map[string]int{"A": a, "B": b} {
+		if s := tcRequestStatus(t, tx, id); s != config.StatusRejected {
+			t.Errorf("%s ต้องเป็น rejected แต่ได้ %q", name, s)
+		}
+		assertHistory(t, tx, id, config.ApprovalKindRejected, config.ApprovalSupersededReason, "staff-001", config.AuditActionReject)
+	}
+	if len(res.RejectedBy) != 2 {
+		t.Errorf("rejectedRequestIds ต้องมี A และ B แต่ได้ %v", res.RejectedBy)
+	}
+
+	// Then: ผู้ขอ A ได้รับ Email ผลปฏิเสธ (FR-APV-02 ข) และ C ได้รับ Email ผลอนุมัติ (FR-APV-02 ก, แจ้งเฉพาะผลสุดท้าย CR-009 ข้อ 6)
+	emailKinds := func(id int) []string {
+		t.Helper()
+		rows, err := tx.Query(bg, `SELECT kind FROM approval_email WHERE request_id = $1 ORDER BY id`, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var kinds []string
+		for rows.Next() {
+			var k string
+			if err := rows.Scan(&k); err != nil {
+				t.Fatal(err)
+			}
+			kinds = append(kinds, k)
+		}
+		return kinds
+	}
+	if k := emailKinds(a); len(k) != 1 || k[0] != config.ApprovalKindRejected {
+		t.Errorf("A ต้องมี Email ผลปฏิเสธ 1 ฉบับ แต่ได้ %v", k)
+	}
+	if k := emailKinds(c); len(k) != 1 || k[0] != config.ApprovalKindApproved {
+		t.Errorf("C ต้องมี Email ผลอนุมัติ 1 ฉบับ แต่ได้ %v", k)
+	}
+}
