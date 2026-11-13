@@ -8702,3 +8702,24 @@ FR-BRQ-01 เขียนว่าต้องตรวจสถานะทั�
   - constraints.md: เพิ่มคำตอบใต้ Q-SH-03 (ไม่ได้เปลี่ยนสถานะคำถามร่วม ระบุว่าเจ้าของ 004 แจ้ง)
   - README แถว 004, SRS 3.1.4 (เติม FR-APV-01 ถึง 03 และ UC-14) และ 3.1.7 (UC-14 ย้ายเข้า prototype), backlog BL-19, CR-009 สรุปว่าทำเสร็จ, CR-008 แก้ไขรอบที่ 3, CHANGELOG
   - dto.go: gofmt จัดระยะคอมเมนต์ของช่อง IsFirst (ข้อ 1 ที่เจ้าของ OK) go build ผ่าน
+
+---
+
+## 2569-11-13 /implement T-50 (004 HTTPS ของหลังบ้าน ตาม Q-APV-38)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request (แก้ไฟล์กลางเพราะ 004 รับทำ HTTPS เองตาม Q-APV-38: backend/cmd/server/main.go, backend/internal/config, backend/internal/platform, deploy/, frontend/vite.config.js)
+- เครื่องมือ: Claude Code (ไม่มีคำสั่ง /implement ในเครื่องมือรอบนี้ ทำตาม `.claude/commands/implement.md`)
+- คำสั่ง: "เดี๋ยวค่อย push ขึ้น main ทีเดียวตอนทำเสร็จ ทำ /implement T-50"
+- ผลลัพธ์:
+  - `config.go`: TLSCertFile, TLSKeyFile (env TLS_CERT_FILE, TLS_KEY_FILE) และ `TLSMinVersion` = TLS 1.2 (NFR-SEC-01)
+  - `platform/tls.go` (ใหม่): TLSConfig, Serve, ListenAndServe (ตั้งทั้งคู่ = HTTPS เท่านั้น / ไม่ตั้ง = HTTP สำหรับเครื่องพัฒนา / ตั้งอย่างเดียว = error ไม่เปิด server), WriteSelfSignedCert
+  - `main.go`: ใช้ platform.ListenAndServe แทน http.ListenAndServe
+  - `cmd/devcert/main.go` (ใหม่): สร้าง cert ที่ลงนามเองลง deploy/certs / `deploy/certs/.gitignore` กัน *.pem ไม่ให้ commit
+  - `backend/Dockerfile`, `backend/.dockerignore` (ใหม่) / `deploy/docker-compose.yml`: service backend เปิด HTTPS :8443 ใช้ cert จาก deploy/certs และ volume ของไฟล์แนบ
+  - `vite.config.js`: proxy ไปที่ VITE_API_TARGET (เช่น https://localhost:8443) secure: false ไม่ตั้ง = http://localhost:8000 แบบเดิม
+  - test `platform/tls_test.go`: TestAC_APV_19 (TLS 1.2 ได้ / TLS 1.1 ไม่ได้ / HTTP ธรรมดาไม่ได้คำตอบของ API), TestServe_TLSFilesIncomplete, TestTLSConfig_MinVersion
+- ผล test: go test ./... ทุก package ผ่าน / vitest 213 ผ่าน 1 ข้าม
+- ลองใน Docker จริง: `docker compose up -d --build backend` แล้ว curl https://localhost:8443/healthz ได้ 200, /v1/approvals/requests ด้วย token เจ้าหน้าที่ได้ 200, TLS 1.1 จับมือไม่สำเร็จ, http://localhost:8443 ได้ 400 "Client sent an HTTP request to an HTTPS server." หยุด container backend หลังลอง
+- สิ่งที่ทีมเลือกเอง ไม่ได้มาจาก spec: ไม่ตั้ง cert = HTTP สำหรับเครื่องพัฒนาและ test, port 8443, image distroless, cert ลงนามเองอายุ 1 ปี
+- tasks.md T-50 สถานะ "เสร็จ รอทีมตรวจ" / ยังไม่มีแถว test-cases ของ AC-APV-19

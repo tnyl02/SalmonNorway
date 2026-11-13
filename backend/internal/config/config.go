@@ -5,6 +5,7 @@
 package config
 
 import (
+	"crypto/tls"
 	"os"
 	"time"
 	_ "time/tzdata" // ฝังข้อมูลเขตเวลาไว้ในโปรแกรม ใช้ Asia/Bangkok ได้แม้ container ไม่มี zoneinfo
@@ -292,7 +293,16 @@ type Config struct {
 	// เก็บเป็นไฟล์บนเครื่องที่รันระบบ ไม่ได้เก็บในฐานข้อมูล
 	// ค่าเริ่มต้นเป็นของเครื่องพัฒนา ไม่ใช่ requirement เปลี่ยนด้วย ATTACHMENT_DIR
 	AttachmentDir string
+
+	// TLSCertFile และ TLSKeyFile คือไฟล์ใบรับรองและกุญแจของ HTTPS (CON-TECH-02, NFR-SEC-01, T-50 ของ 004)
+	// ตั้งทั้งคู่แล้วหลังบ้านเปิดเฉพาะ HTTPS ไม่ตั้งเลย = HTTP แบบเดิมสำหรับเครื่องพัฒนาและ test
+	// (ทีมเลือกเอง ไม่ได้มาจาก spec) ตั้งด้วย TLS_CERT_FILE และ TLS_KEY_FILE เช่นใน deploy/docker-compose.yml
+	TLSCertFile string
+	TLSKeyFile  string
 }
+
+// TLSMinVersion คือ TLS รุ่นต่ำสุดที่หลังบ้านยอมรับ (NFR-SEC-01 "TLS 1.2 ขึ้นไป", AC-APV-19, T-50 ของ 004)
+const TLSMinVersion uint16 = tls.VersionTLS12
 
 // ---- ค่าที่มาจาก spec ของ 006-return (specs/006-return/plan.md ข้อ 5 ตาราง "ค่าที่ตั้งได้") ----
 
@@ -326,6 +336,8 @@ func Load() Config {
 		HTTPAddr:      getenv("HTTP_ADDR", ":8000"),
 		DatabaseURL:   getenv("DATABASE_URL", "postgres://salmon:salmon@localhost:5432/salmon?sslmode=disable"),
 		AttachmentDir: getenv("ATTACHMENT_DIR", "./var/attachments"),
+		TLSCertFile:   getenv("TLS_CERT_FILE", ""),
+		TLSKeyFile:    getenv("TLS_KEY_FILE", ""),
 	}
 }
 

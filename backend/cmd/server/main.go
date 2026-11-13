@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"log"
-	"net/http"
 
 	"salmonnorway/backend/internal/approve"
 	"salmonnorway/backend/internal/auth"
@@ -90,10 +89,12 @@ func main() {
 	// Routes ห่อ auth.Middleware และตรวจบทบาทเองทุก route (IF-IDP-01) แก้ไฟล์กลางเพราะ 006
 	returns.NewHandler(returns.NewRepository(db)).Routes(provider)(mux)
 
-	log.Printf("listening on %s", cfg.HTTPAddr)
 	// ทุก response ห้าม cache เพื่อให้รีเฟรชแล้วเห็นสถานะล่าสุด (NFR-DATA-01, T-16)
 	// 405 ของทุกฟีเจอร์ตอบ {code: METHOD_NOT_ALLOWED, message} (CON-TECH-03, T-40 ของ 001 แก้ไฟล์กลาง แจ้งทีมแล้ว 2569-11-12)
-	if err := http.ListenAndServe(cfg.HTTPAddr, platform.NoStore(platform.MethodNotAllowedJSON(mux))); err != nil {
+	// HTTPS เท่านั้นเมื่อตั้ง TLS_CERT_FILE และ TLS_KEY_FILE ด้วย TLS 1.2 ขึ้นไป (CON-TECH-02, NFR-SEC-01, AC-APV-19)
+	// 004 รับทำเอง Q-APV-38 (T-50 ของ 004 แก้ไฟล์กลาง) ไม่ตั้ง = HTTP แบบเดิมสำหรับเครื่องพัฒนา
+	handler := platform.NoStore(platform.MethodNotAllowedJSON(mux))
+	if err := platform.ListenAndServe(cfg.HTTPAddr, cfg.TLSCertFile, cfg.TLSKeyFile, handler); err != nil {
 		log.Fatal(err)
 	}
 }

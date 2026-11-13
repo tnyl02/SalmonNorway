@@ -10,7 +10,15 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
-    proxy: { '/api': { target: 'http://localhost:8000', rewrite: (p) => p.replace(/^\/api/, '') } },
+    // หลังบ้านใน Docker เปิด HTTPS ที่ :8443 (T-50 ของ 004): ตั้ง VITE_API_TARGET=https://localhost:8443
+    // secure: false ยอมรับใบรับรองที่ลงนามเองของเครื่องพัฒนา ไม่ตั้ง = หลังบ้าน HTTP :8000 แบบเดิม
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_TARGET ?? 'http://localhost:8000',
+        secure: false,
+        rewrite: (p) => p.replace(/^\/api/, ''),
+      },
+    },
   },
   test: { environment: 'jsdom', globals: true },
 })

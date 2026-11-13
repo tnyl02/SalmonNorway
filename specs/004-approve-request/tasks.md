@@ -826,7 +826,7 @@ Updated: 2569-11-13 (v2: CR-009 เฟส 19 ถึง 25, T-40 ถึง T-50 /
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: เมื่อตั้งไฟล์ cert / key หลังบ้านเปิดเฉพาะ HTTPS ด้วย TLS 1.2 ขึ้นไป / test ใน `tls_test.go`: เรียกด้วย TLS 1.2 สำเร็จ, TLS 1.1 จับมือไม่สำเร็จ, HTTP ธรรมดาไม่ได้คำตอบของ API / `docker compose up` ได้หลังบ้านที่เปิด HTTPS / test เดิมทุกตัวยังผ่าน (ไม่ตั้ง cert ในเครื่องพัฒนาและ test ยังเป็น HTTP แบบเดิม ทีมเลือกเอง ไม่ได้มาจาก spec) / หลังเสร็จทำ /testcases AC-APV-19
-- สถานะ: พร้อมทำ (Q-APV-38 ปิด 2569-11-13: 004 รับทำเอง แบบหลังบ้าน Go เปิด TLS เอง)
+- สถานะ: เสร็จ รอทีมตรวจ (2569-11-13 `TestAC_APV_19` (TLS 1.2 ใช้ได้ / TLS 1.1 ไม่ได้ / HTTP ไม่ได้), `TestServe_TLSFilesIncomplete`, `TestTLSConfig_MinVersion` ผ่าน / ลองใน Docker จริง: https :8443 ได้ 200, TLS 1.1 จับมือไม่สำเร็จ, http ได้ 400 "Client sent an HTTP request to an HTTPS server." / ไฟล์เพิ่มจากรายการ: `backend/cmd/devcert/main.go` (สร้าง cert) และ `backend/.dockerignore` / ยังไม่มีแถว test-cases ของ AC-APV-19 ต้องทำ /testcases ต่อ)
 
 ## เฟส 27: แก้ตามที่ทีมตัดสิน rtm.md รอบ 4 (CR-009 แก้ไขหลังอนุมัติ 2569-11-13)
 
