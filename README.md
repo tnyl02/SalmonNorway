@@ -12,8 +12,8 @@ Term Project รายวิชา 520461-165 Software Requirement Specification
 |---|---|---|---|
 | 660710767 นางสาวพรรณธร จันทร์สายทอง | https://github.com/Pannathorn05 | 001-equipment-status | วางของกลาง (000-shared, AGENTS.md), ร่าง SRS, โครง Go + ฐานข้อมูล + auth จำลอง, audit_log และแพ็กเกจ audit ใช้ร่วม, รหัส error กลาง (ITEM_NOT_FOUND, METHOD_NOT_ALLOWED และตัวครอบ 405), หน้าล็อกอินจำลอง, แก้ Migrate ให้ใช้บน Windows ได้ |
 | 660710715 นางสาวธัญลักษณ์ เดชนครชัย  | https://github.com/tnyl02 | 002-borrow-request | |
-| 660710763 นางสาวนภัสนัน ดีเสมอ | https://github.com/napatsanan-np | 003-cancel-request | |
-| 660710758 นางสาวณัฐสุดา กัญญาบุญ | https://github.com/natsuda05 | 004-approve-request | |
+| 660710763 นางสาวนภัสนัน ดีเสมอ | https://github.com/napatsanan-np | 003-cancel-request | ฟังก์ชัน postJSON ใน api/client.js ที่ 002 และ 004 ใช้ส่งข้อมูลด้วย, migration 0004 (staff_contact) และ 0005 (เพิ่ม action notify ใน audit_log ที่ 004 ใช้ร่วม), CR-006 ลงทะเบียนรหัส error ALREADY_APPROVED, NOT_CANCELLABLE และใช้ REQUEST_NOT_FOUND ร่วมกับ 004 ในตาราง CON-TECH-03, load test k6 (AC-CXL-17) ผ่าน Docker |
+| 660710758 นางสาวณัฐสุดา กัญญาบุญ | https://github.com/natsuda05 | 004-approve-request | HTTPS ของหลังบ้าน (TLS 1.2 ขึ้นไป, CON-TECH-02, NFR-SEC-01) และ deploy หลังบ้านด้วย Docker (Dockerfile, service backend ใน docker-compose, โปรแกรมสร้าง cert สำหรับเครื่องพัฒนา cmd/devcert) |
 | 660710764 นายบรรลุ ฉิมสิงห์ | https://github.com/mmoonn101219 | 005-handover | |
 | 660710737 นายวรรัตน์ หลักฐาน | https://github.com/660710737 | 006-return | |
 
