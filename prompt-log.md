@@ -9051,3 +9051,19 @@ main
 - 006 (19 แถว): ครบ 13 / ยังไม่ถึง 0 / รอ 1 / ช่องโหว่ 4 / ยกเลิก 1 / ใช้กฎ "ID ที่มีข้อค้นพบ = ช่องโหว่" ตรงตัว (ทีมตัดสิน F-01 ถึง F-04 แล้วทุกข้อ) / ข้อค้นพบใหม่: ไม่มี
 - แก้เพิ่ม: README แถว 006 ชื่อ migration ผิด (0009_return -> 0010_return) AI เขียนผิดเองเมื่อรอบก่อน
 - ไม่ได้เขียนช่องทีมตัดสินของข้อค้นพบใหม่ (คำสั่ง /verify ให้ทีมเขียนเอง) AI เสนอคำตัดสินให้ผู้สั่งยืนยันในแชต
+
+---
+
+## 2569-11-13 เพิ่ม volume รูปส่งมอบใน docker-compose (005-handover)
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "recheck ให้หน่อย ว่าทำทุก task แล้ว" แล้ว "เพิ่มเลย"
+- ผล recheck: 29 task มี commit done และ reviewed ครบ (T-01 ถึง T-28, T-30) ยกเลิก 2 (T-29, T-31) test ที่ tasks.md อ้างมีครบ
+- pull main 6864c32 (004 PR #34 T-50 HTTPS และ service backend ใน docker-compose) fast-forward เข้า 005
+- แก้ไฟล์กลาง `deploy/docker-compose.yml` เพราะ 005: service backend ยังไม่มีที่เก็บรูปส่งมอบ รูปจะหายเมื่อสร้าง container ใหม่
+  เพิ่ม `PHOTO_DIR: /data/photos` และ volume `photos:/data/photos` ตาม T-07 ("ไม่แก้ docker-compose.yml จนกว่าจะมี service หลังบ้าน") และ rtm F-05
+  ไม่แตะบรรทัดของ 004 (TLS, ATTACHMENT_DIR) / `docker compose config` ผ่าน ยังไม่ได้รัน `up` ทั้งระบบ
+- แก้ tasks.md ของ 005 หมายเหตุสถานะ T-07
+- ต้องบอกเจ้าของ: 004 (เจ้าของ T-50 ที่สร้าง service backend) ว่ามี env และ volume ของ 005 เพิ่มใน service backend
