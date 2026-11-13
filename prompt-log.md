@@ -7865,3 +7865,13 @@ main
   - `config.js`: เพิ่ม `APPROVAL_ADVISOR_NAME_MAX_LENGTH`, `APPROVAL_ADVISOR_NAME_REQUIRED`, `APPROVAL_ADVISOR_NAME_TOO_LONG` ค่าเดียวกับหลังบ้าน
   - `config_approval_test.go`: เพิ่ม `TestConfig_ApprovalOvernightValues` ตรวจค่าและเทียบกับ config.js
   - รัน test config ผ่าน / tasks.md T-41 สถานะ "เสร็จ รอทีมตรวจ"
+
+---
+
+## 2569-11-13 ทีมตรวจ T-41 ผ่าน (004)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ทีมตรวจแล้วผ่าน ใส่commit เป็น 004: T-41 done and reviewed"
+- ผลลัพธ์: tasks.md T-41 สถานะเปลี่ยนเป็น "เสร็จ (ทีมตรวจแล้ว 2569-11-13)" / commit รวมงาน T-41 และผลตรวจในครั้งเดียว
