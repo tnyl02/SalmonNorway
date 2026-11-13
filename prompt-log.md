@@ -9084,3 +9084,17 @@ main
   - rtm 005 อัปเดตรอบ 3: F-05 ย้ายไป "แก้แล้ว" (volume photos เข้า main) ไม่มีโค้ด Go หรือหน้าจอเปลี่ยน ไม่ได้รัน test ซ้ำ
   - README แถว 005 เพิ่ม volume photos กลับ, specs/README.md เวอร์ชันและรอบ /verify, CHANGELOG
 - ไม่ทำ: stash ของผู้สั่ง (แก้บันทึก prompt-log เดิม) ยังอยู่ใน git stash รอผู้สั่งตัดสิน
+
+---
+
+## 2569-11-13 เติม Traceability ใน spec (005-handover, spec Draft v2.11)
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ช่วยเติม ## Traceability ใน spec ของ 005 จาก RQ/US/UC → FR → AC โดยใช้ ID เดิม อัปเป็น v2.11 แล้วลง specs/CHANGELOG.md กับต่อท้าย prompt-log.md"
+- แก้ spec.md: Status เป็น Draft v2.11 เพิ่มหัวข้อ Traceability ท้ายไฟล์ (แบบเดียวกับ 001 ถึง 006) ไม่ตั้ง ID ใหม่
+  ที่มาของแต่ละแถวมาจากลูกศร "<-" ของ FR และ (FR) ในหัว AC / ส่วนที่ไม่มี AC อ้าง rtm F-03, F-04 และ Q-HND-09
+  US-008 ผูกกับ RQ-17 ตาม BL-09 ยังไม่ได้เทียบขั้นของ UC-08 บน Miro
+- แก้ specs/CHANGELOG.md: เพิ่มรายการ SPEC-HND-005 Draft v2.11 (ไม่มี CR เพราะไม่เปลี่ยน FR หรือ AC)
+- แก้ rtm.md: เกลาช่องทีมตัดสินของ F-01 (ความหมายเดิม) และเพิ่มหมายเหตุว่าผล test อ้าง spec v2.10 ส่วน v2.11 เพิ่มแค่ Traceability

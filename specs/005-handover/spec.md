@@ -1,7 +1,7 @@
 # specs/005-handover/spec.md
 # Feature: บันทึกการส่งมอบอุปกรณ์ (Handover)
 Spec ID: SPEC-HND-005 | Source: US-008, RQ-04, RQ-08, RQ-17, RQ-19, RQ-23, RQ-25 | Use case: UC-08
-Owner: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn101219) | Status: Draft v2.10 | Updated: 2569-11-13 (v2.10 Q-SH-06 สถานะตรงกับไฟล์กลาง / v2.9 Q-SH-08 ปิดสำหรับ prototype / /clarify รอบ 1 + ยืนยัน Q5, Q7 + Q6 แบบ A + AC-HND-13, 14 ตาม 004 + รับผล CR-003, data-model v9, CR-004 และ 004 spec v1 + ปิด Q-HND-11, Q-HND-13 + v2.7 ปิด Q-HND-03, 06, 10, 14 + v2.8 ปิด Q-HND-04, 07)
+Owner: 660710764 นายบรรลุ ฉิมสิงห์ (@mmoonn101219) | Status: Draft v2.11 | Updated: 2569-11-13 (v2.11 เพิ่มหัวข้อ Traceability / v2.10 Q-SH-06 สถานะตรงกับไฟล์กลาง / v2.9 Q-SH-08 ปิดสำหรับ prototype / /clarify รอบ 1 + ยืนยัน Q5, Q7 + Q6 แบบ A + AC-HND-13, 14 ตาม 004 + รับผล CR-003, data-model v9, CR-004 และ 004 spec v1 + ปิด Q-HND-11, Q-HND-13 + v2.7 ปิด Q-HND-03, 06, 10, 14 + v2.8 ปิด Q-HND-04, 07)
 Backlog: BL-09 (specs/backlog.md)
 
 > ร่างจาก SRS หัวข้อ 3.0, 3.1.5 และ `specs/000-shared/` เท่านั้น
@@ -224,3 +224,21 @@ Backlog: BL-09 (specs/backlog.md)
 - Q: Q-HND-07 เทอมนี้ทำการส่งมอบยืมแบบค้างคืนไหม -> A: ทำ กำหนดคืน 16:00 ของวันสิ้นสุดการยืม (FR-HND-05, Q-SH-04) spec ยังไม่มี AC ของค้างคืน
 - Q: Q-HND-04 "ใช้ได้เฉพาะในพื้นที่มหาวิทยาลัย" ระบบต้องทำอะไร -> A: เป็นกฎที่เจ้าหน้าที่แจ้งผู้ยืม ระบบไม่ทำอะไร (DOM-LOAN-01)
 - Q: Q-SH-03 (ของกลาง) เทอมนี้เชื่อม Auth API จริงไหม -> A: ไม่เชื่อม ใช้ตัวจำลอง (ASM-02 ฝั่ง 005 ไม่ได้แก้ข้อของกลาง)
+
+## Traceability
+| SRS / Source | spec.md | AC |
+|---|---|---|
+| UC-08, RQ-14, RQ-15, ASM-HND-05 | FR-HND-01 | AC-HND-01, AC-HND-14 (ส่วนค้างคืนจาก UC-14 ไม่มี AC ดู rtm F-03) |
+| UC-08, RQ-23, IF-IDP-01, ASM-HND-02, ASM-HND-04, ASM-HND-09 | FR-HND-02 | AC-HND-02, AC-HND-03, AC-HND-10 |
+| UC-08, RQ-19, ASM-HND-01, ASM-HND-10 | FR-HND-03 | AC-HND-02, AC-HND-03 |
+| UC-08, RQ-08, CON-DATA-01 | FR-HND-04 | AC-HND-04, AC-HND-13 (ส่วน Then ที่ส่งมอบ Y ไม่ได้) |
+| US-008, UC-08, RQ-17, DOM-LOAN-01, ASM-HND-06, Q-HND-03 | FR-HND-05 (ยืมแบบปกติ) | AC-HND-05, AC-HND-11 |
+| Q-SH-04, CR-003, FR-BRQ-10 (ค), Q-HND-07 | FR-HND-05 (ยืมแบบค้างคืน) | ไม่มี AC (rtm F-03 ไม่ใช่ปัญหาใน prototype) |
+| UC-08, RQ-04, ASM-HND-07, Q-HND-10 | FR-HND-06 | AC-HND-06, AC-HND-12 |
+| US-008, UC-08, RQ-17, DM-05, DOM-REQ-01, ASM-HND-08, Q-HND-05 | FR-HND-07 | AC-HND-07, AC-HND-13 |
+| UC-08, RQ-25, DOM-AUDIT-01, DM-07, Q-HND-06, Q-HND-14 | FR-HND-08 | AC-HND-08 |
+| UC-08 (actor ใน Use Case Diagram), Q-HND-15 | CON-HND-01 | AC-HND-09 |
+| IF-IDP-01, RQ-23, Q-SH-08 | Constraints | AC-HND-02, AC-HND-03, AC-HND-09 |
+| SRS 3.3 | NFR-SEC-01, NFR-AVAIL-01 | ไม่มี AC (rtm F-04 ไม่ใช่ปัญหาใน prototype TLS ตรวจที่ AC-APV-19 ของ 004) |
+| Q-HND-09 (ไม่มี RQ) | Quality Requirements (เวลาตอบสนอง) | - (รอ Q-HND-09) |
+US-008 ผูกกับ RQ-17 ตาม BL-09 ใน specs/backlog.md ยังไม่ได้เทียบขั้นของ UC-08 บน Miro จึงอ้างระดับ use case
