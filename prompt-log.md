@@ -8628,3 +8628,21 @@ FR-BRQ-01 เขียนว่าต้องตรวจสถานะทั�
 - เครื่องมือ: Claude Code
 - คำสั่ง: "ทีมตรวจแล้วผ่าน"
 - ผลลัพธ์: tasks.md T-51 สถานะเป็น "เสร็จ (ทีมตรวจแล้ว 2569-11-13)"
+
+---
+
+## 2569-11-13 /implement T-52 (004 ชื่ออาจารย์ใน Email ผลอนุมัติของคำขอค้างคืน)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ไม่มีคำสั่ง /implement ในเครื่องมือรอบนี้ ทำตาม `.claude/commands/implement.md` แตะเฉพาะไฟล์ใน "ไฟล์ที่แตะ" ของ T-52)
+- คำสั่ง: "/implement T-52"
+- ผลลัพธ์:
+  - `config.go`: เพิ่ม `ApprovalEmailAdvisorLabel` = "ชื่ออาจารย์ที่เซ็นอนุมัติ" (ตำแหน่งบรรทัดต่อจาก "ชื่อผู้อนุมัติ" ทีมเลือกเอง ไม่ได้มาจาก spec)
+  - `email.go`: EmailData.AdvisorName / BuildEmail เพิ่มบรรทัดชื่ออาจารย์ใน Email แบบ approved เมื่อมีชื่อ (เฉพาะค้างคืน) ไม่แสดงจำนวนอุปกรณ์
+  - `sender.go` loadDueEmails: อ่าน `coalesce(d.advisor_name, '')`
+  - test: TestTC_APV_22_12 เพิ่ม assert ข้อ (4)(5) ตามแถวที่ทีมตรวจแล้ว / เพิ่ม TestBuildEmail_OvernightAdvisor และ TestConfig_ApprovalEmailAdvisorLabel
+  - ไม่ได้แตะ model.go (EmailData อยู่ใน email.go)
+- ผล test: go test approve และ config ผ่าน (รวม TestTC_APV_04_* ของยืมปกติ)
+- หมายเหตุ: gofmt แจ้ง dto.go ว่าระยะคอมเมนต์ของช่อง IsFirst ไม่ตรง (มาจาก T-42) ไม่ได้แก้รอบนี้เพราะไม่อยู่ใน "ไฟล์ที่แตะ"
+- tasks.md T-52 สถานะ "เสร็จ รอทีมตรวจ"

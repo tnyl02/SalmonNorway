@@ -78,6 +78,16 @@ func TestConfig_ApprovalValues(t *testing.T) {
 	}
 }
 
+// T-52 (004): หัวข้อชื่ออาจารย์ใน Email ผลอนุมัติของคำขอค้างคืน (FR-APV-02 ก v3.1, rtm F-08)
+func TestConfig_ApprovalEmailAdvisorLabel(t *testing.T) {
+	if ApprovalEmailAdvisorLabel != "ชื่ออาจารย์ที่เซ็นอนุมัติ" {
+		t.Errorf("หัวข้อชื่ออาจารย์ต้องเป็น \"ชื่ออาจารย์ที่เซ็นอนุมัติ\" แต่ได้ %q", ApprovalEmailAdvisorLabel)
+	}
+	if !slices.Contains(ApprovalEmailTemplates[ApprovalKindApproved], "ชื่อผู้อนุมัติ") {
+		t.Error("แบบ approved ต้องมี \"ชื่อผู้อนุมัติ\" เพราะชื่ออาจารย์แสดงต่อจากบรรทัดนี้")
+	}
+}
+
 // T-02 (004) เสร็จเมื่อ: ข้อความ error ครบ 9 รหัส และหน้าจอ (config.js) ใช้ข้อความเดียวกัน (FR-APV-01 ซ, CON-TECH-03)
 func TestConfig_ApprovalMessagesMatchFrontend(t *testing.T) {
 	codes := []string{"ITEM_NOT_AVAILABLE", "REQUEST_CANCELLED", "REQUEST_ALREADY_DECIDED",

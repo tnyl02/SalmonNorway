@@ -357,8 +357,12 @@ func TestTC_APV_22_12_ApprovedEmail(t *testing.T) {
 	if len(mails) != 1 || tcEmailCount(t, tx, c) != 1 {
 		t.Errorf("(3) Email ของ C ต้องมี 1 ฉบับ แต่ส่ง %d ฉบับ และในคิว %d ฉบับ", len(mails), tcEmailCount(t, tx, c))
 	}
-	// Then (4) Email ของค้างคืนแสดงจำนวนอุปกรณ์ไหม: ยังไม่ตรวจ เพราะ spec ไม่ได้บอก (คำถามในรายงาน /testcases 2569-11-13)
-	// Then (5) Email แสดงชื่ออาจารย์ไหม: ยังไม่ตรวจ เพราะ spec ไม่ได้บอก
+	// Then (4) ไม่มีจำนวนอุปกรณ์ในเนื้อ Email (แถวแก้ตาม rtm F-08 2569-11-13)
+	if strings.Contains(mails[0].Body, "จำนวน") {
+		t.Errorf("(4) ต้องไม่มีจำนวนอุปกรณ์\n%s", mails[0].Body)
+	}
+	// Then (5) มี "ชื่ออาจารย์ที่เซ็นอนุมัติ: อ.สมชาย ใจดี"
+	tcContainsAll(t, "(5)", mails[0].Body, "ชื่ออาจารย์ที่เซ็นอนุมัติ: อ.สมชาย ใจดี")
 }
 
 // ---------- AC-APV-23 ----------

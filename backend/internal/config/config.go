@@ -155,6 +155,11 @@ const ApprovalAutoRejectReason = "คำขอยังคงค้างอย�
 // ApprovalPickupLocation คือสถานที่รับอุปกรณ์ที่แสดงใน Email ผลอนุมัติ (FR-APV-02 ก)
 const ApprovalPickupLocation = "คณะวิทยาศาสตร์ ตึก 1 ชั้น 2 ห้องอุปกรณ์ภาควิชาคอมพิวเตอร์"
 
+// ApprovalEmailAdvisorLabel คือหัวข้อข้อมูลชื่ออาจารย์ที่เพิ่มใน Email ผลอนุมัติเฉพาะคำขอค้างคืน
+// แสดงต่อจาก "ชื่อผู้อนุมัติ" ยืมปกติไม่มีบรรทัดนี้ (FR-APV-02 ก v3.1, rtm F-08, T-52)
+// ตำแหน่งบรรทัดทีมเลือกเอง ไม่ได้มาจาก spec
+const ApprovalEmailAdvisorLabel = "ชื่ออาจารย์ที่เซ็นอนุมัติ"
+
 // ApprovalSystemActorID คือผู้ดำเนินการของการปฏิเสธอัตโนมัติ (FR-APV-01 ฉ "ผู้ดำเนินการคือ System", plan.md ข้อ 3)
 const ApprovalSystemActorID = "system"
 
