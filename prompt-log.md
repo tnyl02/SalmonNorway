@@ -9011,3 +9011,17 @@ main
   - 006: spec v2.3, tasks (T-27 ไม่ทำใน prototype), test-cases TC-RET-08-6 ไม่ทำใน prototype, plan
 - ไม่แก้: rtm.md ของทุกฟีเจอร์ (สร้างใหม่ตอน /verify รอบสุดท้าย), โค้ดระบบ (ไม่มีพฤติกรรมเปลี่ยน)
 - ตรวจ: ค้นคำว่า "รอ Q-SH-08" ใน spec plan tasks test-cases SRS และโค้ดแล้วไม่เหลือ, go vet ./internal/equipment ผ่าน
+
+---
+
+## 2569-11-13 กรอกช่อง "ส่วนอื่นที่ทำ" ใน README ของ 002, 005, 006 (ไฟล์กลาง README.md)
+
+- ผู้สั่ง: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05)
+- เครื่องมือ: Claude Code
+- คำสั่ง: "กรอกช่อง "ส่วนอื่นที่ทำ" ใน README กรอกให้เลยได้มั้ยทุก 00 ที่ยังว่างอะ"
+- วิธี: AI ไล่ git log ของแต่ละคน (ไม่นับ merge) หา commit ที่แตะไฟล์นอกฟีเจอร์ตัวเอง แล้วอ่าน diff ทีละ commit เขียนเฉพาะที่มีหลักฐาน
+  - 002: Initial commit, CR-003 (97a55dc), CR-004 (8e5e78b), CR-007 (1eab076), endpoint คิวใน main.go (b99cc0c, CR-005), seed.sql (8ff302d), postForm (49bd050), ApiError.body (03f28a7)
+  - 005: CON-TECH-03 v5.1 FORBIDDEN_ROLE, REQUEST_NOT_APPROVED, BORROWER_MISMATCH (4c6a51b), migration 0009 action handover (2d7a42f), volume photos (7d52293, PR #38 ยังไม่ merge)
+  - 006: CON-TECH-03 v5.4 (58db246), data-model ฟิลด์รับคืนและ action (257a362, afa3f4c), Q-SH-09 ผ่าน FR-RET-04
+  - ไม่ใส่: authHeaders ใน api/client.js ที่ 006 เพิ่มใน T-06 เพราะ 001 เขียนใหม่ทับแล้ว (git blame 487b205)
+- เจ้าของแต่ละคนควรตรวจและแก้ข้อความของตัวเองได้
