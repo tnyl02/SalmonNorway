@@ -7929,3 +7929,20 @@ main
 - เครื่องมือ: Claude Code
 - คำสั่ง: "ทีมตรวจแล้วผ่าน" (ก่อนหน้านี้ถามว่าแก้ client.js กระทบคนอื่นไหม AI ตอบ: เพิ่มฟังก์ชันใหม่ openAttachment อย่างเดียว ไม่แก้ตัวช่วยร่วมหรือฟังก์ชันของฟีเจอร์อื่น ควรแจ้งใน PR และบอกเจ้าของ 002 ว่าหน้า 004 เรียก endpoint ไฟล์แนบ)
 - ผลลัพธ์: tasks.md T-43 สถานะเป็น "เสร็จ (ทีมตรวจแล้ว 2569-11-13)"
+
+---
+
+## 2569-11-13 /implement T-44 (004 อนุมัติคำขอค้างคืนในหลังบ้าน)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ไม่มีคำสั่ง /implement ในเครื่องมือรอบนี้ ทำตาม `.claude/commands/implement.md`)
+- คำสั่ง: "/implement T-44"
+- คำถามที่ AI ถาม: spec ไม่ได้บอกว่าตรวจชื่ออาจารย์ (ว่าง / เกิน 100 ตัวอักษร) ตอนไหนเทียบกับเรื่องอื่น เช่น คำขอค้างคืนที่ยกเลิกแล้วและไม่ใส่ชื่ออาจารย์ได้ REQUEST_CANCELLED หรือ VALIDATION_FAILED
+- คำตอบ: หลังภาควิชา ก่อนสถานะ (แบบเดียวกับเหตุผลของการปฏิเสธ Q-APV-34) -> บันทึกเป็นบรรทัดใน FR-APV-03 (ช) ไม่สร้าง ID ใหม่ และเพิ่มใน specs/CHANGELOG.md
+- ผลลัพธ์:
+  - `service.go`: เพิ่ม `ApproveWithAdvisor` แยกกฎตาม loan_type (ค้างคืน: ตรวจชื่ออาจารย์ ไม่ตรวจคิวและเวลาตัด ตรวจอุปกรณ์ "ว่าง" Q-APV-42 บันทึก approval_step 3 แถว) / `Approve` เดิมเรียก ApproveWithAdvisor ด้วยชื่อว่าง test เดิมจึงไม่ต้องแก้ / เพิ่ม ErrAdvisorNameRequired, ErrAdvisorNameTooLong / คำขอค้างคืนไม่ได้ ErrRequestNotFound ตอนอนุมัติแล้ว (การปฏิเสธยังได้จนกว่าจะทำ T-48)
+  - `repository.go`: insertDecision บันทึก advisor_name, เพิ่ม insertStep / `model.go`: decision.AdvisorName / `dto.go`: DecideInputDTO.advisorName / `handler.go`: ใช้ ApproveWithAdvisor, 422 VALIDATION_FAILED ช่อง advisorName ข้อความจาก config
+  - test: แก้ TestApprove_OnlyRequestedNormal (ค้างคืนไม่มีชื่อได้ ErrAdvisorNameRequired แทน NotFound) / เพิ่ม TestAC_APV_22, TestApproveOvernight_Rules, TestAC_APV_22_HTTP
+  - ผล test: ผ่านทั้งหมด ยกเว้น TestTC_APV_01_12 (ได้ 422 ตารางบอก 404) และ TestTC_APV_11_1, 11_3 ที่รออยู่เดิม ไม่ได้แก้ test เพราะกฎ TestTC_ / TestTC_APV_02_11 (ปฏิเสธค้างคืนได้ 404) ยังผ่านจนกว่าจะทำ T-48
+- tasks.md T-44 สถานะ "เสร็จ รอทีมตรวจ"

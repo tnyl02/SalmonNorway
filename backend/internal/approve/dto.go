@@ -69,6 +69,8 @@ func attachmentURL(p PendingRequest) string {
 type DecideInputDTO struct {
 	LoadedAt time.Time `json:"loadedAt"`         // เวลาที่หน้าจอโหลดรายการ ใช้ใน T-23
 	Reason   string    `json:"reason,omitempty"` // เหตุผลการปฏิเสธ (FR-APV-01 ง) การอนุมัติไม่ใช้ช่องนี้
+	// AdvisorName ชื่ออาจารย์ที่เซ็น บังคับตอนอนุมัติคำขอค้างคืน ยืมปกติไม่ใช้ (FR-APV-03 ข ช, Q-APV-44, plan.md v2 ข้อ 4)
+	AdvisorName string `json:"advisorName,omitempty"`
 }
 
 // ResultDTO คือคำตอบเมื่ออนุมัติหรือปฏิเสธสำเร็จ (plan.md ข้อ 4)

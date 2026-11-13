@@ -55,8 +55,9 @@ func (s *Service) ListPending(ctx context.Context) (items []PendingRequest, load
 	return items, loadedAt, nil
 }
 
-// ErrRequestNotFound เกิดเมื่อไม่มีคำขอรหัสนี้ หรือไม่ใช่คำขอยืมแบบปกติที่ 004 พิจารณา (FR-APV-01, Q-APV-01)
-var ErrRequestNotFound = errors.New("ไม่พบคำขอยืมแบบปกติรหัสนี้")
+// ErrRequestNotFound เกิดเมื่อไม่มีคำขอรหัสนี้ (FR-APV-01 ซ, Q-APV-25)
+// v3: การอนุมัติรับคำขอค้างคืนแล้ว (T-44) การปฏิเสธคำขอค้างคืนยังได้ error นี้จนกว่าจะทำ T-48
+var ErrRequestNotFound = errors.New("ไม่พบคำขอรหัสนี้")
 
 // คำขอไม่ได้อยู่ในสถานะ requested แล้ว อนุมัติหรือปฏิเสธไม่ได้ แยก 3 กรณีตาม FR-APV-01 (ซ) (T-23, AC-APV-09, AC-APV-10)
 var (
@@ -85,7 +86,30 @@ func notRequestedError(ctx context.Context, tx *Repository, target requestRow, l
 	return ErrAlreadyDecided
 }
 
-// Approve อนุมัติคำขอยืมแบบปกติ 1 ใบ ใน transaction เดียว (FR-APV-01 ค ฌ, AC-APV-01)
+// ErrAdvisorNameRequired เกิดเมื่ออนุมัติคำขอค้างคืนโดยไม่ระบุชื่ออาจารย์ ว่างหรือมีแต่ช่องว่าง
+// (FR-APV-03 ช, Q-APV-44, VALIDATION_FAILED ช่อง advisorName)
+var ErrAdvisorNameRequired = errors.New("ต้องระบุชื่ออาจารย์ที่เซ็นอนุมัติ")
+
+// ErrAdvisorNameTooLong เกิดเมื่อชื่ออาจารย์ยาวเกิน config.ApprovalAdvisorNameMaxLength นับตาม code point
+// (FR-APV-03 ช, Q-APV-44, VALIDATION_FAILED ช่อง advisorName)
+var ErrAdvisorNameTooLong = errors.New("ชื่ออาจารย์ยาวเกินกำหนด")
+
+// Approve อนุมัติคำขอโดยไม่มีชื่ออาจารย์ ใช้กับคำขอยืมปกติ (FR-APV-01 ค) คำขอค้างคืนได้ ErrAdvisorNameRequired
+func (s *Service) Approve(ctx context.Context, requestID int, loadedAt time.Time) (Result, error) {
+	return s.ApproveWithAdvisor(ctx, requestID, loadedAt, "")
+}
+
+// ApproveWithAdvisor อนุมัติคำขอยืม 1 ใบ ใน transaction เดียว แยกกฎตาม loan_type (plan.md v2 ข้อ 1)
+//
+// ยืมปกติ (FR-APV-01 ค ฌ, AC-APV-01) advisorName ไม่ใช้ ส่งมาก็ไม่บันทึก
+//
+// ค้างคืน (FR-APV-03 ข ค ง ช, AC-APV-22) ต้องมีชื่ออาจารย์ คำขอเป็น approved ทันที บันทึก advisor_name
+// และ approval_step 3 แถว (approved_by_officer -> pending_advisor_approval -> approved) ไม่ตรวจคิวและเวลาตัด
+//
+// ตรวจตามลำดับ: ภาควิชา -> ชื่ออาจารย์ (เฉพาะค้างคืน ทีมตอบ 2569-11-13 ตอน T-44 แบบเดียวกับเหตุผลของการปฏิเสธ Q-APV-34)
+// -> สถานะคำขอ -> คำขอแรก (เฉพาะยืมปกติ) -> อุปกรณ์ "ว่าง" (ทั้ง 2 ประเภท Q-APV-42) -> เวลาตัด (เฉพาะยืมปกติ)
+//
+// รายละเอียดของยืมปกติ (เดิม):
 //   - ล็อกคำขอทุกใบของอุปกรณ์รายชิ้นนั้นก่อน (FR-APV-01 ช, plan.md ข้อ 7.3)
 //   - คำขอเป็น approved บันทึก approval_decision และ audit_log action approve (RQ-25)
 //   - ไม่เปลี่ยนสถานะอุปกรณ์ ยังเป็น "ว่าง" จนกว่า 005 ส่งมอบ (CON-DATA-01, data-model.md แถว UC-12)
@@ -93,7 +117,7 @@ func notRequestedError(ctx context.Context, tx *Repository, target requestRow, l
 //
 // ตรวจตามลำดับ: ภาควิชา (ASM-06, T-25) -> สถานะคำขอ (T-23) -> คำขอแรก (FR-APV-01 ข, T-17)
 // -> อุปกรณ์ "ว่าง" (FR-APV-01 ค, T-19) -> เวลาตัด 16:00 น. ของวันที่เริ่มยืม (FR-APV-01 ค, T-21)
-func (s *Service) Approve(ctx context.Context, requestID int, loadedAt time.Time) (Result, error) {
+func (s *Service) ApproveWithAdvisor(ctx context.Context, requestID int, loadedAt time.Time, advisorName string) (Result, error) {
 	p, err := staff(ctx)
 	if err != nil {
 		return Result{}, err
@@ -104,30 +128,48 @@ func (s *Service) Approve(ctx context.Context, requestID int, loadedAt time.Time
 		if err != nil {
 			return err
 		}
-		if !ok || target.LoanType != config.LoanTypeNormal {
+		if !ok {
 			return ErrRequestNotFound
 		}
+		overnight := target.LoanType == config.LoanTypeOvernight // FR-APV-03, CR-009
 		// ASM-06, IF-IDP-01: พิจารณาได้เฉพาะคำขอของอุปกรณ์ภาควิชาเดียวกับเจ้าหน้าที่ (AC-APV-12, T-25)
 		// ตรวจก่อนเรื่องอื่น ผู้ที่อยู่ภาควิชาอื่นจึงไม่รู้สถานะหรือข้อมูลใดของคำขอนั้น
 		if target.DepartmentID != p.DepartmentID {
 			return ErrForbiddenDepartment
+		}
+		// FR-APV-03 (ข)(ช), Q-APV-44: ค้างคืนต้องระบุชื่ออาจารย์ ว่างหรือมีแต่ช่องว่างไม่นับ ไม่เกิน 100 code point
+		// ตรวจก่อนสถานะ (ทีมตอบ 2569-11-13 ตอน T-44) ยังไม่เขียนอะไร สถานะจึงคงเดิม
+		if overnight {
+			if strings.TrimSpace(advisorName) == "" {
+				return ErrAdvisorNameRequired
+			}
+			if utf8.RuneCountInString(advisorName) > config.ApprovalAdvisorNameMaxLength {
+				return ErrAdvisorNameTooLong
+			}
+		} else {
+			advisorName = "" // ยืมปกติไม่มีชื่ออาจารย์ (plan.md v2 ข้อ 4)
 		}
 		if target.Status != config.StatusRequested {
 			return notRequestedError(ctx, tx, target, loadedAt) // FR-APV-01 (ซ), T-23
 		}
 		// FR-APV-01 (ข), ASM-04: อนุมัติได้เฉพาะคำขอแรก (ส่งก่อนสุด) ที่ยังเป็น requested ของชิ้นนั้น ข้ามลำดับไม่ได้
 		// นับเฉพาะยืมปกติ คำขอค้างคืนไม่ขวางคิว (Q-APV-23) all เรียงตาม submitted_at, id แล้ว (lockItemRequests)
-		if first, ok := firstInQueue(all); !ok || first.ID != target.ID {
-			return ErrNotFirst
+		// คำขอค้างคืนไม่มีคิว (FR-APV-03 ค)
+		if !overnight {
+			if first, ok := firstInQueue(all); !ok || first.ID != target.ID {
+				return ErrNotFirst
+			}
 		}
 		// FR-APV-01 (ค), CON-DATA-01: อนุมัติได้เมื่ออุปกรณ์รายชิ้นมีสถานะ "ว่าง" เท่านั้น (AC-APV-08, T-19)
+		// ค้างคืนก็เช่นกัน (FR-APV-03 ข, Q-APV-42)
 		if target.ItemStatus != config.ItemStatusAvailable {
 			return ErrItemNotAvailable
 		}
 		// FR-APV-01 (ค), Q-APV-11, DOM-LOAN-01: อนุมัติไม่ได้เมื่อเลย 16:00 น. ของวันที่เริ่มยืม (AC-APV-16, T-21)
 		// "เลย 16:00 น." นับตั้งแต่ 16:00:00 น. ตรง อนุมัติได้ถึง 15:59:59 น. (Q-APV-26, TC-APV-01-5)
 		// คำขอนั้นยังเป็นคำขอแรก เจ้าหน้าที่ปฏิเสธเองหรือรอเที่ยงคืน (Q-APV-16)
-		if !s.now().Before(approvalCutoff(target.StartAt)) {
+		// คำขอค้างคืนไม่มีเวลาตัด (FR-APV-03 ง)
+		if !overnight && !s.now().Before(approvalCutoff(target.StartAt)) {
 			return ErrApprovalCutoff
 		}
 		if err := tx.setStatus(ctx, target.ID, config.StatusApproved); err != nil {
@@ -138,9 +180,18 @@ func (s *Service) Approve(ctx context.Context, requestID int, loadedAt time.Time
 			Result:            config.ApprovalKindApproved,
 			ActorID:           p.UserID,
 			ActorDepartmentID: p.DepartmentID,
+			AdvisorName:       advisorName,
 		})
 		if err != nil {
 			return err
+		}
+		// FR-APV-03 (ข): ประวัติสถานะระหว่างทางของคำขอค้างคืนที่ผ่านในครั้งเดียว (approval_step, plan.md v2 ข้อ 3)
+		if overnight {
+			for _, st := range []string{config.StatusApprovedByOfficer, config.StatusPendingAdvisorApproval, config.StatusApproved} {
+				if err := tx.insertStep(ctx, target.ID, st, p.UserID); err != nil {
+					return err
+				}
+			}
 		}
 		if err := tx.insertAudit(ctx, p.UserID, string(p.Role), config.AuditActionApprove, target.AssetCode, target.ID); err != nil {
 			return err

@@ -129,20 +129,30 @@ func (r *Repository) setStatus(ctx context.Context, requestID int, status string
 
 // insertDecision บันทึกผลการพิจารณา 1 แถวต่อคำขอ = ประวัติตาม RQ-25 (FR-APV-01 ฌ) คืนเวลาที่บันทึก
 func (r *Repository) insertDecision(ctx context.Context, d decision) (time.Time, error) {
-	var reason, actorName *string
+	var reason, actorName, advisorName *string
 	if d.Reason != "" {
 		reason = &d.Reason
 	}
 	if d.ActorName != "" {
 		actorName = &d.ActorName
 	}
+	if d.AdvisorName != "" {
+		advisorName = &d.AdvisorName // FR-APV-03 (ข)(ช): ประวัติเพิ่มชื่ออาจารย์ (migration 0011)
+	}
 	var at time.Time
 	err := r.db.QueryRow(ctx, `
-INSERT INTO approval_decision (request_id, result, reason, actor_id, actor_name, actor_department_id)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO approval_decision (request_id, result, reason, actor_id, actor_name, actor_department_id, advisor_name)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING decided_at`,
-		d.RequestID, d.Result, reason, d.ActorID, actorName, d.ActorDepartmentID).Scan(&at)
+		d.RequestID, d.Result, reason, d.ActorID, actorName, d.ActorDepartmentID, advisorName).Scan(&at)
 	return at, err
+}
+
+// insertStep บันทึกสถานะระหว่างทางของคำขอค้างคืน 1 แถวลง approval_step (FR-APV-03 ข, plan.md v2 ข้อ 3, migration 0011)
+func (r *Repository) insertStep(ctx context.Context, requestID int, status, actorID string) error {
+	_, err := r.db.Exec(ctx, `INSERT INTO approval_step (request_id, status, actor_id) VALUES ($1, $2, $3)`,
+		requestID, status, actorID)
+	return err
 }
 
 // insertAudit บันทึก audit log ของการพิจารณา (RQ-25, DM-07) ค่า action ตาม migration 0008

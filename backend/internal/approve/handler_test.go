@@ -423,3 +423,51 @@ func TestAC_APV_14(t *testing.T) {
 		t.Errorf("หลังส่งสำเร็จรายการต้องว่าง แต่ได้ %s", w.Body.String())
 	}
 }
+
+// AC-APV-22 ยิงผ่าน HTTP จริง (FR-APV-03 ข ช, FR-APV-01 ซ, Q-APV-44, T-44)
+// body { loadedAt, advisorName } -> 200 approved / ชื่อว่างหรือยาวเกิน -> 422 VALIDATION_FAILED ช่อง advisorName ข้อความจาก config
+func TestAC_APV_22_HTTP(t *testing.T) {
+	long := strings.Repeat("ก", config.ApprovalAdvisorNameMaxLength+1)
+	for _, tc := range []struct {
+		name, body, msg string
+	}{
+		{"ไม่ส่งชื่อ", `{}`, config.ApprovalAdvisorNameRequiredMessage},
+		{"ชื่อมีแต่ช่องว่าง", `{"advisorName":"  "}`, config.ApprovalAdvisorNameRequiredMessage},
+		{"ชื่อยาวเกิน", `{"advisorName":"` + long + `"}`, config.ApprovalAdvisorNameTooLongMessage},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tx := devTx(t)
+			c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+			w := postJSON(newTestServer(tx), tokenStaffDept1, fmt.Sprintf("%srequests/%d/approve", PathPrefix, c), tc.body)
+			if w.Code != http.StatusUnprocessableEntity {
+				t.Fatalf("ต้องได้ 422 แต่ได้ %d body=%s", w.Code, w.Body.String())
+			}
+			var e ValidationErrorDTO
+			if err := json.Unmarshal(w.Body.Bytes(), &e); err != nil {
+				t.Fatal(err)
+			}
+			if e.Code != "VALIDATION_FAILED" || e.Message != tc.msg || len(e.Fields) != 1 || e.Fields[0] != "advisorName" {
+				t.Errorf("ต้องได้ {VALIDATION_FAILED, %q, [advisorName]} แต่ได้ %+v", tc.msg, e)
+			}
+			if s := tcRequestStatus(t, tx, c); s != config.StatusRequested {
+				t.Errorf("สถานะต้องคงเดิม requested แต่ได้ %q", s)
+			}
+		})
+	}
+
+	t.Run("มีชื่ออาจารย์ได้ 200", func(t *testing.T) {
+		tx := devTx(t)
+		c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+		w := postJSON(newTestServer(tx), tokenStaffDept1, fmt.Sprintf("%srequests/%d/approve", PathPrefix, c), `{"advisorName":"อ.สมชาย ใจดี"}`)
+		if w.Code != http.StatusOK {
+			t.Fatalf("ต้องได้ 200 แต่ได้ %d body=%s", w.Code, w.Body.String())
+		}
+		var res ResultDTO
+		if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+			t.Fatal(err)
+		}
+		if res.RequestID != c || res.Status != config.StatusApproved {
+			t.Errorf("ต้องได้ approved ของคำขอ %d แต่ได้ %+v", c, res)
+		}
+	})
+}

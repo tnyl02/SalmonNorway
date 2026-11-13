@@ -109,9 +109,10 @@ func TestApprove_OnlyRequestedNormal(t *testing.T) {
 		t.Errorf("อนุมัติซ้ำต้องได้ ErrAlreadyDecided แต่ได้ %v", err)
 	}
 
+	// v3 (T-44): คำขอค้างคืนอยู่ในขอบเขตแล้ว อนุมัติโดยไม่มีชื่ออาจารย์ได้ ErrAdvisorNameRequired (FR-APV-03 ช)
 	overnight := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
-	if _, err := svc.Approve(ctx, overnight, time.Time{}); err != ErrRequestNotFound {
-		t.Errorf("คำขอค้างคืนต้องได้ ErrRequestNotFound (Q-APV-01) แต่ได้ %v", err)
+	if _, err := svc.Approve(ctx, overnight, time.Time{}); err != ErrAdvisorNameRequired {
+		t.Errorf("คำขอค้างคืนที่ไม่มีชื่ออาจารย์ต้องได้ ErrAdvisorNameRequired แต่ได้ %v", err)
 	}
 	if _, err := svc.Approve(ctx, 999999, time.Time{}); err != ErrRequestNotFound {
 		t.Errorf("คำขอที่ไม่มีอยู่ต้องได้ ErrRequestNotFound แต่ได้ %v", err)
@@ -722,4 +723,179 @@ func TestAC_APV_10(t *testing.T) {
 			}
 		})
 	}
+}
+
+// AC-APV-22 (FR-APV-03 ข, CON-DATA-01)
+// Given คำขอยืมแบบค้างคืนสถานะ requested ของอุปกรณ์ภาควิชาเดียวกับเจ้าหน้าที่ (C ของ AP-TEST-0001 ใน approve_dev.sql)
+// When  เจ้าหน้าที่อนุมัติพร้อมระบุชื่ออาจารย์ที่เซ็น
+// Then  คำขอเป็น approved สถานะอุปกรณ์ยังเป็น "ว่าง" และประวัติมีชื่ออาจารย์
+//
+//	(T-44 เสร็จเมื่อ: approval_decision.advisor_name ตรง, approval_step 3 แถวตามลำดับ, ไม่ติดคิวของ A และ B)
+func TestAC_APV_22(t *testing.T) {
+	tx := devTx(t)
+	ctx := staffCtx("staff-001", 1)
+	bg := context.Background()
+	c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+	const advisor = "อ.สมชาย ใจดี"
+
+	// When: C ส่งหลัง A และ B แต่ไม่มีคิว (FR-APV-03 ค) และไม่มีเวลาตัด (FR-APV-03 ง) ใช้เวลาจริงได้
+	res, err := NewService(NewRepository(tx)).ApproveWithAdvisor(ctx, c, time.Now(), advisor)
+	if err != nil {
+		t.Fatalf("อนุมัติคำขอค้างคืนต้องสำเร็จ แต่ได้ %v", err)
+	}
+
+	// Then: คำขอเป็น approved
+	if res.Status != config.StatusApproved {
+		t.Errorf("ผลต้องเป็น approved แต่ได้ %q", res.Status)
+	}
+	var status, itemStatus string
+	if err := tx.QueryRow(bg, `
+		SELECT r.status, i.status FROM borrow_request r JOIN equipment_item i ON i.id = r.item_id WHERE r.id = $1`, c).
+		Scan(&status, &itemStatus); err != nil {
+		t.Fatal(err)
+	}
+	if status != config.StatusApproved {
+		t.Errorf("สถานะคำขอต้องเป็น approved แต่ได้ %q", status)
+	}
+	// Then: สถานะอุปกรณ์ยังเป็น "ว่าง" (CON-DATA-01, data-model.md แถว UC-14)
+	if itemStatus != config.ItemStatusAvailable {
+		t.Errorf("สถานะอุปกรณ์ต้องยังเป็น available แต่ได้ %q", itemStatus)
+	}
+	// Then: ประวัติมีชื่ออาจารย์ (FR-APV-03 ข ช)
+	var got *string
+	if err := tx.QueryRow(bg, `SELECT advisor_name FROM approval_decision WHERE request_id = $1`, c).Scan(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got == nil || *got != advisor {
+		t.Errorf("approval_decision.advisor_name ต้องเป็น %q แต่ได้ %v", advisor, got)
+	}
+	// FR-APV-03 (ข): approval_step 3 แถวตามลำดับ ผู้ดำเนินการคือเจ้าหน้าที่
+	rows, err := tx.Query(bg, `SELECT status, actor_id FROM approval_step WHERE request_id = $1 ORDER BY id`, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var steps []string
+	for rows.Next() {
+		var s, actor string
+		if err := rows.Scan(&s, &actor); err != nil {
+			t.Fatal(err)
+		}
+		if actor != "staff-001" {
+			t.Errorf("approval_step.actor_id ต้องเป็น staff-001 แต่ได้ %q", actor)
+		}
+		steps = append(steps, s)
+	}
+	want := []string{config.StatusApprovedByOfficer, config.StatusPendingAdvisorApproval, config.StatusApproved}
+	if strings.Join(steps, ",") != strings.Join(want, ",") {
+		t.Errorf("approval_step ต้องเป็น %v แต่ได้ %v", want, steps)
+	}
+	// ประวัติ approval_decision และ audit_log action approve แบบเดียวกับยืมปกติ (FR-APV-01 ฌ, FR-APV-03 ช)
+	assertHistory(t, tx, c, config.ApprovalKindApproved, "", "staff-001", config.AuditActionApprove)
+}
+
+// AC-APV-22 ทางผิด (FR-APV-03 ข ช, Q-APV-42, Q-APV-44)
+//   - ชื่ออาจารย์ว่าง มีแต่ช่องว่าง หรือยาวเกิน 100 code point -> error และสถานะคงเดิม ไม่มี approval_step
+//   - ชื่อยาว 100 code point พอดีผ่าน
+//   - อุปกรณ์ไม่ว่าง -> ErrItemNotAvailable
+//   - ลำดับ: ภาควิชาก่อนชื่ออาจารย์ และชื่ออาจารย์ก่อนสถานะคำขอ (ทีมตอบ 2569-11-13 ตอน T-44)
+func TestApproveOvernight_Rules(t *testing.T) {
+	ctx := staffCtx("staff-001", 1)
+	bg := context.Background()
+	long := strings.Repeat("ก", config.ApprovalAdvisorNameMaxLength+1)
+	exact := strings.Repeat("ก", config.ApprovalAdvisorNameMaxLength)
+
+	for _, tc := range []struct {
+		name, advisor string
+		want          error
+	}{
+		{"ชื่อว่าง", "", ErrAdvisorNameRequired},
+		{"มีแต่ช่องว่าง", "   ", ErrAdvisorNameRequired},
+		{"ยาว 101 code point", long, ErrAdvisorNameTooLong},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tx := devTx(t)
+			c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+			if _, err := NewService(NewRepository(tx)).ApproveWithAdvisor(ctx, c, time.Now(), tc.advisor); err != tc.want {
+				t.Fatalf("ต้องได้ %v แต่ได้ %v", tc.want, err)
+			}
+			if s := tcRequestStatus(t, tx, c); s != config.StatusRequested {
+				t.Errorf("สถานะต้องคงเดิม requested แต่ได้ %q", s)
+			}
+			var n int
+			if err := tx.QueryRow(bg, `SELECT count(*) FROM approval_step WHERE request_id = $1`, c).Scan(&n); err != nil {
+				t.Fatal(err)
+			}
+			if n != 0 {
+				t.Errorf("ต้องไม่มี approval_step แต่มี %d แถว", n)
+			}
+		})
+	}
+
+	t.Run("ยาว 100 code point พอดีผ่าน", func(t *testing.T) {
+		tx := devTx(t)
+		c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+		if _, err := NewService(NewRepository(tx)).ApproveWithAdvisor(ctx, c, time.Now(), exact); err != nil {
+			t.Fatalf("ชื่อ 100 code point ต้องอนุมัติได้ แต่ได้ %v", err)
+		}
+	})
+
+	t.Run("อุปกรณ์ไม่ว่าง", func(t *testing.T) {
+		tx := devTx(t)
+		// AP-TEST-0004 ถูกยืมอยู่ใน approve_dev.sql เพิ่มคำขอค้างคืนของชิ้นนั้น
+		var id int
+		if err := tx.QueryRow(bg, `
+			INSERT INTO borrow_request (requester_id, requester_name, student_code, item_id, loan_type, purpose,
+			                            start_at, end_at, status, attachment_path)
+			SELECT 'student-003', 'ค้างคืนอุปกรณ์ไม่ว่าง', 'student-003', id, 'overnight', 'activity',
+			       now(), now() + interval '1 day', 'requested', 'dev/x.pdf'
+			FROM equipment_item WHERE asset_code = 'AP-TEST-0004' RETURNING id`).Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := NewService(NewRepository(tx)).ApproveWithAdvisor(ctx, id, time.Now(), "อ.สมชาย"); err != ErrItemNotAvailable {
+			t.Fatalf("ต้องได้ ErrItemNotAvailable (Q-APV-42) แต่ได้ %v", err)
+		}
+		if s := tcRequestStatus(t, tx, id); s != config.StatusRequested {
+			t.Errorf("สถานะต้องคงเดิม requested แต่ได้ %q", s)
+		}
+	})
+
+	t.Run("ภาควิชาอื่นได้ ErrForbiddenDepartment ก่อนชื่ออาจารย์", func(t *testing.T) {
+		tx := devTx(t)
+		c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+		if _, err := NewService(NewRepository(tx)).ApproveWithAdvisor(staffCtx("staff-201", 2), c, time.Now(), ""); err != ErrForbiddenDepartment {
+			t.Fatalf("ต้องได้ ErrForbiddenDepartment แต่ได้ %v", err)
+		}
+	})
+
+	t.Run("คำขอยกเลิกแล้วและไม่มีชื่ออาจารย์ได้ ErrAdvisorNameRequired", func(t *testing.T) {
+		tx := devTx(t)
+		c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+		if _, err := tx.Exec(bg, `UPDATE borrow_request SET status = 'cancelled', cancel_reason = 'ทดสอบ', cancelled_at = now() WHERE id = $1`, c); err != nil {
+			t.Fatal(err)
+		}
+		svc := NewService(NewRepository(tx))
+		if _, err := svc.ApproveWithAdvisor(ctx, c, time.Now(), ""); err != ErrAdvisorNameRequired {
+			t.Fatalf("ชื่ออาจารย์ต้องตรวจก่อนสถานะ ได้ ErrAdvisorNameRequired แต่ได้ %v", err)
+		}
+		if _, err := svc.ApproveWithAdvisor(ctx, c, time.Now(), "อ.สมชาย"); err != ErrRequestCancelled {
+			t.Fatalf("มีชื่ออาจารย์แล้วต้องได้ ErrRequestCancelled แต่ได้ %v", err)
+		}
+	})
+
+	t.Run("ยืมปกติส่งชื่ออาจารย์มาก็ไม่บันทึก", func(t *testing.T) {
+		tx := devTx(t)
+		a := requestIDOf(t, tx, "AP-TEST-0002", "student-001")
+		svc := NewService(NewRepository(tx))
+		svc.now = func() time.Time { return approvalCutoff(tcStartAt(t, tx, a)).Add(-time.Hour) }
+		if _, err := svc.ApproveWithAdvisor(ctx, a, time.Now(), "อ.สมชาย"); err != nil {
+			t.Fatal(err)
+		}
+		var got *string
+		if err := tx.QueryRow(bg, `SELECT advisor_name FROM approval_decision WHERE request_id = $1`, a).Scan(&got); err != nil {
+			t.Fatal(err)
+		}
+		if got != nil {
+			t.Errorf("ยืมปกติต้องไม่มี advisor_name แต่ได้ %q", *got)
+		}
+	})
 }

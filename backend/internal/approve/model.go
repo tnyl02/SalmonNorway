@@ -45,6 +45,7 @@ type decision struct {
 	ActorID           string // รหัสเจ้าหน้าที่ หรือ config.ApprovalSystemActorID
 	ActorName         string // ว่างได้ Principal ยังไม่มีชื่อ (plan.md ข้อ 8, T-38)
 	ActorDepartmentID int
+	AdvisorName       string // ชื่ออาจารย์ที่เซ็น เฉพาะอนุมัติคำขอค้างคืน ว่าง = NULL (FR-APV-03 ข ช, migration 0011)
 }
 
 // Result คือผลของการอนุมัติหรือปฏิเสธที่ส่งกลับให้ handler (plan.md ข้อ 4)
