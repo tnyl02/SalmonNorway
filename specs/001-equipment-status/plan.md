@@ -1,5 +1,5 @@
 # Implementation Plan: ตรวจสอบสถานะอุปกรณ์ (Equipment Status)
-Spec: SPEC-EQS-001 (specs/001-equipment-status/spec.md, Draft v5.1) | Plan status: Draft v1.9 | Updated: 2569-11-12 (v1.9: 404 ITEM_NOT_FOUND, 405 METHOD_NOT_ALLOWED ทั้งระบบ / v1.8: ตัวเลข timeout จาก Q-08 / v1.7: CR-005 อนุมัติ: FR-EQS-11 / v1.6: CON-TECH-03, ปิด Q-16)
+Spec: SPEC-EQS-001 (specs/001-equipment-status/spec.md, Draft v5.2) | Plan status: Draft v2 | Updated: 2569-11-13 (v2: Q-SH-03 ตอบแล้ว ใช้ auth จำลองใน prototype / v1.9: 404 ITEM_NOT_FOUND, 405 METHOD_NOT_ALLOWED ทั้งระบบ / v1.8: ตัวเลข timeout จาก Q-08 / v1.7: CR-005 อนุมัติ: FR-EQS-11 / v1.6: CON-TECH-03, ปิด Q-16)
 
 ## 1. Summary
 ฟีเจอร์ read-only ให้ผู้ใช้ที่ยืนยันตัวตนแล้วดูรายการอุปกรณ์แบบ "1 แถว = 1 รุ่น/ชนิด"
@@ -23,7 +23,7 @@ spec กำหนดไว้เพียง PostgreSQL, HTTPS, Docker (CON-TECH
 | TLS / proxy | nginx หรือ Caddy หน้า API+Web, TLS >= 1.2, HSTS | CON-TECH-02, NFR-SEC-01 |
 | Deploy | Docker Compose บน on-campus server / cloud VM | CON-TECH-02 |
 | Test | go test + testcontainers (integration), Playwright (e2e), k6 (load) | |
-| Auth | รับ token/session จากระบบยืนยันตัวตนของมหาวิทยาลัย (IF-IDP-01) | โปรโตคอลยังไม่ระบุ ดู Q-SH-03, prototype ใช้ auth จำลอง |
+| Auth | รับ token/session จากระบบยืนยันตัวตนของมหาวิทยาลัย (IF-IDP-01) | prototype ใช้ auth จำลองตลอด (Q-SH-03 ตอบแล้ว 2569-11-13) |
 
 Scale: อุปกรณ์ 1,000 ชิ้น, ผู้ใช้พร้อมกัน 50 คน (ขนาดเล็ก ไม่ต้องมี cache/queue/replica)
 
@@ -238,7 +238,7 @@ UC-02 ต้องตรวจสถานะซ้ำที่ฝั่งต�
 
 ## 10. Open Points ที่ต้องยืนยัน (นอกเหนือจาก Q-04 ใน spec)
 - **Q-P1** auth service ใช้โปรโตคอลอะไร (OIDC / SAML / token ภายใน) และส่ง role + department มาในรูปแบบใด
-  (ย้ายไปเป็น Q-SH-03 ใน specs/000-shared/constraints.md เพราะกระทบทุกฟีเจอร์)
+  (ย้ายไปเป็น Q-SH-03 ใน specs/000-shared/constraints.md เพราะกระทบทุกฟีเจอร์) [ตอบแล้ว 2569-11-13: prototype ใช้ auth จำลอง T-30 ไม่ทำ]
 - **Q-P2** [ย้ายไปเป็น Q-15 ใน spec v4.2] ตัวเลข "ว่าง/ทั้งหมด" ควรคงที่ทั้งรุ่น (ที่เสนอ) หรือเปลี่ยนตามตัวกรอง
 - **Q-16** [ปิดแล้ว 2569-11-11] ปุ่มอยู่ทั้งสองหน้า ขอยืมรายชิ้น ทำได้ใน T-34 เหลือแค่ตกลงวิธีเปิดฟอร์มของ 002 (ข้อ 5)
 - **Q-SH-05** [ปิดแล้ว 2569-11-11] เพิ่ม FR-EQS-11 ผ่าน CR-005 (อนุมัติ 2569-11-12) task คือ T-38

@@ -2,6 +2,16 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [SPEC-EQS-001 Draft v5.2 + plan v2 + tasks v2.6] - 2569-11-13
+รับคำตอบ Q-SH-03 ของกลาง (เจ้าของ 004 บันทึกใน constraints.md 2569-11-13) ไม่มี CR เพราะไม่เปลี่ยนข้อความ FR หรือ AC
+
+### Changed
+- spec ASM-02: เพิ่มหมายเหตุว่า prototype ใช้ auth จำลองแทน Auth API จริงตลอด / Open Questions เพิ่ม Q-SH-03 [ปิดแล้ว]
+  เพิ่ม Clarifications Session 2569-11-13 (v5.2)
+- plan v2: ตารางเทคโนโลยีแถว Auth และ Q-P1 บันทึกว่า Q-SH-03 ตอบแล้ว
+- tasks v2.6: T-30 จาก "รอ Q-SH-03" เป็น "ไม่ทำใน prototype" / T-41 ทีมตรวจแล้ว เป็น "เสร็จ" / สรุปเป็น เสร็จ 30, รอ Q-xx 8, ยกเลิก 2, ไม่ทำใน prototype 1
+- specs/README.md: สถานะของทุกฟีเจอร์ และบรรทัด "ไม่ทำใน prototype" (UC-05 และ UC-14 ทำแล้ว)
+
 ## [SPEC-APV-004 Draft v3.3] - 2569-11-13
 ทีมตอบ TC-APV-19-7 ผ่านหน้าเว็บ ทาง ก
 ### Added
