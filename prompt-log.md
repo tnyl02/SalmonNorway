@@ -7693,3 +7693,17 @@ main
   ไม่แก้โค้ดของระบบ ไม่แก้ test เดิม
 - ไฟล์ที่แก้: `specs/004-approve-request/tasks.md` (ตารางตรวจความครบแถว AC-APV-20, 21)
 - ผล test (AI รัน): go test TestTC_APV_20, 21 ผ่าน 11 / go test ./internal/approve/ -count=1 ผ่านทั้ง package / vitest ทั้งโปรเจกต์ ผ่าน 188 skip 1 (TC-EQS-05-5 ของ 001)
+
+---
+
+## 2569-11-13 /verify 004 รอบ 3 (อัปเดต rtm.md)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง `/verify` เรียก skill ตรวจการทำงานของ Claude Code ขึ้นมาแทน AI ทำตาม `.claude/commands/verify.md` ของโปรเจกต์เหมือนรอบก่อน)
+- คำสั่ง: `/verify`
+- ผล test (ดูอย่างเดียว ไม่แก้): go test approve, config, platform, auth -count=1 ผ่าน 202 (นับรวม subtest) ไม่มี fail หรือ skip / vitest ของ 004 ผ่าน 41 ใน 23 ไฟล์ / แถว "คน" 2 แถว
+- ตารางไปข้างหน้า 22 แถว: ครบ 19 / ยังไม่ถึง 0 / รอ 1 (IF-IDP-01 รอ Q-SH-03) / ช่องโหว่ 2 (NFR-SEC-01, CON-TECH-02 จาก F-01 รอ Q-APV-38)
+- F-02 (AC-APV-19 เพิ่มแล้ว), F-04 (AC-APV-20, 21 และ test เพิ่มแล้ว) ย้ายไปหัวข้อแก้แล้ว / F-01 ยังอยู่ ช่องทีมตัดสินคงข้อความเดิม / ไม่มีข้อค้นพบใหม่
+- AC-APV-19 ยังไม่มี task และ test เพราะรอ HTTPS (Q-APV-38) นับเป็นยังไม่ถึง
+- ไฟล์ที่แก้: `specs/004-approve-request/rtm.md` ไม่แก้โค้ด test spec plan และ tasks
