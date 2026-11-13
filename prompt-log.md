@@ -7946,3 +7946,13 @@ main
   - test: แก้ TestApprove_OnlyRequestedNormal (ค้างคืนไม่มีชื่อได้ ErrAdvisorNameRequired แทน NotFound) / เพิ่ม TestAC_APV_22, TestApproveOvernight_Rules, TestAC_APV_22_HTTP
   - ผล test: ผ่านทั้งหมด ยกเว้น TestTC_APV_01_12 (ได้ 422 ตารางบอก 404) และ TestTC_APV_11_1, 11_3 ที่รออยู่เดิม ไม่ได้แก้ test เพราะกฎ TestTC_ / TestTC_APV_02_11 (ปฏิเสธค้างคืนได้ 404) ยังผ่านจนกว่าจะทำ T-48
 - tasks.md T-44 สถานะ "เสร็จ รอทีมตรวจ"
+
+---
+
+## 2569-11-13 ทีมตรวจ T-44 ผ่าน (004)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ทีมตรวจแล้วผ่าน"
+- ผลลัพธ์: tasks.md T-44 สถานะเป็น "เสร็จ (ทีมตรวจแล้ว 2569-11-13)" / เพิ่ม `backend/internal/approve/model.go` ในช่อง "ไฟล์ที่แตะ" ของ T-44 (AI แก้ไฟล์นี้ไปก่อนโดยไม่ได้ถาม ทีมตรวจแล้วรวมไฟล์นี้ด้วย) / TestTC_APV_01_12 ยังรอทีมแก้แถว

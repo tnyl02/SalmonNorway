@@ -674,11 +674,11 @@ Updated: 2569-11-13 (v2: CR-009 เฟส 19 ถึง 25, T-40 ถึง T-50 /
 ### T-44 อนุมัติคำขอค้างคืนในหลังบ้าน
 - รองรับ: FR-APV-03 (ข)(ค)(ง)(ช), FR-APV-01 (ซ)(ฌ), CON-DATA-01, Q-APV-42, Q-APV-44
 - ตรวจด้วย: AC-APV-22
-- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/repository.go`, `backend/internal/approve/handler.go`, `backend/internal/approve/dto.go`, `backend/internal/approve/service_test.go`, `backend/internal/approve/handler_test.go`
+- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/repository.go`, `backend/internal/approve/handler.go`, `backend/internal/approve/dto.go`, `backend/internal/approve/service_test.go`, `backend/internal/approve/handler_test.go`, `backend/internal/approve/model.go` (เพิ่ม 2569-11-13 ต้องมีช่อง AdvisorName ใน decision ทีมตรวจแล้ว)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-07, T-40, T-41
 - เสร็จเมื่อ: `TestAC_APV_22` ผ่าน: อนุมัติค้างคืนพร้อม advisorName -> `approved`, อุปกรณ์ยัง `available`, `approval_decision.advisor_name` ตรง, `approval_step` 3 แถว / ชื่อว่างหรือยาว 101 code point -> 422 `VALIDATION_FAILED` ช่อง advisorName ข้อความจาก config สถานะคงเดิม / อุปกรณ์ไม่ว่าง -> 409 `ITEM_NOT_AVAILABLE` / ลำดับการตรวจยืมปกติไม่เปลี่ยน (test เดิมทุกตัวผ่าน)
-- สถานะ: เสร็จ รอทีมตรวจ (2569-11-13 `TestAC_APV_22`, `TestApproveOvernight_Rules`, `TestAC_APV_22_HTTP` ผ่าน / `TestTC_APV_01_12` ไม่ผ่านตามคาด (ได้ 422 ตารางบอก 404) รอทีมแก้แถว TC-APV-01-12 ก่อน ห้ามแก้ test ให้ผ่าน / ลำดับการตรวจ ภาควิชา -> ชื่ออาจารย์ -> สถานะ ทีมตอบ 2569-11-13 บันทึกใน FR-APV-03 ช)
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestAC_APV_22`, `TestApproveOvernight_Rules`, `TestAC_APV_22_HTTP` / `TestTC_APV_01_12` ยังไม่ผ่าน รอทีมแก้แถว TC-APV-01-12 ใน test-cases.md ก่อน)
 
 ### T-45 ช่องชื่ออาจารย์และปุ่มอนุมัติของคำขอค้างคืนบนหน้าจอ
 - รองรับ: FR-APV-03 (ข)(ช), FR-APV-01 (ซ)
