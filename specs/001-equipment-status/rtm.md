@@ -1,12 +1,13 @@
 # RTM: ตรวจสอบสถานะอุปกรณ์ (Equipment Status)
-อ้างอิง: spec.md Draft v5.1 | plan.md Draft v1.9 | tasks.md v2.5 | test-cases.md (ชุด ก ข ค ง)
-สร้างด้วย /verify เมื่อ 2569-11-12 04:54 (Asia/Bangkok) ที่ commit bfa0cb3 (รอบที่ 2 รอบก่อน 04:14 ที่ d95407a) | test: 556 ผ่าน 0 ไม่ผ่าน (SKIP 3)
+อ้างอิง: spec.md Draft v5.3 | plan.md Draft v2 | tasks.md v2.7 | test-cases.md (ชุด ก ข ค ง)
+สร้างด้วย /verify เมื่อ 2569-11-13 22:10 (Asia/Bangkok) ที่ commit e550ddd (รอบที่ 3 รอบสุดท้ายก่อนส่ง / รอบ 2 2569-11-12 ที่ bfa0cb3) | test: 752 ผ่าน (หลังบ้าน 539 + หน้าจอ 213) 0 ไม่ผ่าน (SKIP 3)
 
 ผล test ที่รัน (ดูอย่างเดียว ไม่ได้แก้อะไร)
-- หลังบ้าน `cd backend && go test ./... -v -count=1`: 383 ผ่าน 0 ไม่ผ่าน SKIP 2 (TestTC_EQS_11_7 รอ Q-11, TestTC_EQS_13_7 รอ Q-P3)
-  เฉพาะ package ของ 001 และของกลาง: equipment 83 ผ่าน + SKIP 2, audit 4, auth 4, platform 18, config 6
-- หน้าจอ `cd frontend && npx vitest run`: 173 ผ่าน 0 ไม่ผ่าน SKIP 1 (TC-EQS-05-5 รอ Q-18) เพิ่มจากรอบก่อน 5 ตัว (AC-EQS-08 หน้ารายละเอียด 2, RequestLoanFlow 3)
-- คนลอง: TC-EQS-17-6 ผ่าน (Pannathorn J 2569-11-12 บันทึกใน tasks.md จุดตรวจเฟส 15) / TC-EQS-09-7, 10-1 ถึง 10-4 ยังไม่ได้ลอง (รอ Q-SH-08, Q-17)
+- หลังบ้าน `cd backend && go test ./... -v -count=1`: 539 test function ผ่าน (658 รวม subtest) 0 ไม่ผ่าน SKIP 2 (TestTC_EQS_11_7 รอ Q-11, TestTC_EQS_13_7 รอ Q-P3)
+  เฉพาะ package ของ 001 และของกลาง: equipment 83 ผ่าน + SKIP 2, audit 4, auth 4, platform 30 (เพิ่ม TLS ของ 004), config 8
+- หน้าจอ `cd frontend && npx vitest run`: 213 ผ่าน 0 ไม่ผ่าน SKIP 1 (TC-EQS-05-5 รอ Q-18) ของ 001 ราว 69 ตัว + SKIP 1
+- คนลอง: TC-EQS-17-6 ผ่าน (Pannathorn J 2569-11-12) / TC-EQS-10-1 ถึง 10-4 ยังไม่ได้ลอง (รอ Q-17) / TC-EQS-09-7 ไม่ทดสอบใน prototype (Q-SH-08 ปิดสำหรับ prototype 2569-11-13)
+- โค้ดใน package ของ 001 ไม่เปลี่ยนตั้งแต่รอบ 2 นอกจากคอมเมนต์ (ItemTable.jsx F-12, tc_ac_eqs_09_test.go) ของกลางที่เปลี่ยน: HTTPS ของ 004 (platform/tls.go, main.go, docker-compose), client.js ฟังก์ชันของ 004
 
 ## 1. ตามรอยไปข้างหน้า (requirement ไป โค้ด ไป test)
 | ID | AC | task | โค้ด (ไฟล์: ฟังก์ชัน) | test (ผล) | สถานะ |
@@ -16,18 +17,18 @@
 | FR-EQS-03 | AC-EQS-03 | T-09 | handler.go: nonNil (200 รายการว่าง) / EmptyState.jsx / EquipmentList.jsx | TestTC_EQS_03_1, TC-EQS-03-2, 03-3, 03-4 (ผ่าน) | ครบ |
 | FR-EQS-04 | AC-EQS-04, AC-EQS-14 | T-10, T-11, T-12, T-13, T-34 | service.go: GetItem (isOverdue, ตัด dueAt ของนักศึกษา) / dto.go: StudentItemDTO, StaffItemDTO, canRequestLoan / EquipmentDetail.jsx: formatDueAt / StatusBadge.jsx: OverdueBadge | TestTC_EQS_04_*, TestTC_EQS_14_*, TC-EQS-04-2, 04-4, 14-4, 14-5, TestAC_EQS_14_* (ผ่าน) | ครบ |
 | FR-EQS-05 | AC-EQS-06 | T-14, T-34 | dto.go: canRequestLoan / StatusBadge.jsx / ItemTable.jsx | TestTC_EQS_06_*, TC-EQS-06-2, 06-4 (ผ่าน) | ครบ |
-| FR-EQS-06 | AC-EQS-05 | T-16, T-34, T-41 | dto.go: canRequestLoan / ItemTable.jsx: RequestLoanButton / EquipmentList.jsx, EquipmentDetail.jsx (onRequestLoan) / App.jsx: onRequestLoan เปิดหน้า borrow-request พร้อม assetCode ให้ BorrowRequestForm ของ 002 | TestTC_EQS_05_*, TC-EQS-05-2, RequestButton.test.jsx, RequestLoanFlow.test.jsx 3 ตัว (ผ่าน) | ช่องโหว่ (F-12 คอมเมนต์ค้าง โค้ดและ test ครบแล้ว) |
+| FR-EQS-06 | AC-EQS-05 | T-16, T-34, T-41 | dto.go: canRequestLoan / ItemTable.jsx: RequestLoanButton / EquipmentList.jsx, EquipmentDetail.jsx (onRequestLoan) / App.jsx: onRequestLoan เปิดหน้า borrow-request พร้อม assetCode ให้ BorrowRequestForm ของ 002 | TestTC_EQS_05_*, TC-EQS-05-2, RequestButton.test.jsx, RequestLoanFlow.test.jsx 3 ตัว (ผ่าน) | ครบ (F-12 แก้แล้ว) |
 | FR-EQS-07 | AC-EQS-07 (ตรวจแค่ชื่อผู้ยืม) | T-17, T-28 (รอ Q-P3), T-36 (รอ Q-20) | dto.go: StudentItemDTO ไม่มีช่องผู้ยืม / handler.go: summary / service.go: Summary / repository.go: CountByStatus / หน้าจอสรุปไม่มี | TestTC_EQS_07_*, TestFR_EQS_07_StaffSummaryByStatus, TC-EQS-07-2 (ผ่าน) ชื่อผู้ยืมไม่มี assert (รอ Q-20) | ช่องโหว่ (F-03, F-04) |
 | FR-EQS-08 | AC-EQS-08 | T-20, T-26 (และแก้ F-02) | handler.go: withDBTimeout, writeUpstreamError / config.go: EquipmentDBTimeout / client.js: getJSON timeoutMs / EquipmentList.jsx: retry / EquipmentDetail.jsx: canRetry, retry / ErrorState.jsx | TestTC_EQS_08_*, TestAC_EQS_08_*, TC-EQS-08-2, 08-4, 08-5, AC-EQS-08.test.jsx หน้ารายละเอียด 2 ตัว (ผ่าน) | ครบ |
 | FR-EQS-10 | AC-EQS-13 | T-18 | service.go: scopeFor, ListModels, ListItems, GetItem / repository.go: filterWhere ($4 ภาควิชา) | TestTC_EQS_13_1 ถึง 13_6, TestAC_EQS_13_OtherDepartment403, TC-EQS-13-5 (ผ่าน) | ครบ |
 | FR-EQS-11 | AC-EQS-17 | T-38 | client.js: listItemRequests / EquipmentDetail.jsx (useEffect ตัวที่สอง) / RequestQueue.jsx / endpoint ของ 002 ใน main.go | TC-EQS-17-1 ถึง 17-5, AC-EQS-17.test.jsx (ผ่าน) / TC-EQS-17-6 คนลองผ่าน | ครบ |
 | NFR-PERF-01 | AC-EQS-10 | T-22 (รอ Q-17) | ไม่มีโค้ดเฉพาะ (ไม่มี cache ตาม plan ข้อ 1) / config.go: EquipmentPerfP95 (เกณฑ์ของ test) | TestTC_EQS_10_5 (ผ่าน p95 ราว 24 ms คนเดียว) / k6 ยังไม่มี | รอ Q-17 |
 | NFR-DATA-01 | AC-EQS-05 | T-16, T-35 (รอ Q-18) | platform/http.go: NoStore / client.js: cache 'no-store' | TestTC_EQS_05_4, TestAC_EQS_05_ReturnedBecomesAvailable (ผ่าน) / TC-EQS-05-5 SKIP | รอ Q-18 |
-| NFR-SEC-01 | ไม่มี AC (AC-EQS-09 ตรวจแค่ส่วนยืนยันตัวตน) | T-03, T-21 / TLS ไม่มี task | auth/middleware.go: Middleware / main.go ห่อทุกฟีเจอร์ / TLS ไม่มี | TestAuth_*, TestTC_EQS_09_* (ผ่าน) | ช่องโหว่ (F-06, F-08) |
+| NFR-SEC-01 | ไม่มี AC (AC-EQS-09 ตรวจแค่ส่วนยืนยันตัวตน) | T-03, T-21 / TLS ไม่มี task | auth/middleware.go: Middleware / main.go ห่อทุกฟีเจอร์ / TLS: platform/tls.go: TLSConfig (MinVersion TLS 1.2), ListenAndServe (T-50 ของ 004) | TestAuth_*, TestTC_EQS_09_*, tls_test.go, TestTC_APV_19_* ของ 004 (ผ่าน) | ช่องโหว่ (F-08 ไม่มี AC ของ 001 ทีมตัดสินแล้ว) |
 | NFR-AVAIL-01 | ไม่มี AC | ไม่มี task | platform/http.go: healthz / deploy/docker-compose.yml มีแค่ db | TestHealthz_* (ผ่าน ตรวจแค่ healthz) | ช่องโหว่ (F-08) |
 | NFR-USE-01 | ไม่มี AC | T-27 (รอ Q-09) | plan ข้อ 6.7 mobile-first (class ของ Tailwind) | ไม่มี | ช่องโหว่ (F-08) |
 | CON-TECH-01 | ไม่มี AC (Constraint) | T-01, T-02 | platform/db.go: OpenDB / migrate.go / db/migrations | TestMigration_*, test ทุกตัวที่ใช้ testcontainers postgres:16 (ผ่าน) | ครบ |
-| CON-TECH-02 | ไม่มี AC (Constraint) | T-01 (Docker) / HTTPS ไม่มี task | deploy/docker-compose.yml (db อย่างเดียว ไม่มี reverse proxy) | ไม่มี | ช่องโหว่ (F-06) |
+| CON-TECH-02 | ไม่มี AC (Constraint) | T-01 (Docker) / HTTPS: T-50 ของ 004 | deploy/docker-compose.yml: service db และ backend (HTTPS :8443 ตั้ง TLS_CERT_FILE, TLS_KEY_FILE) / platform/tls.go: ListenAndServe | TestTC_APV_19_* และ tls_test.go ของ 004 (ผ่าน) | ครบ (ทำโดย 004 ตรวจด้วย AC-APV-19 ของ 004) |
 | CON-TECH-03 | ไม่มี AC (Constraint) | T-03, T-37, T-39, T-40 | platform/apierror.go: WriteError / http.go: MethodNotAllowedJSON / ทุก error ของ equipment และ auth | TestCON_TECH_03_*, errorBody ใน TC ทุกตัว (ผ่าน) | ช่องโหว่ (F-07) |
 | CON-DATA-01 | ไม่มี AC (Constraint) ใช้ใน AC-EQS-06, 14 | T-02, T-12, T-14 | migration 0001 CHECK status / dto.go: Status / StatusBadge.jsx: STATUS_LABEL | TestMigration_StatusCheck, TestTC_EQS_14_1 (สถานะยังเป็น borrowed) (ผ่าน) | ครบ |
 | CON-DATA-02 | AC-EQS-04 (อ้าง) | T-10, T-40 | handler.go: Routes มีแต่ GET / repository.go: Querier ไม่มี Exec | TestCON_DATA_02_NoWriteEndpoints, TestTC_EQS_04_6 (ผ่าน) | ครบ |
@@ -37,10 +38,11 @@
 | DOM-ACCESS-01 | AC-EQS-13 | T-18, T-28 (รอ Q-P3) | service.go: scopeFor / repository.go: filterWhere | TestTC_EQS_13_*, TestFR_EQS_10_ScopeByRole (ผ่าน) | ครบ (ส่วนนักศึกษาตามข้อความ DOM-ACCESS-01) |
 | DOM-LOAN-01 | AC-EQS-14 | T-12 | service.go: GetItem อ่าน due_at ที่บันทึกไว้ ไม่คำนวณ 16:00 เอง / config.go: TimeZone | TestTC_EQS_14_6, 14_7, 14_8 (ค้างคืน Q-SH-04) (ผ่าน) | ครบ |
 | DOM-REQ-01 | AC-EQS-01, AC-EQS-17 | T-04, T-38 | repository.go: ListModels นับว่างจากสถานะอย่างเดียว / RequestQueue.jsx | TestTC_EQS_01_* (คำขอค้างยังนับว่าง), TestTC_EQS_04_5, TC-EQS-17-* (ผ่าน) | ครบ |
-| IF-IDP-01 | AC-EQS-09 | T-03, T-21, T-30 (รอ Q-SH-03) | auth/mock_provider.go (จำลอง) / principal.go: Complete / middleware.go / App.jsx, MockLogin.jsx | TestAuth_*, TestTC_EQS_09_*, TC-EQS-09-3, 09-4, 09-5 (ผ่าน) | รอ Q-SH-03 (ระบบจริง) |
+| IF-IDP-01 | AC-EQS-09 | T-03, T-21, T-30 (ไม่ทำใน prototype Q-SH-03) | auth/mock_provider.go (จำลอง) / principal.go: Complete / middleware.go / App.jsx, MockLogin.jsx | TestAuth_*, TestTC_EQS_09_*, TC-EQS-09-3, 09-4, 09-5 (ผ่าน) / TC-EQS-09-7 ไม่ทดสอบใน prototype (Q-SH-08) | ครบ (แบบจำลอง: Q-SH-03 ใช้ auth จำลอง, Q-SH-08 ปิดสำหรับ prototype คงตอบ 401) |
 
 FR-EQS-09 และ AC-EQS-12 ยกเลิกโดย CR-002 ไม่นับในตาราง (T-15, T-25 ยกเลิก)
-สรุปสถานะ 27 แถว: ครบ 14 / ยังไม่ถึง 0 / รอ 6 / ช่องโหว่ 7 (รอบก่อน: ครบ 13 / รอ 6 / ช่องโหว่ 8)
+สรุปสถานะ 27 แถว: ครบ 17 / ยังไม่ถึง 0 / รอ 5 / ช่องโหว่ 5 (รอบก่อน: ครบ 14 / รอ 6 / ช่องโหว่ 7)
+ช่องโหว่ 5 แถว (FR-EQS-07, NFR-SEC-01, NFR-AVAIL-01, NFR-USE-01, CON-TECH-03) ทีมตัดสินข้อค้นพบครบแล้วทุกข้อ (F-03, F-07, F-08)
 
 ## 2. ตามรอยย้อนกลับ (โค้ด ไป requirement)
 | โค้ด (ไฟล์: ฟังก์ชัน หรือ endpoint) | อ้าง ID | ตรงกับข้อความใน spec ไหม | หมายเหตุ |
@@ -56,21 +58,21 @@ FR-EQS-09 และ AC-EQS-12 ยกเลิกโดย CR-002 ไม่นั
 | repository.go: ListModels คอมเมนต์ | FR-EQS-10, T-18 | ตรง | แก้แล้วใน b1c1591 (F-11) |
 | dto.go: canRequestLoan | FR-EQS-04, 05, 06 | ตรง | ว่าง = true เท่านั้น |
 | audit/writer.go: Write | DOM-AUDIT-01, DM-07 | ตรง | ของกลาง ใช้ร่วม 003 |
-| auth/middleware.go: Middleware, mock_provider.go | IF-IDP-01, NFR-SEC-01 | ตรง (แบบจำลอง) | ผู้ใช้จำลอง 4 คน ทีมเลือกเอง รอ Q-SH-03 |
+| auth/middleware.go: Middleware, mock_provider.go | IF-IDP-01, NFR-SEC-01 | ตรง (แบบจำลอง) | ผู้ใช้จำลอง 4 คน ทีมเลือกเอง Q-SH-03 ตอบแล้ว (ใช้ auth จำลอง) / Q-SH-08 ปิดสำหรับ prototype ตอบ 401 |
 | platform/apierror.go: WriteError, errorMessages | CON-TECH-03 | ตรง | ข้อความภาษาไทยทีมเลือกเอง (plan ข้อ 5) |
 | platform/http.go: MethodNotAllowedJSON | CON-TECH-03, CON-DATA-02 | ตรง | ครอบทุกฟีเจอร์ใน main.go (T-40) |
 | platform/http.go: healthz | CON-TECH-01, 02 | ไม่ตรง CON-TECH-03 | 503 ตอบ `{"status":"db_unavailable"}` ไม่ใช่ {code, message} (F-07) |
 | platform/http.go: NoStore | NFR-DATA-01 | ตรง | |
-| cmd/server/main.go: ผูก equipment และ `GET /v1/equipment/items/{assetCode}/requests` ของ 002 | IF-IDP-01, FR-EQS-11 | ตรง | path ที่ไม่มีใต้ /v1/equipment/ ได้ 404 text/plain ของ ServeMux (F-07) |
+| cmd/server/main.go: ผูก equipment และ `GET /v1/equipment/items/{assetCode}/requests` ของ 002 / platform.ListenAndServe (HTTPS ของ 004) | IF-IDP-01, FR-EQS-11, CON-TECH-02 | ตรง | path ที่ไม่มีใต้ /v1/equipment/ ได้ 404 text/plain ของ ServeMux (F-07) / ไม่ตั้ง cert = HTTP สำหรับเครื่องพัฒนา (ASM-13 ของ 004) |
 | config.go: EquipmentDBTimeout, EquipmentPerfP95, TimeZone | Q-08, NFR-PERF-01, FR-EQS-04 | ตรง | |
 | frontend config.js: EQUIPMENT_REQUEST_TIMEOUT_MS | Q-08 | ตรง | 6000 มากกว่า 5 วินาทีของหลังบ้าน |
 | client.js: listModels, listItems, getItem (timeout), listItemRequests (ไม่มี timeout) | FR-EQS-01 ถึง 04, 08, 11 | ตรง | listItemRequests ไม่ใช้ timeout ของ 001 เพราะเป็น endpoint ของ 002 |
-| client.js: session จำลอง getToken/setToken/onUnauthorized | IF-IDP-01, AC-EQS-09 | ตรง (แบบจำลอง) | ทีมเลือกเอง รอ Q-SH-03 |
+| client.js: session จำลอง getToken/setToken/onUnauthorized | IF-IDP-01, AC-EQS-09 | ตรง (แบบจำลอง) | ทีมเลือกเอง Q-SH-03 ตอบแล้ว (ใช้ auth จำลอง) / ฟังก์ชันใหม่ของ 004 (openAttachment, approveRequest advisorName) ไม่ใช่ของ 001 |
 | App.jsx: PAGES, safePageKey, หน้าเข้าสู่ระบบเมื่อ 401, onRequestLoan | AC-EQS-09, plan 6.5, FR-EQS-06 | ตรง | กดปุ่มส่งคำขอยืมแล้วเปิดหน้า borrow-request ของ 002 พร้อม assetCode (T-41) เปิดจากแถบเองช่องว่าง ไม่แก้ไฟล์ของ 002 |
 | EquipmentList.jsx | FR-EQS-01, 02, 03, 08 | ตรง | ตัวเลือกประเภทมาจากรายการตอนไม่กรอง (ไม่มี endpoint ประเภทใน plan) |
 | EquipmentDetail.jsx | FR-EQS-04, 06, 08, 10, 11 | ตรง | ปุ่มลองใหม่แสดงเมื่อดึงข้อมูลไม่สำเร็จ ไม่แสดงเมื่อเป็น 4xx (403, 404) ทางเลือกของ AI บันทึกใน prompt-log ให้ทีมรู้แล้ว ตรงกับข้อความ FR-EQS-08 "ดึงข้อมูลไม่สำเร็จ" |
 | EquipmentDetail.jsx: formatDueAt, BUDDHIST_YEAR_OFFSET 543 | FR-EQS-04 | ตรง | 543 เป็นค่าปฏิทิน ไม่ใช่ตัวเลขจาก spec รูปแบบ "2569-10-10 16:00" ทีมตัดสิน 2569-11-10 |
-| ItemTable.jsx: RequestLoanButton | FR-EQS-06, Q-16 | ตรงส่วนโค้ด | คอมเมนต์บรรทัด 7 และ 46 ยังบอกว่า "ยังไม่ได้ต่อ" กับฟอร์มของ 002 ทั้งที่ T-41 ต่อแล้ว (F-12) |
+| ItemTable.jsx: RequestLoanButton | FR-EQS-06, Q-16, T-41 | ตรง | คอมเมนต์บรรทัด 7 และ 46 บอกว่า App.jsx เปิดฟอร์มของ 002 แล้ว (F-12 แก้แล้ว) |
 | ModelRow.jsx | FR-EQS-01, AC-EQS-15 | ตรง | ข้อความเมื่อกรองไม่ใช่ "ว่าง" คงรูปแบบเดิม ทีมตัดสินชั่วคราว 2569-11-10 รอ Q-21 |
 | SearchBar.jsx | FR-EQS-02, Q-15 | ตรง | ไม่มีช่องค้นด้วยคำ (รอ Q-06) |
 | EmptyState.jsx, ErrorState.jsx | FR-EQS-03, 08 | ตรง | |
@@ -82,8 +84,8 @@ FR-EQS-09 และ AC-EQS-12 ยกเลิกโดย CR-002 ไม่นั
 ค้นข้อมูลที่ Constraint ปกป้อง (DOM-PRIV-01 ชื่อผู้ยืม / ผู้ขอ): ไม่พบ borrower ใน DTO ของนักศึกษา ตารางรายชิ้น log หรือข้อความ error
 log มีที่เดียวคือ writeUpstreamError เขียนข้อความ error ของฐานข้อมูล ไม่มี token หรือข้อมูลผู้ใช้ / audit_log.query ของ 001 ยังไม่ได้ใช้
 ไม่พบของแถมที่อยู่ใน Out of scope (ไม่มี endpoint ส่งคำขอ ส่งมอบ รับคืน หรือจัดการอุปกรณ์ในโค้ดของ 001 / App.jsx แค่เปิดฟอร์มของ 002)
-เอกสารที่ตามโค้ดไม่ทัน (ไม่ใช่โค้ด จึงไม่นับเป็นข้อค้นพบ แจ้งไว้ให้ทีมแก้): plan.md ข้อ 5 ยังเขียนว่า "ต้องตกลงกับ 002 ฟอร์มของ 002 ยังไม่ได้สร้าง"
-/ tasks.md สถานะ T-34 ยังเขียนว่า "ในแอปจริงกดแล้วยังไม่ไปไหน" / T-41 ยังเป็น "เสร็จ รอทีมตรวจ"
+เอกสารที่ตามโค้ดไม่ทัน (ไม่ใช่โค้ด จึงไม่นับเป็นข้อค้นพบ แจ้งไว้ให้ทีมแก้): tasks.md ตาราง Constraint แถว CON-TECH-02 และหมายเหตุท้ายตาราง
+ยังเขียนว่า "HTTPS/TLS ที่ reverse proxy: ยังไม่มี task" ทั้งที่ 004 ทำ HTTPS ในหลังบ้านแล้ว (T-50 ของ 004) / เรื่องจากรอบ 2 (plan ข้อ 5, T-34, T-41) แก้แล้วใน 1699dce และ 8f6f95e
 
 ## 3. ข้อค้นพบ
 ชนิด: AC ไม่มี test / test อ่อน / โค้ดไม่มี FR / FR ไม่มี AC / เดา Q-xx / ละเมิด Constraint / ตัวเลขไม่ตรง spec / อ้าง ID ผิดเรื่อง
@@ -94,17 +96,16 @@ log มีที่เดียวคือ writeUpstreamError เขียน�
 | F-03 | FR ไม่มี AC | spec.md FR-EQS-07 / backend handler.go: summary (ไม่มีหน้าจอ) | FR-EQS-07 "เจ้าหน้าที่เห็น ... สรุปจำนวนอุปกรณ์แยกตามสถานะ" | AC-EQS-07 ตรวจแค่ชื่อผู้ยืม ส่วนสรุปจำนวนไม่มี AC (tasks.md บอกไว้แล้วใน "สิ่งที่ยังไม่ทำ") หลังบ้านมี `GET /v1/equipment/summary` แต่หน้าจอไม่มีที่ไหนเรียก client.js ไม่มีฟังก์ชันนี้ เจ้าหน้าที่จึงยังไม่เห็นสรุปบนหน้าจอ และไม่มี task หน้าจอ แนวทาง: เสนอ AC ของส่วนสรุปผ่าน CR แล้วเพิ่ม task หน้าจอ หรือทีมตัดสินว่าเทอมนี้มีแค่ API | ไม่ใช่ปัญหา: เทอมนี้มีแค่ API ยังไม่ทำหน้าจอสรุป (2569-11-12) |
 | F-04 | เดา Q-P3 | backend service.go: scopeFor, repository.go: CountByStatus / TestFR_EQS_10_ScopeByRole, TestFR_EQS_07_StaffSummaryByStatus | Q-P3 (plan ข้อ 10) ยังไม่มีคำตอบ | โค้ดให้เจ้าหน้าที่เห็นทุกภาควิชา (plan ข้อ 6.1 เขียนว่าชั่วคราว) และ test 2 ตัวที่ไม่ได้มาจาก test-cases.md assert ไว้แล้วว่า "เจ้าหน้าที่ต้องเห็นทุกภาควิชา" และสรุปนับทั้งฐานข้อมูล ถ้า Q-P3 ตอบว่าเห็นเฉพาะภาควิชาตน test ทั้ง 2 จะพัง ส่วน TC-EQS-13-7 และ 07-6 ส่วน (3) เว้นไว้ถูกต้องแล้ว แนวทาง: ถาม Q-P3 หรือย้าย assert ส่วนเจ้าหน้าที่ใน 2 test นั้นออกเป็นคอมเมนต์รอ Q-P3 | เพิ่ม Q-xx (ถาม Q-P3) ตอนนี้เป็นการตัดสินชั่วคราวที่ plan เขียนไว้แล้ว (2569-11-12) |
 | F-05 | เดา Q-P4 | backend handler.go: getItem (fail closed) / TestAudit_WriteFailsThenNoData, TestTC_EQS_11_6 ส่วน (1) | Q-P4 (plan ข้อ 10) ยังไม่มีคำตอบ | เขียน audit ไม่สำเร็จแล้วตอบ 503 ไม่ส่งข้อมูล เป็นข้อเสนอของ plan ข้อ 6.4 ที่ยังรอ Q-P4 แต่ TestAudit_WriteFailsThenNoData assert ว่าไม่มีข้อมูลอุปกรณ์ในคำตอบแล้ว ขณะที่ TC-EQS-11-6 ส่วน (2) เว้นไว้เพราะรอ Q-P4 สองที่จึงไม่ตรงกัน แนวทาง: ถาม Q-P4 หรือทีมรับ fail closed เป็นคำตอบแล้วปิด Q-P4 | ไม่ใช่ปัญหา spec เขียนว่า 'ทุกครั้ง (2569-11-12) |
-| F-06 | ละเมิด Constraint | deploy/docker-compose.yml (มีแค่ db) / ไม่มี reverse proxy | CON-TECH-02 "HTTPS เท่านั้น", NFR-SEC-01 "TLS 1.2 ขึ้นไป" | ไม่มี HTTPS หรือ TLS ที่ใดในระบบ และไม่มี task ไหนรับงานนี้ (tasks.md ตาราง Constraint และหมายเหตุท้ายไฟล์บอกว่าเป็นงานของทั้งระบบ) ระบบตอนนี้รัน HTTP ล้วน แนวทาง: ทีมตกลงว่าใครทำ reverse proxy แล้วเพิ่ม task หรือบันทึกว่า prototype ไม่ทำ | ไม่ใช่ปัญหาสำหรับ prototype เป็นงานของทั้งระบบ ต้องคุยกับทีม (2569-11-12) |
 | F-07 | ละเมิด Constraint | platform/http.go: healthz / ServeMux ของ equipment (path ที่ไม่มี) | CON-TECH-03 "ทุก endpoint ตอบ error ด้วย body {code, message}" | /healthz ตอบ 503 ด้วย `{"status":"db_unavailable"}` และ path ที่ไม่มีใต้ /v1/equipment/ (เช่น /v1/equipment/foo) ได้ 404 ข้อความธรรมดา "404 page not found" จาก ServeMux ไม่ผ่านตัวครอบ MethodNotAllowedJSON ที่ดักแค่ 405 หน้าจอไม่ได้เรียกสองกรณีนี้ ผู้ใช้จึงไม่เห็น แนวทาง: ตัดสินว่า healthz และ path ที่ไม่มีนับเป็น "endpoint" ไหม | ไม่ใช่ปัญหา ผู้ใช้ไม่เห็น (2569-11-12) |
 | F-08 | FR ไม่มี AC | spec.md NFR-SEC-01, NFR-AVAIL-01, NFR-USE-01 | AC ทุกข้อใน spec | NFR 3 ข้อไม่มี AC ตรวจ (tasks.md บรรทัด "NFR ที่ไม่มี AC" บอกไว้แล้ว) NFR-AVAIL-01 ไม่มี task เลย NFR-USE-01 ต้องทดสอบกับคน 10 คน (T-27 รอ Q-09) NFR-SEC-01 มีแค่ส่วนยืนยันตัวตนผ่าน AC-EQS-09 แนวทาง: เสนอ AC ผ่าน CR หรือบันทึกว่าตรวจด้วยคนนอกระบบ test | ไม่ใช่ปัญหา ตรวจด้วยคนนอก test (tasks.md บันทึกไว้แล้ว) (2569-11-12) |
 | F-10 | ตัวเลขไม่ตรง spec | frontend/src/components/StatusBadge.jsx: STATUS_LABEL / frontend/src/config.js: STATUS_LABELS (ของ 006) | AGENTS.md กฎข้อ 9, CON-DATA-01 | คำของ 3 สถานะมี 2 ที่ คำตรงกันตอนนี้ แต่ถ้าแก้ที่หนึ่ง อีกที่ไม่เปลี่ยนตาม ป้ายบนหน้าจอ 001 กับ 006 จะไม่ตรงกัน แนวทาง: ให้ StatusBadge ใช้ STATUS_LABELS จาก config.js (ต้องคุยกับ 006) | ไม่ใช่ปัญหา คำตรงกันอยู่แล้ว (2569-11-12) |
-| F-12 | อ้าง ID ผิดเรื่อง | frontend/src/components/ItemTable.jsx บรรทัด 7 ("ฟอร์มของ 002 เป็นผู้รับ (FR-BRQ-01) ยังไม่ได้ต่อ ดู tasks.md T-34") และบรรทัด 46 ("ไม่ได้ส่ง onRequestLoan มา = กดแล้วยังไม่ไปไหน จนกว่าจะต่อกับฟอร์มของ 002") | T-41 (ต่อแล้ว), FR-EQS-06 | คอมเมนต์ค้างจากก่อนทำ T-41 แบบเดียวกับ F-11 App.jsx ต่อปุ่มกับฟอร์มของ 002 แล้ว (RequestLoanFlow.test.jsx ยืนยัน) คนอ่านโค้ดอาจเข้าใจว่าปุ่มยังไม่ทำงาน แนวทาง: เปลี่ยนคอมเมนต์ 2 จุดให้บอกว่า App.jsx ต่อกับหน้า borrow-request แล้ว (T-41) | แก้โค้ด เปลี่ยนคอมเมนต์ 2 จุด แบบเดียวกับ F-11 (2569-11-12) |
 
-ข้อค้นพบเดิมที่ยังเจออยู่ (F-03 ถึง F-08, F-10) คง F-ID และช่องทีมตัดสินเดิมทุกตัวอักษร ตรวจซ้ำแล้วโค้ดยังเหมือนรอบก่อน
-ข้อค้นพบใหม่รอบนี้: F-12 (ช่องทีมตัดสินว่าง ทีมเขียนเอง)
+ข้อค้นพบเดิมที่ยังเจออยู่ (F-03, F-04, F-05, F-07, F-08, F-10) คง F-ID และช่องทีมตัดสินเดิมทุกตัวอักษร ตรวจซ้ำแล้วโค้ดยังเหมือนรอบก่อน
+ข้อค้นพบใหม่รอบนี้: ไม่มี (F-06, F-12 ย้ายไปหัวข้อ "แก้แล้ว")
 
 ไม่นับเป็นข้อค้นพบ (task ยังไม่ได้ทำเพราะรอคำตอบ): แบ่งหน้า (T-23 รอ Q-05), ค้นด้วยคำ (T-24 รอ Q-06), ชื่อผู้ยืมของเจ้าหน้าที่ (T-36 รอ Q-20),
-audit ของรายการและการค้นหา (T-29 รอ Q-11), load test (T-22 รอ Q-17), รีเฟรชเอง (T-35 รอ Q-18), auth จริง (T-30 รอ Q-SH-03), จอมือถือ (T-27 รอ Q-09)
+audit ของรายการและการค้นหา (T-29 รอ Q-11), load test (T-22 รอ Q-17), รีเฟรชเอง (T-35 รอ Q-18), จอมือถือ (T-27 รอ Q-09)
+ไม่ทำใน prototype ตามที่ทีมตัดสิน: auth จริง (T-30, Q-SH-03) และ auth ล่มตอนใช้งาน (TC-EQS-09-7, Q-SH-08)
 แถว "ใช้ได้" ที่ยังเขียนว่า "spec ไม่ได้บอก": TC-EQS-10-1 ส่วน (2) และ TC-EQS-10-3 (ยังไม่นับ เพราะ T-22 ยังไม่ได้ทำ แต่ต้องตัดสินก่อนรัน k6)
 
 ## 4. แก้แล้ว
@@ -113,4 +114,6 @@ audit ของรายการและการค้นหา (T-29 รอ 
 | F-01 | เพิ่ม T-41 ใน App.jsx ส่ง onRequestLoan ให้ EquipmentList กดปุ่มแล้วเปิดหน้า borrow-request พร้อม assetCode ให้ BorrowRequestForm ของ 002 (commit bfa0cb3 บอก 002 แล้ว) | RequestLoanFlow.test.jsx 3 ตัวผ่าน render App ทั้งหน้า กดปุ่มในตารางและหน้ารายละเอียดแล้วช่องรหัสครุภัณฑ์ของฟอร์มเป็น CS-NB-0001 ถ้าลบการต่อใน App.jsx test นี้ไม่ผ่าน |
 | F-02 | EquipmentDetail.jsx ส่ง onRetry ให้ ErrorState เมื่อดึงข้อมูลไม่สำเร็จ (ไม่ใช่ 4xx) กดแล้วโหลดรายละเอียดและคำขอใหม่ แก้คอมเมนต์ที่อ้าง T-20 (commit b1c1591) | AC-EQS-08.test.jsx เพิ่ม 2 ตัวผ่าน: 503 มีปุ่มลองใหม่ กดหลังฐานข้อมูลกลับมาเห็นรายละเอียด / 403 ไม่มีปุ่ม |
 | F-09 | เพิ่ม EquipmentPerfP95 = 3 วินาที ใน config.go และ tc_ac_eqs_10_test.go อ้างค่านั้น ค่าเท่าเดิม (commit b1c1591) | อ่านโค้ด: perfP95 = config.EquipmentPerfP95 ไม่มีตัวเลข 3 วินาทีในไฟล์ test แล้ว / TestTC_EQS_10_5 ยังผ่าน |
+| F-06 | 004 ทำ HTTPS ในหลังบ้านเอง (T-50 ของ 004, Q-APV-38): platform/tls.go เปิดเฉพาะ HTTPS ด้วย TLS 1.2 ขึ้นไปเมื่อตั้ง TLS_CERT_FILE และ TLS_KEY_FILE และ docker-compose มี service backend ที่ :8443 พร้อม cert (ทีมตัดสินเดิม: "ไม่ใช่ปัญหาสำหรับ prototype เป็นงานของทั้งระบบ ต้องคุยกับทีม (2569-11-12)") | อ่านโค้ด platform/tls.go: TLSConfig MinVersion = config.TLSMinVersion และ deploy/docker-compose.yml / tls_test.go และ TestTC_APV_19_* ของ 004 ผ่าน |
 | F-11 | แก้คอมเมนต์ของ ListModels ให้บอกว่าจำกัดภาควิชาผ่าน filterWhere แล้ว (commit b1c1591) | อ่านโค้ด: repository.go บรรทัด 62 ไม่มีคำว่า "ยังไม่จำกัดภาควิชา (T-18)" แล้ว คอมเมนต์ของ CountByStatus ที่รอ Q-P3 ยังถูกจึงคงไว้ |
+| F-12 | เปลี่ยนคอมเมนต์ ItemTable.jsx บรรทัด 7 และ 46 ให้บอกว่า App.jsx เปิดฟอร์มของ 002 แล้ว (T-41) (commit 1699dce ทีมตัดสิน: แก้โค้ด เปลี่ยนคอมเมนต์ 2 จุด แบบเดียวกับ F-11 (2569-11-12)) | อ่านโค้ด: ไม่มีคำว่า "ยังไม่ได้ต่อ" และ "กดแล้วยังไม่ไปไหน" ใน ItemTable.jsx แล้ว / RequestLoanFlow.test.jsx 3 ตัวยังผ่าน |
