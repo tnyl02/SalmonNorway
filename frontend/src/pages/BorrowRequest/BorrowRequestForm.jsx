@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../../api/client.js'
-import RequestErrorSummary from '../../components/RequestErrorSummary.jsx'
+import RequestErrorSummary, { summaryText } from '../../components/RequestErrorSummary.jsx'
 import {
   ATTACHMENT_ALLOWED_TYPES,
   LABEL_SUBMIT_REQUEST,
@@ -33,8 +33,34 @@ export default function BorrowRequestForm({ client = api, assetCode: initialAsse
   const [sending, setSending] = useState(false)
   const [created, setCreated] = useState(null)
   const [error, setError] = useState(null)
+  const [openStatus, setOpenStatus] = useState(null)
 
   const overnight = loanType === 'overnight'
+
+  // ล็อกรหัสครุภัณฑ์เมื่อเปิดฟอร์มมาจากปุ่มของ 001 ผู้ขอจะได้ไม่เผลอแก้เป็นชิ้นที่ไม่ได้ดูสถานะไว้
+  // (FR-BRQ-01 ระบุว่ารหัสครุภัณฑ์มาจาก FR-EQS-06) เปิดหน้าตรงจากเมนูยังพิมพ์เองได้เหมือนเดิม
+  const assetCodeFromList = initialAssetCode !== ''
+
+  // ตรวจสถานะอุปกรณ์ตั้งแต่ตอนเปิดฟอร์ม ไม่ต้องรอให้กดส่ง (FR-BRQ-01, AC-BRQ-01, T-25)
+  // เรียกเฉพาะรหัสที่ส่งมาจาก 001 เพื่อไม่ให้ยิง API ทุกตัวอักษรที่ผู้ขอพิมพ์เอง
+  // ถ้าเรียกไม่สำเร็จ เงียบไว้และปล่อยให้ส่งคำขอได้ตามปกติ เพราะการตรวจจริงอยู่ที่หลังบ้าน
+  // ในคำสั่งเดียวกับการบันทึก การปิดกั้นตรงนี้จะขัด FR-BRQ-09
+  useEffect(() => {
+    if (!assetCodeFromList || typeof client.getItem !== 'function') return
+    let cancelled = false
+    client
+      .getItem(initialAssetCode)
+      .then((item) => {
+        if (!cancelled) setOpenStatus(item?.status ?? null)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [client, initialAssetCode, assetCodeFromList])
+
+  // แจ้งเตือนเมื่อสถานะที่อ่านได้ตอนเปิดฟอร์มไม่ใช่ "ว่าง" ใช้ข้อความและคำไทยชุดเดียวกับตอนกดส่ง
+  const unavailableAtOpen = openStatus !== null && openStatus !== 'available'
 
   // invalid ทำเครื่องหมายช่องที่หลังบ้านบอกว่าต้องแก้ (VALIDATION_FAILED + fields, FR-BRQ-03)
   // ทำ 2 ทางคู่กัน: กรอบสีแดงให้คนเห็น และ aria-invalid ให้เครื่องอ่านหน้าจอรู้ (NFR-USE-01)
@@ -85,8 +111,21 @@ export default function BorrowRequestForm({ client = api, assetCode: initialAsse
 
       <Field id="assetCode" label="รหัสครุภัณฑ์">
         {/* รหัสครุภัณฑ์ไม่อยู่ในรายชื่อช่องที่หลังบ้านส่งกลับมา (รหัสว่างหรือผิดถูกปฏิเสธด้วย ITEM_NOT_AVAILABLE) */}
-        <input id="assetCode" value={assetCode} onChange={(e) => setAssetCode(e.target.value)} className={INPUT} />
+        <input
+          id="assetCode"
+          value={assetCode}
+          onChange={(e) => setAssetCode(e.target.value)}
+          readOnly={assetCodeFromList}
+          className={INPUT}
+        />
       </Field>
+
+      {/* อุปกรณ์ไม่ว่างแล้วตั้งแต่ตอนเปิดฟอร์ม ผู้ขอจะได้ไม่กรอกจนจบแล้วค่อยรู้ (FR-BRQ-01, AC-BRQ-01) */}
+      {unavailableAtOpen && (
+        <p role="status" className="text-sm text-amber-700">
+          {summaryText({ code: 'ITEM_NOT_AVAILABLE', status: openStatus })}
+        </p>
+      )}
 
       <Field id="requesterName" label="ชื่อ-นามสกุล">
         <input {...invalid('requesterName')} id="requesterName" value={requesterName} onChange={(e) => setRequesterName(e.target.value)} />
