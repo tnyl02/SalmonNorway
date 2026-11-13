@@ -284,7 +284,6 @@ func (e *ItemNotAvailableError) Error() string {
 // Is ทำให้ errors.Is(err, ErrItemNotAvailable) เป็นจริง
 func (e *ItemNotAvailableError) Is(target error) bool { return target == ErrItemNotAvailable }
 
-// ItemStatus คืนสถานะล่าสุดของอุปกรณ์ ใช้บอกผู้ขอเมื่อส่งคำขอไม่ได้ (FR-BRQ-01)
-func (s *Service) ItemStatus(ctx context.Context, assetCode string) (string, error) {
-	return s.repo.ItemStatus(ctx, assetCode)
-}
+// ลบ Service.ItemStatus ออกเมื่อ 2569-11-13 ตาม F-08 ใน rtm.md
+// เป็น wrapper ที่ไม่มีผู้เรียกในโค้ดจริง การตรวจสถานะอุปกรณ์เกิดในคำสั่งเดียวกับ INSERT
+// ที่ Repository.Create อยู่แล้ว (FR-BRQ-01) ส่วน Repository.ItemStatus ยังใช้อยู่จึงไม่ลบ
