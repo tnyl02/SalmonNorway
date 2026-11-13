@@ -1106,3 +1106,50 @@ func TestAC_APV_25(t *testing.T) {
 		})
 	}
 }
+
+// AC-APV-26 (FR-APV-03 ง, FR-APV-01 ค ฉ, DOM-LOAN-01)
+// Given คำขอค้างคืนสถานะ requested และเวลาปัจจุบันเลย 16:00 น. ของวันที่เริ่มยืม และเลยเที่ยงคืนของวันที่ส่งแล้ว
+// When  เจ้าหน้าที่อนุมัติพร้อมชื่ออาจารย์
+// Then  คำขอเป็น approved (ไม่มีเวลาตัดและไม่ถูกปฏิเสธอัตโนมัติ)
+//
+//	(T-49 เสร็จเมื่อ: งานเที่ยงคืน RejectStale และ CatchUp ตอนเริ่ม server ไม่แตะคำขอค้างคืน)
+func TestAC_APV_26(t *testing.T) {
+	tx := devTx(t)
+	bg := context.Background()
+	c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+
+	// Given: C ส่งเมื่อวาน 08:00 น. เริ่มยืมเมื่อวาน 09:00 น. ตามเวลาไทย / นาฬิกาจำลองคือวันนี้ 17:00 น.
+	today := autoRejectCutoff(time.Now()) // 00:00 น. ของวันนี้ เวลาไทย
+	yesterday := today.AddDate(0, 0, -1)
+	if _, err := tx.Exec(bg, `UPDATE borrow_request SET submitted_at = $2, start_at = $3, end_at = $4 WHERE id = $1`,
+		c, yesterday.Add(8*time.Hour), yesterday.Add(9*time.Hour), today.Add(16*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	now := today.Add(17 * time.Hour)
+	if !now.After(approvalCutoff(yesterday.Add(9 * time.Hour))) {
+		t.Fatal("เตรียมข้อมูล: นาฬิกาต้องเลย 16:00 น. ของวันที่เริ่มยืม")
+	}
+	clock := func() time.Time { return now }
+
+	// งานเที่ยงคืนรอบปกติ และรอบไล่ตามตอน server เริ่มทำงาน (FR-APV-01 ฉ, Q-APV-21) ต้องไม่แตะ C
+	job := &AutoRejecter{db: tx, now: clock}
+	if _, err := job.RejectStale(bg); err != nil {
+		t.Fatal(err)
+	}
+	job.CatchUp(bg)
+	if s := tcRequestStatus(t, tx, c); s != config.StatusRequested {
+		t.Fatalf("งานเที่ยงคืนต้องไม่ปฏิเสธคำขอค้างคืน (FR-APV-03 ง) แต่ C เป็น %q", s)
+	}
+
+	// When: อนุมัติพร้อมชื่ออาจารย์หลัง 16:00 น. ของวันที่เริ่มยืม
+	svc := NewService(NewRepository(tx))
+	svc.now = clock
+	if _, err := svc.ApproveWithAdvisor(staffCtx("staff-001", 1), c, now, "อ.สมชาย ใจดี"); err != nil {
+		t.Fatalf("อนุมัติค้างคืนต้องไม่ติดเวลาตัด (FR-APV-03 ง) แต่ได้ %v", err)
+	}
+
+	// Then
+	if s := tcRequestStatus(t, tx, c); s != config.StatusApproved {
+		t.Errorf("C ต้องเป็น approved แต่ได้ %q", s)
+	}
+}
