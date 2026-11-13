@@ -8780,3 +8780,19 @@ FR-BRQ-01 เขียนว่าต้องตรวจสถานะทั�
 - คำสั่ง: "curl -k --tlsv1.2 https://localhost:8443/healthz เรียกตรงไหน" แล้ว "ผ่าน"
 - ผล: TLS 1.2 ได้ {"status":"ok"} / TLS 1.1 จับมือไม่สำเร็จ / HTTP ธรรมดาไม่ได้คำตอบของ API / compose เปิดเฉพาะ 8443 -> บันทึกในหัวข้อ "ผลการลองโดยคน" ของ test-cases.md
 - หมายเหตุ: Windows PowerShell ต้องใช้ curl.exe เพราะ curl เป็นชื่อย่อของ Invoke-WebRequest
+
+---
+
+## 2569-11-13 ทีมตอบ TC-APV-19-7 ทาง ก (004, spec Draft v3.3)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (หน้าเว็บให้ตอบ https://claude.ai/artifact/RTcDYbxRn3jNYMyYeGJcDm collection "tc1907")
+- คำสั่ง: "ทำเป็น html ให้ทีมตอบ" แล้ว "ตอบแล้ว"
+- คำตอบ: ทาง ก ยอมให้ HTTP เฉพาะเครื่องพัฒนาและ test ที่ไม่ตั้ง cert
+- ผลลัพธ์:
+  - spec.md Draft v3.3: เพิ่ม ASM-13 [ID เสนอ รอทีมอนุมัติ] AC-APV-19 ใช้กับระบบที่ deploy ด้วย docker-compose ที่ตั้ง cert / Clarifications session ใหม่
+  - test-cases.md TC-APV-19-7: Then เป็น "ได้คำตอบของ API ผ่าน HTTP ตามปกติ" แบบเปลี่ยนจาก "ผิด" เป็น "ขอบ" สถานะ "ใช้ได้" (แก้ตามคำตอบทีม)
+  - TestTC_APV_19_7: เพิ่ม assert ตามแถวใหม่ ผ่าน
+  - specs/CHANGELOG.md
+- ไม่แก้โค้ดของระบบ

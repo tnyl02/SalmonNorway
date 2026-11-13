@@ -153,7 +153,11 @@ func TestTC_APV_19_7_NoTLSFilesDevMode(t *testing.T) {
 	// When client เรียก API ผ่าน HTTP ธรรมดา
 	code, body, err := tcGetAPI(&http.Client{Timeout: 5 * time.Second}, "http://"+l.Addr().String()+"/")
 
-	// Then (1) ระบบตอบผ่าน HTTP หรือไม่: ยังไม่ตรวจ เพราะ spec ไม่ได้บอก (คำถามในรายงาน /testcases 2569-11-13)
-	// ตอนนี้ T-50 ให้ตอบ HTTP ได้ (ทีมเลือกเอง) บันทึกผลจริงไว้ใน log ของ test เท่านั้น
-	t.Logf("ไม่ตั้ง cert: HTTP ได้ %d %q err=%v", code, body, err)
+	// Then (1) ได้คำตอบของ API ผ่าน HTTP ตามปกติ (ASM-13 แถวแก้ตามคำตอบทีม 2569-11-13 ทาง ก)
+	if err != nil {
+		t.Fatalf("(1) ไม่ตั้ง cert ต้องตอบผ่าน HTTP ได้ แต่ได้ error %v", err)
+	}
+	if code != http.StatusOK || body != "api-ok" {
+		t.Errorf("(1) ต้องได้คำตอบของ API แต่ได้ %d %q", code, body)
+	}
 }
