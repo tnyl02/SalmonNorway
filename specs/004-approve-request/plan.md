@@ -136,6 +136,9 @@ test หลังบ้านอยู่ใน `backend/internal/approve/*_test
 | AC-APV-12 | TestAC_APV_12 | เจ้าหน้าที่ภาควิชา 2 อนุมัติ/ปฏิเสธคำขอของอุปกรณ์ภาควิชา 1 -> 403 `FORBIDDEN_DEPARTMENT` message ตาม Q-APV-18 สถานะคงเดิม |
 | AC-APV-13 | TestAC_APV_13 | ตั้งนาฬิกาเป็น 00:00 น. หลังวันที่ D -> คำขอ requested ที่ส่งวัน D เป็น `rejected` result `auto_rejected` actor `system` และ Email ปฏิเสธอัตโนมัติภายใน 60 วินาที / คำขอที่ส่งวัน D+1 และคำขอค้างคืนที่ส่งวัน D ไม่ถูกแตะ |
 | AC-APV-18 | TestAC_APV_18 | ตั้งนาฬิกาเลย 00:00 น. หลังวันที่ D แล้วจึงเริ่ม service (จำลอง server ไม่ได้ทำงานตอนเที่ยงคืน) -> คำขอปกติที่ส่งวัน D เป็น `rejected` result `auto_rejected` และมี Email ปฏิเสธอัตโนมัติ |
+| AC-APV-19 | (ยังไม่มี) | เรียกผ่าน HTTP ธรรมดาหรือ TLS ต่ำกว่า 1.2 แล้วไม่ได้บริการ ทดสอบได้เมื่อทำ HTTPS ตาม Q-APV-38 |
+| AC-APV-20 | (ยังไม่มี) | ฐานข้อมูลไม่ตอบ (เช่น Querier ที่คืน error) -> 503 `UPSTREAM_UNAVAILABLE` ข้อความจาก config สถานะคงเดิม / หน้าจอแสดงข้อความ |
+| AC-APV-21 | TestApproveHTTP_NotFound, TestTC_APV_01_12, 02_11 | รหัสที่ไม่มีอยู่หรือคำขอค้างคืน -> 404 `REQUEST_NOT_FOUND` "ไม่พบคำขอนี้" |
 | AC-APV-14 | TestAC_APV_14 (+ vitest) | ตัวส่งจำลองล้มทุกครั้ง -> ส่งครั้งแรก + ส่งซ้ำ 3 ครั้งห่าง 1 นาที (ตัวส่งจำลองถูกเรียกรวม 4 ครั้ง นาฬิกาจำลอง) แล้ว `failed` พร้อม last_error และเวลา อยู่ใน failed-emails / กดส่งซ้ำหลังตัวส่งกลับมาปกติ -> `sent` และ `approval_decision` ไม่เปลี่ยน |
 | AC-APV-15 | TestAC_APV_15 | หลังอนุมัติ ปฏิเสธ ปฏิเสธตาม และปฏิเสธอัตโนมัติ -> แต่ละครั้งมีแถว `approval_decision` (รหัสคำขอ ผล เหตุผล ผู้ดำเนินการ วันเวลา) และ `audit_log` action ตรงกับกรณี |
 | AC-APV-16 | TestAC_APV_16 | ตั้งนาฬิกาเลย 16:00 น. ของวันที่เริ่มยืม -> 409 `APPROVAL_CUTOFF_PASSED` สถานะคงเดิม |

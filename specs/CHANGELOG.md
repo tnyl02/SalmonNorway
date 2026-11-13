@@ -2,6 +2,17 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [SPEC-APV-004 Draft v2.2 AC-APV-19 ถึง 21 และคำตอบคำถามที่ยังเปิด (CR-008 แก้ไขหลังอนุมัติรอบที่ 2)] - 2569-11-13
+เจ้าของ 004 ตอบคำถามที่ยังเปิด 7 ข้อผ่านหน้าเว็บ ข้อที่เป็นระดับทีมบันทึกเป็นข้อเสนอของ 004 ยังไม่ปิด
+### Added
+- `specs/004-approve-request/spec.md`: AC-APV-19 (TLS, Q-APV-39), AC-APV-20 (503 UPSTREAM_UNAVAILABLE), AC-APV-21 (404 REQUEST_NOT_FOUND) (Q-APV-40) ทีมอนุมัติ ID แล้ว / Traceability 2 แถว / Clarifications
+- `specs/004-approve-request/plan.md`: แผนทดสอบของ AC-APV-19 ถึง 21
+### Changed
+- spec.md: ปิด Q-APV-04 (Email แบบจำลองตลอด prototype), Q-APV-39, Q-APV-40 / เพิ่มข้อเสนอของ 004 ใน Q-SH-03 (auth จำลอง), Q-SH-08 (ไม่ทำ), Q-APV-38 (ทำ HTTPS และ Docker) และ Q-APV-01 (ต้องการทำค้างคืน) ยังเปิด รอทีม
+- tasks.md: T-37, T-38 ไม่ทำใน prototype / ตารางตรวจความครบเพิ่ม AC-APV-19 ถึง 21 (ยังไม่มี task)
+- `specs/changes/CR-008.md`: แก้ไขหลังอนุมัติรอบที่ 2 ข้อ 14
+- ไม่แก้ constraints.md (Q-SH-03, Q-SH-08 รอทีมตกลง)
+
 ## [SPEC-APV-004 Draft v2.2 แก้ไขหลังอนุมัติของ CR-008 ตามคำตัดสินใน rtm.md] - 2569-11-13
 เจ้าของ 004 ตัดสินข้อค้นพบ F-01 ถึง F-06 ของ /verify แล้วสั่งให้เพิ่มเข้า CR-008 เป็นหัวข้อแก้ไขหลังอนุมัติ (แบบ CR-006 ของ 003) spec ยังเป็น Draft v2.2
 ### Added
