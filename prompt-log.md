@@ -7851,3 +7851,17 @@ main
 - เครื่องมือ: Claude Code
 - คำสั่ง: "ทีมตรวจแล้วผ่าน"
 - ผลลัพธ์: tasks.md T-40 สถานะเปลี่ยนจาก "เสร็จ รอทีมตรวจ" เป็น "เสร็จ (ทีมตรวจแล้ว 2569-11-13)" ตามรูปแบบของ T-01
+
+---
+
+## 2569-11-13 /implement T-41 (004 ค่าของคำขอค้างคืนใน config)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ไม่มีคำสั่ง /implement ในเครื่องมือรอบนี้ ทำตาม `.claude/commands/implement.md` แตะเฉพาะไฟล์ใน "ไฟล์ที่แตะ" ของ T-41)
+- คำสั่ง: "/implement T-41"
+- ผลลัพธ์:
+  - `config.go`: เพิ่ม `ApprovalAdvisorNameMaxLength` = 100, `ApprovalAdvisorNameRequiredMessage`, `ApprovalAdvisorNameTooLongMessage` (FR-APV-03 ช, FR-APV-01 ซ, Q-APV-44) ใช้ `LoanTypeOvernight` และสถานะของ 002 ที่มีอยู่ ไม่ประกาศซ้ำ
+  - `config.js`: เพิ่ม `APPROVAL_ADVISOR_NAME_MAX_LENGTH`, `APPROVAL_ADVISOR_NAME_REQUIRED`, `APPROVAL_ADVISOR_NAME_TOO_LONG` ค่าเดียวกับหลังบ้าน
+  - `config_approval_test.go`: เพิ่ม `TestConfig_ApprovalOvernightValues` ตรวจค่าและเทียบกับ config.js
+  - รัน test config ผ่าน / tasks.md T-41 สถานะ "เสร็จ รอทีมตรวจ"

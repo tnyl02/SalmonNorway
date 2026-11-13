@@ -37,6 +37,13 @@ export const APPROVAL_MESSAGES = {
 export const APPROVAL_REASON_MAX_LENGTH = 500
 // ข้อความเมื่อเหตุผลยาวเกิน (FR-APV-01 ซ, Q-APV-28) ต้องตรงกับ ApprovalReasonTooLongMessage ของหลังบ้าน
 export const APPROVAL_REASON_TOO_LONG = 'เหตุผลต้องไม่เกิน 500 ตัวอักษร'
+// ชื่ออาจารย์ที่เซ็นอนุมัติคำขอค้างคืน ยาวไม่เกินเท่านี้ นับตาม code point (FR-APV-03 ช, Q-APV-44)
+// ต้องตรงกับ ApprovalAdvisorNameMaxLength ใน backend/internal/config/config.go
+export const APPROVAL_ADVISOR_NAME_MAX_LENGTH = 100
+// ข้อความเมื่อไม่ระบุชื่ออาจารย์ (FR-APV-01 ซ, Q-APV-44) ต้องตรงกับ ApprovalAdvisorNameRequiredMessage ของหลังบ้าน
+export const APPROVAL_ADVISOR_NAME_REQUIRED = 'กรุณาระบุชื่ออาจารย์ที่เซ็นอนุมัติ'
+// ข้อความเมื่อชื่ออาจารย์ยาวเกิน (FR-APV-01 ซ, Q-APV-44) ต้องตรงกับ ApprovalAdvisorNameTooLongMessage ของหลังบ้าน
+export const APPROVAL_ADVISOR_NAME_TOO_LONG = 'ชื่ออาจารย์ต้องไม่เกิน 100 ตัวอักษร'
 // ข้อความเมื่อไม่มีคำขอที่รอพิจารณาในหน้ารายการ (FR-APV-01 ก, Q-APV-31) ข้อความเดียวกับ MSG_NO_PENDING ของ 003
 export const APPROVAL_EMPTY_LIST = 'ไม่มีคำขอที่รออนุมัติ'
 // แบบของ Email ที่แสดงในรายการ "Email ที่ส่งไม่สำเร็จ" (FR-APV-02 ก ข ค, T-34) ค่า key ตรงกับ kind ของหลังบ้าน

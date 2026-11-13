@@ -625,7 +625,7 @@ Updated: 2569-11-13 (v2: CR-009 เฟส 19 ถึง 25, T-40 ถึง T-50 /
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
 - เสร็จเมื่อ: มี `ApprovalAdvisorNameMaxLength` = 100, `ApprovalAdvisorNameRequiredMessage` "กรุณาระบุชื่ออาจารย์ที่เซ็นอนุมัติ", `ApprovalAdvisorNameTooLongMessage` "ชื่ออาจารย์ต้องไม่เกิน 100 ตัวอักษร" และค่าเดียวกันใน config.js / ใช้ `LoanTypeOvernight` และชื่อสถานะของ 002 ที่มีอยู่ ไม่ประกาศซ้ำ
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ (2569-11-13 test `TestConfig_ApprovalOvernightValues` ผ่าน)
 
 #### จุดตรวจเฟส 19
 - test ที่ต้องผ่านทั้งหมด: `TestMigration_ApprovalTables` และ test ใหม่ของ 0011, `TestConfig_Approval*` และ test ของ**ทุกเฟส**ต้องยังผ่าน
