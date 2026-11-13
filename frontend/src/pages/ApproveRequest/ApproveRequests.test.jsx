@@ -433,3 +433,22 @@ test('AC-APV-22 หลังบ้านตอบ VALIDATION_FAILED ช่อง
   expect((await screen.findByRole('alert')).textContent).toBe(APPROVAL_ADVISOR_NAME_REQUIRED)
   expect(screen.getByText('นักศึกษาตัวอย่าง ค')).toBeTruthy()
 })
+
+// FR-APV-03 (ช) v3.1, rtm F-07 (T-51): ตัดช่องว่างหน้าหลังก่อนตรวจและก่อนส่ง นับความยาวหลังตัด
+test('AC-APV-22 ชื่ออาจารย์ที่มีช่องว่างหน้าหลังส่งแบบตัดแล้ว และยาว 100 หลังตัดยังอนุมัติได้', async () => {
+  const calls = []
+  const approveRequest = async (...args) => {
+    calls.push(args)
+    return { requestId: args[0], status: 'approved', decidedAt: '2026-11-12T03:01:00Z', rejectedRequestIds: [] }
+  }
+  render(<ApproveRequests client={advisorClient(approveRequest)} />)
+  const rows = within(await screen.findByRole('table')).getAllByRole('row').slice(1)
+  const name100 = 'ก'.repeat(APPROVAL_ADVISOR_NAME_MAX_LENGTH)
+
+  fireEvent.change(within(rows[0]).getByLabelText('ชื่ออาจารย์ที่เซ็นอนุมัติ'), { target: { value: '  ' + name100 + '  ' } })
+  fireEvent.click(within(rows[0]).getByRole('button', { name: 'อนุมัติ' }))
+
+  await waitFor(() => expect(calls).toHaveLength(1))
+  expect(calls[0][2]).toBe(name100)
+  expect(screen.queryByRole('alert')).toBeNull()
+})

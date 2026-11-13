@@ -198,19 +198,32 @@ func TestTC_APV_22_3_AdvisorName101(t *testing.T) {
 
 // TC-APV-22-4 (AC-APV-22 ขอบ)
 func TestTC_APV_22_4_AdvisorNameSpaces(t *testing.T) {
-	// Given ชื่ออาจารย์มีช่องว่างหน้าและหลัง "  อ.สมชาย  "
-	tx := devTx(t)
-	c := tcOvernightC(t, tx)
+	// แถวแก้ตาม rtm F-07 2569-11-13 (FR-APV-03 ช v3.1) ข้อมูลชุดใหม่ทีละแบบ จึงแยก subtest
+	for _, tc := range []struct {
+		name, input, want string
+	}{
+		// Given (ก) "  อ.สมชาย  "
+		{"(ก)", "  อ.สมชาย  ", "อ.สมชาย"},
+		// Given (ข) ช่องว่าง 2 ตัว + "ก" 100 ตัว + ช่องว่าง 2 ตัว (รวม 104 หลังตัดเหลือ 100)
+		{"(ข)", "  " + strings.Repeat("ก", 100) + "  ", strings.Repeat("ก", 100)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tx := devTx(t)
+			c := tcOvernightC(t, tx)
 
-	// When staff-001 อนุมัติ C พร้อมชื่อนั้น
-	w := tcApproveAdvisor(tcServer(tx, nil), tokenStaffDept1, c, tcStr("  อ.สมชาย  "), time.Now())
+			// When staff-001 อนุมัติ C พร้อมชื่อนั้น
+			w := tcApproveAdvisor(tcServer(tx, nil), tokenStaffDept1, c, tcStr(tc.input), time.Now())
 
-	// Then (1) ได้ 200 approved (ไม่ใช่ช่องว่างล้วน)
-	if w.Code != http.StatusOK || tcApproveResult(t, w).Status != "approved" {
-		t.Errorf("(1) ต้องได้ 200 approved แต่ได้ %d body=%s", w.Code, w.Body.String())
+			// Then (1) ได้ 200 approved
+			if w.Code != http.StatusOK || tcApproveResult(t, w).Status != "approved" {
+				t.Fatalf("(1) ต้องได้ 200 approved แต่ได้ %d body=%s", w.Code, w.Body.String())
+			}
+			// Then (2) advisor_name เก็บแบบตัดช่องว่างหน้าหลัง
+			if n := tcAdvisorName(t, tx, c); n == nil || *n != tc.want {
+				t.Errorf("(2) advisor_name ต้องเป็น %q แต่ได้ %v", tc.want, n)
+			}
+		})
 	}
-	// Then (2) ค่าใน advisor_name เก็บตามที่พิมพ์หรือตัดช่องว่าง: ยังไม่ตรวจ เพราะ spec ไม่ได้บอก (คำถามในรายงาน /testcases 2569-11-13)
-	// Then (3) ช่องว่างหน้าหลังนับรวมใน 100 ตัวอักษรไหม: ยังไม่ตรวจ เพราะ spec ไม่ได้บอก
 }
 
 // TC-APV-22-5 (AC-APV-22 ผิด)

@@ -30,6 +30,7 @@ const LOCAL_MESSAGES = {
 }
 
 // ตรวจชื่ออาจารย์แบบเดียวกับหลังบ้าน ว่างหรือมีแต่ช่องว่างไม่นับ ไม่เกิน 100 นับตาม code point (Q-APV-44) คืนรหัสภายในหรือ null
+// รับชื่อที่ตัดช่องว่างหน้าหลังแล้ว (FR-APV-03 ช v3.1, rtm F-07, T-51)
 function advisorError(name) {
   if (name.trim() === '') return ADVISOR_REQUIRED
   if ([...name].length > APPROVAL_ADVISOR_NAME_MAX_LENGTH) return ADVISOR_TOO_LONG
@@ -96,7 +97,8 @@ export default function ApproveRequests({ client = api }) {
   // ชื่อว่างหรือยาวเกินไม่ส่งไปหลังบ้าน แสดงข้อความเลย (Q-APV-44) หลังบ้านตรวจซ้ำเสมอ (T-44)
   // หลังบ้านตอบ VALIDATION_FAILED ช่อง advisorName แปลงเป็นรหัสภายใน เพราะข้อความต่างจากของช่องเหตุผล
   const approveOvernight = (requestId) => {
-    const name = advisorNames[requestId] ?? ''
+    // ตัดช่องว่างหน้าหลังก่อนตรวจและก่อนส่ง นับความยาวหลังตัดแบบเดียวกับหลังบ้าน (FR-APV-03 ช v3.1, T-51)
+    const name = (advisorNames[requestId] ?? '').trim()
     const invalid = advisorError(name)
     if (invalid) {
       setActionError(invalid)
