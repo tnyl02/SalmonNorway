@@ -15,7 +15,7 @@ Owner: 660710763 นางสาวนภัสนัน ดีเสมอ (@na
 | สิ่งที่เลือก | มาจาก | หมายเหตุ |
 |---|---|---|
 | PostgreSQL 16 | CON-TECH-01 | ฐานข้อมูลเดียวกับ 001 |
-| HTTPS เท่านั้น, Docker Compose | CON-TECH-02, NFR-SEC-01 | ใช้ `deploy/docker-compose.yml` ของกลาง reverse proxy/TLS ยังเป็นงานค้างของ 001 |
+| HTTPS เท่านั้น, Docker Compose | CON-TECH-02, NFR-SEC-01 | ใช้ `deploy/docker-compose.yml` ของกลาง HTTPS ทำโดย 004 T-50 (TLS 1.2 ขึ้นไปในหลังบ้าน `platform.ListenAndServe` ไม่ใช้ reverse proxy backend :8443) 003 ไม่ต้องแก้ |
 | Go (net/http + pgx v5) | ทีมเลือกเอง ไม่ได้มาจาก spec | ตาม plan ข้อ 2 ของ 001 และ AGENTS.md |
 | golang-migrate (SQL ล้วน) | ทีมเลือกเอง ไม่ได้มาจาก spec | ใช้ `backend/internal/platform/migrate.go` ของกลาง |
 | React + Vite | ทีมเลือกเอง ไม่ได้มาจาก spec | โครงหน้าจอของ template รายวิชา |
@@ -136,7 +136,7 @@ staff_contact(department_id INT REFERENCES department(id), email TEXT NOT NULL)
 | Constraint ID | ถูกนำไปใช้ที่ไหนใน plan | สถานะ |
 |---|---|---|
 | CON-TECH-01 | borrow_request, audit_log, staff_contact อยู่ใน PostgreSQL ฐานเดียวกับ 001 (ข้อ 2, 3) | ใช้แล้ว |
-| CON-TECH-02 | รันใน Docker Compose ของกลาง ให้บริการผ่าน HTTPS (ข้อ 2) reverse proxy/TLS เป็นงานค้างร่วมกับ 001 | ใช้แล้ว |
+| CON-TECH-02 | รันใน Docker Compose ของกลาง ให้บริการผ่าน HTTPS (ข้อ 2) TLS ทำโดย 004 T-50 ตรวจด้วย AC-APV-19 ของ 004 (แก้ 2569-11-13 rtm F-12) | ใช้แล้ว |
 | CON-DATA-01 | ไม่มีโค้ดใดของ 003 เขียน `equipment_item.status` ค่าสถานะอุปกรณ์ยังมี 3 ค่า (ข้อ 3, AC-CXL-01, 05) | ใช้แล้ว |
 | DOM-REQ-01 | ยกเลิกเฉพาะแถวของ `id` ที่ระบุ คำขออื่นของอุปกรณ์ชิ้นเดียวกันไม่เปลี่ยน อุปกรณ์ยัง "ว่าง" (ข้อ 4 ขั้น 2, AC-CXL-05) | ใช้แล้ว |
 | IF-IDP-01 | ทุก endpoint อยู่หลัง `auth.Middleware` ผู้ขอมาจาก `Principal.UserID` (ข้อ 4) prototype ใช้ auth จำลอง รอ Q-SH-03 | ใช้แล้ว |
