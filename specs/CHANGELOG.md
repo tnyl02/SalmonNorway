@@ -2,6 +2,12 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [plan 004 Draft v2 (CR-009 คำขอยืมค้างคืน)] - 2569-11-13
+plan ตาม spec Draft v3 ใช้ endpoint เดิมแยกกฎตาม loan_type ไม่สร้าง endpoint ใหม่
+### Changed
+- `specs/004-approve-request/plan.md`: ข้อ 1 ถึง 8 เพิ่มส่วนค้างคืน: migration 0011 (advisor_name, ตาราง approval_step), รายการรวมพร้อม loan_type และ attachment_url, advisorName ตอนอนุมัติ, VALIDATION_FAILED ช่อง advisorName, ค่าที่ตั้งได้ของชื่ออาจารย์, แผนทดสอบ AC-APV-22 ถึง 26, ลำดับงานข้อ 9 ถึง 14
+- AC-APV-11, 20, 21 ในแผนทดสอบอัปเดตตาม v3 / Q-APV-01, Q-APV-04 ปิดในข้อ 8 / Q-APV-38 ยังเปิด
+
 ## [SPEC-APV-004 Draft v3 (CR-009 รับคำขอยืมค้างคืน UC-14)] - 2569-11-13
 ทีมอนุมัติ CR-009 ทาง ก (UC-14 อย่างเดียว 1 คำขอ = 1 ชิ้น) และตอบคำถาม 7 ข้อแล้ว spec ขึ้นเป็น Draft v3
 ### Added

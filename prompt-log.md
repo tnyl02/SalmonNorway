@@ -7795,3 +7795,20 @@ main
 - คำถามที่ AI ถามต่อ (Q-APV-44 ตอบแค่บังคับ): ข้อความเมื่อว่าง -> "กรุณาระบุชื่ออาจารย์ที่เซ็นอนุมัติ" / ความยาวสูงสุด -> 100 ตัวอักษร นับตาม code point
 - ไฟล์ที่แก้: `specs/004-approve-request/spec.md` (FR-APV-03 ก ข จ ช, FR-APV-01 ซ เพิ่ม 2 แถว, Quality Requirements, AC header, Q-APV-41 ถึง 45 ปิด, Traceability, Clarifications)
 - สิ่งที่ AI เลือกเอง (ทีมต้องรู้): ข้อความ "ชื่ออาจารย์ต้องไม่เกิน 100 ตัวอักษร" เขียนแบบเดียวกับข้อความเหตุผลยาวเกิน (Q-APV-28) / ไม่เพิ่ม AC ใหม่ให้กรณีอุปกรณ์ไม่ว่างและชื่ออาจารย์ผิด จะตรวจเป็นแถวทางผิดของ AC-APV-22 ใน test-cases
+
+---
+
+## 2569-11-13 /plan 004 Draft v2 (CR-009 คำขอยืมค้างคืน)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ทำตาม `.claude/commands/plan.md` แก้ plan.md เดิม ไม่สร้างใหม่ทั้งไฟล์)
+- คำสั่ง: "ทำ /plan"
+- ผลลัพธ์: plan.md Draft v1.2 -> v2 ตาม spec Draft v3
+  - endpoint เดิม แยกกฎตาม loan_type: approve รับ advisorName (บังคับเฉพาะค้างคืน), รายการรวมค้างคืนพร้อม loan_type และ attachment_url, ลิงก์ไปที่ endpoint ไฟล์แนบของ 002
+  - migration 0011_approval_overnight (ตรวจแล้วว่าเลขยังว่างทุก branch): approval_decision.advisor_name และตาราง approval_step
+  - ค่าที่ตั้งได้: ApprovalAdvisorNameMaxLength 100 และข้อความ 2 ข้อความ / ใช้ LoanTypeOvernight และสถานะของ 002 ที่มีอยู่แล้ว
+  - แผนทดสอบ AC-APV-22 ถึง 26, ลำดับงานข้อ 9 ถึง 14
+- สิ่งที่ AI เลือกเอง (ทีมต้องรู้): ตาราง approval_step เก็บสถานะระหว่างทาง (spec ให้ตัดสินใน plan) / ใช้ endpoint เดิม ไม่แยกหน้าค้างคืน
+- พบ: endpoint ไฟล์แนบของ 002 ให้เจ้าหน้าที่ทุกภาควิชาเปิดได้ ไม่ตรวจภาควิชา (ไม่แก้ของ 002)
+- Constraint ที่ยังไม่ได้ใช้: CON-TECH-02 ยังไม่มี HTTPS (Q-APV-38)
