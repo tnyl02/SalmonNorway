@@ -7234,3 +7234,44 @@ main
 - **ไม่ได้แก้โค้ด** เพราะ 002 ทำ best-effort อยู่แล้วตั้งแต่ T-16 (`service.go` auditRequest)
 - AI แจ้งทีม: 001 ใช้ fail closed กับการเขียนที่สำเร็จแล้ว ซึ่งต่างจากมตินี้
   เจ้าของ 001 ต้องพิจารณา Q-P4 ของตนเองอีกครั้ง 002 ไม่แก้โค้ดของ 001 และไม่แก้ spec ของ 001
+
+---
+
+## 2569-11-13 /testcases AC-BRQ-04 AC-BRQ-11 (002-borrow-request) — โหมดเขียน test
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- เครื่องมือ: Claude Code (`.claude/commands/testcases.md`) คำสั่ง `/testcases AC-BRQ-04 AC-BRQ-11`
+- โหมด: เขียน test (ทุกแถวของสอง AC นี้สถานะ "ใช้ได้" ตั้งแต่ 2569-11-13)
+
+### ไฟล์ที่สร้าง (ไม่ได้แก้ไฟล์ test เดิมเลย)
+- `backend/internal/borrowrequest/tc_ac_brq_04_test.go` — TC-BRQ-04-1, 04-2, 04-3
+- `backend/internal/borrowrequest/tc_ac_brq_11_test.go` — TC-BRQ-11-1 ถึง 11-4
+- `frontend/src/__tests__/TC-BRQ-04-4.test.jsx` — TC-BRQ-04-4
+- `frontend/src/__tests__/TC-BRQ-11-5.test.jsx` — TC-BRQ-11-5
+
+### ผล test (ผ่านทั้งหมด ไม่มีตัวไหนไม่ผ่าน)
+หลังบ้าน `go test ./internal/borrowrequest/ -run 'TestTC_BRQ_04|TestTC_BRQ_11' -v`
+- TestTC_BRQ_04_1_CreateRequested PASS
+- TestTC_BRQ_04_2_OvernightAlsoRequested PASS
+- TestTC_BRQ_04_3_OverdueBlocksCreate PASS
+- TestTC_BRQ_11_1_DuplicateRequested PASS
+- TestTC_BRQ_11_2_DuplicateApproved PASS
+- TestTC_BRQ_11_3_AfterCancelledOrRejected PASS (2 subtest: ถูกยกเลิก, ถูกปฏิเสธ)
+- TestTC_BRQ_11_4_OtherStudentNotDuplicate PASS
+รันทั้งแพ็กเกจซ้ำ `go test ./internal/borrowrequest/` -> ok test เดิมไม่พัง
+
+หน้าจอ `npm test -- --run src/__tests__/TC-BRQ-04-4.test.jsx src/__tests__/TC-BRQ-11-5.test.jsx`
+- Test Files 2 passed (2) / Tests 2 passed (2)
+
+### วิธีเตรียมข้อมูลที่ AI เลือก และแจ้งทีมไว้
+1. TC-BRQ-11-2 (approved) และ 11-3 (cancelled / rejected) เป็นสถานะที่ 002 ตั้งเองไม่ได้ (ของ 003 และ 004)
+   จึงเขียน helper `insertExistingRequest` ใส่แถวลงฐานข้อมูลตรง ๆ ไม่เรียก API ของฟีเจอร์อื่น
+2. TC-BRQ-11-4 (ผู้ส่งซ้ำเป็นคนละคน) ผู้ใช้จำลองในภาควิชา 1 มีแค่ student-001 กับ student-002
+   ซึ่ง student-002 ติดของเกินกำหนดตามข้อมูลตั้งต้น ส่งคำขอไม่ได้
+   จึงใส่คำขอของผู้ขอสมมติ `student-อื่น` ลงฐานข้อมูลแทนการล็อกอินเป็นคนที่สอง
+ทั้งสองข้อยังตรงกับ Given ในตาราง ต่างแค่วิธีเตรียมข้อมูล
+
+### ไม่ได้แก้โค้ดของระบบเลย
+ทุก test ผ่านตั้งแต่รอบแรก ไม่ต้องแก้ทั้ง `backend/internal/` และ `frontend/src/` ที่ไม่ใช่ test
+
+### เหลืออีก 54 แถวในตาราง (AC อื่น) ที่ยังไม่ได้เขียนโค้ด test
