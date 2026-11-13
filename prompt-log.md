@@ -8960,3 +8960,19 @@ main
   - 3.4: เพิ่ม DOM-REQ-01 / 4.3: RQ-12, RQ-27, RQ-01/12/27, UC-04 ชี้ไป backlog และ Q-SH-07 แทนช่องว่าง (RQ-12 ยังไม่มีคำตอบ เขียนว่าต้องถามเจ้าหน้าที่)
 - ต้องบอกเจ้าของ: 3.1.2 (002), 3.1.3 (003), 3.1.4 (004), 3.1.5 (005), 3.1.6 (006) แก้โดย 001 ตามคำสั่งนี้ ขอให้เจ้าของตรวจแถวของตนเอง
 - ยังไม่ commit
+
+---
+
+## 2569-11-13 เพิ่ม volume รูปส่งมอบใน docker-compose (005-handover)
+
+- ผู้สั่ง: Banlu C (660710764 นายบรรลุ ฉิมสิงห์)
+- ฟีเจอร์: 005-handover
+- เครื่องมือ: Claude Code
+- คำสั่ง: "recheck ให้หน่อย ว่าทำทุก task แล้ว" แล้ว "เพิ่มเลย"
+- ผล recheck: 29 task มี commit done และ reviewed ครบ (T-01 ถึง T-28, T-30) ยกเลิก 2 (T-29, T-31) test ที่ tasks.md อ้างมีครบ
+- pull main 6864c32 (004 PR #34 T-50 HTTPS และ service backend ใน docker-compose) fast-forward เข้า 005
+- แก้ไฟล์กลาง `deploy/docker-compose.yml` เพราะ 005: service backend ยังไม่มีที่เก็บรูปส่งมอบ รูปจะหายเมื่อสร้าง container ใหม่
+  เพิ่ม `PHOTO_DIR: /data/photos` และ volume `photos:/data/photos` ตาม T-07 ("ไม่แก้ docker-compose.yml จนกว่าจะมี service หลังบ้าน") และ rtm F-05
+  ไม่แตะบรรทัดของ 004 (TLS, ATTACHMENT_DIR) / `docker compose config` ผ่าน ยังไม่ได้รัน `up` ทั้งระบบ
+- แก้ tasks.md ของ 005 หมายเหตุสถานะ T-07
+- ต้องบอกเจ้าของ: 004 (เจ้าของ T-50 ที่สร้าง service backend) ว่ามี env และ volume ของ 005 เพิ่มใน service backend
