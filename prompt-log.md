@@ -8960,3 +8960,19 @@ main
   - 3.4: เพิ่ม DOM-REQ-01 / 4.3: RQ-12, RQ-27, RQ-01/12/27, UC-04 ชี้ไป backlog และ Q-SH-07 แทนช่องว่าง (RQ-12 ยังไม่มีคำตอบ เขียนว่าต้องถามเจ้าหน้าที่)
 - ต้องบอกเจ้าของ: 3.1.2 (002), 3.1.3 (003), 3.1.4 (004), 3.1.5 (005), 3.1.6 (006) แก้โดย 001 ตามคำสั่งนี้ ขอให้เจ้าของตรวจแถวของตนเอง
 - ยังไม่ commit
+
+---
+
+## 2569-11-13 ปิด T-30, ตรวจ T-41 และอัปเดต README, specs/README.md (001-equipment-status และไฟล์กลาง)
+
+- ผู้สั่ง: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05)
+- เครื่องมือ: Claude Code
+- คำสั่ง: แก้ README และ specs/README.md (ชื่อทีม SalmonNorway, เครื่องมือ AI Claude Code) / ปิด T-30 เพราะ Q-SH-03 ตอบแล้ว อัปเดต Open Questions ใน spec และ CHANGELOG / ตรวจ T-41 แล้วเปลี่ยนเป็น "เสร็จ" "ทำได้เลย"
+- 001:
+  - spec Draft v5.2: ASM-02 เพิ่มหมายเหตุ auth จำลอง, Open Questions เพิ่ม Q-SH-03 [ปิดแล้ว], Clarifications Session 2569-11-13 ไม่เปลี่ยน FR หรือ AC
+  - plan Draft v2: แถว Auth และ Q-P1 บันทึกว่า Q-SH-03 ตอบแล้ว
+  - tasks v2.6: T-30 "ไม่ทำใน prototype" (แบบเดียวกับ T-39 ของ 004), T-41 "เสร็จ" หลังตรวจ: อ่าน App.jsx (onRequestLoan -> setRequestAsset, BorrowRequestForm key=assetCode) และรัน RequestLoanFlow.test.jsx 3 ตัว + RequestButton.test.jsx 6 ตัว ผ่านทั้งหมด
+    ยังไม่ได้ลองกดบน browser จริง
+  - rtm.md ยังไม่แก้ (ยังเขียน T-30 รอ Q-SH-03) จะอัปเดตตอน /verify รอบสุดท้าย
+- ไฟล์กลาง: README.md (ชื่อทีม, เครื่องมือ AI, CR-001 ถึง CR-009), specs/README.md (สถานะทุกฟีเจอร์คัดจากหัวไฟล์ spec/plan/tasks/rtm ของแต่ละคน, บรรทัด "ไม่ทำใน prototype" เอา UC-05, UC-14 ออก)
+- specs/CHANGELOG.md เพิ่มรายการ SPEC-EQS-001 Draft v5.2

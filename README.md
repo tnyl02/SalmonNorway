@@ -5,8 +5,8 @@ Term Project รายวิชา 520461-165 Software Requirement Specification
 
 ## ทีม
 
-- ชื่อทีม:
-- เครื่องมือ AI ที่ใช้: (Copilot ใน Codespaces / Claude Code / Cursor)
+- ชื่อทีม: SalmonNorway
+- เครื่องมือ AI ที่ใช้: Claude Code
 
 | สมาชิก | GitHub | ฟีเจอร์ที่รับผิดชอบ | ส่วนอื่นที่ทำ |
 |---|---|---|---|
@@ -40,7 +40,7 @@ specs/README.md           ดัชนีฟีเจอร์และผู้
 specs/000-shared/         Constraint ข้อมูล และคำศัพท์ที่ทุกฟีเจอร์ใช้ร่วมกัน
 specs/00N-<feature>/      spec.md plan.md tasks.md test-cases.md rtm.md ของแต่ละฟีเจอร์
 specs/backlog.md          backlog จัดลำดับแล้ว และบันทึกการเจรจา N-01
-specs/changes/            change request (CR-001)
+specs/changes/            change request (CR-001 ถึง CR-009)
 specs/CHANGELOG.md        บันทึกว่า spec แต่ละเวอร์ชันเปลี่ยนอะไร
 backend/                  หลังบ้าน Go + PostgreSQL
 frontend/                 หน้าจอ React + Vite
