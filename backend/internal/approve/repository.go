@@ -32,21 +32,24 @@ func NewRepository(db Querier) *Repository {
 	return &Repository{db: db}
 }
 
-// ListPending คืนคำขอยืมแบบปกติสถานะ requested ของอุปกรณ์ภาควิชาที่ระบุ เรียงตามเวลาที่ส่งจากเก่าไปใหม่
-// พร้อมบอกว่าแถวไหนเป็นคำขอแรกของอุปกรณ์รายชิ้นนั้น (FR-APV-01 ก ข, DOM-REQ-01, ASM-06)
+// ListPending คืนคำขอยืมสถานะ requested ทั้งยืมปกติและค้างคืนของอุปกรณ์ภาควิชาที่ระบุ เรียงตามเวลาที่ส่งจากเก่าไปใหม่
+// (FR-APV-01 ก, FR-APV-03 ก, DOM-REQ-01, ASM-06, plan.md v2 ข้อ 4 รวมในรายการเดียว)
 //
-// คำขอค้างคืนไม่ขึ้นในรายการ (Out of scope รอ Q-APV-01) และไม่นับในลำดับคำขอแรก (Q-APV-23)
+// คำขอแรกของอุปกรณ์รายชิ้นคิดเฉพาะยืมปกติ (FR-APV-01 ข) คำขอค้างคืนไม่มีคิว (FR-APV-03 ค) และไม่ขวางคิวยืมปกติ (Q-APV-23)
+// จึงแบ่งลำดับตาม item_id และ loan_type แล้วให้ is_first เป็นจริงได้เฉพาะยืมปกติ
+// has_attachment บอกว่ามีไฟล์ใบบันทึกข้อความที่ 002 เก็บไว้ไหม (FR-APV-03 ก, FR-BRQ-10 ก, Q-APV-41)
 // ภาควิชาเทียบกับภาควิชาเจ้าของอุปกรณ์ (equipment_model.department_id, DM-03) ไม่ใช่ภาควิชาของผู้ขอ
 func (r *Repository) ListPending(ctx context.Context, departmentID int) ([]PendingRequest, error) {
 	const q = `
 SELECT r.id, r.requester_name, r.student_code, m.name, i.asset_code,
        r.purpose, coalesce(r.purpose_other, ''), r.start_at, r.end_at, r.submitted_at,
-       row_number() OVER (PARTITION BY r.item_id ORDER BY r.submitted_at, r.id) = 1 AS is_first
+       r.loan_type,
+       r.loan_type = $2 AND row_number() OVER (PARTITION BY r.item_id, r.loan_type ORDER BY r.submitted_at, r.id) = 1 AS is_first,
+       r.attachment_path IS NOT NULL AS has_attachment
 FROM borrow_request r
 JOIN equipment_item  i ON i.id = r.item_id
 JOIN equipment_model m ON m.id = i.model_id
 WHERE r.status = $1
-  AND r.loan_type = $2
   AND m.department_id = $3
 ORDER BY r.submitted_at, r.id`
 
@@ -57,7 +60,7 @@ ORDER BY r.submitted_at, r.id`
 	out, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (PendingRequest, error) {
 		var p PendingRequest
 		err := row.Scan(&p.ID, &p.RequesterName, &p.StudentCode, &p.ModelName, &p.AssetCode,
-			&p.Purpose, &p.PurposeOther, &p.StartAt, &p.EndAt, &p.SubmittedAt, &p.IsFirst)
+			&p.Purpose, &p.PurposeOther, &p.StartAt, &p.EndAt, &p.SubmittedAt, &p.LoanType, &p.IsFirst, &p.HasAttachment)
 		return p, err
 	})
 	if err != nil {
@@ -126,20 +129,30 @@ func (r *Repository) setStatus(ctx context.Context, requestID int, status string
 
 // insertDecision บันทึกผลการพิจารณา 1 แถวต่อคำขอ = ประวัติตาม RQ-25 (FR-APV-01 ฌ) คืนเวลาที่บันทึก
 func (r *Repository) insertDecision(ctx context.Context, d decision) (time.Time, error) {
-	var reason, actorName *string
+	var reason, actorName, advisorName *string
 	if d.Reason != "" {
 		reason = &d.Reason
 	}
 	if d.ActorName != "" {
 		actorName = &d.ActorName
 	}
+	if d.AdvisorName != "" {
+		advisorName = &d.AdvisorName // FR-APV-03 (ข)(ช): ประวัติเพิ่มชื่ออาจารย์ (migration 0011)
+	}
 	var at time.Time
 	err := r.db.QueryRow(ctx, `
-INSERT INTO approval_decision (request_id, result, reason, actor_id, actor_name, actor_department_id)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO approval_decision (request_id, result, reason, actor_id, actor_name, actor_department_id, advisor_name)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING decided_at`,
-		d.RequestID, d.Result, reason, d.ActorID, actorName, d.ActorDepartmentID).Scan(&at)
+		d.RequestID, d.Result, reason, d.ActorID, actorName, d.ActorDepartmentID, advisorName).Scan(&at)
 	return at, err
+}
+
+// insertStep บันทึกสถานะระหว่างทางของคำขอค้างคืน 1 แถวลง approval_step (FR-APV-03 ข, plan.md v2 ข้อ 3, migration 0011)
+func (r *Repository) insertStep(ctx context.Context, requestID int, status, actorID string) error {
+	_, err := r.db.Exec(ctx, `INSERT INTO approval_step (request_id, status, actor_id) VALUES ($1, $2, $3)`,
+		requestID, status, actorID)
+	return err
 }
 
 // insertAudit บันทึก audit log ของการพิจารณา (RQ-25, DM-07) ค่า action ตาม migration 0008

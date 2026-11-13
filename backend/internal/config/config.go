@@ -258,6 +258,19 @@ const ApprovalRejectReasonMaxLength = 500
 // ApprovalReasonTooLongMessage คือข้อความเมื่อเหตุผลยาวเกิน ใช้กับ 422 VALIDATION_FAILED ช่อง reason (FR-APV-01 ซ, Q-APV-28)
 var ApprovalReasonTooLongMessage = "เหตุผลต้องไม่เกิน 500 ตัวอักษร"
 
+// คำขอยืมค้างคืน (CR-009, FR-APV-03) ใช้ LoanTypeOvernight, StatusApprovedByOfficer, StatusPendingAdvisorApproval ของ 002 ด้านบน ไม่ประกาศซ้ำ
+
+// ApprovalAdvisorNameMaxLength คือความยาวสูงสุดของชื่ออาจารย์ที่เซ็นอนุมัติ นับตาม code point (FR-APV-03 ช, Q-APV-44)
+// ต้องตรงกับ APPROVAL_ADVISOR_NAME_MAX_LENGTH ใน frontend/src/config.js
+const ApprovalAdvisorNameMaxLength = 100
+
+// ApprovalAdvisorNameRequiredMessage คือข้อความเมื่อไม่ระบุชื่ออาจารย์ตอนอนุมัติคำขอค้างคืน
+// ใช้กับ 422 VALIDATION_FAILED ช่อง advisorName (FR-APV-01 ซ, FR-APV-03 ช, Q-APV-44)
+var ApprovalAdvisorNameRequiredMessage = "กรุณาระบุชื่ออาจารย์ที่เซ็นอนุมัติ"
+
+// ApprovalAdvisorNameTooLongMessage คือข้อความเมื่อชื่ออาจารย์ยาวเกิน ใช้กับ 422 VALIDATION_FAILED ช่อง advisorName (FR-APV-01 ซ, Q-APV-44)
+var ApprovalAdvisorNameTooLongMessage = "ชื่ออาจารย์ต้องไม่เกิน 100 ตัวอักษร"
+
 // ---------- จบค่าของฟีเจอร์ 004 ----------
 
 // Config คือค่าที่โปรแกรมหลังบ้านใช้ตอนเริ่มทำงาน
