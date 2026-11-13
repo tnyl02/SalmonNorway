@@ -1,5 +1,5 @@
 # Constraint ที่ใช้ร่วมทุกฟีเจอร์ (shared constraints)
-Status: v5.4 | Updated: 2569-11-12 (v5.4 006 ลงทะเบียน NO_OPEN_LOAN, CONDITION_REQUIRED, LOAN_NOT_FOUND และใช้ UNAUTHENTICATED, FORBIDDEN_ROLE, FORBIDDEN_DEPARTMENT, UPSTREAM_UNAVAILABLE ร่วม ตามกติกาของ CON-TECH-03, v5.3 001 ลงทะเบียน ITEM_NOT_FOUND และ METHOD_NOT_ALLOWED ตามกติกาของ CON-TECH-03, v5.2 003 ใช้ REQUEST_NOT_FOUND แถวเดียวกับที่ 004 ลงทะเบียน และลงทะเบียน ALREADY_APPROVED, NOT_CANCELLABLE ตาม CR-006, เพิ่ม CON-TECH-03 รูปแบบและรายการรหัส error กลาง ตาม CR-004, v5.1 005 เพิ่มรหัส REQUEST_NOT_APPROVED, BORROWER_MISMATCH และ FORBIDDEN_ROLE (แถวเดียวกับที่ 004 ลงทะเบียน) ตามกติกาของ CON-TECH-03, 2569-11-12 004 เพิ่มรหัส REQUEST_CANCELLED, REQUEST_ALREADY_DECIDED, REQUEST_DECIDED_CONCURRENTLY, NOT_FIRST_IN_QUEUE, APPROVAL_CUTOFF_PASSED ตามกติกาของ CON-TECH-03, v5.2 2569-11-12 002 ใช้ REQUEST_NOT_FOUND แถวเดียวกับที่ 004 ลงทะเบียน และใช้ FORBIDDEN_ROLE ร่วม ตาม CR-007) | Source: Miro (Requirement table, Use Case Diagram, Architecture), spec 001
+Status: v5.5 | Updated: 2569-11-13 (v5.5 Q-SH-06, Q-SH-09 ปิดตามคำตอบที่บันทึกใน spec ของ 002, 004, 006 แล้ว / v5.4 006 ลงทะเบียน NO_OPEN_LOAN, CONDITION_REQUIRED, LOAN_NOT_FOUND และใช้ UNAUTHENTICATED, FORBIDDEN_ROLE, FORBIDDEN_DEPARTMENT, UPSTREAM_UNAVAILABLE ร่วม ตามกติกาของ CON-TECH-03, v5.3 001 ลงทะเบียน ITEM_NOT_FOUND และ METHOD_NOT_ALLOWED ตามกติกาของ CON-TECH-03, v5.2 003 ใช้ REQUEST_NOT_FOUND แถวเดียวกับที่ 004 ลงทะเบียน และลงทะเบียน ALREADY_APPROVED, NOT_CANCELLABLE ตาม CR-006, เพิ่ม CON-TECH-03 รูปแบบและรายการรหัส error กลาง ตาม CR-004, v5.1 005 เพิ่มรหัส REQUEST_NOT_APPROVED, BORROWER_MISMATCH และ FORBIDDEN_ROLE (แถวเดียวกับที่ 004 ลงทะเบียน) ตามกติกาของ CON-TECH-03, 2569-11-12 004 เพิ่มรหัส REQUEST_CANCELLED, REQUEST_ALREADY_DECIDED, REQUEST_DECIDED_CONCURRENTLY, NOT_FIRST_IN_QUEUE, APPROVAL_CUTOFF_PASSED ตามกติกาของ CON-TECH-03, v5.2 2569-11-12 002 ใช้ REQUEST_NOT_FOUND แถวเดียวกับที่ 004 ลงทะเบียน และใช้ FORBIDDEN_ROLE ร่วม ตาม CR-007) | Source: Miro (Requirement table, Use Case Diagram, Architecture), spec 001
 
 กติกา: Constraint ที่ใช้มากกว่า 1 ฟีเจอร์ เขียนที่นี่ **ที่เดียว** spec ของแต่ละฟีเจอร์อ้าง ID ในหมวด Constraints ไม่ copy ข้อความ
 ถ้าแก้ไฟล์นี้ ต้องทำ CR และดู Impact Analysis กับทุก spec ที่อ้าง ID นั้น (ดู rtm.md ของแต่ละฟีเจอร์)
@@ -83,10 +83,11 @@ Status: v5.4 | Updated: 2569-11-12 (v5.4 006 ลงทะเบียน NO_OPEN
   001 เพิ่ม FR-EQS-11 และ AC-EQS-17 แล้ว (CR-005 อนุมัติ 2569-11-12) ส่วน 002 เป็นผู้บันทึกเวลาที่ส่งให้
   ผ่าน `GET /api/v1/equipment/items/{assetCode}/requests` นักศึกษาได้ 403 `FORBIDDEN_ROLE` (สัญญา API ใน specs/changes/CR-005.md)
   กระทบ: 001 (FR-EQS-11), 002 (FR-BRQ-05), 004
-- Q-SH-06 [ปิดบางส่วน 2569-11-11 ทีมตัดสิน] (จาก DOM-REQ-01) เมื่อคำขอหนึ่งได้รับอนุมัติแล้ว
+- Q-SH-06 [ปิดแล้ว 2569-11-12 ทีมตัดสิน (ส่วนแรก 2569-11-11)] (จาก DOM-REQ-01) เมื่อคำขอหนึ่งได้รับอนุมัติแล้ว
   คำขอที่เหลือของอุปกรณ์ชิ้นเดียวกัน **ถูกปฏิเสธอัตโนมัติ** (ผู้ทำคือ 004)
-  ยังไม่ตอบ: ต้องแจ้งผู้ขอที่ถูกปฏิเสธตาม RQ-21 ไหม และเจ้าหน้าที่ต้องอนุมัติตามลำดับที่มาก่อนหรือข้ามได้?
-  -> นักคอมพิวเตอร์ กระทบ: 002, 003, 004, 005
+  คำตอบส่วนที่เหลือ: **ต้องแจ้งผู้ขอที่ถูกปฏิเสธ** ตาม RQ-21 (Q-SH-06 ใน spec ของ 002, FR-APV-01 (จ) ของ 004)
+  และ**อนุมัติตามลำดับเวลาที่ส่งเท่านั้น ข้ามไม่ได้** (ASM-04 ของ 004 ทีมตัดสิน 2569-11-11)
+  (ไฟล์นี้อัปเดตตาม spec ของ 002 และ 004 เมื่อ 2569-11-13) กระทบ: 002, 003, 004, 005
 
 - Q-SH-07 (RQ-27) บทลงโทษเมื่อนักศึกษาไม่คืนตามกำหนดคืออะไร (เช่น งดยืมกี่วัน), ใครเป็นผู้กำหนด และใครบันทึกในระบบ?
   RQ-27 เขียนว่า "ชัดเจน" แต่ไม่บอกรูปแบบ -> ถามอาจารย์หัวหน้าโครงการ / เจ้าหน้าที่ กระทบ: BL-18
@@ -95,8 +96,10 @@ Status: v5.4 | Updated: 2569-11-12 (v5.4 006 ลงทะเบียน NO_OPEN
   ส่วนบทลงโทษอื่นตาม RQ-27 ยังไม่อยู่ใน prototype และยังไม่มีนิยาม
 - Q-SH-08 (IF-IDP-01) ถ้าระบบยืนยันตัวตนของมหาวิทยาลัยเชื่อมต่อไม่ได้ตอนเข้าใช้ระบบทั่วไป ระบบต้องทำอย่างไร
   (RQ-23 ตอบเฉพาะตอนส่งมอบ: ให้ตรวจบัตรแทน) -> ถามนักเทคโนโลยีสารสนเทศ กระทบ: ทุกฟีเจอร์
-- Q-SH-09 เมื่อคืนอุปกรณ์แล้วชำรุด ใครเปลี่ยนสถานะเป็น "ไม่พร้อมใช้งาน": UC-09 บันทึกการรับคืน (RQ-11 ระบุสภาพ, RQ-13 ปรับเป็นว่างอัตโนมัติ)
+- Q-SH-09 [ปิดแล้ว 006 ตัดสินใน FR-RET-04] เมื่อคืนอุปกรณ์แล้วชำรุด ใครเปลี่ยนสถานะเป็น "ไม่พร้อมใช้งาน": UC-09 บันทึกการรับคืน (RQ-11 ระบุสภาพ, RQ-13 ปรับเป็นว่างอัตโนมัติ)
   หรือ UC-07 ตรวจสอบอุปกรณ์ที่คืน? -> ถามนักคอมพิวเตอร์ กระทบ: 006 (ต้องตอบก่อน), 001 (CON-DATA-02)
+  คำตอบ: **UC-09 (006) เปลี่ยนเป็น "ไม่พร้อมใช้งาน" ทันทีเมื่อเจ้าหน้าที่ระบุสภาพ "ชำรุด"** ไม่ผ่านสถานะ "ว่าง" (FR-RET-04 ของ 006)
+  UC-07 ไม่ทำใน prototype (data-model.md) (ไฟล์นี้อัปเดตตาม spec ของ 006 เมื่อ 2569-11-13)
 
 ## ใครอ้างใช้บ้าง
 | ID | ฟีเจอร์ที่อ้าง |
