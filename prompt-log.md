@@ -7275,3 +7275,34 @@ main
 ทุก test ผ่านตั้งแต่รอบแรก ไม่ต้องแก้ทั้ง `backend/internal/` และ `frontend/src/` ที่ไม่ใช่ test
 
 ### เหลืออีก 54 แถวในตาราง (AC อื่น) ที่ยังไม่ได้เขียนโค้ด test
+
+---
+
+## 2569-11-13 /testcases AC-BRQ-02 AC-BRQ-14 (002-borrow-request) — โหมดเขียน test
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- เครื่องมือ: Claude Code คำสั่ง `/testcases AC-BRQ-02 AC-BRQ-14`
+- โหมด: เขียน test (ทุกแถวของสอง AC นี้สถานะ "ใช้ได้")
+
+### ไฟล์ที่สร้าง (ไม่ได้แก้ไฟล์ test เดิมเลย)
+- `backend/internal/borrowrequest/tc_ac_brq_02_test.go` — TC-BRQ-02-1 ถึง 02-4
+- `backend/internal/borrowrequest/tc_ac_brq_14_test.go` — TC-BRQ-14-1 ถึง 14-4
+- `frontend/src/__tests__/TC-BRQ-02-5.test.jsx` — TC-BRQ-02-5
+- `frontend/src/__tests__/TC-BRQ-14-5.test.jsx` — TC-BRQ-14-5
+
+### ผล test (ผ่านทั้งหมด)
+หลังบ้าน 8 test PASS (TestTC_BRQ_02_1 ถึง 02_4 และ TestTC_BRQ_14_1 ถึง 14_4) ok 4.584s
+หน้าจอ 2 ไฟล์ 2 test ผ่าน
+
+### 2 แถวที่ทีมเพิ่งตัดสินเมื่อ 2569-11-13 ผ่านโดยไม่ต้องแก้โค้ด
+- TC-BRQ-02-4 ค่าวัตถุประสงค์นอกรายการ -> `validate.go` purposeProblems ใช้
+  `!slices.Contains(config.PurposeValues, purpose)` อยู่แล้ว จึงคืนช่อง purpose
+- TC-BRQ-14-3 เลือก "อื่น ๆ" แล้วพิมพ์เฉพาะช่องว่าง -> ใช้ `strings.TrimSpace` ก่อนเทียบอยู่แล้ว
+สรุป: มติของทีมตรงกับพฤติกรรมที่โค้ดทำอยู่ ไม่ต้องแก้ `backend/internal/` หรือ `frontend/src/`
+
+### ปัญหาสภาพแวดล้อมที่เจอ (ไม่ใช่ test ไม่ผ่าน)
+รัน `go test` จาก Windows ไม่ได้ ขึ้น "An Application Control policy has blocked this file"
+ซึ่งเป็นอาการ Smart App Control ที่ AGENTS.md เตือนไว้ ต้องรันใน WSL Ubuntu เท่านั้น
+
+### ความคืบหน้า test-cases
+เขียนโค้ด test แล้ว 20 จาก 63 แถว (AC-BRQ-02, 04, 11, 14) เหลือ 43 แถวใน 10 AC
