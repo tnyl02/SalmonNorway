@@ -660,8 +660,8 @@ Updated: 2569-11-12
 | AC-APV-17 | T-31 |
 | AC-APV-18 | T-30 |
 | AC-APV-19 | ยังไม่มี task (รอ Q-APV-38 ทำ HTTPS) |
-| AC-APV-20 | ยังไม่มี task (เพิ่ม 2569-11-13 ต้องทำ test-cases และ test ของ 503) |
-| AC-APV-21 | T-08 (โค้ดมีแล้ว test มีใน TC-APV-01-12, 02-11 ต้องทำ test-cases ของ AC นี้) |
+| AC-APV-20 | T-05, T-07, T-10 (โค้ดมีแล้วใน writeServiceError) / test: TC-APV-20-1 ถึง 20-8 ผ่าน 2569-11-13 |
+| AC-APV-21 | T-08 / test: TC-APV-21-1 ถึง 21-7, TC-APV-01-12, 02-11 ผ่าน 2569-11-13 |
 
 ### 2. Constraint กับ task
 | Constraint ID | task ที่ทำให้เป็นจริง |

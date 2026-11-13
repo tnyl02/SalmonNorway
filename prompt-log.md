@@ -7664,3 +7664,32 @@ main
   3. Q-APV-01 ทำ จะเริ่มอย่างไร -> บันทึกคำตอบไว้ก่อน ยังไม่ร่าง CR
 - ไฟล์ที่แก้: `specs/004-approve-request/spec.md`, `plan.md` (แผนทดสอบ AC-APV-19 ถึง 21), `tasks.md` (T-37, T-38 ไม่ทำใน prototype, ตารางตรวจความครบ), `specs/changes/CR-008.md` (แก้ไขหลังอนุมัติรอบที่ 2), `specs/CHANGELOG.md`
 - ไม่แก้โค้ด ไม่ได้รัน test / rtm.md ยังไม่ได้อัปเดต (F-02, F-04 จะย้ายไปแก้แล้วใน /verify รอบถัดไป)
+
+---
+
+## 2569-11-13 /testcases AC-APV-20, 21 (โหมดร่าง)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcases AC-APV-20, 21`
+- โหมด: ร่าง ยังไม่เขียนโค้ด test
+- TC ที่เสนอ (สถานะ "ร่าง" ต่อท้ายตารางก่อนหัวข้อ "ผลการลองโดยคน" ไม่แก้แถวเดิม): TC-APV-20-1 ถึง 8, TC-APV-21-1 ถึง 7 รวม 15 แถว
+  ไม่เสนอซ้ำกับแถวเดิมที่ตรวจคำขอค้างคืนแล้ว (TC-APV-01-12, 02-11)
+- ส่วนของ Then ที่ spec ไม่ได้บอก: ไม่มี
+- สิ่งที่ AI เลือกเอง: จำลองฐานข้อมูลไม่ตอบด้วยตัวเชื่อมจำลอง (Querier) ใน test ทั้งแบบล้มทุกคำสั่ง ล้มตอนเปิด transaction และล้มเฉพาะคำสั่ง INSERT ของ approval_decision
+
+---
+
+## 2569-11-13 /testcases AC-APV-20, 21 (โหมดเขียน test)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (คำสั่ง /testcases ไม่ได้โหลดใน session นี้ ทำตามขั้นตอนใน `.claude/commands/testcases.md` เอง)
+- คำสั่ง: `/testcases AC-APV-20, 21`
+- โหมด: เขียน test (ทีมเปลี่ยนสถานะ 15 แถวเป็น "ใช้ได้" แล้ว)
+- ไฟล์ที่สร้าง: `backend/internal/approve/tc_ac_apv_20_21_test.go` (11 test พร้อมตัวเชื่อมฐานข้อมูลจำลอง tcDownDB, tcBeginFailDB, tcFailInsertDB),
+  `frontend/src/__tests__/TC-APV-20-4.test.jsx`, `TC-APV-20-5.test.jsx`, `TC-APV-20-7.test.jsx`, `TC-APV-21-3.test.jsx` (4 test)
+  ไม่แก้โค้ดของระบบ ไม่แก้ test เดิม
+- ไฟล์ที่แก้: `specs/004-approve-request/tasks.md` (ตารางตรวจความครบแถว AC-APV-20, 21)
+- ผล test (AI รัน): go test TestTC_APV_20, 21 ผ่าน 11 / go test ./internal/approve/ -count=1 ผ่านทั้ง package / vitest ทั้งโปรเจกต์ ผ่าน 188 skip 1 (TC-EQS-05-5 ของ 001)
