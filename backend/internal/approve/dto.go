@@ -4,10 +4,10 @@ import "time"
 
 // PendingRequestDTO คือ 1 แถวในหน้ารายการคำขอของเจ้าหน้าที่ (FR-APV-01 ก ข, plan.md ข้อ 4)
 // ชื่อช่องเป็น camelCase แบบเดียวกับ API ของ 002
+// ไม่ส่งรหัสนักศึกษา เพราะ FR-APV-01 (ก) ไม่ได้สั่งให้แสดง (rtm.md F-05 ทีมตัดสินแก้โค้ด 2569-11-13)
 type PendingRequestDTO struct {
 	RequestID     int       `json:"requestId"`
 	RequesterName string    `json:"requesterName"`
-	StudentCode   string    `json:"studentCode"`
 	ModelName     string    `json:"modelName"`
 	AssetCode     string    `json:"assetCode"`
 	Purpose       string    `json:"purpose"`
@@ -35,7 +35,6 @@ func toPendingDTO(p PendingRequest) PendingRequestDTO {
 	return PendingRequestDTO{
 		RequestID:     p.ID,
 		RequesterName: p.RequesterName,
-		StudentCode:   p.StudentCode,
 		ModelName:     p.ModelName,
 		AssetCode:     p.AssetCode,
 		Purpose:       p.Purpose,

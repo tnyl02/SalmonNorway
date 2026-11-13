@@ -7616,3 +7616,35 @@ main
 - ข้อค้นพบที่ยังเปิด: ไม่มี (F-01 ถึง F-04 ทีมตัดสินไม่ใช่ปัญหา)
 - ข้อค้นพบใหม่: ไม่มี
 
+
+---
+
+## 2569-11-13 ทีมตัดสินข้อค้นพบใน rtm.md (F-01 ถึง F-06)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "test ผ่านหมด เขียนช่อง "ทีมตัดสิน" ทำเป็น html ให้หน่อย" แล้ว "ตอบแล้ว"
+- ผล test ก่อนตัดสิน (ผู้สั่งรันเอง หลัง pull main PR #23 ถึง #29): go test ./... ผ่านหมด
+- AI เพิ่มชุดที่ 4 ในหน้าเว็บเดิม (https://claude.ai/artifact/7GcUrjzzJYKKYpfUhMfNhG) แล้วอ่านคำตอบ
+- คำตัดสินของทีม (ผู้สั่ง เลือกในหน้าเว็บ ไม่ได้พิมพ์เหตุผลเพิ่ม): F-01 เพิ่ม Q-xx (ระดับทีม) / F-02 เพิ่ม Q-xx (AC ของ TLS) / F-03 แก้ spec (Assumption)
+  / F-04 เพิ่ม Q-xx (AC ของ 503 และ 404) / F-05 แก้โค้ด (ตัดคอลัมน์เวลาที่ส่งและ studentCode) / F-06 แก้โค้ด (เอาตัวเลขออกจากข้อความ error)
+- ไฟล์ที่แก้: `specs/004-approve-request/rtm.md` (ช่อง "ทีมตัดสิน" ตามคำตัดสินข้างบน เขียนตามข้อความตัวเลือกที่ทีมเลือก)
+- ยังไม่ได้ทำตามคำตัดสิน รอผู้สั่งยืนยันรายการแก้
+
+---
+
+## 2569-11-13 ทำตามคำตัดสินใน rtm.md (CR-008 แก้ไขหลังอนุมัติ) และ /verify รอบ 2
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "เพิ่มเข้าไปใน CR-008 เป็นหัวข้อ "แก้ไขหลังอนุมัติ" แบบที่ CR-006 ของ 003 เคยทำ" (ตอบข้อเสนอรายการแก้ของ AI)
+- ID ที่ AI ตั้ง (ถัดจากเลขเดิม): ASM-11 (F-03), Q-APV-38 (F-01), Q-APV-39 (F-02), Q-APV-40 (F-04) / Q-APV-39 และ 40 มีข้อความ AC ที่ AI เสนอ แต่ไม่ได้ตั้ง AC ID รอทีมอนุมัติ
+- ไฟล์ที่แก้: `specs/004-approve-request/spec.md`, `specs/changes/CR-008.md`, `specs/004-approve-request/tasks.md` (T-05, T-06, T-21), `specs/004-approve-request/rtm.md`, `specs/CHANGELOG.md`,
+  `backend/internal/approve/dto.go` (ตัด studentCode), `backend/internal/approve/service.go` (ข้อความ ErrApprovalCutoff), `frontend/src/pages/ApproveRequest/ApproveRequests.jsx` (ตัดคอลัมน์เวลาที่ส่ง),
+  `frontend/src/api/client.js` (คอมเมนต์ของ getApprovalRequests ไม่มี studentCode)
+- ไม่แก้ test: ข้อมูลจำลองใน test หน้าจอยังมี studentCode เป็น field เกินที่หน้าจอไม่ได้ใช้ ไม่กระทบผล
+- ผล test (AI รัน): go test approve, config, platform, auth -count=1 ผ่าน 191 ไม่ผ่าน 0 / vitest ทั้งโปรเจกต์ ผ่าน 184 skip 1 (TC-EQS-05-5 ของ 001)
+- /verify รอบ 2 (ทำตาม `.claude/commands/verify.md`): ตารางไปข้างหน้า 22 แถว ครบ 15 / ยังไม่ถึง 0 / รอ 4 / ช่องโหว่ 3
+  F-03, F-05, F-06 ย้ายไปหัวข้อแก้แล้ว / F-01, F-02, F-04 ยังอยู่ รอ Q-APV-38 ถึง 40 / ไม่มีข้อค้นพบใหม่

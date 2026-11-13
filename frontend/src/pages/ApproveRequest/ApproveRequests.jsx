@@ -25,6 +25,7 @@ function purposeLabel(r) {
 
 // หน้ารายการคำขอยืมแบบปกติที่รอพิจารณาของภาควิชาตนเอง (FR-APV-01 ก, AC-APV-11)
 // เรียงตามเวลาที่ส่งจากเก่าไปใหม่ตามที่หลังบ้านส่งมา ไม่เรียงใหม่ที่หน้าจอ (DOM-REQ-01)
+// แสดงเฉพาะ 4 ข้อมูลตาม FR-APV-01 (ก) ไม่มีคอลัมน์เวลาที่ส่ง (rtm.md F-05 ทีมตัดสินแก้โค้ด 2569-11-13)
 // ปุ่มอนุมัติ (T-09) / ปฏิเสธพร้อมช่องเหตุผล (T-11) / หน้าจอไม่มี mockup ทีมออกแบบเอง (plan.md ข้อ 4)
 // client ส่งเข้ามาได้ ตอน test ใช้ client จำลองแทนหลังบ้านจริง
 export default function ApproveRequests({ client = api }) {
@@ -115,7 +116,6 @@ export default function ApproveRequests({ client = api }) {
             <th className="py-1">อุปกรณ์</th>
             <th className="py-1">วัตถุประสงค์</th>
             <th className="py-1">ช่วงเวลาที่ต้องการยืม</th>
-            <th className="py-1">เวลาที่ส่ง</th>
             <th className="py-1"></th>
           </tr>
         </thead>
@@ -130,7 +130,6 @@ export default function ApproveRequests({ client = api }) {
               <td className="py-1">
                 {fmt(r.startAt)} - {fmt(r.endAt)}
               </td>
-              <td className="py-1">{fmt(r.submittedAt)}</td>
               <td className="py-1">
                 {/* ปุ่มอนุมัติเฉพาะคำขอแรกของชิ้นนั้น (FR-APV-01 ข, AC-APV-07, T-18) หลังบ้านตรวจซ้ำเสมอ (T-17)
                     แถวอื่นปฏิเสธได้อย่างเดียว */}

@@ -198,7 +198,7 @@ export const api = {
   listItemRequests: (assetCode) => getJSON(`/v1/equipment/items/${encodeURIComponent(assetCode)}/requests`),
 
   // 004 FR-APV-01 (ก)(ข): คำขอยืมปกติที่รอพิจารณาของภาควิชาเจ้าหน้าที่ เรียงตามเวลาที่ส่ง
-  //   -> { items: [{ requestId, requesterName, studentCode, modelName, assetCode, purpose, purposeOther?,
+  //   -> { items: [{ requestId, requesterName, modelName, assetCode, purpose, purposeOther?,
   //                  startAt, endAt, submittedAt, isFirst }], loadedAt }
   getApprovalRequests: () => getJSON('/v1/approvals/requests'),
 

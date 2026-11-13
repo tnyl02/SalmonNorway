@@ -85,6 +85,7 @@ Updated: 2569-11-12
 - ต้องทำหลัง: T-04
 - เสร็จเมื่อ: `TestAC_APV_11` ผ่านทาง HTTP คืนรายการพร้อม `loaded_at` และทุก endpoint ใต้ `/v1/approvals/` ตอบ `FORBIDDEN_ROLE` เมื่อไม่ใช่เจ้าหน้าที่ (`{code, message}` ตาม CON-TECH-03)
 - สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / test ผ่าน 2569-11-12: `TestAC_APV_11_HTTP`, `TestApprovals_RequiresStaff`)
+- แก้ 2569-11-13 (rtm.md F-05): ตัด `studentCode` ออกจาก response ของ GET requests เพราะ FR-APV-01 (ก) ไม่ได้สั่ง (dto.go)
 
 ### T-06 สร้างหน้าจอ ApproveRequests แสดงรายการคำขอ
 - รองรับ: FR-APV-01 (ก)
@@ -94,6 +95,7 @@ Updated: 2569-11-12
 - ต้องทำหลัง: T-05
 - เสร็จเมื่อ: vitest `AC-APV-11` ผ่านด้วย client จำลอง แสดงชื่อผู้ขอ อุปกรณ์ วัตถุประสงค์ ช่วงเวลาที่ต้องการยืม เรียงตามเวลาที่ส่ง
 - สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / test ผ่าน 2569-11-12: vitest `AC-APV-11`)
+- แก้ 2569-11-13 (rtm.md F-05): ตัดคอลัมน์ "เวลาที่ส่ง" ออก แสดงเฉพาะ 4 ข้อมูลตาม FR-APV-01 (ก) (ApproveRequests.jsx)
 - แก้ 2569-11-12 (Q-APV-31 พบตอน /testcases แถว TC-APV-11-5): ไม่มีคำขอแสดง "ไม่มีคำขอที่รออนุมัติ" แทนตาราง (`APPROVAL_EMPTY_LIST` ใน config.js) / ตรวจด้วย vitest `TC-APV-11-5.test.jsx`
 
 #### จุดตรวจเฟส 1
@@ -337,6 +339,7 @@ Updated: 2569-11-12
 - เสร็จเมื่อ: `TestAC_APV_16` ผ่านด้วยนาฬิกาจำลอง: เลย `LoanNormalReturnHour` (16:00 น.) ของวันที่เริ่มยืม (Asia/Bangkok) ได้ 409 `APPROVAL_CUTOFF_PASSED` สถานะคงเดิม คำขอนั้นยังเป็นคำขอแรก (คำขอถัดไปยังได้ `NOT_FIRST_IN_QUEUE`) และปฏิเสธเองได้ (ID ของ AC-APV-16 รอ Q-APV-13 ถ้าทีมเปลี่ยน ID ให้เปลี่ยนชื่อ test ตาม)
 - สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / test ผ่าน 2569-11-12: `TestAC_APV_16`, `TestApprove_BeforeCutoffAllowed`)
 - แก้ 2569-11-12 (Q-APV-26 พบตอน /testcases แถว TC-APV-01-5): 16:00:00 น. ตรงนับว่าเลยแล้ว เปลี่ยนเงื่อนไขใน service.go จาก `After` เป็น `!Before` / ตรวจด้วย `TestTC_APV_01_5_ApproveAt1600` (test ผ่าน 2569-11-12 พร้อม `TestAC_APV_16`, `TestApprove_BeforeCutoffAllowed`)
+- แก้ 2569-11-13 (rtm.md F-06): ข้อความ error ภายใน `ErrApprovalCutoff` ไม่มีตัวเลข 16:00 แล้ว ข้อความที่ผู้ใช้เห็นยังมาจาก config (service.go)
 
 ### T-22 แสดงข้อความ APPROVAL_CUTOFF_PASSED บนหน้าจอ
 - รองรับ: FR-APV-01 (ซ)

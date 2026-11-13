@@ -163,7 +163,8 @@ func (s *Service) Approve(ctx context.Context, requestID int, loadedAt time.Time
 var ErrForbiddenDepartment = errors.New("คำขอนี้เป็นของอุปกรณ์ภาควิชาอื่น")
 
 // ErrApprovalCutoff เกิดเมื่ออนุมัติหลัง 16:00 น. ของวันที่เริ่มยืม (FR-APV-01 ค ซ, AC-APV-16, APPROVAL_CUTOFF_PASSED)
-var ErrApprovalCutoff = errors.New("เลย 16:00 น. ของวันที่ยืมแล้ว อนุมัติไม่ได้")
+// ข้อความภายในไม่มีตัวเลข ข้อความที่ผู้ใช้เห็นมาจาก config (rtm.md F-06 ทีมตัดสินแก้โค้ด 2569-11-13)
+var ErrApprovalCutoff = errors.New("เลยเวลาตัดของวันที่เริ่มยืมแล้ว อนุมัติไม่ได้")
 
 // approvalCutoff คือเวลาตัด = config.LoanNormalReturnHour (16:00 น.) ของวันที่เริ่มยืม ตามเวลาไทย (glossary)
 // ใช้ค่าของ 002 ร่วม ไม่ประกาศ 16 ซ้ำ (AGENTS.md กฎข้อ 9, DOM-LOAN-01)

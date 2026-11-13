@@ -2,6 +2,17 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [SPEC-APV-004 Draft v2.2 แก้ไขหลังอนุมัติของ CR-008 ตามคำตัดสินใน rtm.md] - 2569-11-13
+เจ้าของ 004 ตัดสินข้อค้นพบ F-01 ถึง F-06 ของ /verify แล้วสั่งให้เพิ่มเข้า CR-008 เป็นหัวข้อแก้ไขหลังอนุมัติ (แบบ CR-006 ของ 003) spec ยังเป็น Draft v2.2
+### Added
+- `specs/004-approve-request/spec.md`: ASM-11 prototype ใช้รหัสเจ้าหน้าที่แทนชื่อ (F-03) / Q-APV-38 HTTPS และ Docker ระดับทีม (F-01), Q-APV-39 เสนอ AC ของ TLS (F-02), Q-APV-40 เสนอ AC ของ 503 และ 404 (F-04)
+- `specs/changes/CR-008.md`: หัวข้อแก้ไขหลังอนุมัติ ข้อ 13 (ASM-11) และแถวผลกระทบของ rtm.md
+### Changed
+- โค้ด (F-05): ตัด `studentCode` ออกจาก response ของ GET /v1/approvals/requests (dto.go) และตัดคอลัมน์ "เวลาที่ส่ง" (ApproveRequests.jsx)
+- โค้ด (F-06): ข้อความ error ภายในของ `ErrApprovalCutoff` ไม่มีตัวเลข 16:00 (service.go)
+- `specs/004-approve-request/tasks.md`: บันทึกการแก้ใต้ T-05, T-06, T-21
+- `specs/004-approve-request/rtm.md`: ช่องทีมตัดสิน F-01 ถึง F-06 และ /verify รอบ 2 (F-03, F-05, F-06 ย้ายไปแก้แล้ว)
+
 ## [SPEC-APV-004 Draft v2.2 + plan 004 v1.2 (CR-008)] - 2569-11-12
 รวมคำตอบ Q-APV-26 ถึง 37 ที่พบตอน /testcases เป็น CR-008 ตามกติกา "การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request"
 รายละเอียดแต่ละข้ออยู่ในหัวข้อ Q-APV-26, Q-APV-27 ถึง 31, Q-APV-32 ถึง 34, Q-APV-35, 36 และ Q-APV-37 ด้านล่าง ไม่มี ID ใหม่ ไม่เปลี่ยน AC ไม่เพิ่มรหัส error
