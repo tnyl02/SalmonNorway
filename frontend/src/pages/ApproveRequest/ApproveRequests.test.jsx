@@ -1,7 +1,13 @@
 // test หน้าจอ ApproveRequests ของ 004 ใช้ client จำลองแทนหลังบ้าน (plan.md ข้อ 6)
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import ApproveRequests from './ApproveRequests.jsx'
-import { APPROVAL_MESSAGES } from '../../config.js'
+import {
+  APPROVAL_ADVISOR_NAME_MAX_LENGTH,
+  APPROVAL_ADVISOR_NAME_REQUIRED,
+  APPROVAL_ADVISOR_NAME_TOO_LONG,
+  APPROVAL_ATTACHMENT_LINK,
+  APPROVAL_MESSAGES,
+} from '../../config.js'
 
 // คำตอบแบบเดียวกับ GET /v1/approvals/requests (หลังบ้านกรองภาควิชาและเรียงลำดับแล้ว TestAC_APV_11_HTTP)
 function fakeClient() {
@@ -11,10 +17,10 @@ function fakeClient() {
       items: [
         { requestId: 1, requesterName: 'นักศึกษาตัวอย่าง ก', studentCode: 'student-001', modelName: 'อุปกรณ์ทดลองอนุมัติ (004)',
           assetCode: 'AP-TEST-0001', purpose: 'study', startAt: '2026-11-12T02:00:00Z', endAt: '2026-11-12T09:00:00Z',
-          submittedAt: '2026-11-12T01:30:00Z', isFirst: true },
+          submittedAt: '2026-11-12T01:30:00Z', loanType: 'normal', isFirst: true },
         { requestId: 2, requesterName: 'นักศึกษาตัวอย่าง ข', studentCode: 'student-002', modelName: 'อุปกรณ์ทดลองอนุมัติ (004)',
           assetCode: 'AP-TEST-0001', purpose: 'other', purposeOther: 'ถ่ายวิดีโอโครงงาน', startAt: '2026-11-12T02:00:00Z',
-          endAt: '2026-11-12T09:00:00Z', submittedAt: '2026-11-12T01:40:00Z', isFirst: false },
+          endAt: '2026-11-12T09:00:00Z', submittedAt: '2026-11-12T01:40:00Z', loanType: 'normal', isFirst: false },
       ],
     }),
   }
@@ -41,6 +47,55 @@ test('AC-APV-11 แสดงคำขอที่รอพิจารณาต�
   expect(within(rows[0]).getByText('เพื่อการเรียน')).toBeTruthy()
   expect(within(rows[1]).getByText('ถ่ายวิดีโอโครงงาน')).toBeTruthy()
   expect(rows[0].cells[3].textContent).toMatch(/ - /) // ช่วงเวลา เริ่ม - คืน
+})
+
+// AC-APV-11 v3 (FR-APV-03 ก, Q-APV-41, T-43): คำขอค้างคืนอยู่ในรายการเดียวกัน
+//   แถวค้างคืนแสดงประเภท "ค้างคืน" และลิงก์ "เปิดใบบันทึกข้อความ" ชี้ไปที่ attachmentUrl กดแล้วเปิดผ่าน client.openAttachment
+//   แถวยืมปกติแสดง "ปกติ" และไม่มีลิงก์
+function overnightClient(openAttachment) {
+  return {
+    getApprovalRequests: async () => ({
+      loadedAt: '2026-11-12T03:00:00Z',
+      items: [
+        { requestId: 1, requesterName: 'นักศึกษาตัวอย่าง ก', modelName: 'อุปกรณ์ทดลองอนุมัติ (004)', assetCode: 'AP-TEST-0001',
+          purpose: 'study', startAt: '2026-11-12T02:00:00Z', endAt: '2026-11-12T09:00:00Z',
+          submittedAt: '2026-11-12T01:30:00Z', loanType: 'normal', isFirst: true },
+        { requestId: 6, requesterName: 'นักศึกษาตัวอย่าง ค', modelName: 'อุปกรณ์ทดลองอนุมัติ (004)', assetCode: 'AP-TEST-0001',
+          purpose: 'activity', startAt: '2026-11-12T02:00:00Z', endAt: '2026-11-13T09:00:00Z',
+          submittedAt: '2026-11-12T01:50:00Z', loanType: 'overnight', isFirst: false,
+          attachmentUrl: '/v1/loan-requests/6/attachment' },
+      ],
+    }),
+    openAttachment,
+  }
+}
+
+test('AC-APV-11 แถวค้างคืนแสดงประเภทและลิงก์เปิดใบบันทึกข้อความ แถวปกติไม่มีลิงก์', async () => {
+  const opened = []
+  render(<ApproveRequests client={overnightClient(async (url) => opened.push(url))} />)
+
+  const table = await screen.findByRole('table')
+  const rows = within(table).getAllByRole('row').slice(1)
+  expect(rows).toHaveLength(2)
+
+  expect(rows[0].cells[4].textContent).toBe('ปกติ')
+  expect(within(rows[0]).queryByRole('link')).toBeNull()
+
+  expect(rows[1].cells[4].textContent).toMatch(/^ค้างคืน/)
+  const link = within(rows[1]).getByRole('link', { name: APPROVAL_ATTACHMENT_LINK })
+  expect(link.getAttribute('href')).toBe('/v1/loan-requests/6/attachment')
+
+  fireEvent.click(link)
+  await waitFor(() => expect(opened).toEqual(['/v1/loan-requests/6/attachment']))
+})
+
+test('AC-APV-11 เปิดใบบันทึกข้อความไม่สำเร็จ แสดงข้อความตามรหัสและรายการยังอยู่', async () => {
+  const fail = async () => Promise.reject(Object.assign(new Error('503'), { code: 'UPSTREAM_UNAVAILABLE' }))
+  render(<ApproveRequests client={overnightClient(fail)} />)
+
+  fireEvent.click(await screen.findByRole('link', { name: APPROVAL_ATTACHMENT_LINK }))
+  expect((await screen.findByRole('alert')).textContent).toBe(APPROVAL_MESSAGES.UPSTREAM_UNAVAILABLE)
+  expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(3)
 })
 
 // FR-APV-01 (ซ), CON-TECH-03: เลือกข้อความจากรหัส เช่น นักศึกษาเปิดหน้านี้ได้ FORBIDDEN_ROLE
@@ -192,7 +247,7 @@ test('AC-APV-08 หลังบ้านตอบ ITEM_NOT_AVAILABLE แสด�
   expect(within(table).getAllByRole('row').slice(1)).toHaveLength(2)
 })
 
-// AC-APV-16 (FR-APV-01 ค, DOM-LOAN-01) ฝั่งหน้าจอ (หลังบ้านตรวจใน TestAC_APV_16) [ID รอทีมอนุมัติ Q-APV-13]
+// AC-APV-16 (FR-APV-01 ค, DOM-LOAN-01) ฝั่งหน้าจอ (หลังบ้านตรวจใน TestAC_APV_16)
 //   Given คำขอแรกของอุปกรณ์ที่ "ว่าง" และเวลาปัจจุบันเลย 16:00 น. ของวันที่เริ่มยืมแล้ว
 //   When  เจ้าหน้าที่กดอนุมัติ แล้วหลังบ้านตอบ APPROVAL_CUTOFF_PASSED
 //   Then  แสดง "เลย 16:00 น. ของวันที่ยืมแล้ว อนุมัติไม่ได้" และคำขอยังอยู่ในรายการ (ปฏิเสธเองได้ Q-APV-16)
@@ -294,3 +349,87 @@ for (const action of ['อนุมัติ', 'ปฏิเสธ']) {
     expect(within(table).getAllByRole('row').slice(1)).toHaveLength(2)
   })
 }
+
+// AC-APV-22 (FR-APV-03 ข ช, FR-APV-01 ซ, Q-APV-44, T-45) ฝั่งหน้าจอ (สถานะคำขอ อุปกรณ์ และประวัติตรวจที่หลังบ้านใน TestAC_APV_22)
+//   Given คำขอยืมแบบค้างคืนสถานะ requested ในรายการ
+//   When  เจ้าหน้าที่พิมพ์ชื่ออาจารย์แล้วกด "อนุมัติ"
+//   Then  ส่งรหัสคำขอ loadedAt และ advisorName ไปหลังบ้าน แล้วคำขอนั้นหายจากรายการ
+//   ชื่อว่างหรือยาวเกิน 100 ตัวอักษรแสดงข้อความและไม่ส่ง
+function advisorClient(approveRequest) {
+  return {
+    getApprovalRequests: async () => ({
+      loadedAt: '2026-11-12T03:00:00Z',
+      items: [
+        { requestId: 6, requesterName: 'นักศึกษาตัวอย่าง ค', modelName: 'อุปกรณ์ทดลองอนุมัติ (004)', assetCode: 'AP-TEST-0001',
+          purpose: 'activity', startAt: '2026-11-12T02:00:00Z', endAt: '2026-11-13T09:00:00Z',
+          submittedAt: '2026-11-12T01:50:00Z', loanType: 'overnight', isFirst: false,
+          attachmentUrl: '/v1/loan-requests/6/attachment' },
+        { requestId: 7, requesterName: 'นักศึกษาตัวอย่าง ง', modelName: 'อุปกรณ์ทดลองอนุมัติ (004)', assetCode: 'AP-TEST-0002',
+          purpose: 'study', startAt: '2026-11-12T02:00:00Z', endAt: '2026-11-13T09:00:00Z',
+          submittedAt: '2026-11-12T01:55:00Z', loanType: 'overnight', isFirst: false },
+      ],
+    }),
+    openAttachment: async () => {},
+    approveRequest,
+  }
+}
+
+test('AC-APV-22 คำขอค้างคืนทุกแถวมีช่องชื่ออาจารย์และปุ่มอนุมัติ ส่ง advisorName กับ loadedAt แล้วแถวหายจากรายการ', async () => {
+  const calls = []
+  const approveRequest = async (...args) => {
+    calls.push(args)
+    return { requestId: 6, status: 'approved', decidedAt: '2026-11-12T03:01:00Z', rejectedRequestIds: [] }
+  }
+  render(<ApproveRequests client={advisorClient(approveRequest)} />)
+
+  const table = await screen.findByRole('table')
+  const rows = within(table).getAllByRole('row').slice(1)
+  // ไม่มีคิว (FR-APV-03 ค): ทั้ง 2 แถวมีช่องชื่ออาจารย์และปุ่มอนุมัติ แม้ isFirst เป็น false
+  for (const row of rows) {
+    expect(within(row).getByLabelText('ชื่ออาจารย์ที่เซ็นอนุมัติ')).toBeTruthy()
+    expect(within(row).getByRole('button', { name: 'อนุมัติ' })).toBeTruthy()
+  }
+
+  fireEvent.change(within(rows[0]).getByLabelText('ชื่ออาจารย์ที่เซ็นอนุมัติ'), { target: { value: 'อ.สมชาย ใจดี' } })
+  fireEvent.click(within(rows[0]).getByRole('button', { name: 'อนุมัติ' }))
+
+  await waitFor(() => expect(screen.queryByText('นักศึกษาตัวอย่าง ค')).toBeNull())
+  expect(calls).toEqual([[6, '2026-11-12T03:00:00Z', 'อ.สมชาย ใจดี']])
+  expect(screen.getByText('นักศึกษาตัวอย่าง ง')).toBeTruthy()
+})
+
+test('AC-APV-22 ชื่ออาจารย์ว่าง มีแต่ช่องว่าง หรือยาวเกิน 100 ตัวอักษร แสดงข้อความและไม่ส่งไปหลังบ้าน', async () => {
+  const calls = []
+  render(<ApproveRequests client={advisorClient(async (...args) => calls.push(args))} />)
+  const table = await screen.findByRole('table')
+  const row = within(table).getAllByRole('row')[1]
+  const input = within(row).getByLabelText('ชื่ออาจารย์ที่เซ็นอนุมัติ')
+  const button = within(row).getByRole('button', { name: 'อนุมัติ' })
+
+  fireEvent.click(button)
+  expect(screen.getByRole('alert').textContent).toBe(APPROVAL_ADVISOR_NAME_REQUIRED)
+
+  fireEvent.change(input, { target: { value: '   ' } })
+  fireEvent.click(button)
+  expect(screen.getByRole('alert').textContent).toBe(APPROVAL_ADVISOR_NAME_REQUIRED)
+
+  fireEvent.change(input, { target: { value: 'ก'.repeat(APPROVAL_ADVISOR_NAME_MAX_LENGTH + 1) } })
+  fireEvent.click(button)
+  expect(screen.getByRole('alert').textContent).toBe(APPROVAL_ADVISOR_NAME_TOO_LONG)
+
+  expect(calls).toEqual([])
+  expect(within(table).getAllByRole('row')).toHaveLength(3) // คำขอยังอยู่
+})
+
+test('AC-APV-22 หลังบ้านตอบ VALIDATION_FAILED ช่อง advisorName แสดงข้อความของชื่ออาจารย์ ไม่ใช่ของเหตุผล', async () => {
+  const fail = async () =>
+    Promise.reject(Object.assign(new Error('422'), { code: 'VALIDATION_FAILED', body: { fields: ['advisorName'] } }))
+  render(<ApproveRequests client={advisorClient(fail)} />)
+  const row = within(await screen.findByRole('table')).getAllByRole('row')[1]
+
+  fireEvent.change(within(row).getByLabelText('ชื่ออาจารย์ที่เซ็นอนุมัติ'), { target: { value: 'อ.สมชาย' } })
+  fireEvent.click(within(row).getByRole('button', { name: 'อนุมัติ' }))
+
+  expect((await screen.findByRole('alert')).textContent).toBe(APPROVAL_ADVISOR_NAME_REQUIRED)
+  expect(screen.getByText('นักศึกษาตัวอย่าง ค')).toBeTruthy()
+})

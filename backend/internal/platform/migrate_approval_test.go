@@ -1,6 +1,6 @@
 package platform
 
-// test ของ migration 0008 ฟีเจอร์ 004 (T-01 ใน specs/004-approve-request/tasks.md)
+// test ของ migration 0008 และ 0011 ฟีเจอร์ 004 (T-01, T-40 ใน specs/004-approve-request/tasks.md)
 // ใช้ testDB และ execInTx จาก migrate_test.go ทุกคำสั่งรันใน transaction ที่ยกเลิกทิ้ง ข้อมูลจึงไม่ค้างข้าม test
 
 import (
@@ -192,5 +192,94 @@ func TestSeed_ApproveDevScenarios(t *testing.T) {
 	}
 	if firstType != "normal" {
 		t.Errorf("คำขอแรกของ AP-TEST-0001 ต้องเป็นยืมปกติ แต่ได้ %q", firstType)
+	}
+}
+
+// ---- 0011 คำขอยืมค้างคืน (T-40, CR-009) ----
+
+func approvalTestStep(requestID int, status string) string {
+	return fmt.Sprintf(`INSERT INTO approval_step (request_id, status, actor_id) VALUES (%d, '%s', 'staff-001')`, requestID, status)
+}
+
+// T-40 เสร็จเมื่อ: approval_decision.advisor_name ว่างได้ (FR-APV-03 ข ช, Q-APV-44)
+// approval_step มี FK ไป borrow_request รับ status 3 ค่า และแก้หรือลบไม่ได้ (FR-APV-03 ข, FR-APV-01 ฌ)
+func TestMigration_ApprovalOvernight(t *testing.T) {
+	conn := testDB(t)
+	const req = 99011
+
+	// advisor_name ว่างได้ (คำขอปกติ) และเก็บชื่อได้ (คำขอค้างคืน)
+	if err := execInTx(t, conn, approvalTestRequest(req), approvalTestDecision(req, "approved", "")); err != nil {
+		t.Errorf("ผลการพิจารณาที่ไม่มีชื่ออาจารย์ต้องบันทึกได้: %v", err)
+	}
+	if err := execInTx(t, conn, approvalTestRequest(req),
+		fmt.Sprintf(`INSERT INTO approval_decision (request_id, result, actor_id, actor_department_id, advisor_name)
+			VALUES (%d, 'approved', 'staff-001', 1, 'อ.ทดสอบ ใจดี')`, req)); err != nil {
+		t.Errorf("ผลการพิจารณาที่มีชื่ออาจารย์ต้องบันทึกได้: %v", err)
+	}
+
+	// status รับเฉพาะ 3 ค่า
+	for _, s := range []string{"approved_by_officer", "pending_advisor_approval", "approved"} {
+		if err := execInTx(t, conn, approvalTestRequest(req), approvalTestStep(req, s)); err != nil {
+			t.Errorf("approval_step.status = %q ต้องบันทึกได้: %v", s, err)
+		}
+	}
+	for _, s := range []string{"requested", "rejected", "auto_rejected", ""} {
+		if err := execInTx(t, conn, approvalTestRequest(req), approvalTestStep(req, s)); err == nil {
+			t.Errorf("approval_step.status = %q ต้องถูกปฏิเสธ", s)
+		}
+	}
+
+	// FK: อ้างคำขอที่ไม่มีอยู่จริงไม่ได้
+	if err := execInTx(t, conn, approvalTestStep(99999, "approved")); err == nil {
+		t.Error("approval_step.request_id ที่ไม่มีในตาราง borrow_request ต้องถูกปฏิเสธ")
+	}
+
+	// append-only: UPDATE / DELETE / TRUNCATE ไม่ได้
+	for name, s := range map[string]string{
+		"UPDATE":   `UPDATE approval_step SET status = 'approved' WHERE request_id = 99011`,
+		"DELETE":   `DELETE FROM approval_step WHERE request_id = 99011`,
+		"TRUNCATE": `TRUNCATE approval_step`,
+	} {
+		if err := execInTx(t, conn, approvalTestRequest(req), approvalTestStep(req, "approved_by_officer"), s); err == nil {
+			t.Errorf("%s บน approval_step ต้องถูกปฏิเสธ (append-only)", name)
+		}
+	}
+}
+
+// T-40 เสร็จเมื่อ: down ย้อนได้ รันไฟล์ down ใน transaction ที่ยกเลิกทิ้ง แล้วตรวจว่าตารางและคอลัมน์หายไป
+func TestMigration_ApprovalOvernightDown(t *testing.T) {
+	conn := testDB(t)
+	down, err := os.ReadFile(migrationsDir + "/0011_approval_overnight.down.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, string(down)); err != nil {
+		t.Fatalf("down ของ 0011 ต้องรันได้: %v", err)
+	}
+	var n int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM information_schema.tables WHERE table_name = 'approval_step'`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Error("หลัง down ตาราง approval_step ต้องหายไป")
+	}
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM information_schema.columns
+		WHERE table_name = 'approval_decision' AND column_name = 'advisor_name'`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Error("หลัง down คอลัมน์ approval_decision.advisor_name ต้องหายไป")
+	}
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM pg_proc WHERE proname = 'approval_step_append_only'`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Error("หลัง down ฟังก์ชัน approval_step_append_only ต้องหายไป")
 	}
 }

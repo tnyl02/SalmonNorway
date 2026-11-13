@@ -14,6 +14,7 @@ import (
 	"salmonnorway/backend/internal/equipment"
 	"salmonnorway/backend/internal/handover"
 	"salmonnorway/backend/internal/platform"
+	"salmonnorway/backend/internal/returns"
 )
 
 // path ของไฟล์ migration และข้อมูลตั้งต้น เทียบจากโฟลเดอร์ backend/ (รันด้วย `cd backend && go run ./cmd/server`)
@@ -66,6 +67,9 @@ func main() {
 	// path ลูกของฟีเจอร์นี้ เช่น /v1/loan-requests/{id}/attachment (T-15, FR-BRQ-10 ข้อ ก)
 	// mux ชั้นนอกจับ path แบบเป๊ะ ๆ ถ้าไม่ผูกตัวที่ลงท้ายด้วย / ไว้ด้วย path ลูกจะไปไม่ถึง router ของฟีเจอร์
 	mux.Handle(borrowrequest.PathPrefix+"/", auth.Middleware(provider, br.Routes()))
+	// ลำดับคำขอที่ค้างอยู่ของอุปกรณ์ชิ้นนั้น เจ้าของคือ 002 แม้ path จะอยู่ใต้ /v1/equipment/ ของ 001
+	// (สัญญา API ใน specs/changes/CR-005.md, T-18 ของ 002) Go 1.22 ส่งให้ pattern ที่เจาะจงกว่า จึงไม่ชนกัน
+	mux.Handle("GET "+borrowrequest.QueuePath, auth.Middleware(provider, br.Routes()))
 
 	// ฟีเจอร์ 004 อนุมัติคำขอยืมปกติ (T-05) ต้องยืนยันตัวตนและเป็นเจ้าหน้าที่ (IF-IDP-01, NFR-SEC-01, AC-APV-05)
 	ap := approve.NewHandler(approve.NewService(approve.NewRepository(db)))
@@ -81,6 +85,10 @@ func main() {
 	cxRoutes := auth.Middleware(provider, cx.Routes())
 	mux.Handle(cancelrequest.PathPrefixMine, cxRoutes)
 	mux.Handle(cancelrequest.PathPrefixRequests, cxRoutes)
+
+	// 006 บันทึกการรับคืน (specs/006-return/plan.md ข้อ 4) เฉพาะเจ้าหน้าที่ภาควิชาเดียวกัน (FR-RET-01, AC-RET-08)
+	// Routes ห่อ auth.Middleware และตรวจบทบาทเองทุก route (IF-IDP-01) แก้ไฟล์กลางเพราะ 006
+	returns.NewHandler(returns.NewRepository(db)).Routes(provider)(mux)
 
 	log.Printf("listening on %s", cfg.HTTPAddr)
 	// ทุก response ห้าม cache เพื่อให้รีเฟรชแล้วเห็นสถานะล่าสุด (NFR-DATA-01, T-16)

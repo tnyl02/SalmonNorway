@@ -3,12 +3,16 @@ import { onUnauthorized } from './api/client.js'
 import MockLogin from './pages/Login/MockLogin.jsx'
 import EquipmentList from './pages/EquipmentList/EquipmentList.jsx'
 import MyPendingRequests from './pages/MyPendingRequests/MyPendingRequests.jsx'
+import BorrowRequestForm from './pages/BorrowRequest/BorrowRequestForm.jsx'
+import ReturnsHome from './pages/Return/ReturnsHome.jsx'
 
 // หน้าที่สลับได้จากปุ่มบนหัวหน้า ยังไม่ใช้ router (ทีมตัดสิน 2569-11-11 ตอนทำ T-05 ของ 003)
 // หน้าของฟีเจอร์อื่นเพิ่มเป็นแถวใหม่ในตารางนี้
 const PAGES = [
   { key: 'equipment', label: 'รายการอุปกรณ์', Component: EquipmentList }, // 001 (T-06)
   { key: 'my-pending', label: 'คำขอที่รออนุมัติของฉัน', Component: MyPendingRequests }, // 003 FR-CXL-06 (T-05)
+  { key: 'borrow-request', label: 'ส่งคำขอยืม', Component: BorrowRequestForm }, // 002 FR-BRQ-03 (T-19)
+  { key: 'returns', label: 'รับคืนอุปกรณ์', Component: ReturnsHome }, // 006 FR-RET-01 เจ้าหน้าที่ (T-06, T-15)
 ]
 
 // safePageKey รับเฉพาะชื่อหน้าที่อยู่ในตาราง PAGES ค่าอื่น (เช่น URL ภายนอก) กลับไปหน้าแรก กัน open redirect (plan 001 ข้อ 6.5)
@@ -25,6 +29,9 @@ const SESSION_EXPIRED_MESSAGE = 'กรุณาเข้าสู่ระบ�
 export default function App() {
   const [current, setCurrent] = useState(PAGES[0].key)
   const [login, setLogin] = useState(null) // { message, returnTo } เมื่อ session หมดอายุ
+  // รหัสครุภัณฑ์ที่กดปุ่ม "ส่งคำขอยืม" มาจากหน้าของ 001 ส่งให้ฟอร์มของ 002 (FR-EQS-06 -> FR-BRQ-01, T-41 ของ 001)
+  // เปิดฟอร์มจากแถบด้านบนเอง = ไม่มีรหัสติดมา
+  const [requestAsset, setRequestAsset] = useState('')
   const currentRef = useRef(current)
   currentRef.current = current
 
@@ -62,7 +69,10 @@ export default function App() {
             key={p.key}
             type="button"
             aria-current={p.key === current ? 'page' : undefined}
-            onClick={() => setCurrent(p.key)}
+            onClick={() => {
+              setRequestAsset('')
+              setCurrent(p.key)
+            }}
             className={
               p.key === current
                 ? 'rounded bg-teal-700 px-3 py-1 text-sm text-white'
@@ -73,7 +83,20 @@ export default function App() {
           </button>
         ))}
       </nav>
-      <Component />
+      {current === 'equipment' ? (
+        // FR-EQS-06: ปุ่มส่งคำขอยืมของ 001 เปิดหน้าฟอร์มของ 002 พร้อมรหัสครุภัณฑ์ของชิ้นนั้น (T-41, F-01 ใน rtm.md ของ 001)
+        <EquipmentList
+          onRequestLoan={(assetCode) => {
+            setRequestAsset(assetCode)
+            setCurrent('borrow-request')
+          }}
+        />
+      ) : current === 'borrow-request' ? (
+        // key ทำให้ฟอร์มเริ่มใหม่ทุกครั้งที่รหัสเปลี่ยน เพราะฟอร์มอ่าน assetCode เป็นค่าเริ่มต้นครั้งเดียว
+        <BorrowRequestForm key={requestAsset} assetCode={requestAsset} />
+      ) : (
+        <Component />
+      )}
     </main>
   )
 }

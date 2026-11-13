@@ -1,10 +1,10 @@
-# Tasks: อนุมัติคำขอยืมปกติ (Approve Request)
-Feature: 004-approve-request | Spec ID: SPEC-APV-004 (spec.md Draft v2.1)
-อ้างอิง: plan.md Draft v1.1, specs/000-shared/{constraints.md v5 (CON-TECH-03 รหัสของ 004 ลงทะเบียน 2569-11-12), data-model.md v9, glossary.md}
-Updated: 2569-11-12
+# Tasks: อนุมัติคำขอยืม ปกติและค้างคืน (Approve Request)
+Feature: 004-approve-request | Spec ID: SPEC-APV-004 (spec.md Draft v3)
+อ้างอิง: plan.md Draft v2 (v2 เพิ่มเฟส 19 ถึง 25 ตาม CR-009 คำขอยืมค้างคืน 2569-11-13), specs/000-shared/{constraints.md v5 (CON-TECH-03 รหัสของ 004 ลงทะเบียน 2569-11-12), data-model.md v9, glossary.md}
+Updated: 2569-11-13 (v2: CR-009 เฟส 19 ถึง 25, T-40 ถึง T-50 / เฟสรอคำตอบย้ายเป็นเฟส 26)
 
-สรุป: **20 เฟส 39 task** แบ่งเป็นเฟส 0 ฐานราก, เฟส 1 ถึง 18 (เฟสละ 1 AC ครบทั้ง 18 AC) และเฟส 19 รอคำตอบ
-**3 task รอ Open Questions** (T-37 ถึง T-39 ใน Q-APV-04, Q-SH-03) ส่วน T-21, T-22, T-30, T-31 ทำได้เลยแต่ ID ของ AC ยังรอทีมอนุมัติ (Q-APV-13, Q-APV-22)
+สรุป v2: **27 เฟส 50 task** เดิม 20 เฟส 39 task (T-01 ถึง T-36 เสร็จ) + เฟส 19 ถึง 25 ของคำขอค้างคืน (T-40 ถึง T-49) และ T-50 ของ AC-APV-19 ในเฟสรอคำตอบ / เดิม: **20 เฟส 39 task** แบ่งเป็นเฟส 0 ฐานราก, เฟส 1 ถึง 18 (เฟสละ 1 AC ครบทั้ง 18 AC) และเฟส 19 รอคำตอบ
+**2 task รอ Open Questions** (T-39 ใน Q-SH-03, T-50 ใน Q-APV-38) / T-37, T-38 ไม่ทำใน prototype (Q-APV-04 ปิด 2569-11-13) / AC-APV-19 ถึง 21 เพิ่ม 2569-11-13 ยังไม่มี task (ID ของ AC-APV-16 ถึง 18 ทีมอนุมัติแล้ว 2569-11-12 ปิด Q-APV-13, Q-APV-22)
 **เฟสแรกที่ลองใช้งานได้จริงคือเฟส 1** เจ้าหน้าที่เปิดหน้ารายการคำขอบนหน้าจอได้ และเฟส 2 เป็นเฟสแรกที่อนุมัติได้จริง
 
 เงื่อนไขก่อนเริ่มเฟส 0 (ไม่ใช่ Open Question ของ spec แต่ต้องตกลงในกลุ่ม ตาม plan ข้อ 8):
@@ -85,6 +85,7 @@ Updated: 2569-11-12
 - ต้องทำหลัง: T-04
 - เสร็จเมื่อ: `TestAC_APV_11` ผ่านทาง HTTP คืนรายการพร้อม `loaded_at` และทุก endpoint ใต้ `/v1/approvals/` ตอบ `FORBIDDEN_ROLE` เมื่อไม่ใช่เจ้าหน้าที่ (`{code, message}` ตาม CON-TECH-03)
 - สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / test ผ่าน 2569-11-12: `TestAC_APV_11_HTTP`, `TestApprovals_RequiresStaff`)
+- แก้ 2569-11-13 (rtm.md F-05): ตัด `studentCode` ออกจาก response ของ GET requests เพราะ FR-APV-01 (ก) ไม่ได้สั่ง (dto.go)
 
 ### T-06 สร้างหน้าจอ ApproveRequests แสดงรายการคำขอ
 - รองรับ: FR-APV-01 (ก)
@@ -94,6 +95,8 @@ Updated: 2569-11-12
 - ต้องทำหลัง: T-05
 - เสร็จเมื่อ: vitest `AC-APV-11` ผ่านด้วย client จำลอง แสดงชื่อผู้ขอ อุปกรณ์ วัตถุประสงค์ ช่วงเวลาที่ต้องการยืม เรียงตามเวลาที่ส่ง
 - สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / test ผ่าน 2569-11-12: vitest `AC-APV-11`)
+- แก้ 2569-11-13 (rtm.md F-05): ตัดคอลัมน์ "เวลาที่ส่ง" ออก แสดงเฉพาะ 4 ข้อมูลตาม FR-APV-01 (ก) (ApproveRequests.jsx)
+- แก้ 2569-11-12 (Q-APV-31 พบตอน /testcases แถว TC-APV-11-5): ไม่มีคำขอแสดง "ไม่มีคำขอที่รออนุมัติ" แทนตาราง (`APPROVAL_EMPTY_LIST` ใน config.js) / ตรวจด้วย vitest `TC-APV-11-5.test.jsx`
 
 #### จุดตรวจเฟส 1
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_11` (repository + HTTP), vitest `AC-APV-11` และ test ของเฟส 0
@@ -187,6 +190,7 @@ Updated: 2569-11-12
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `TestAC_APV_06` ผ่าน: ตอบ 422 `VALIDATION_FAILED` ระบุช่อง `reason` พร้อมข้อความ "กรุณาระบุเหตุผลในการปฏิเสธ" และสถานะคงเดิม
 - สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / test ผ่าน 2569-11-12: `TestAC_APV_06`)
+- แก้ 2569-11-12 (Q-APV-28 พบตอน /testcases แถว TC-APV-06-6): เหตุผลยาวเกิน `ApprovalRejectReasonMaxLength` (500 นับตาม code point) ได้ 422 `VALIDATION_FAILED` ข้อความ `ApprovalReasonTooLongMessage` ใน `service.go`, `handler.go`, `config.go` / ตรวจด้วย `TestTC_APV_06_6_VeryLongReason`
 
 ### T-13 แสดงข้อความเมื่อไม่ระบุเหตุผลบนหน้าจอ
 - รองรับ: FR-APV-01 (ซ)
@@ -196,6 +200,7 @@ Updated: 2569-11-12
 - ต้องทำหลัง: T-11, T-12
 - เสร็จเมื่อ: vitest `AC-APV-06` ผ่าน แสดง "กรุณาระบุเหตุผลในการปฏิเสธ" จาก `APPROVAL_MESSAGES` และคำขอยังอยู่ในรายการ
 - สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / test ผ่าน 2569-11-12: vitest `AC-APV-06`)
+- แก้ 2569-11-12 (Q-APV-28 พบตอน /testcases แถว TC-APV-06-6): หน้าจอไม่ส่งเหตุผลที่ยาวเกิน `APPROVAL_REASON_MAX_LENGTH` (นับตาม code point) แสดง "เหตุผลต้องไม่เกิน 500 ตัวอักษร" ใน `ApproveRequests.jsx` และ `config.js`
 
 #### จุดตรวจเฟส 4
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_06`, vitest `AC-APV-06` และ test ของเฟส 0 ถึง 3
@@ -326,13 +331,15 @@ Updated: 2569-11-12
 ## เฟส 9: อนุมัติไม่ได้เมื่อเลย 16:00 น. ของวันที่เริ่มยืม (AC-APV-16)
 
 ### T-21 ตรวจเวลาตัด 16:00 น. ก่อนอนุมัติ
-- รองรับ: FR-APV-01 (ค)(ซ), DOM-LOAN-01, Q-APV-11, Q-APV-16
+- รองรับ: FR-APV-01 (ค)(ซ), DOM-LOAN-01, Q-APV-11, Q-APV-16, Q-APV-26
 - ตรวจด้วย: AC-APV-16
 - ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/service_test.go`, `backend/internal/approve/handler.go` (แปลงเป็น 409 APPROVAL_CUTOFF_PASSED)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-07
 - เสร็จเมื่อ: `TestAC_APV_16` ผ่านด้วยนาฬิกาจำลอง: เลย `LoanNormalReturnHour` (16:00 น.) ของวันที่เริ่มยืม (Asia/Bangkok) ได้ 409 `APPROVAL_CUTOFF_PASSED` สถานะคงเดิม คำขอนั้นยังเป็นคำขอแรก (คำขอถัดไปยังได้ `NOT_FIRST_IN_QUEUE`) และปฏิเสธเองได้ (ID ของ AC-APV-16 รอ Q-APV-13 ถ้าทีมเปลี่ยน ID ให้เปลี่ยนชื่อ test ตาม)
-- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / test ผ่าน 2569-11-12: `TestAC_APV_16`, `TestApprove_BeforeCutoffAllowed` / ID ของ AC-APV-16 ยังรอ Q-APV-13)
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / test ผ่าน 2569-11-12: `TestAC_APV_16`, `TestApprove_BeforeCutoffAllowed`)
+- แก้ 2569-11-12 (Q-APV-26 พบตอน /testcases แถว TC-APV-01-5): 16:00:00 น. ตรงนับว่าเลยแล้ว เปลี่ยนเงื่อนไขใน service.go จาก `After` เป็น `!Before` / ตรวจด้วย `TestTC_APV_01_5_ApproveAt1600` (test ผ่าน 2569-11-12 พร้อม `TestAC_APV_16`, `TestApprove_BeforeCutoffAllowed`)
+- แก้ 2569-11-13 (rtm.md F-06): ข้อความ error ภายใน `ErrApprovalCutoff` ไม่มีตัวเลข 16:00 แล้ว ข้อความที่ผู้ใช้เห็นยังมาจาก config (service.go)
 
 ### T-22 แสดงข้อความ APPROVAL_CUTOFF_PASSED บนหน้าจอ
 - รองรับ: FR-APV-01 (ซ)
@@ -350,7 +357,7 @@ Updated: 2569-11-12
   Given ใช้ psql แก้ `start_at` ของคำขอแรกเป็นเมื่อวาน (เลย 16:00 น. ของวันที่เริ่มยืมแน่นอน)
   When กด "อนุมัติ" ที่คำขอนั้น
   Then เห็น "เลย 16:00 น. ของวันที่ยืมแล้ว อนุมัติไม่ได้" และคำขอยังเป็น `requested`
-- ยังขาด: ทีมยังไม่อนุมัติ ID ของ AC-APV-16 (Q-APV-13)
+- ยังขาด: ไม่มี (ทีมอนุมัติ ID ของ AC-APV-16 แล้ว 2569-11-12 Q-APV-13)
 
 ---
 
@@ -395,6 +402,7 @@ Updated: 2569-11-12
 - ต้องทำหลัง: T-10
 - เสร็จเมื่อ: `TestAC_APV_12` ผ่าน: `mock-staff-001` (ภาควิชา 1) อนุมัติหรือปฏิเสธคำขอของอุปกรณ์ภาควิชา 2 ได้ 403 `FORBIDDEN_DEPARTMENT` ข้อความ "คำขอนี้เป็นของอุปกรณ์ภาควิชาอื่น คุณไม่มีสิทธิ์พิจารณา" ไม่ส่งข้อมูลอุปกรณ์กลับ สถานะคงเดิม
 - สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / test ผ่าน 2569-11-12: `TestAC_APV_12`)
+- แก้ 2569-11-12 (Q-APV-34 พบตอน /testcases แถว TC-APV-12-7): ฝั่งปฏิเสธตรวจภาควิชาก่อนเหตุผล ลำดับใน `Reject` ของ service.go เป็น หาคำขอ -> ภาควิชา -> เหตุผล -> สถานะ (ปฏิเสธคำขอที่ไม่มีอยู่โดยไม่ใส่เหตุผลจึงได้ `REQUEST_NOT_FOUND`) / ตรวจด้วย `TestTC_APV_12_7_OtherDepartmentAndEmptyReason`
 
 ### T-26 แสดงข้อความ FORBIDDEN_DEPARTMENT บนหน้าจอ
 - รองรับ: FR-APV-01 (ซ)
@@ -482,7 +490,7 @@ Updated: 2569-11-12
 
 ---
 
-## เฟส 15: ระบบเริ่มทำงานหลังเที่ยงคืนแล้วไล่ปฏิเสธคำขอที่ค้าง (AC-APV-18 [เสนอ])
+## เฟส 15: ระบบเริ่มทำงานหลังเที่ยงคืนแล้วไล่ปฏิเสธคำขอที่ค้าง (AC-APV-18)
 
 ### T-30 ไล่ปฏิเสธคำขอที่เลยเวลาตอน service เริ่มทำงาน และเริ่ม goroutine ใน main.go
 - รองรับ: FR-APV-01 (ฉ), FR-APV-02 (ค), Q-APV-21
@@ -491,7 +499,7 @@ Updated: 2569-11-12
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-29
 - เสร็จเมื่อ: `TestAC_APV_18` ผ่าน: ตั้งนาฬิกาเลยเที่ยงคืนแล้วเริ่ม service คำขอยืมปกติที่ส่งวันก่อนเป็น `rejected` ทันทีพร้อม Email และ main.go เริ่มตัวส่ง Email กับงานเที่ยงคืน (ID ของ AC-APV-18 รอ Q-APV-22)
-- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / test ผ่าน 2569-11-12: `TestAC_APV_18` / ID ของ AC-APV-18 ยังรอ Q-APV-22)
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / test ผ่าน 2569-11-12: `TestAC_APV_18`)
 
 #### จุดตรวจเฟส 15
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_18` และ test ของเฟส 0 ถึง 14
@@ -500,11 +508,11 @@ Updated: 2569-11-12
   Given ปิดหลังบ้าน แล้วใช้ psql แก้ `submitted_at` ของคำขอยืมปกติหนึ่งใบเป็นเมื่อวาน
   When เปิดหลังบ้านใหม่ `go run ./cmd/server`
   Then คำขอนั้นเป็น `rejected` ผู้ดำเนินการ `system` ทันที และ log มี Email ปฏิเสธอัตโนมัติ
-- ยังขาด: ทีมยังไม่อนุมัติ ID ของ AC-APV-18 (Q-APV-22)
+- ยังขาด: ไม่มี (ทีมอนุมัติ ID ของ AC-APV-18 แล้ว 2569-11-12 Q-APV-22)
 
 ---
 
-## เฟส 16: คำขอค้างคืนถูกปฏิเสธตาม แต่ไม่ถูกปฏิเสธตอนเที่ยงคืน (AC-APV-17 [เสนอ])
+## เฟส 16: คำขอค้างคืนถูกปฏิเสธตาม แต่ไม่ถูกปฏิเสธตอนเที่ยงคืน (AC-APV-17)
 
 ### T-31 ทดสอบคำขอค้างคืนในการปฏิเสธตามและงานเที่ยงคืน
 - รองรับ: FR-APV-01 (จ)(ฉ), Q-APV-14
@@ -513,7 +521,7 @@ Updated: 2569-11-12
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-16, T-29
 - เสร็จเมื่อ: `TestAC_APV_17` ผ่าน: อนุมัติคำขอปกติ A แล้วคำขอค้างคืน C ของชิ้นเดียวกันเป็น `rejected` ด้วย `ApprovalSupersededReason` และมี Email / ถ้าไม่มีการอนุมัติ ถึง 00:00 น. แล้ว C ยังเป็น `requested` (ID ของ AC-APV-17 รอ Q-APV-22)
-- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / test ผ่าน 2569-11-12: `TestAC_APV_17` / ID ของ AC-APV-17 ยังรอ Q-APV-22)
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-12 / test ผ่าน 2569-11-12: `TestAC_APV_17`)
 
 #### จุดตรวจเฟส 16
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_17` และ test ของเฟส 0 ถึง 15
@@ -522,7 +530,7 @@ Updated: 2569-11-12
   Given approve_dev.sql มีคำขอยืมปกติ A และคำขอค้างคืน C บนอุปกรณ์ชิ้นเดียวกัน (C ไม่ขึ้นในหน้ารายการ)
   When อนุมัติ A บนหน้าจอ
   Then psql เห็น C เป็น `rejected` ด้วยเหตุผล "อุปกรณ์ชิ้นนี้ได้รับการอนุมัติให้คำขออื่นแล้ว" และ log มี Email ผลปฏิเสธของ C
-- ยังขาด: ทีมยังไม่อนุมัติ ID ของ AC-APV-17 (Q-APV-22)
+- ยังขาด: ไม่มี (ทีมอนุมัติ ID ของ AC-APV-17 แล้ว 2569-11-12 Q-APV-22)
 
 ---
 
@@ -597,7 +605,190 @@ Updated: 2569-11-12
 
 ---
 
-## เฟส 19: รอคำตอบ
+## เฟส 19: ฐานรากของคำขอยืมค้างคืน (CR-009, ไม่มี AC ตรง)
+
+เพิ่ม 2569-11-13 ตาม spec Draft v3 และ plan Draft v2 ข้อ 7 ลำดับงานข้อ 9 ส่วนยืมปกติที่เสร็จแล้วห้ามแก้พฤติกรรม
+
+### T-40 สร้าง migration 0011_approval_overnight
+- รองรับ: FR-APV-03 (ข)(ช), FR-APV-01 (ฌ), CON-TECH-01
+- ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นงานพื้นฐานของ T-44
+- ไฟล์ที่แตะ: `backend/db/migrations/0011_approval_overnight.up.sql`, `backend/db/migrations/0011_approval_overnight.down.sql`, `backend/internal/platform/migrate_approval_test.go`
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: T-01
+- เสร็จเมื่อ: test ยืนยันว่ามีคอลัมน์ `approval_decision.advisor_name` (ว่างได้) และตาราง `approval_step` (request_id FK, status เฉพาะ `approved_by_officer` / `pending_advisor_approval` / `approved`, actor_id, created_at) ที่ UPDATE / DELETE ไม่ได้ และ down ย้อนได้
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestMigration_ApprovalOvernight`, `TestMigration_ApprovalOvernightDown`)
+
+### T-41 เพิ่มค่าของคำขอค้างคืนใน config
+- รองรับ: FR-APV-03 (ช), FR-APV-01 (ซ), Q-APV-44
+- ตรวจด้วย: ไม่มี AC ตรง ๆ เป็นงานพื้นฐานของ T-44, T-45
+- ไฟล์ที่แตะ: `backend/internal/config/config.go`, `backend/internal/config/config_approval_test.go`, `frontend/src/config.js`
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: ไม่มี
+- เสร็จเมื่อ: มี `ApprovalAdvisorNameMaxLength` = 100, `ApprovalAdvisorNameRequiredMessage` "กรุณาระบุชื่ออาจารย์ที่เซ็นอนุมัติ", `ApprovalAdvisorNameTooLongMessage` "ชื่ออาจารย์ต้องไม่เกิน 100 ตัวอักษร" และค่าเดียวกันใน config.js / ใช้ `LoanTypeOvernight` และชื่อสถานะของ 002 ที่มีอยู่ ไม่ประกาศซ้ำ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestConfig_ApprovalOvernightValues`)
+
+#### จุดตรวจเฟส 19
+- test ที่ต้องผ่านทั้งหมด: `TestMigration_ApprovalTables` และ test ใหม่ของ 0011, `TestConfig_Approval*` และ test ของ**ทุกเฟส**ต้องยังผ่าน
+- เปิดระบบ: หลังบ้านตามหัวไฟล์ (migration 0011 รันเองตอนเริ่ม)
+- คนลองเองตาม AC: ยังไม่มี AC ในเฟสนี้ ให้ลองว่า
+  Given ฐานข้อมูลเดิมที่รันถึง 0010 แล้ว
+  When เปิดหลังบ้านใหม่
+  Then psql `\d approval_decision` มีคอลัมน์ advisor_name และ `\d approval_step` มีตาราง
+- ยังขาด: ไม่มี
+
+---
+
+## เฟส 20: เจ้าหน้าที่เห็นคำขอค้างคืนในรายการ พร้อมเปิดใบบันทึกข้อความ (FR-APV-03 ก, AC-APV-11)
+
+### T-42 รวมคำขอค้างคืนในรายการของหลังบ้าน
+- รองรับ: FR-APV-03 (ก), FR-APV-01 (ก), Q-APV-41
+- ตรวจด้วย: AC-APV-11
+- ไฟล์ที่แตะ: `backend/internal/approve/repository.go`, `backend/internal/approve/model.go`, `backend/internal/approve/dto.go`, `backend/internal/approve/repository_test.go`, `backend/internal/approve/handler_test.go`
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: T-04, T-40
+- เสร็จเมื่อ: `TestAC_APV_11` ที่แก้ตาม v3 ผ่าน: รายการมีคำขอค้างคืน `requested` ของภาควิชาตนเองพร้อม `loanType` / `isFirst` คิดเฉพาะยืมปกติ (Q-APV-23 คงเดิม) / คำขอที่มีไฟล์แนบมี `attachmentUrl` = `/v1/loan-requests/{id}/attachment`
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestAC_APV_11`, `TestAC_APV_11_HTTP`, `TestListPending_OvernightDoesNotBlockQueue` / ทีมแก้แถว TC-APV-11-1, 11-3 แล้ว 2569-11-13 `TestTC_APV_11_1`, `TestTC_APV_11_3` ผ่าน)
+
+### T-43 แสดงประเภทการยืมและลิงก์ใบบันทึกข้อความบนหน้าจอ
+- รองรับ: FR-APV-03 (ก), Q-APV-41
+- ตรวจด้วย: AC-APV-11
+- ไฟล์ที่แตะ: `frontend/src/pages/ApproveRequest/ApproveRequests.jsx`, `frontend/src/pages/ApproveRequest/ApproveRequests.test.jsx`, `frontend/src/config.js`, `frontend/src/api/client.js` (เพิ่ม 2569-11-13 เจ้าของอนุมัติ: ลิงก์ธรรมดาส่ง token ไม่ได้ ต้องดึงไฟล์พร้อม token)
+- แบบหน้าจอ: ไม่มี (ไม่มี mockup ทีมออกแบบเอง)
+- ต้องทำหลัง: T-06, T-42
+- เสร็จเมื่อ: vitest `AC-APV-11` ผ่าน แถวค้างคืนแสดงประเภท "ค้างคืน" และลิงก์ "เปิดใบบันทึกข้อความ" ชี้ไปที่ attachmentUrl / แถวยืมปกติไม่มีลิงก์
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: vitest `AC-APV-11 แถวค้างคืนแสดงประเภทและลิงก์เปิดใบบันทึกข้อความ แถวปกติไม่มีลิงก์`, `AC-APV-11 เปิดใบบันทึกข้อความไม่สำเร็จ แสดงข้อความตามรหัสและรายการยังอยู่`)
+
+#### จุดตรวจเฟส 20
+- test ที่ต้องผ่านทั้งหมด: `TestAC_APV_11` (แก้ตาม v3), `TestAC_APV_11_HTTP`, vitest `AC-APV-11` และ test ของ**ทุกเฟส**
+- เปิดระบบ: หลังบ้านและหน้าจอตามหัวไฟล์ ใช้ `mock-staff-001` และ approve_dev.sql
+- คนลองเองตาม AC-APV-11:
+  Given ข้อมูล approve_dev.sql ที่มีคำขอค้างคืน C ของ AP-TEST-0001
+  When เปิดหน้ารายการคำขอ
+  Then เห็นคำขอ C ประเภท "ค้างคืน" พร้อมลิงก์เปิดใบบันทึกข้อความ (ถ้า C มีไฟล์แนบ) และคำขอยืมปกติยังเรียงและมีปุ่มอนุมัติเฉพาะคำขอแรกเหมือนเดิม
+- ยังขาด: แถว TC-APV-11-1 ใน test-cases.md ยังยึดว่าค้างคืนไม่ขึ้นรายการ ทีมต้องแก้แถวก่อนแก้ `TestTC_APV_11_1`
+
+---
+
+## เฟส 21: อนุมัติคำขอค้างคืนพร้อมชื่ออาจารย์ (AC-APV-22)
+
+### T-44 อนุมัติคำขอค้างคืนในหลังบ้าน
+- รองรับ: FR-APV-03 (ข)(ค)(ง)(ช), FR-APV-01 (ซ)(ฌ), CON-DATA-01, Q-APV-42, Q-APV-44
+- ตรวจด้วย: AC-APV-22
+- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/repository.go`, `backend/internal/approve/handler.go`, `backend/internal/approve/dto.go`, `backend/internal/approve/service_test.go`, `backend/internal/approve/handler_test.go`, `backend/internal/approve/model.go` (เพิ่ม 2569-11-13 ต้องมีช่อง AdvisorName ใน decision ทีมตรวจแล้ว)
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: T-07, T-40, T-41
+- เสร็จเมื่อ: `TestAC_APV_22` ผ่าน: อนุมัติค้างคืนพร้อม advisorName -> `approved`, อุปกรณ์ยัง `available`, `approval_decision.advisor_name` ตรง, `approval_step` 3 แถว / ชื่อว่างหรือยาว 101 code point -> 422 `VALIDATION_FAILED` ช่อง advisorName ข้อความจาก config สถานะคงเดิม / อุปกรณ์ไม่ว่าง -> 409 `ITEM_NOT_AVAILABLE` / ลำดับการตรวจยืมปกติไม่เปลี่ยน (test เดิมทุกตัวผ่าน)
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestAC_APV_22`, `TestApproveOvernight_Rules`, `TestAC_APV_22_HTTP` / ทีมแก้แถว TC-APV-01-12 แล้ว 2569-11-13 `TestTC_APV_01_12_OvernightWithoutAdvisor` ผ่าน)
+
+### T-45 ช่องชื่ออาจารย์และปุ่มอนุมัติของคำขอค้างคืนบนหน้าจอ
+- รองรับ: FR-APV-03 (ข)(ช), FR-APV-01 (ซ)
+- ตรวจด้วย: AC-APV-22
+- ไฟล์ที่แตะ: `frontend/src/pages/ApproveRequest/ApproveRequests.jsx`, `frontend/src/pages/ApproveRequest/ApproveRequests.test.jsx`, `frontend/src/api/client.js`
+- แบบหน้าจอ: ไม่มี (ไม่มี mockup ทีมออกแบบเอง)
+- ต้องทำหลัง: T-09, T-43, T-44
+- เสร็จเมื่อ: vitest `AC-APV-22` ผ่าน แถวค้างคืนทุกแถวมีปุ่มอนุมัติและช่องชื่ออาจารย์ / ชื่อว่างหรือเกิน 100 ตัวอักษรแสดงข้อความและไม่ส่ง / ส่ง advisorName กับ loadedAt ไปหลังบ้าน แล้วแถวหายจากรายการ
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: vitest `AC-APV-22` 3 ตัว)
+
+#### จุดตรวจเฟส 21
+- test ที่ต้องผ่านทั้งหมด: `TestAC_APV_22`, vitest `AC-APV-22` และ test ของ**ทุกเฟส**
+- เปิดระบบ: หลังบ้านและหน้าจอตามหัวไฟล์
+- คนลองเองตาม AC-APV-22:
+  Given คำขอค้างคืน C ของ AP-TEST-0001 (ภาควิชา 1)
+  When พิมพ์ชื่ออาจารย์แล้วกด "อนุมัติ" ที่แถว C แล้วรีเฟรช
+  Then C ไม่อยู่ในรายการ psql `borrow_request.status` เป็น `approved` อุปกรณ์ยัง `available` และ `approval_decision.advisor_name` เป็นชื่อที่พิมพ์
+- ยังขาด: แถว TC-APV-01-12 ใน test-cases.md ยังยึดว่าอนุมัติค้างคืนได้ 404 ทีมต้องแก้แถวก่อนแก้ `TestTC_APV_01_12`
+
+---
+
+## เฟส 22: คำขอค้างคืนไม่มีคิว (AC-APV-23)
+
+### T-46 ตรวจว่าคำขอค้างคืนอนุมัติได้ไม่ตามลำดับ
+- รองรับ: FR-APV-03 (ค)(ฉ), DOM-REQ-01
+- ตรวจด้วย: AC-APV-23
+- ไฟล์ที่แตะ: `backend/internal/approve/service_test.go`
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: T-44
+- เสร็จเมื่อ: `TestAC_APV_23` ผ่าน: ค้างคืน X (ส่งก่อน) และ Y ชิ้นเดียวกัน อนุมัติ Y -> Y `approved` X `rejected` เหตุผล `ApprovalSupersededReason` (ไม่ได้ `NOT_FIRST_IN_QUEUE`)
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestAC_APV_23`)
+
+#### จุดตรวจเฟส 22
+- test ที่ต้องผ่านทั้งหมด: `TestAC_APV_23` และ test ของ**ทุกเฟส**
+- เปิดระบบ: หลังบ้านและหน้าจอตามหัวไฟล์
+- คนลองเองตาม AC-APV-23:
+  Given เพิ่มคำขอค้างคืนอีกใบบน AP-TEST-0001 ด้วย psql (ผู้ขออีกคน ส่งหลัง C)
+  When อนุมัติใบที่ส่งทีหลังพร้อมชื่ออาจารย์
+  Then ใบนั้น `approved` และ C เป็น `rejected` ด้วยเหตุผล "อุปกรณ์ชิ้นนี้ได้รับการอนุมัติให้คำขออื่นแล้ว"
+- ยังขาด: ไม่มี
+
+---
+
+## เฟส 23: อนุมัติคำขอค้างคืนแล้วคำขอปกติของชิ้นเดียวกันถูกปฏิเสธตาม (AC-APV-24)
+
+### T-47 ตรวจการปฏิเสธตามเมื่อคำขอค้างคืนได้อนุมัติ
+- รองรับ: FR-APV-03 (ฉ), FR-APV-01 (จ), FR-APV-02 (ข)
+- ตรวจด้วย: AC-APV-24
+- ไฟล์ที่แตะ: `backend/internal/approve/service_test.go`
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: T-16, T-44
+- เสร็จเมื่อ: `TestAC_APV_24` ผ่าน: ค้างคืน C และปกติ A ชิ้นเดียวกัน อนุมัติ C -> C `approved` A `rejected` เหตุผล `ApprovalSupersededReason` ผู้ดำเนินการคือเจ้าหน้าที่ และมี `approval_email` ผลปฏิเสธของ A
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestAC_APV_24`)
+
+#### จุดตรวจเฟส 23
+- test ที่ต้องผ่านทั้งหมด: `TestAC_APV_24` และ test ของ**ทุกเฟส**
+- เปิดระบบ: หลังบ้านและหน้าจอตามหัวไฟล์
+- คนลองเองตาม AC-APV-24:
+  Given ข้อมูล approve_dev.sql (AP-TEST-0001 มีคำขอปกติ A, B และค้างคืน C)
+  When อนุมัติ C พร้อมชื่ออาจารย์
+  Then A และ B หายจากรายการ psql A และ B เป็น `rejected` และ log ของตัวส่ง Email จำลองมี Email ผลปฏิเสธของ A และ B
+- ยังขาด: ไม่มี
+
+---
+
+## เฟส 24: ปฏิเสธคำขอค้างคืนพร้อมเหตุผล (AC-APV-25)
+
+### T-48 ปฏิเสธคำขอค้างคืนในหลังบ้าน
+- รองรับ: FR-APV-03 (จ), FR-APV-01 (ง)(ซ), FR-APV-02 (ข), Q-APV-43
+- ตรวจด้วย: AC-APV-25
+- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/service_test.go`
+- แบบหน้าจอ: ไม่มี (ใช้ปุ่มปฏิเสธเดิมจาก T-11)
+- ต้องทำหลัง: T-10, T-44
+- เสร็จเมื่อ: `TestAC_APV_25` ผ่าน: ปฏิเสธค้างคืนพร้อมเหตุผล -> `rejected` ไม่มี advisor_name ไม่มี approval_step และตัวส่งจำลองได้ Email ผลปฏิเสธภายใน 60 วินาที / กฎเหตุผลเดิม (ว่าง, 500 ตัวอักษร) ใช้กับค้างคืนด้วย
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestAC_APV_25` / ทีมแก้แถว TC-APV-02-11 แล้ว 2569-11-13 `TestTC_APV_02_11_OvernightRejected` ผ่าน)
+
+#### จุดตรวจเฟส 24
+- test ที่ต้องผ่านทั้งหมด: `TestAC_APV_25` และ test ของ**ทุกเฟส**
+- เปิดระบบ: หลังบ้านและหน้าจอตามหัวไฟล์
+- คนลองเองตาม AC-APV-25:
+  Given คำขอค้างคืน C ของ AP-TEST-0001
+  When กด "ปฏิเสธ" ที่แถว C พิมพ์เหตุผล แล้วยืนยัน
+  Then C หายจากรายการ psql เป็น `rejected` และ log ของตัวส่ง Email จำลองมี Email ผลปฏิเสธของ C
+- ยังขาด: ไม่มี
+
+---
+
+## เฟส 25: คำขอค้างคืนไม่มีเวลาตัดและไม่ถูกปฏิเสธอัตโนมัติ (AC-APV-26)
+
+### T-49 ตรวจว่าเวลาตัดและงานเที่ยงคืนไม่ใช้กับคำขอค้างคืน
+- รองรับ: FR-APV-03 (ง), FR-APV-01 (ค)(ฉ), DOM-LOAN-01
+- ตรวจด้วย: AC-APV-26
+- ไฟล์ที่แตะ: `backend/internal/approve/service_test.go`, `backend/internal/approve/autoreject_test.go`
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: T-21, T-29, T-44
+- เสร็จเมื่อ: `TestAC_APV_26` ผ่าน: นาฬิกาจำลองเลย 16:00 น. ของวันที่เริ่มยืมและเลยเที่ยงคืนของวันที่ส่ง อนุมัติค้างคืนพร้อมชื่ออาจารย์ -> `approved` / งานเที่ยงคืนและ CatchUp ไม่แตะคำขอค้างคืน
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestAC_APV_26` / ไม่ได้แตะ autoreject_test.go เพราะ test เดียวตรวจทั้งงานเที่ยงคืนและการอนุมัติ)
+
+#### จุดตรวจเฟส 25
+- test ที่ต้องผ่านทั้งหมด: `TestAC_APV_26` และ test ของ**ทุกเฟส**
+- เปิดระบบ: หลังบ้านตามหัวไฟล์ (เวลาตัดและเที่ยงคืนลองด้วยมือยาก ตรวจด้วย test ที่ใช้นาฬิกาจำลอง)
+- คนลองเองตาม AC-APV-26:
+  Given คำขอค้างคืนที่วันที่เริ่มยืมเป็นวันนี้ และเปิดระบบหลัง 16:00 น.
+  When อนุมัติพร้อมชื่ออาจารย์
+  Then อนุมัติสำเร็จ ไม่ขึ้นข้อความ "เลย 16:00 น. ของวันที่ยืมแล้ว อนุมัติไม่ได้"
+- ยังขาด: ไม่มี
+
+---
+
+## เฟส 26: รอคำตอบ
 
 ### T-37 เปลี่ยน RecipientResolver เป็นตัวจริงที่หา Email มหาวิทยาลัยของผู้ขอ
 - รองรับ: FR-APV-02, IF-NOT-01
@@ -606,7 +797,7 @@ Updated: 2569-11-12
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-14
 - เสร็จเมื่อ: Email ส่งถึงที่อยู่ของผู้ขอตามแหล่งที่ทีมตัดสิน และ `TestAC_APV_04`, `TestAC_APV_13` ยังผ่าน
-- สถานะ: รอ Q-APV-04
+- สถานะ: ไม่ทำใน prototype (Q-APV-04 ปิด 2569-11-13: ใช้ Email แบบจำลองตลอด prototype ASM-10)
 
 ### T-38 ใส่ชื่อเจ้าหน้าที่ในประวัติและใน Email
 - รองรับ: FR-APV-01 (ฌ), FR-APV-02 (ก)(ข), ASM-09
@@ -615,7 +806,7 @@ Updated: 2569-11-12
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-28
 - เสร็จเมื่อ: `actor_name` ไม่ว่าง และ Email แสดงชื่อผู้อนุมัติ / ผู้พิจารณา
-- สถานะ: รอ Q-APV-04 (plan ข้อ 8 เสนอรวมชื่อเจ้าหน้าที่ใน CR เดียวกับ Email เพราะ Principal DM-08 ยังไม่มีชื่อ)
+- สถานะ: ไม่ทำใน prototype (Q-APV-04 ปิด 2569-11-13, ASM-11 ใช้รหัสแทนชื่อ) / เดิม: รอ Q-APV-04 (plan ข้อ 8 เสนอรวมชื่อเจ้าหน้าที่ใน CR เดียวกับ Email เพราะ Principal DM-08 ยังไม่มีชื่อ)
 
 ### T-39 เปลี่ยน auth จำลองเป็นระบบยืนยันตัวตนจริงของมหาวิทยาลัย
 - รองรับ: IF-IDP-01, NFR-SEC-01
@@ -627,6 +818,15 @@ Updated: 2569-11-12
 - สถานะ: รอ Q-SH-03
 
 ---
+
+### T-50 ทดสอบว่าเรียก API ผ่าน HTTP ธรรมดาหรือ TLS ต่ำกว่า 1.2 ไม่ได้
+- รองรับ: NFR-SEC-01, CON-TECH-02
+- ตรวจด้วย: AC-APV-19
+- ไฟล์ที่แตะ: ขึ้นกับว่าทีมทำ HTTPS ที่ไหน (Q-APV-38) เช่น `deploy/` และ test ของ 004
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: ไม่มี
+- เสร็จเมื่อ: test ของ AC-APV-19 ผ่านบนระบบที่มี HTTPS
+- สถานะ: รอ Q-APV-38
 
 ## ตารางตรวจความครบ
 
@@ -643,33 +843,42 @@ Updated: 2569-11-12
 | AC-APV-08 | T-19, T-20 |
 | AC-APV-09 | T-23, T-24 |
 | AC-APV-10 | T-35, T-36 |
-| AC-APV-11 | T-04, T-05, T-06 |
+| AC-APV-11 | T-04, T-05, T-06, T-42, T-43 |
 | AC-APV-12 | T-25, T-26, T-39 |
 | AC-APV-13 | T-29, T-37 |
 | AC-APV-14 | T-32, T-33, T-34 |
 | AC-APV-15 | T-28, T-29, T-38 |
-| AC-APV-16 [เสนอ] | T-21, T-22 |
-| AC-APV-17 [เสนอ] | T-31 |
-| AC-APV-18 [เสนอ] | T-30 |
+| AC-APV-16 | T-21, T-22 |
+| AC-APV-17 | T-31 |
+| AC-APV-18 | T-30 |
+| AC-APV-19 | T-50 (รอ Q-APV-38) |
+| AC-APV-20 | T-05, T-07, T-10 (โค้ดมีแล้วใน writeServiceError) / test: TC-APV-20-1 ถึง 20-8 ผ่าน 2569-11-13 |
+| AC-APV-21 | T-08 / test: TC-APV-21-1 ถึง 21-7 ผ่าน 2569-11-13 (v3: TC-APV-01-12, 02-11 ที่ตรวจค้างคืนได้ 404 ไม่ตรง AC นี้แล้ว รอทีมแก้แถว) |
+| AC-APV-22 | T-44, T-45 |
+| AC-APV-23 | T-46 |
+| AC-APV-24 | T-47 |
+| AC-APV-25 | T-48 |
+| AC-APV-26 | T-49 |
 
 ### 2. Constraint กับ task
 | Constraint ID | task ที่ทำให้เป็นจริง |
 |---|---|
-| CON-TECH-01 | T-01 |
-| CON-TECH-02 | T-05 (route อยู่ใน server เดิมหลัง proxy HTTPS ของกลาง) |
+| CON-TECH-01 | T-01, T-40 |
+| CON-TECH-02 | T-05 (route อยู่ใน server เดิมหลัง proxy HTTPS ของกลาง)  / T-50 รอ Q-APV-38 (rtm F-01: ยังไม่มี proxy HTTPS) |
 | CON-TECH-03 | T-02, T-05, T-12, T-17, T-19, T-23, T-25, T-27, T-35 |
-| CON-DATA-01 | T-07, T-10, T-19 |
-| DOM-REQ-01 | T-04, T-07, T-16, T-17 |
-| DOM-LOAN-01 | T-02, T-21 |
+| CON-DATA-01 | T-07, T-10, T-19, T-44 |
+| DOM-REQ-01 | T-04, T-07, T-16, T-17, T-46 |
+| DOM-LOAN-01 | T-02, T-21, T-49 |
 | IF-IDP-01 | T-05, T-25, T-27, T-39 |
 | IF-NOT-01 | T-14, T-15, T-32, T-37 |
-| NFR-SEC-01 | T-05, T-27, T-39 |
+| NFR-SEC-01 | T-05, T-27, T-39, T-50 (TLS รอ Q-APV-38) |
 
 ### 3. FR กับ AC
 | FR ID | AC ที่ตรวจ FR นี้ | เฟส |
 |---|---|---|
 | FR-APV-01 | AC-APV-01, 02, 03, 05 ถึง 12, 15, 16, 17, 18 | 1 ถึง 4, 6 ถึง 16, 18 |
 | FR-APV-02 | AC-APV-04, 13, 14, 17, 18 | 5, 14 ถึง 17 |
+| FR-APV-03 | AC-APV-11, 22 ถึง 26 | 19 ถึง 25 |
 
 ---
 
@@ -680,9 +889,9 @@ Open Questions จาก spec.md ที่ยังเปิดอยู่:
 | Q-SH-03 auth service ใช้โปรโตคอลอะไร ส่งบทบาทกับภาควิชามาแบบไหน | T-39 (ระหว่างนี้ใช้ auth จำลอง ASM-02) |
 | Q-SH-08 ระบบยืนยันตัวตนเชื่อมต่อไม่ได้ ต้องทำอย่างไร | ไม่มี task (ยังไม่มีคำตอบให้สร้าง) |
 | Q-APV-01 รับคำขอยืมแบบค้างคืน | ไม่มี task (Out of scope ของ spec นี้ ทุก task กรอง `loan_type = 'normal'` ยกเว้นการปฏิเสธตามใน T-16 ตาม Q-APV-14) |
-| Q-APV-04 Email ของผู้ขอมาจากไหน | T-37, T-38 |
-| Q-APV-13 อนุมัติ ID ของ AC-APV-16 | T-21, T-22 ทำได้ ชื่อ test รอ |
-| Q-APV-22 อนุมัติ ID ของ AC-APV-17, 18 | T-30, T-31 ทำได้ ชื่อ test รอ |
+| Q-APV-04 Email ของผู้ขอมาจากไหน [ปิดแล้ว 2569-11-13 ใช้แบบจำลองตลอด prototype] | T-37, T-38 ไม่ทำใน prototype |
+| Q-APV-13 อนุมัติ ID ของ AC-APV-16 [ปิดแล้ว 2569-11-12] | T-21, T-22 เสร็จ ไม่มีอะไรรอ |
+| Q-APV-22 อนุมัติ ID ของ AC-APV-17, 18 [ปิดแล้ว 2569-11-12] | T-30, T-31 เสร็จ ไม่มีอะไรรอ |
 
 เรื่องที่ต้องคุยกับคนอื่น (จาก plan ข้อ 8 ไม่ใช่ task ของ 004):
 - เลข migration ได้ 0008 แล้ว / ค่า action กำหนดใน migration 0008 ไม่เขียนใน data-model.md (ทีมตัดสิน 2569-11-12)

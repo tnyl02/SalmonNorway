@@ -1,0 +1,236 @@
+import { useEffect, useState } from 'react'
+import { api } from '../../api/client.js'
+import RequestErrorSummary, { summaryText } from '../../components/RequestErrorSummary.jsx'
+import {
+  ATTACHMENT_ALLOWED_TYPES,
+  LABEL_SUBMIT_REQUEST,
+  MSG_ATTACHMENT_HINT,
+  MSG_LOAN_NORMAL_CONDITIONS,
+  MSG_STACKED_NOTICE,
+  MSG_SUBMIT_SUCCESS,
+  PURPOSE_OPTIONS,
+  PURPOSE_OTHER,
+} from '../../config.js'
+
+// หน้าแบบฟอร์มส่งคำขอยืมอุปกรณ์ (UC-02 รวม UC-05 ยืมค้างคืน)
+// ช่องที่ต้องกรอกตาม FR-BRQ-03 ข้อ ก: ชื่อ-นามสกุล, รหัสนักศึกษา, วันและเวลาที่เริ่มยืม, วันและเวลาที่คืน, วัตถุประสงค์
+// วัตถุประสงค์เลือกจากรายการ 3 ค่า เลือก "อื่น ๆ" ต้องพิมพ์ระบุเพิ่ม (FR-BRQ-02, AC-BRQ-02, AC-BRQ-14)
+// เลือก "ค้างคืน" ต้องแนบใบบันทึกข้อความตั้งแต่ตอนส่ง ส่วน "ปกติ" ต้องเห็นเงื่อนไขก่อนส่ง (FR-BRQ-10, AC-BRQ-10)
+// ไม่มี mockup ทีมออกแบบเอง (Q-BRQ-14 ปิดแล้ว 2569-11-12) ข้อความที่ FR สั่งให้แสดงอยู่ใน config.js ที่เดียว
+//
+// หน้าจอไม่ตัดสินใจแทนหลังบ้าน: กดส่งได้เสมอ แล้วให้หลังบ้านตรวจและตอบรหัสตาม CON-TECH-03
+// การแสดงข้อความของแต่ละรหัสและการชี้ช่องที่ผิดเป็นงานของ T-20 ที่นี่แสดง message ที่หลังบ้านส่งมาไปก่อน
+export default function BorrowRequestForm({ client = api, assetCode: initialAssetCode = '' }) {
+  const [assetCode, setAssetCode] = useState(initialAssetCode)
+  const [requesterName, setRequesterName] = useState('')
+  const [studentCode, setStudentCode] = useState('')
+  const [loanType, setLoanType] = useState('normal')
+  const [startAt, setStartAt] = useState('')
+  const [endAt, setEndAt] = useState('')
+  const [purpose, setPurpose] = useState('')
+  const [purposeOther, setPurposeOther] = useState('')
+  const [attachment, setAttachment] = useState(null)
+  const [sending, setSending] = useState(false)
+  const [created, setCreated] = useState(null)
+  const [error, setError] = useState(null)
+  const [openStatus, setOpenStatus] = useState(null)
+
+  const overnight = loanType === 'overnight'
+
+  // ล็อกรหัสครุภัณฑ์เมื่อเปิดฟอร์มมาจากปุ่มของ 001 ผู้ขอจะได้ไม่เผลอแก้เป็นชิ้นที่ไม่ได้ดูสถานะไว้
+  // (FR-BRQ-01 ระบุว่ารหัสครุภัณฑ์มาจาก FR-EQS-06) เปิดหน้าตรงจากเมนูยังพิมพ์เองได้เหมือนเดิม
+  const assetCodeFromList = initialAssetCode !== ''
+
+  // ตรวจสถานะอุปกรณ์ตั้งแต่ตอนเปิดฟอร์ม ไม่ต้องรอให้กดส่ง (FR-BRQ-01, AC-BRQ-01, T-25)
+  // เรียกเฉพาะรหัสที่ส่งมาจาก 001 เพื่อไม่ให้ยิง API ทุกตัวอักษรที่ผู้ขอพิมพ์เอง
+  // ถ้าเรียกไม่สำเร็จ เงียบไว้และปล่อยให้ส่งคำขอได้ตามปกติ เพราะการตรวจจริงอยู่ที่หลังบ้าน
+  // ในคำสั่งเดียวกับการบันทึก การปิดกั้นตรงนี้จะขัด FR-BRQ-09
+  useEffect(() => {
+    if (!assetCodeFromList || typeof client.getItem !== 'function') return
+    let cancelled = false
+    client
+      .getItem(initialAssetCode)
+      .then((item) => {
+        if (!cancelled) setOpenStatus(item?.status ?? null)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [client, initialAssetCode, assetCodeFromList])
+
+  // แจ้งเตือนเมื่อสถานะที่อ่านได้ตอนเปิดฟอร์มไม่ใช่ "ว่าง" ใช้ข้อความและคำไทยชุดเดียวกับตอนกดส่ง
+  const unavailableAtOpen = openStatus !== null && openStatus !== 'available'
+
+  // invalid ทำเครื่องหมายช่องที่หลังบ้านบอกว่าต้องแก้ (VALIDATION_FAILED + fields, FR-BRQ-03)
+  // ทำ 2 ทางคู่กัน: กรอบสีแดงให้คนเห็น และ aria-invalid ให้เครื่องอ่านหน้าจอรู้ (NFR-USE-01)
+  const invalid = (field) =>
+    error?.fields?.includes(field) ? { 'aria-invalid': 'true', className: INPUT_INVALID } : { className: INPUT }
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setSending(true)
+    setError(null)
+    setCreated(null)
+    try {
+      const result = await client.createLoanRequest(
+        {
+          assetCode,
+          requesterName,
+          studentCode,
+          loanType,
+          purpose,
+          // ไม่ได้เลือก "อื่น ๆ" ไม่ต้องส่งข้อความที่พิมพ์ไว้ (FR-BRQ-02 ข้อ ข)
+          purposeOther: purpose === PURPOSE_OTHER ? purposeOther : '',
+          // ช่องวันเวลาที่ยังไม่ได้กรอก ต้อง "ไม่ส่งช่องนั้นไปเลย" ห้ามส่งสตริงว่าง
+          // เพราะหลังบ้านแปลงสตริงว่างเป็นวันเวลาไม่ได้ จะล้มตั้งแต่อ่าน JSON แล้วตอบโดยไม่มีรายชื่อช่องที่ขาด
+          // ทำให้ผู้ขอไม่รู้ว่าต้องแก้ตรงไหน (FR-BRQ-03, พบตอนทีมลองด้วยมือ 2569-11-13)
+          ...onlyIfFilled('startAt', toBangkok(startAt)),
+          ...onlyIfFilled('endAt', toBangkok(endAt)),
+        },
+        overnight ? attachment : null,
+      )
+      setCreated(result)
+    } catch (err) {
+      // เก็บรหัสไว้ให้ RequestErrorSummary เลือกข้อความ และเก็บ fields กับ status ที่หลังบ้านแนบมา
+      // (CON-TECH-03, FR-BRQ-03 ระบุช่องที่ยังขาด, FR-BRQ-01 แจ้งสถานะล่าสุด)
+      setError({
+        code: err?.code,
+        message: err?.serverMessage,
+        fields: err?.body?.fields,
+        status: err?.body?.status,
+      })
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mx-auto flex max-w-xl flex-col gap-4 p-4">
+      <h2 className="text-lg font-semibold">{LABEL_SUBMIT_REQUEST}</h2>
+
+      <Field id="assetCode" label="รหัสครุภัณฑ์">
+        {/* รหัสครุภัณฑ์ไม่อยู่ในรายชื่อช่องที่หลังบ้านส่งกลับมา (รหัสว่างหรือผิดถูกปฏิเสธด้วย ITEM_NOT_AVAILABLE) */}
+        <input
+          id="assetCode"
+          value={assetCode}
+          onChange={(e) => setAssetCode(e.target.value)}
+          readOnly={assetCodeFromList}
+          className={INPUT}
+        />
+      </Field>
+
+      {/* อุปกรณ์ไม่ว่างแล้วตั้งแต่ตอนเปิดฟอร์ม ผู้ขอจะได้ไม่กรอกจนจบแล้วค่อยรู้ (FR-BRQ-01, AC-BRQ-01) */}
+      {unavailableAtOpen && (
+        <p role="status" className="text-sm text-amber-700">
+          {summaryText({ code: 'ITEM_NOT_AVAILABLE', status: openStatus })}
+        </p>
+      )}
+
+      <Field id="requesterName" label="ชื่อ-นามสกุล">
+        <input {...invalid('requesterName')} id="requesterName" value={requesterName} onChange={(e) => setRequesterName(e.target.value)} />
+      </Field>
+
+      <Field id="studentCode" label="รหัสนักศึกษา">
+        <input {...invalid('studentCode')} id="studentCode" value={studentCode} onChange={(e) => setStudentCode(e.target.value)} />
+      </Field>
+
+      <fieldset className="flex flex-col gap-1">
+        <legend className="text-sm">ประเภทการยืม</legend>
+        <label className="flex items-center gap-2">
+          <input type="radio" name="loanType" value="normal" checked={!overnight} onChange={() => setLoanType('normal')} />
+          ปกติ
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="radio" name="loanType" value="overnight" checked={overnight} onChange={() => setLoanType('overnight')} />
+          ค้างคืน
+        </label>
+      </fieldset>
+
+      {/* ยืมปกติต้องแสดงเงื่อนไขก่อนส่ง (FR-BRQ-10 ข้อ ข, AC-BRQ-10) */}
+      {!overnight && <p className="text-sm text-slate-600">{MSG_LOAN_NORMAL_CONDITIONS}</p>}
+
+      <Field id="startAt" label="วันและเวลาที่เริ่มยืม">
+        <input {...invalid('startAt')} id="startAt" type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
+      </Field>
+
+      <Field id="endAt" label="วันและเวลาที่คืน">
+        <input {...invalid('endAt')} id="endAt" type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} />
+      </Field>
+
+      <Field id="purpose" label="วัตถุประสงค์การยืม">
+        <select {...invalid('purpose')} id="purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)}>
+          <option value="">เลือกวัตถุประสงค์</option>
+          {PURPOSE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      {/* เลือก "อื่น ๆ" ต้องพิมพ์ระบุเพิ่ม จึงจะส่งได้ (FR-BRQ-02 ข้อ ก, AC-BRQ-14) */}
+      {purpose === PURPOSE_OTHER && (
+        <Field id="purposeOther" label="ระบุวัตถุประสงค์">
+          <input {...invalid('purposeOther')} id="purposeOther" value={purposeOther} onChange={(e) => setPurposeOther(e.target.value)} />
+        </Field>
+      )}
+
+      {/* ยืมค้างคืนต้องแนบใบบันทึกข้อความตั้งแต่ตอนส่งคำขอ (FR-BRQ-10 ข้อ ก, AC-BRQ-10) */}
+      {overnight && (
+        <Field id="attachment" label="ใบบันทึกข้อความ" hint={MSG_ATTACHMENT_HINT}>
+          <input
+            {...invalid('attachment')}
+            id="attachment"
+            type="file"
+            accept={ATTACHMENT_ALLOWED_TYPES.join(',')}
+            onChange={(e) => setAttachment(e.target.files?.[0] ?? null)}
+          />
+        </Field>
+      )}
+
+      <button type="submit" disabled={sending} className="rounded bg-teal-600 px-4 py-2 text-white disabled:opacity-50">
+        {LABEL_SUBMIT_REQUEST}
+      </button>
+
+      {/* ส่งสำเร็จแล้วบอกผลและเตือนเรื่องคำขอที่ส่งซ้อนทุกครั้ง (FR-BRQ-04, FR-BRQ-05, T-22) */}
+      {created && (
+        <div role="status" className="grid justify-items-start gap-1">
+          <p>{MSG_SUBMIT_SUCCESS(created.requestId)}</p>
+          <p className="text-sm text-slate-600">{MSG_STACKED_NOTICE}</p>
+        </div>
+      )}
+      <RequestErrorSummary error={error} />
+    </form>
+  )
+}
+
+const INPUT = 'rounded border border-slate-300 px-2 py-1'
+// กรอบสีแดงของช่องที่ต้องแก้ ใช้คู่กับ aria-invalid เพื่อไม่ให้สื่อความหมายด้วยสีอย่างเดียว (NFR-USE-01)
+const INPUT_INVALID = 'rounded border-2 border-red-500 px-2 py-1'
+
+// Field ครอบ label กับช่องกรอกให้ผูกกันด้วย id เพื่อให้ผู้ใช้คลิกป้ายแล้วโฟกัสช่องได้ (NFR-USE-01)
+function Field({ id, label, hint, children }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="text-sm">
+        {label}
+      </label>
+      {children}
+      {hint && <span className="text-xs text-slate-600">{hint}</span>}
+    </div>
+  )
+}
+
+// onlyIfFilled ใส่ช่องลงในข้อมูลที่ส่งเฉพาะเมื่อมีค่า ช่องที่ยังว่างจะไม่ถูกส่งไปเลย
+// ใช้กับช่องวันเวลา เพราะหลังบ้านอ่านสตริงว่างเป็นวันเวลาไม่ได้ (ดูเหตุผลเต็มที่จุดเรียกใช้)
+function onlyIfFilled(field, value) {
+  return value ? { [field]: value } : {}
+}
+
+// toBangkok แปลงค่าจากช่อง datetime-local เป็นเวลาแบบ RFC3339 โดยถือว่าเป็นเวลาไทย (glossary, config.TIME_ZONE)
+// ช่อง datetime-local ไม่มีเขตเวลาติดมา ถ้าไม่ระบุ หลังบ้านจะตีความตามเขตเวลาของเครื่องที่รัน
+// ซึ่งทำให้กฎ "คืนภายใน 16:00 น. ของวันเดียวกัน" เพี้ยนเมื่อผู้ใช้อยู่คนละเขตเวลา (DOM-LOAN-01)
+export function toBangkok(value) {
+  return value ? `${value}:00+07:00` : ''
+}

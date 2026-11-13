@@ -99,7 +99,8 @@ func devTx(t *testing.T) pgx.Tx {
 // When  เจ้าหน้าที่เปิดหน้ารายการ
 // Then  เห็นเฉพาะคำขอ requested ของภาควิชาตนเอง เรียงตามเวลาที่ส่งจากเก่าไปใหม่
 //
-//	พร้อมชื่อผู้ขอ อุปกรณ์ วัตถุประสงค์ ช่วงเวลาที่ต้องการยืม (และคำขอค้างคืนไม่ขึ้น ตาม Q-APV-01)
+//	พร้อมชื่อผู้ขอ อุปกรณ์ วัตถุประสงค์ ช่วงเวลาที่ต้องการยืม
+//	v3 (CR-009, FR-APV-03 ก, T-42): คำขอค้างคืนขึ้นด้วย พร้อม loanType และไม่เป็นคำขอแรก (ไม่มีคิว)
 func TestAC_APV_11(t *testing.T) {
 	tx := devTx(t)
 	ctx := context.Background()
@@ -120,24 +121,31 @@ func TestAC_APV_11(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Then: เฉพาะยืมปกติ requested ของภาควิชา 1 เรียงตามเวลาที่ส่ง (ลำดับตาม approve_dev.sql)
+	// Then: requested ของภาควิชา 1 ทั้งยืมปกติและค้างคืน เรียงตามเวลาที่ส่ง (ลำดับตาม approve_dev.sql)
 	want := []struct {
-		asset   string
-		isFirst bool
+		asset    string
+		loanType string
+		isFirst  bool
 	}{
-		{"AP-TEST-0001", true},  // A ส่งเมื่อ 30 นาทีก่อน
-		{"AP-TEST-0002", true},  // 25 นาที
-		{"AP-TEST-0001", false}, // B 20 นาที ไม่ใช่คำขอแรกของชิ้นนี้
-		{"AP-TEST-0003", true},  // 15 นาที
-		{"AP-TEST-0004", true},  // 12 นาที (อุปกรณ์ถูกยืม ยังขึ้นในรายการ แต่อนุมัติไม่ได้ใน T-19)
+		{"AP-TEST-0001", "normal", true},     // A ส่งเมื่อ 30 นาทีก่อน
+		{"AP-TEST-0002", "normal", true},     // 25 นาที
+		{"AP-TEST-0001", "normal", false},    // B 20 นาที ไม่ใช่คำขอแรกของชิ้นนี้
+		{"AP-TEST-0003", "normal", true},     // 15 นาที
+		{"AP-TEST-0004", "normal", true},     // 12 นาที (อุปกรณ์ถูกยืม ยังขึ้นในรายการ แต่อนุมัติไม่ได้ใน T-19)
+		{"AP-TEST-0001", "overnight", false}, // C ค้างคืน 10 นาที ไม่มีคิว (FR-APV-03 ค)
 	}
 	if len(got) != len(want) {
 		t.Fatalf("ต้องได้ %d คำขอ แต่ได้ %d: %+v", len(want), len(got), got)
 	}
 	for i, w := range want {
 		g := got[i]
-		if g.AssetCode != w.asset || g.IsFirst != w.isFirst {
-			t.Errorf("แถว %d ต้องเป็น %s is_first=%v แต่ได้ %s is_first=%v", i, w.asset, w.isFirst, g.AssetCode, g.IsFirst)
+		if g.AssetCode != w.asset || g.LoanType != w.loanType || g.IsFirst != w.isFirst {
+			t.Errorf("แถว %d ต้องเป็น %s %s is_first=%v แต่ได้ %s %s is_first=%v",
+				i, w.asset, w.loanType, w.isFirst, g.AssetCode, g.LoanType, g.IsFirst)
+		}
+		// FR-APV-03 (ก), Q-APV-41: คำขอค้างคืนของ approve_dev.sql มีไฟล์แนบ คำขอปกติไม่มี
+		if g.HasAttachment != (w.loanType == "overnight") {
+			t.Errorf("แถว %d has_attachment ต้องเป็น %v แต่ได้ %v", i, w.loanType == "overnight", g.HasAttachment)
 		}
 		if i > 0 && g.SubmittedAt.Before(got[i-1].SubmittedAt) {
 			t.Errorf("แถว %d ต้องเรียงตามเวลาที่ส่งจากเก่าไปใหม่", i)
@@ -178,7 +186,7 @@ func TestListPending_OvernightDoesNotBlockQueue(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, g := range got {
-		if g.AssetCode == "AP-TEST-0002" && !g.IsFirst {
+		if g.AssetCode == "AP-TEST-0002" && g.LoanType == "normal" && !g.IsFirst {
 			t.Error("คำขอยืมปกติของ AP-TEST-0002 ต้องยังเป็นคำขอแรก เพราะคำขอค้างคืนไม่นับในลำดับ (Q-APV-23)")
 		}
 	}

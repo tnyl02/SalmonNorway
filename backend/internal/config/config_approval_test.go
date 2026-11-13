@@ -1,6 +1,6 @@
 package config
 
-// test ของค่าที่ตั้งได้ของฟีเจอร์ 004 (T-02 ใน specs/004-approve-request/tasks.md)
+// test ของค่าที่ตั้งได้ของฟีเจอร์ 004 (T-02, T-41 ใน specs/004-approve-request/tasks.md)
 // แยกไฟล์จาก config_test.go ของ 002 เพื่อไม่แก้ไฟล์ของฟีเจอร์อื่น
 
 import (
@@ -105,6 +105,41 @@ func TestConfig_ApprovalMessagesMatchFrontend(t *testing.T) {
 		}
 		if string(m[1]) != msg {
 			t.Errorf("ข้อความของ %s ไม่ตรงกัน: backend %q / frontend %q", code, msg, m[1])
+		}
+	}
+}
+
+// T-41 (004) เสร็จเมื่อ: ค่าของคำขอค้างคืนตรงกับ spec (FR-APV-03 ช, Q-APV-44) และหน้าจอใช้ค่าเดียวกัน
+// ใช้ค่า loan_type และชื่อสถานะของ 002 ที่มีอยู่แล้ว ไม่ประกาศซ้ำ
+func TestConfig_ApprovalOvernightValues(t *testing.T) {
+	if ApprovalAdvisorNameMaxLength != 100 {
+		t.Errorf("ชื่ออาจารย์ยาวไม่เกิน 100 ตัวอักษร (Q-APV-44) แต่ได้ %d", ApprovalAdvisorNameMaxLength)
+	}
+	if ApprovalAdvisorNameRequiredMessage != "กรุณาระบุชื่ออาจารย์ที่เซ็นอนุมัติ" {
+		t.Errorf("ข้อความไม่ระบุชื่ออาจารย์ไม่ตรง FR-APV-01 (ซ): %q", ApprovalAdvisorNameRequiredMessage)
+	}
+	if ApprovalAdvisorNameTooLongMessage != "ชื่ออาจารย์ต้องไม่เกิน 100 ตัวอักษร" {
+		t.Errorf("ข้อความชื่ออาจารย์ยาวเกินไม่ตรง FR-APV-01 (ซ): %q", ApprovalAdvisorNameTooLongMessage)
+	}
+	if LoanTypeOvernight != "overnight" || StatusApprovedByOfficer != "approved_by_officer" ||
+		StatusPendingAdvisorApproval != "pending_advisor_approval" {
+		t.Error("ค่า loan_type และสถานะของ 002 ต้องตรงกับ CHECK ของ approval_step ใน migration 0011")
+	}
+
+	src, err := os.ReadFile(filepath.Join("..", "..", "..", "frontend", "src", "config.js"))
+	if err != nil {
+		t.Fatalf("อ่าน frontend/src/config.js ไม่ได้: %v", err)
+	}
+	if m := regexp.MustCompile(`APPROVAL_ADVISOR_NAME_MAX_LENGTH\s*=\s*(\d+)`).FindSubmatch(src); m == nil || string(m[1]) != "100" {
+		t.Errorf("APPROVAL_ADVISOR_NAME_MAX_LENGTH ใน config.js ต้องเป็น 100 แต่ได้ %q", m)
+	}
+	for name, want := range map[string]string{
+		"APPROVAL_ADVISOR_NAME_REQUIRED": ApprovalAdvisorNameRequiredMessage,
+		"APPROVAL_ADVISOR_NAME_TOO_LONG": ApprovalAdvisorNameTooLongMessage,
+	} {
+		m := regexp.MustCompile(name + `\s*=\s*'([^']*)'`).FindSubmatch(src)
+		if m == nil || string(m[1]) != want {
+			t.Errorf("%s ใน config.js ต้องเป็น %q แต่ได้ %q", name, want, m)
 		}
 	}
 }

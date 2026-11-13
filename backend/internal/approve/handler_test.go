@@ -43,6 +43,7 @@ func getJSON(srv http.Handler, token, path string) *httptest.ResponseRecorder {
 // Given มีคำขอ requested ของภาควิชาตนเองหลายคำขอ และคำขอของภาควิชาอื่น (approve_dev.sql)
 // When  เจ้าหน้าที่ภาควิชา 1 เรียก GET /v1/approvals/requests
 // Then  ได้ 200 รายการเฉพาะภาควิชาตนเอง เรียงตามเวลาที่ส่ง พร้อมข้อมูลที่ต้องแสดง is_first และ loadedAt
+// v3 (T-42): มีคำขอค้างคืน C ต่อท้าย พร้อม loanType และ attachmentUrl ของ 002 (FR-APV-03 ก, Q-APV-41)
 func TestAC_APV_11_HTTP(t *testing.T) {
 	srv := newTestServer(devTx(t))
 
@@ -57,7 +58,7 @@ func TestAC_APV_11_HTTP(t *testing.T) {
 	if got.LoadedAt.IsZero() {
 		t.Error("ต้องมี loadedAt ให้หน้าจอส่งกลับมาตอนพิจารณา (plan.md ข้อ 4)")
 	}
-	wantAssets := []string{"AP-TEST-0001", "AP-TEST-0002", "AP-TEST-0001", "AP-TEST-0003", "AP-TEST-0004"}
+	wantAssets := []string{"AP-TEST-0001", "AP-TEST-0002", "AP-TEST-0001", "AP-TEST-0003", "AP-TEST-0004", "AP-TEST-0001"}
 	if len(got.Items) != len(wantAssets) {
 		t.Fatalf("ต้องได้ %d คำขอ แต่ได้ %d: %+v", len(wantAssets), len(got.Items), got.Items)
 	}
@@ -72,6 +73,19 @@ func TestAC_APV_11_HTTP(t *testing.T) {
 	}
 	if got.Items[2].IsFirst {
 		t.Error("คำขอ B ของ AP-TEST-0001 ต้องไม่ใช่คำขอแรก (FR-APV-01 ข)")
+	}
+	for i, it := range got.Items[:5] {
+		if it.LoanType != config.LoanTypeNormal || it.AttachmentURL != "" {
+			t.Errorf("แถว %d ต้องเป็นยืมปกติที่ไม่มี attachmentUrl แต่ได้ %+v", i, it)
+		}
+	}
+	c := got.Items[5]
+	wantURL := fmt.Sprintf("/v1/loan-requests/%d/attachment", c.RequestID)
+	if c.LoanType != config.LoanTypeOvernight || c.IsFirst || c.AttachmentURL != wantURL {
+		t.Errorf("คำขอ C ต้องเป็น overnight isFirst=false attachmentUrl=%s แต่ได้ %+v", wantURL, c)
+	}
+	if !strings.Contains(w.Body.String(), `"attachmentUrl":"`+wantURL+`"`) {
+		t.Error("JSON ต้องใช้ชื่อช่อง attachmentUrl (plan.md v2 ข้อ 4)")
 	}
 }
 
@@ -408,4 +422,52 @@ func TestAC_APV_14(t *testing.T) {
 	if w := getJSON(srv, tokenStaffDept1, PathPrefix+"failed-emails"); !strings.Contains(w.Body.String(), `"items":[]`) {
 		t.Errorf("หลังส่งสำเร็จรายการต้องว่าง แต่ได้ %s", w.Body.String())
 	}
+}
+
+// AC-APV-22 ยิงผ่าน HTTP จริง (FR-APV-03 ข ช, FR-APV-01 ซ, Q-APV-44, T-44)
+// body { loadedAt, advisorName } -> 200 approved / ชื่อว่างหรือยาวเกิน -> 422 VALIDATION_FAILED ช่อง advisorName ข้อความจาก config
+func TestAC_APV_22_HTTP(t *testing.T) {
+	long := strings.Repeat("ก", config.ApprovalAdvisorNameMaxLength+1)
+	for _, tc := range []struct {
+		name, body, msg string
+	}{
+		{"ไม่ส่งชื่อ", `{}`, config.ApprovalAdvisorNameRequiredMessage},
+		{"ชื่อมีแต่ช่องว่าง", `{"advisorName":"  "}`, config.ApprovalAdvisorNameRequiredMessage},
+		{"ชื่อยาวเกิน", `{"advisorName":"` + long + `"}`, config.ApprovalAdvisorNameTooLongMessage},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tx := devTx(t)
+			c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+			w := postJSON(newTestServer(tx), tokenStaffDept1, fmt.Sprintf("%srequests/%d/approve", PathPrefix, c), tc.body)
+			if w.Code != http.StatusUnprocessableEntity {
+				t.Fatalf("ต้องได้ 422 แต่ได้ %d body=%s", w.Code, w.Body.String())
+			}
+			var e ValidationErrorDTO
+			if err := json.Unmarshal(w.Body.Bytes(), &e); err != nil {
+				t.Fatal(err)
+			}
+			if e.Code != "VALIDATION_FAILED" || e.Message != tc.msg || len(e.Fields) != 1 || e.Fields[0] != "advisorName" {
+				t.Errorf("ต้องได้ {VALIDATION_FAILED, %q, [advisorName]} แต่ได้ %+v", tc.msg, e)
+			}
+			if s := tcRequestStatus(t, tx, c); s != config.StatusRequested {
+				t.Errorf("สถานะต้องคงเดิม requested แต่ได้ %q", s)
+			}
+		})
+	}
+
+	t.Run("มีชื่ออาจารย์ได้ 200", func(t *testing.T) {
+		tx := devTx(t)
+		c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+		w := postJSON(newTestServer(tx), tokenStaffDept1, fmt.Sprintf("%srequests/%d/approve", PathPrefix, c), `{"advisorName":"อ.สมชาย ใจดี"}`)
+		if w.Code != http.StatusOK {
+			t.Fatalf("ต้องได้ 200 แต่ได้ %d body=%s", w.Code, w.Body.String())
+		}
+		var res ResultDTO
+		if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+			t.Fatal(err)
+		}
+		if res.RequestID != c || res.Status != config.StatusApproved {
+			t.Errorf("ต้องได้ approved ของคำขอ %d แต่ได้ %+v", c, res)
+		}
+	})
 }

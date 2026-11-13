@@ -2,6 +2,110 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [SPEC-APV-004 Draft v3 เพิ่มลำดับการตรวจของคำขอค้างคืน] - 2569-11-13
+ตอนทำ T-44 spec ไม่ได้บอกว่าตรวจชื่ออาจารย์ตอนไหนเทียบกับสถานะคำขอ เจ้าของถามทีมแล้วได้คำตอบ (CR-009)
+### Changed
+- FR-APV-03 (ช) เพิ่มบรรทัดลำดับการตรวจตอนอนุมัติคำขอค้างคืน: ภาควิชา -> ชื่ออาจารย์ -> สถานะคำขอ -> สถานะอุปกรณ์ ไม่เพิ่ม ID ใหม่
+
+## [plan 004 Draft v2 (CR-009 คำขอยืมค้างคืน)] - 2569-11-13
+plan ตาม spec Draft v3 ใช้ endpoint เดิมแยกกฎตาม loan_type ไม่สร้าง endpoint ใหม่
+### Changed
+- `specs/004-approve-request/plan.md`: ข้อ 1 ถึง 8 เพิ่มส่วนค้างคืน: migration 0011 (advisor_name, ตาราง approval_step), รายการรวมพร้อม loan_type และ attachment_url, advisorName ตอนอนุมัติ, VALIDATION_FAILED ช่อง advisorName, ค่าที่ตั้งได้ของชื่ออาจารย์, แผนทดสอบ AC-APV-22 ถึง 26, ลำดับงานข้อ 9 ถึง 14
+- AC-APV-11, 20, 21 ในแผนทดสอบอัปเดตตาม v3 / Q-APV-01, Q-APV-04 ปิดในข้อ 8 / Q-APV-38 ยังเปิด
+
+## [SPEC-APV-004 Draft v3 (CR-009 รับคำขอยืมค้างคืน UC-14)] - 2569-11-13
+ทีมอนุมัติ CR-009 ทาง ก (UC-14 อย่างเดียว 1 คำขอ = 1 ชิ้น) และตอบคำถาม 7 ข้อแล้ว spec ขึ้นเป็น Draft v3
+### Added
+- FR-APV-03 [ID เสนอ] บันทึกผลอนุมัติคำขอค้างคืน: รายการ, อนุมัติกดครั้งเดียวพร้อมชื่ออาจารย์, ไม่มีคิว, ไม่มีเวลาตัด, ปฏิเสธพร้อมเหตุผล, ปฏิเสธตาม, ใช้กฎกดพร้อมกัน ข้อความ error และประวัติร่วมกับ FR-APV-01
+- AC-APV-22 ถึง 26 [ID เสนอ] อนุมัติพร้อมชื่ออาจารย์, ไม่มีคิว, อนุมัติค้างคืนแล้วปฏิเสธคำขอปกติตาม, ปฏิเสธพร้อม Email, ไม่มีเวลาตัด
+- ASM-12 ผู้ขอได้ลายเซ็นอาจารย์ในเอกสารที่แนบตอนส่งแล้ว
+- Q-APV-41 (ลิงก์เปิดไฟล์แนบ), Q-APV-42 (ต้อง "ว่าง" ไหม), Q-APV-43 (ปฏิเสธต้องมีชื่ออาจารย์ไหม), Q-APV-44 (กฎของชื่ออาจารย์), Q-APV-45 (อนุมัติ ID)
+### Changed
+- ชื่อฟีเจอร์ "อนุมัติคำขอยืม ปกติและค้างคืน" / Source เพิ่ม US-012, RQ-15 / Use case เพิ่ม UC-14 / Backlog เพิ่ม BL-19
+- Goal, Scope: ย้ายคำขอค้างคืนเข้า In scope / Out of scope เหลือหน้าตรวจเอกสารแยก (UC-11) และคำขอหลายชิ้น
+- FR-APV-01 (ซ) แถว `REQUEST_NOT_FOUND` และ AC-APV-21 ตัด "หรือเป็นคำขอค้างคืน" ออก
+- FR-APV-02 แจ้งผลคำขอค้างคืนด้วย (เฉพาะผลสุดท้าย แบบ ก ข)
+- แก้ ASM-10 ที่บรรทัดต่อถูกแยกไปอยู่ใต้ ASM-11 ตอนเพิ่ม ASM-11 (2569-11-13) ข้อความไม่เปลี่ยน
+### ยังไม่ได้ทำ
+- plan, tasks, test-cases ของส่วนใหม่ / แถว test-cases เดิมที่ยึดว่าค้างคืนได้ 404 (TC-APV-01-12, 02-11) และไม่ขึ้นรายการ (TC-APV-11-1) ยังไม่ได้แก้ ต้องให้ทีมแก้แถวก่อน
+- README, SRS 3.1.7, backlog BL-19 ยังไม่ได้แก้
+
+## [SPEC-APV-004 Draft v2.2 AC-APV-19 ถึง 21 และคำตอบคำถามที่ยังเปิด (CR-008 แก้ไขหลังอนุมัติรอบที่ 2)] - 2569-11-13
+เจ้าของ 004 ตอบคำถามที่ยังเปิด 7 ข้อผ่านหน้าเว็บ ข้อที่เป็นระดับทีมบันทึกเป็นข้อเสนอของ 004 ยังไม่ปิด
+### Added
+- `specs/004-approve-request/spec.md`: AC-APV-19 (TLS, Q-APV-39), AC-APV-20 (503 UPSTREAM_UNAVAILABLE), AC-APV-21 (404 REQUEST_NOT_FOUND) (Q-APV-40) ทีมอนุมัติ ID แล้ว / Traceability 2 แถว / Clarifications
+- `specs/004-approve-request/plan.md`: แผนทดสอบของ AC-APV-19 ถึง 21
+### Changed
+- spec.md: ปิด Q-APV-04 (Email แบบจำลองตลอด prototype), Q-APV-39, Q-APV-40 / เพิ่มข้อเสนอของ 004 ใน Q-SH-03 (auth จำลอง), Q-SH-08 (ไม่ทำ), Q-APV-38 (ทำ HTTPS และ Docker) และ Q-APV-01 (ต้องการทำค้างคืน) ยังเปิด รอทีม
+- tasks.md: T-37, T-38 ไม่ทำใน prototype / ตารางตรวจความครบเพิ่ม AC-APV-19 ถึง 21 (ยังไม่มี task)
+- `specs/changes/CR-008.md`: แก้ไขหลังอนุมัติรอบที่ 2 ข้อ 14
+- ไม่แก้ constraints.md (Q-SH-03, Q-SH-08 รอทีมตกลง)
+
+## [SPEC-APV-004 Draft v2.2 แก้ไขหลังอนุมัติของ CR-008 ตามคำตัดสินใน rtm.md] - 2569-11-13
+เจ้าของ 004 ตัดสินข้อค้นพบ F-01 ถึง F-06 ของ /verify แล้วสั่งให้เพิ่มเข้า CR-008 เป็นหัวข้อแก้ไขหลังอนุมัติ (แบบ CR-006 ของ 003) spec ยังเป็น Draft v2.2
+### Added
+- `specs/004-approve-request/spec.md`: ASM-11 prototype ใช้รหัสเจ้าหน้าที่แทนชื่อ (F-03) / Q-APV-38 HTTPS และ Docker ระดับทีม (F-01), Q-APV-39 เสนอ AC ของ TLS (F-02), Q-APV-40 เสนอ AC ของ 503 และ 404 (F-04)
+- `specs/changes/CR-008.md`: หัวข้อแก้ไขหลังอนุมัติ ข้อ 13 (ASM-11) และแถวผลกระทบของ rtm.md
+### Changed
+- โค้ด (F-05): ตัด `studentCode` ออกจาก response ของ GET /v1/approvals/requests (dto.go) และตัดคอลัมน์ "เวลาที่ส่ง" (ApproveRequests.jsx)
+- โค้ด (F-06): ข้อความ error ภายในของ `ErrApprovalCutoff` ไม่มีตัวเลข 16:00 (service.go)
+- `specs/004-approve-request/tasks.md`: บันทึกการแก้ใต้ T-05, T-06, T-21
+- `specs/004-approve-request/rtm.md`: ช่องทีมตัดสิน F-01 ถึง F-06 และ /verify รอบ 2 (F-03, F-05, F-06 ย้ายไปแก้แล้ว)
+
+## [SPEC-APV-004 Draft v2.2 + plan 004 v1.2 (CR-008)] - 2569-11-12
+รวมคำตอบ Q-APV-26 ถึง 37 ที่พบตอน /testcases เป็น CR-008 ตามกติกา "การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request"
+รายละเอียดแต่ละข้ออยู่ในหัวข้อ Q-APV-26, Q-APV-27 ถึง 31, Q-APV-32 ถึง 34, Q-APV-35, 36 และ Q-APV-37 ด้านล่าง ไม่มี ID ใหม่ ไม่เปลี่ยน AC ไม่เพิ่มรหัส error
+### Added
+- `specs/changes/CR-008.md`: ตารางเดิม/หลัง 12 ข้อ ผลกระทบ สิ่งที่ต้องแลก และการตัดสินของเจ้าของ 004
+### Changed
+- `specs/004-approve-request/spec.md`: Draft v2.1 -> Draft v2.2 (หัวไฟล์และหัว Clarifications อ้าง CR-008)
+- `specs/004-approve-request/plan.md`: Draft v1.1 -> v1.2 อ้าง spec Draft v2.2
+- `specs/004-approve-request/test-cases.md`: หัวไฟล์อ้าง spec Draft v2.2 และ plan v1.2 / เพิ่มหัวข้อ "ผลการลองโดยคน" (TC-APV-01-3, 02-3 ผ่าน)
+
+## [SPEC-APV-004 Draft v2.1 Q-APV-37 ส่งซ้ำ Email ที่สำเร็จแล้ว] - 2569-11-12
+ทีมตอบคำถามที่พบตอน /testcases AC-APV-14 ยืนยันแบบที่โค้ดทำอยู่ ไม่เปลี่ยน ID ไม่เปลี่ยน AC และไม่แก้โค้ด
+### Changed
+- `specs/004-approve-request/spec.md`: FR-APV-02 (ง) ส่งซ้ำ Email ที่ส่งสำเร็จแล้ว ตอบสถานะ `sent` เดิมและไม่ส่งใหม่ / Q-APV-37 ปิดแล้ว และ Clarifications
+- `specs/004-approve-request/test-cases.md`: Then ของ TC-APV-14-9
+
+## [SPEC-APV-004 Draft v2.1 Q-APV-35, 36 ลำดับการตรวจตอนอนุมัติ] - 2569-11-12
+ทีมตอบ 2 คำถามที่พบตอน /testcases AC-APV-08, 16 ผ่านหน้าเว็บ ยืนยันลำดับที่โค้ดใช้อยู่ ไม่เปลี่ยน ID ไม่เปลี่ยน AC และไม่แก้โค้ด
+### Changed
+- `specs/004-approve-request/spec.md`: FR-APV-01 (ซ) ลำดับการตรวจตอนอนุมัติ ภาควิชา -> สถานะคำขอ -> คำขอแรก -> สถานะอุปกรณ์ -> 16:00 น. / Q-APV-35, 36 ปิดแล้ว และ Clarifications
+- `specs/004-approve-request/test-cases.md`: Then ของ TC-APV-08-4 และ 16-5
+
+## [SPEC-APV-004 Draft v2.1 Q-APV-32 ถึง 34 คำถามจาก test cases ชุดที่ 2] - 2569-11-12
+ทีมตอบ 3 คำถามที่พบตอน /testcases AC-APV-05, 12 ผ่านหน้าเว็บ ขยายความ FR-APV-01 (ง)(ซ) ไม่เปลี่ยน ID และไม่เปลี่ยน AC
+### Changed
+- `specs/004-approve-request/spec.md`: FR-APV-01 (ง) ตรวจภาควิชาก่อนเหตุผล (Q-APV-34) / (ซ) ตรวจภาควิชาก่อนสถานะ (Q-APV-33) และ `UNAUTHENTICATED` ระหว่างใช้หน้าแสดงข้อความสำรองของ `UPSTREAM_UNAVAILABLE` (Q-APV-32) / Q-APV-32 ถึง 34 ปิดแล้ว และ Clarifications
+- `specs/004-approve-request/tasks.md`: บันทึกการแก้ใต้ T-25
+- `specs/004-approve-request/test-cases.md`: Then ของ TC-APV-05-8, 12-6, 12-7
+- โค้ด: `backend/internal/approve/service.go` ลำดับการตรวจใน `Reject` เป็น หาคำขอ -> ภาควิชา -> เหตุผล -> สถานะ
+
+## [SPEC-APV-004 Draft v2.1 Q-APV-27 ถึง 31 คำถามจาก test cases] - 2569-11-12
+ทีมตอบ 5 คำถามที่พบตอน /testcases AC-APV-02, 06, 11 ผ่านหน้าเว็บ ขยายความ FR-APV-01 (ก)(ข)(ง)(ซ) ไม่เปลี่ยน ID และไม่เปลี่ยน AC
+### Changed
+- `specs/004-approve-request/spec.md`: FR-APV-01 (ก) เวลาที่ส่งเท่ากันเรียงตามรหัสคำขอ (Q-APV-30) และหน้ารายการว่างแสดง "ไม่มีคำขอที่รออนุมัติ" (Q-APV-31) / (ข) ปฏิเสธคำขอที่ไม่ใช่คำขอแรกได้ (Q-APV-27) / (ง) เหตุผลไม่เกิน 500 ตัวอักษร นับตาม code point (Q-APV-28) และตรวจเหตุผลก่อนสถานะ (Q-APV-29) / (ซ) เพิ่มข้อความ "เหตุผลต้องไม่เกิน 500 ตัวอักษร" / Q-APV-27 ถึง 31 ปิดแล้ว และ Clarifications
+- `specs/004-approve-request/plan.md`: ตาราง error แถว `VALIDATION_FAILED` และตารางค่าที่ตั้งได้ 2 แถว
+- `specs/004-approve-request/tasks.md`: บันทึกการแก้ใต้ T-06, T-12, T-13
+- `specs/004-approve-request/test-cases.md`: Then ของ TC-APV-02-7, 06-6, 06-7, 11-4, 11-5 และ When ของ 06-6
+- โค้ด: `config.go` (`ApprovalRejectReasonMaxLength`, `ApprovalReasonTooLongMessage`), `service.go` (`ErrReasonTooLong`), `handler.go`, `frontend/src/config.js`, `ApproveRequests.jsx` (ตรวจความยาวและข้อความรายการว่าง)
+
+## [SPEC-APV-004 Draft v2.1 Q-APV-26 อนุมัติตอน 16:00:00 น. ตรงไม่ได้] - 2569-11-12
+ทีมตอบคำถามที่พบตอน /testcases AC-APV-01 (แถว TC-APV-01-5) เป็นการขยายความ "เลย 16:00 น." ใน FR-APV-01 (ค) ไม่เปลี่ยน ID และไม่เปลี่ยน AC
+### Changed
+- `specs/004-approve-request/spec.md`: FR-APV-01 (ค) "เลย 16:00 น." นับตั้งแต่ 16:00:00 น. ตรง / เพิ่ม Q-APV-26 (ปิดแล้ว) และ Clarifications / Traceability แถว DOM-LOAN-01
+- `specs/004-approve-request/test-cases.md`: Then ของ TC-APV-01-5 = 409 `APPROVAL_CUTOFF_PASSED` สถานะคงเดิม
+- `backend/internal/approve/service.go`: เงื่อนไขเวลาตัดเปลี่ยนจาก `After` เป็น `!Before` (16:00:00 น. ตรงอนุมัติไม่ได้) / tasks.md T-21 บันทึกการแก้
+
+## [SPEC-APV-004 Draft v2.1 ทีมอนุมัติ ID AC-APV-16, 17, 18] - 2569-11-12
+ทีมอนุมัติ ID ของ AC ที่ AI เสนอไว้ ปิด Q-APV-13 และ Q-APV-22 ไม่เปลี่ยนเนื้อหา AC ไม่ทำ CR
+### Changed
+- `specs/004-approve-request/spec.md`: เอา [เสนอ] ออกจาก AC-APV-16, 17, 18 / หัวข้อ AC ระบุว่าอนุมัติ ID ครบ 01 ถึง 18 / Q-APV-13, Q-APV-22 ปิดแล้ว
+- `specs/004-approve-request/plan.md`: แผนทดสอบ AC-APV-16, 17, 18 ไม่มีหมายเหตุรอ ID / ข้อ 8 ปิด Q-APV-13, Q-APV-22
+- `specs/004-approve-request/tasks.md`: T-21, T-22, T-30, T-31 ไม่มีอะไรรอ / เฟส 15, 16 และตารางตรวจความครบไม่มี [เสนอ]
+- คอมเมนต์ test ของ TestAC_APV_16, 17, 18 และ test หน้าจอ AC-APV-16 เอาหมายเหตุ "ID รอทีมอนุมัติ" ออก (ชื่อ test เดิม ไม่แก้พฤติกรรม)
+
 ## [shared constraints v5.3 + plan 001 v1.9 + tasks 001 v2.4] - 2569-11-12
 001 ลงทะเบียนรหัส error ใหม่ 2 ตัวตามกติกาของ CON-TECH-03 ("ฟีเจอร์ที่ต้องการรหัสใหม่ ให้เพิ่มแถวในตารางนี้ก่อนใช้") ไม่ทำ CR
 เพราะเป็นการเพิ่มแถวใหม่ ไม่ได้แก้ความหมายของรหัสเดิม และไม่ได้เปลี่ยน FR/AC
