@@ -8769,3 +8769,14 @@ FR-BRQ-01 เขียนว่าต้องตรวจสถานะทั�
 - โหมด: เขียน test (8 แถวสถานะ "ใช้ได้")
 - ผลลัพธ์: ไฟล์ใหม่ `backend/internal/platform/tc_ac_apv_19_test.go` 7 test (TestTC_APV_19_1 ถึง 19_7) ใช้ตัวช่วย tlsTestServer, tlsClient จาก tls_test.go / 19-5 ข้อ (2) ตรวจ service backend ใน deploy/docker-compose.yml ว่าเปิด port เดียวและตั้ง cert กับ key / 19-7 ข้อ (1) "spec ไม่ได้บอก" ไม่เขียน assert บันทึกผลจริงใน t.Logf (ตอนนี้ไม่ตั้ง cert ได้ HTTP 200) / 19-8 (คน) ไม่เขียนโค้ด
 - ผล test: 7 ตัวผ่าน / go test platform ผ่าน
+
+---
+
+## 2569-11-13 ลอง TC-APV-19-8 โดยคน ผ่าน (004)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (AI บอกขั้นตอน ผู้ลองเป็นคนทำบนเครื่องตนเอง)
+- คำสั่ง: "curl -k --tlsv1.2 https://localhost:8443/healthz เรียกตรงไหน" แล้ว "ผ่าน"
+- ผล: TLS 1.2 ได้ {"status":"ok"} / TLS 1.1 จับมือไม่สำเร็จ / HTTP ธรรมดาไม่ได้คำตอบของ API / compose เปิดเฉพาะ 8443 -> บันทึกในหัวข้อ "ผลการลองโดยคน" ของ test-cases.md
+- หมายเหตุ: Windows PowerShell ต้องใช้ curl.exe เพราะ curl เป็นชื่อย่อของ Invoke-WebRequest
