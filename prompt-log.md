@@ -8010,3 +8010,13 @@ main
 - เครื่องมือ: Claude Code (ไม่มีคำสั่ง /implement ในเครื่องมือรอบนี้ ทำตาม `.claude/commands/implement.md` แตะเฉพาะไฟล์ใน "ไฟล์ที่แตะ" ของ T-47)
 - คำสั่ง: "/implement T-47"
 - ผลลัพธ์: เพิ่ม `TestAC_APV_24` ใน service_test.go (อนุมัติ C ค้างคืนของ AP-TEST-0001 -> C approved, A และ B ปกติ rejected เหตุผล ApprovalSupersededReason ผู้ดำเนินการ staff-001 / A มี approval_email ผลปฏิเสธ 1 ฉบับ C มีผลอนุมัติ 1 ฉบับ) ไม่ต้องแก้โค้ด เพราะ rejectSuperseded ไม่กรอง loan_type อยู่แล้ว (Q-APV-14) / test ผ่าน / tasks.md T-47 สถานะ "เสร็จ รอทีมตรวจ"
+
+---
+
+## 2569-11-13 ทีมตรวจ T-47 ผ่าน (004)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ทีมตรวจแล้วผ่าน"
+- ผลลัพธ์: tasks.md T-47 สถานะเป็น "เสร็จ (ทีมตรวจแล้ว 2569-11-13)"
