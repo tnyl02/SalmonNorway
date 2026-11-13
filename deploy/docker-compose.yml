@@ -33,12 +33,16 @@ services:
       TLS_CERT_FILE: /certs/cert.pem
       TLS_KEY_FILE: /certs/key.pem
       ATTACHMENT_DIR: /data/attachments
+      # รูปสภาพอุปกรณ์ตอนส่งมอบเก็บบน volume photos (FR-HND-06, T-07 ของ 005, plan 005 Q-P1 ทีมเลือกเอง ไม่ได้มาจาก spec)
+      PHOTO_DIR: /data/photos
     ports:
       - "8443:8443"
     volumes:
       - ./certs:/certs:ro
       - attachments:/data/attachments
+      - photos:/data/photos
 
 volumes:
   pgdata:
   attachments:
+  photos:

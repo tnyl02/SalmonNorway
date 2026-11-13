@@ -1,5 +1,5 @@
 # Constraint ที่ใช้ร่วมทุกฟีเจอร์ (shared constraints)
-Status: v5.6 | Updated: 2569-11-13 (v5.6 Q-SH-08 ปิดสำหรับ prototype / v5.5 Q-SH-06, Q-SH-09 ปิดตามคำตอบที่บันทึกใน spec ของ 002, 004, 006 แล้ว / v5.4 006 ลงทะเบียน NO_OPEN_LOAN, CONDITION_REQUIRED, LOAN_NOT_FOUND และใช้ UNAUTHENTICATED, FORBIDDEN_ROLE, FORBIDDEN_DEPARTMENT, UPSTREAM_UNAVAILABLE ร่วม ตามกติกาของ CON-TECH-03, v5.3 001 ลงทะเบียน ITEM_NOT_FOUND และ METHOD_NOT_ALLOWED ตามกติกาของ CON-TECH-03, v5.2 003 ใช้ REQUEST_NOT_FOUND แถวเดียวกับที่ 004 ลงทะเบียน และลงทะเบียน ALREADY_APPROVED, NOT_CANCELLABLE ตาม CR-006, เพิ่ม CON-TECH-03 รูปแบบและรายการรหัส error กลาง ตาม CR-004, v5.1 005 เพิ่มรหัส REQUEST_NOT_APPROVED, BORROWER_MISMATCH และ FORBIDDEN_ROLE (แถวเดียวกับที่ 004 ลงทะเบียน) ตามกติกาของ CON-TECH-03, 2569-11-12 004 เพิ่มรหัส REQUEST_CANCELLED, REQUEST_ALREADY_DECIDED, REQUEST_DECIDED_CONCURRENTLY, NOT_FIRST_IN_QUEUE, APPROVAL_CUTOFF_PASSED ตามกติกาของ CON-TECH-03, v5.2 2569-11-12 002 ใช้ REQUEST_NOT_FOUND แถวเดียวกับที่ 004 ลงทะเบียน และใช้ FORBIDDEN_ROLE ร่วม ตาม CR-007) | Source: Miro (Requirement table, Use Case Diagram, Architecture), spec 001
+Status: v5.7 | Updated: 2569-11-13 (v5.7 เพิ่ม Q-SH-10, Q-SH-11 ตาม CR-010 / v5.6 Q-SH-08 ปิดสำหรับ prototype / v5.5 Q-SH-06, Q-SH-09 ปิดตามคำตอบที่บันทึกใน spec ของ 002, 004, 006 แล้ว / v5.4 006 ลงทะเบียน NO_OPEN_LOAN, CONDITION_REQUIRED, LOAN_NOT_FOUND และใช้ UNAUTHENTICATED, FORBIDDEN_ROLE, FORBIDDEN_DEPARTMENT, UPSTREAM_UNAVAILABLE ร่วม ตามกติกาของ CON-TECH-03, v5.3 001 ลงทะเบียน ITEM_NOT_FOUND และ METHOD_NOT_ALLOWED ตามกติกาของ CON-TECH-03, v5.2 003 ใช้ REQUEST_NOT_FOUND แถวเดียวกับที่ 004 ลงทะเบียน และลงทะเบียน ALREADY_APPROVED, NOT_CANCELLABLE ตาม CR-006, เพิ่ม CON-TECH-03 รูปแบบและรายการรหัส error กลาง ตาม CR-004, v5.1 005 เพิ่มรหัส REQUEST_NOT_APPROVED, BORROWER_MISMATCH และ FORBIDDEN_ROLE (แถวเดียวกับที่ 004 ลงทะเบียน) ตามกติกาของ CON-TECH-03, 2569-11-12 004 เพิ่มรหัส REQUEST_CANCELLED, REQUEST_ALREADY_DECIDED, REQUEST_DECIDED_CONCURRENTLY, NOT_FIRST_IN_QUEUE, APPROVAL_CUTOFF_PASSED ตามกติกาของ CON-TECH-03, v5.2 2569-11-12 002 ใช้ REQUEST_NOT_FOUND แถวเดียวกับที่ 004 ลงทะเบียน และใช้ FORBIDDEN_ROLE ร่วม ตาม CR-007) | Source: Miro (Requirement table, Use Case Diagram, Architecture), spec 001
 
 กติกา: Constraint ที่ใช้มากกว่า 1 ฟีเจอร์ เขียนที่นี่ **ที่เดียว** spec ของแต่ละฟีเจอร์อ้าง ID ในหมวด Constraints ไม่ copy ข้อความ
 ถ้าแก้ไฟล์นี้ ต้องทำ CR และดู Impact Analysis กับทุก spec ที่อ้าง ID นั้น (ดู rtm.md ของแต่ละฟีเจอร์)
@@ -102,6 +102,11 @@ Status: v5.6 | Updated: 2569-11-13 (v5.6 Q-SH-08 ปิดสำหรับ pro
   หรือ UC-07 ตรวจสอบอุปกรณ์ที่คืน? -> ถามนักคอมพิวเตอร์ กระทบ: 006 (ต้องตอบก่อน), 001 (CON-DATA-02)
   คำตอบ: **UC-09 (006) เปลี่ยนเป็น "ไม่พร้อมใช้งาน" ทันทีเมื่อเจ้าหน้าที่ระบุสภาพ "ชำรุด"** ไม่ผ่านสถานะ "ว่าง" (FR-RET-04 ของ 006)
   UC-07 ไม่ทำใน prototype (data-model.md) (ไฟล์นี้อัปเดตตาม spec ของ 006 เมื่อ 2569-11-13)
+- Q-SH-10 (จาก DOM-AUDIT-01, rtm 002 F-06, CR-010) การอ่านข้อมูลอุปกรณ์ระหว่างส่งคำขอยืม ต้องมีแถว audit แยกจากแถว `request` ไหม
+  และ endpoint ลำดับคำขอ `GET /api/v1/equipment/items/{assetCode}/requests` ของเจ้าหน้าที่ต้องเขียน audit ไหม
+  ตอนนี้ 002 เขียนแถวเดียวต่อการส่งคำขอ 1 ครั้ง และ endpoint คิวไม่เขียน audit -> ถามนักเทคโนโลยีสารสนเทศ กระทบ: 002, 005 (F-02 รายการรอส่งมอบ), 001 (Q-11)
+- Q-SH-11 (จาก FR-BRQ-10 ก, rtm 002 F-10, CR-010) ไฟล์ใบบันทึกข้อความที่แนบกับคำขอยืมค้างคืน ต้องลบเมื่อไร และใครเป็นคนลบ
+  ตอนนี้เก็บถาวร ลบเฉพาะตอนบันทึกคำขอไม่สำเร็จ ไม่มีใครลบเมื่อคำขอถูกยกเลิก (003) หรือถูกปฏิเสธ (004) -> ถามนักเทคโนโลยีสารสนเทศ กระทบ: 002, 003, 004
 
 ## ใครอ้างใช้บ้าง
 | ID | ฟีเจอร์ที่อ้าง |

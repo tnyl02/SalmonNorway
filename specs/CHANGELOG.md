@@ -2,6 +2,16 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [shared constraints v5.7 + SPEC-BRQ-002 Draft v3.6 + SPEC-HND-005 Draft v2.10] - 2569-11-13 CR-010
+คนกลาง (พรรณธร 001) ทำแทนก่อนส่งงาน ตามที่ทีมตัดสินไว้แล้ว ไม่มีการตัดสินใหม่
+### Added
+- constraints.md v5.7: Q-SH-10 (audit ของการอ่านข้อมูลอุปกรณ์) และ Q-SH-11 (อายุของไฟล์แนบ) ตาม CR-010 จาก rtm 002 F-06, F-10
+- spec 002 v3.6: Open Questions เพิ่ม Q-SH-10, Q-SH-11
+### Changed
+- spec 005 v2.10: Q-SH-06 สถานะ "ปิดบางส่วน" -> "ปิดแล้ว" ให้ตรงกับไฟล์กลาง v5.5
+- deploy/docker-compose.yml: volume photos ของ 005 (T-07) merge เข้า main แทน PR #38
+- specs/README.md: เวอร์ชันและรอบ /verify ของ 001, 002, 005, 006 / README แถว 005 เพิ่ม volume photos กลับ
+
 ## [shared constraints v5.6 + SPEC-EQS-001 v5.3 + SPEC-BRQ-002 v3.5 + SPEC-APV-004 v3.4 + SPEC-HND-005 v2.9 + SPEC-RET-006 v2.3] - 2569-11-13
 ทีมตัดสิน Q-SH-08 ทาง ก (พรรณธรแจ้งในกลุ่ม 2569-11-13) ไม่มี CR เพราะไม่เปลี่ยนข้อความ FR หรือ AC ของฟีเจอร์ใด
 คำตอบ: ปิดสำหรับ prototype คง `auth.Middleware` ตอบ 401 `UNAUTHENTICATED` (fail closed) เพราะ auth จำลอง (Q-SH-03) เชื่อมต่อไม่ได้ไม่เกิด

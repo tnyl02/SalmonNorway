@@ -1,10 +1,11 @@
 # RTM: บันทึกการส่งมอบอุปกรณ์ (Handover)
-อ้างอิง: spec.md SPEC-HND-005 Draft v2.9 | plan.md v1.5 | tasks.md v1.5 | test-cases.md (63 แถว สถานะ "ร่าง" ทั้งหมด ยังไม่มี test `TestTC_`)
+อ้างอิง: spec.md SPEC-HND-005 Draft v2.10 | plan.md v1.5 | tasks.md v1.5 | test-cases.md (63 แถว สถานะ "ร่าง" ทั้งหมด ยังไม่มี test `TestTC_`)
 สร้างด้วย /verify เมื่อ 2569-11-13 22:15 (Asia/Bangkok) ที่ commit e550ddd บน main (รอบที่ 2 / รอบ 1 2569-11-12 22:29 ที่ e57cd3f) | test: 32 ผ่าน 0 ไม่ผ่าน (ของ 005: หลังบ้าน 25 test function ใน `backend/internal/handover/` และหน้าจอ 7 test ใน `AC-HND-02/12/14.test.jsx`)
 ทั้งระบบ: `go test ./... -v -count=1` 539 ผ่าน 0 ไม่ผ่าน SKIP 2 (ของ 001) / `npx vitest run` 213 ผ่าน 0 ไม่ผ่าน SKIP 1 (ของ 001)
 รอบนี้รันโดย 001 (พรรณธร) ตามคำสั่งในกลุ่มก่อนส่ง โค้ดใน `backend/internal/handover/` และหน้าจอของ 005 ไม่เปลี่ยนตั้งแต่รอบ 1
 สิ่งที่เปลี่ยนรอบนี้: spec v2.9 (Q-SH-08 ปิดสำหรับ prototype), HTTPS ของ 004 ใน deploy/docker-compose.yml (กระทบ F-04, F-05), Q-SH-06 ปิดในไฟล์กลาง (กระทบ AC-HND-13 ดู F-09)
 branch `005-handover` (commit 9d9212f เพิ่ม volume `photos`) ยังไม่ได้ merge เข้า main (PR #38 ถูกปิดเพราะ conflict) รอบนี้ตรวจตาม main
+**อัปเดตรอบ 3 (2569-11-13 23:00 หลัง merge `005-handover` ที่ a0c1b5a):** docker-compose มี `PHOTO_DIR` และ volume `photos` แล้ว F-05 ย้ายไป "แก้แล้ว" / spec v2.10 แก้สถานะ Q-SH-06 / ไม่มีโค้ด Go หรือหน้าจอเปลี่ยน ไม่ได้รัน test ซ้ำ
 
 ## 1. ตามรอยไปข้างหน้า (requirement ไป โค้ด ไป test)
 | ID | AC | task | โค้ด (ไฟล์: ฟังก์ชัน) | test (ผล) | สถานะ |
@@ -20,7 +21,7 @@ branch `005-handover` (commit 9d9212f เพิ่ม volume `photos`) ยัง
 | NFR-SEC-01 | ไม่มี AC | ไม่มี task | ทุก route อยู่หลัง `auth.Middleware` (main.go) / TLS 1.2 ขึ้นไปของทั้งระบบ: platform/tls.go (T-50 ของ 004) | TestHandover_NonStaffForbidden (401 เมื่อไม่มี token ผ่าน) / TLS: tls_test.go, TestTC_APV_19_* ของ 004 (ผ่าน) | ช่องโหว่ (F-04 ไม่มี AC ของ 005) |
 | NFR-AVAIL-01 | ไม่มี AC | ไม่มี task | ไม่มี | ไม่มี | ช่องโหว่ (F-04) |
 | CON-TECH-01 | ไม่มี AC ตรง | T-02, T-26 | 0006_handover.up.sql, 0009_audit_log_handover_action.up.sql | TestMigration_* 3 ตัว (ผ่าน) | ครบ |
-| CON-TECH-02 | ไม่มี AC ตรง | T-03, T-07 | photostore.go (`config.PhotoDir()` อ่าน env `PHOTO_DIR` ค่าเริ่มต้น `/data/photos`) / docker-compose มี service backend แบบ HTTPS แล้ว (004) แต่ไม่มี volume `photos` และไม่ตั้ง `PHOTO_DIR` | HTTPS: TestTC_APV_19_* ของ 004 (ผ่าน) / volume: ไม่มี | ช่องโหว่ (F-05 เหลือแค่ volume รูป) |
+| CON-TECH-02 | ไม่มี AC ตรง | T-03, T-07 | photostore.go (`config.PhotoDir()` อ่าน env `PHOTO_DIR`) / docker-compose service backend แบบ HTTPS (004) ตั้ง `PHOTO_DIR: /data/photos` และ volume `photos:/data/photos` (T-07) | HTTPS: TestTC_APV_19_* ของ 004 (ผ่าน) / volume: ตรวจด้วยการอ่าน deploy/docker-compose.yml และ `docker compose config` ผ่าน ไม่มี test อัตโนมัติ | ครบ (F-05 แก้แล้ว) |
 | CON-TECH-03 | AC-HND-01, 04, 09, 10, 12 | T-03, T-10, T-16, T-20, T-21 | errors.go: `writeError`, `errorMessages`; handler.go: `handover`, `verifyBorrower` | TestHandover_NonStaffForbidden, TestAC_HND_01/04/09/10/12 (ตรวจ code ผ่าน) | ช่องโหว่ (F-01) |
 | CON-DATA-01 | AC-HND-04, AC-HND-07 | T-06, T-17 | repository.go: ค่าคงที่ `itemStatusAvailable`, `itemStatusBorrowed` | TestAC_HND_04_ItemNotAvailable, TestAC_HND_07_HandoverCreatesLoan (ผ่าน) | ครบ |
 | CON-DATA-03 | AC-HND-07, AC-HND-14 | T-04, T-26 | repository.go: `ListReadyRequests` (`assetCode`), `CreateHandover` (`AssetCode`), audit `asset_code` | TestAC_HND_14_ListApprovedOnly, TestAC_HND_07_HandoverCreatesLoan, TestAC_HND_08_AuditLogged (ผ่าน) | ครบ |
@@ -30,8 +31,8 @@ branch `005-handover` (commit 9d9212f เพิ่ม volume `photos`) ยัง
 | IF-IDP-01 | AC-HND-02, AC-HND-03, AC-HND-09 | T-03, T-08, T-09, T-13 (T-29 ยกเลิกเทอมนี้) | main.go: `auth.Middleware`; verifier.go: `MockBorrowerVerifier` (ตัวจำลอง ทีมตัดสินเทอมนี้ไม่เชื่อม Auth API จริง) / Q-SH-08 ปิดสำหรับ prototype (ตอบ 401) | TestHandover_NonStaffForbidden, TestAC_HND_02/03 (ผ่าน) | ครบ |
 | CON-HND-01 | AC-HND-09 | T-03, T-23 | handler.go: `requireStaff` | TestHandover_NonStaffForbidden, TestAC_HND_09_StudentForbidden (ผ่าน) | ครบ |
 
-สรุป 20 แถว: ครบ 11 / ยังไม่ถึง 0 / รอ 0 / ช่องโหว่ 9 (FR-HND-01, 02, 05, 06, NFR-SEC-01, NFR-AVAIL-01, CON-TECH-02, CON-TECH-03, DOM-AUDIT-01) เท่ารอบ 1
-ช่องทีมตัดสินของข้อค้นพบยังว่างทั้งหมด (F-01 ถึง F-09) เจ้าของ 005 ต้องเขียนเอง
+สรุป 20 แถว: ครบ 12 / ยังไม่ถึง 0 / รอ 0 / ช่องโหว่ 8 (FR-HND-01, 02, 05, 06, NFR-SEC-01, NFR-AVAIL-01, CON-TECH-03, DOM-AUDIT-01) (รอบ 1: ครบ 11 / ช่องโหว่ 9)
+ช่องทีมตัดสินของข้อค้นพบยังว่างทั้งหมด (F-01 ถึง F-04, F-06 ถึง F-09) เจ้าของ 005 ต้องเขียนเอง
 
 ## 2. ตามรอยย้อนกลับ (โค้ด ไป requirement)
 | โค้ด (ไฟล์: ฟังก์ชัน หรือ endpoint) | อ้าง ID | ตรงกับข้อความใน spec ไหม | หมายเหตุ |
@@ -72,16 +73,15 @@ branch `005-handover` (commit 9d9212f เพิ่ม volume `photos`) ยัง
 | F-02 | ละเมิด Constraint | handler.go: `listRequests` (ส่งรหัสครุภัณฑ์และรุ่นของอุปกรณ์), `verifyBorrower` | DOM-AUDIT-01 | DOM-AUDIT-01 ให้บันทึก audit log ทุกครั้งที่เข้าถึงข้อมูลอุปกรณ์ แต่รายการรอส่งมอบแสดงข้อมูลอุปกรณ์โดยไม่บันทึก audit ทีมตัดสินตอน review T-27 (2569-11-12) ว่า "เรียกดูรายการหรือยืนยันตัวตนผู้ยืมไม่ต้องเก็บ" ซึ่งเป็นการตัดสินใน prompt-log / plan ข้อ 8 แต่ขัดกับ Constraint ใช้ร่วม ต้องเลือก: แก้โค้ดให้บันทึก (ค่า action ต้องมีใน CHECK) หรือทำ CR ยกเว้นใน constraints.md | |
 | F-03 | FR ไม่มี AC | spec.md FR-HND-01 (ค้างคืนจาก UC-14), FR-HND-05 (ค้างคืน = 16:00 ของวันสิ้นสุด), FR-HND-06 (ทั้งยืมปกติและค้างคืน) | spec AC | ส่วนยืมค้างคืนของ 3 FR ไม่มี AC เลย (T-30 ทำแล้ว ตรวจด้วย `TestHandover_OvernightDueAt` ซึ่งไม่ได้ผูกกับ AC) และกรณีส่งมอบค้างคืนหลังวันสิ้นสุดการยืมยังเป็นคำถามที่ยังไม่มี ID ใน spec ควรเพิ่ม AC ของค้างคืนผ่าน CR และตั้ง ID ให้คำถาม | |
 | F-04 | FR ไม่มี AC | spec.md NFR-SEC-01, NFR-AVAIL-01 | spec AC | NFR 2 ข้อไม่มี AC ไม่มี task และไม่มี test (TLS 1.2 ขึ้นไป / พร้อมใช้งาน 99% ช่วง 08.30-16.30 น.) ส่วน "ต้องผ่านการยืนยันตัวตนก่อนทุกครั้ง" มี test ผ่าน TestHandover_NonStaffForbidden แล้ว | |
-| F-05 | ละเมิด Constraint | deploy/docker-compose.yml, T-07 | CON-TECH-02 | ยังไม่มี service หลังบ้าน HTTPS และ volume `photos` ใน deploy/ รูปการส่งมอบจึงยังไม่ได้อยู่บน Docker volume ตาม plan Q-P1 (ทีมรับไว้ตอน review T-07 ว่ารอจนกว่าจะมี service หลังบ้าน) เป็นเรื่องของกลางร่วมกับ 001 / **รอบ 2:** service หลังบ้านแบบ HTTPS มีแล้ว (T-50 ของ 004) เหลือแค่ volume `photos` และ `PHOTO_DIR` ซึ่งอยู่ใน branch `005-handover` (7d52293) ยังไม่ merge ตอนนี้รูปเขียนลง `/data/photos` ใน container หายเมื่อ container ถูกสร้างใหม่ | |
 | F-06 | โค้ดไม่มี FR | service.go: `handover` (`MissingFieldsError`), handler.go: `verifyBorrower` / `handover` (`ErrBorrowerNotVerified` -> 422 `VALIDATION_FAILED` ช่อง `borrowerCredential`) | plan.md ข้อ 4 ตาราง error | โค้ดตัดสินเองว่า ชื่อ นามสกุล หรือ credential ว่าง และ credential ใช้ไม่ได้ ตอบ 422 `VALIDATION_FAILED` พร้อมช่อง plan ข้อ 4 มีแค่แถว `cardChecked` และ `photos` (ดู test-cases TC-HND-02-4, 02-5, 07-3 ที่ Then เขียนว่า spec ไม่ได้บอก) ควรเพิ่มแถวใน plan ข้อ 4 ถ้าทีมรับพฤติกรรมนี้ | |
 | F-07 | ตัวเลขไม่ตรง spec | photostore.go: `photoExt` | AGENTS.md กฎข้อ 9, plan ข้อ 5 (`HandoverPhotoTypes`) | ชนิดรูป JPG/PNG ของ FR-HND-06 อยู่ใน config.go แล้ว แต่ `photoExt` ประกาศรายการชนิดซ้ำอีกที่ ถ้าเพิ่มชนิดใน config ตามคำตอบในอนาคต `Save` จะปฏิเสธด้วย `ErrPhotoType` หลังจากผ่านการตรวจแล้ว | |
 | F-08 | test อ่อน | config.go: `BorrowerAuthTimeout`, handler.go: `NewHandler` | AC-HND-03 ("ไม่ตอบภายใน 10 วินาที") | TestAC_HND_03 ใช้ timeout 50 ms ผ่าน `WithTimeout` ไม่มี test ใดตรวจว่าระบบจริงใช้ 10 วินาที ถ้าแก้ `BorrowerAuthTimeout` เป็นค่าอื่น หรือ `NewHandler` ไม่ห่อ `WithTimeout` test ทุกตัวยังผ่าน (test-cases TC-HND-03-4 เสนอไว้แล้ว) | |
-| F-09 | ช่องว่างของ spec | spec.md AC-HND-13 / handler_test.go: TestAC_HND_13_OtherRequestUntouched | Q-SH-06 (ปิดแล้วใน constraints.md v5.5: คำขออื่นของชิ้นเดียวกันถูก 004 ปฏิเสธทันทีเมื่อมีคำขอได้รับอนุมัติ) | Given ของ AC-HND-13 ("X อนุมัติแล้ว Y ยังไม่ได้ตัดสิน" ของชิ้นเดียวกัน) เกิดในระบบจริงไม่ได้แล้ว เพราะ 004 เปลี่ยน Y เป็น rejected ตอนอนุมัติ X test ตั้งสถานะ Y เองจึงยังผ่าน แต่ตรวจสถานการณ์ที่ไม่เกิดจริง spec 005 บรรทัด 195 เขียนไว้เองว่า "ทีมต้องตัดสินว่าแก้ Given" และยังเขียนว่า Q-SH-06 "ปิดบางส่วน" ไม่ตรงกับไฟล์กลาง แนวทาง: แก้ Given ของ AC-HND-13 ให้ Y เป็นคำขอที่ 004 ปฏิเสธแล้ว (ส่งมอบ Y ไม่ได้) หรือบันทึกว่าเป็น test ป้องกันไว้ และแก้สถานะ Q-SH-06 ใน spec | |
+| F-09 | ช่องว่างของ spec | spec.md AC-HND-13 / handler_test.go: TestAC_HND_13_OtherRequestUntouched | Q-SH-06 (ปิดแล้วใน constraints.md v5.5: คำขออื่นของชิ้นเดียวกันถูก 004 ปฏิเสธทันทีเมื่อมีคำขอได้รับอนุมัติ) | Given ของ AC-HND-13 ("X อนุมัติแล้ว Y ยังไม่ได้ตัดสิน" ของชิ้นเดียวกัน) เกิดในระบบจริงไม่ได้แล้ว เพราะ 004 เปลี่ยน Y เป็น rejected ตอนอนุมัติ X test ตั้งสถานะ Y เองจึงยังผ่าน แต่ตรวจสถานการณ์ที่ไม่เกิดจริง spec 005 บรรทัด 195 เขียนไว้เองว่า "ทีมต้องตัดสินว่าแก้ Given" (สถานะ Q-SH-06 ใน spec แก้ให้ตรงไฟล์กลางแล้วใน v2.10 แต่ Given ของ AC-HND-13 ยังไม่ได้แก้) แนวทาง: แก้ Given ของ AC-HND-13 ให้ Y เป็นคำขอที่ 004 ปฏิเสธแล้ว (ส่งมอบ Y ไม่ได้) หรือบันทึกว่าเป็น test ป้องกันไว้ และแก้สถานะ Q-SH-06 ใน spec | |
 
-ข้อค้นพบเดิมที่ยังเจออยู่ (F-01 ถึง F-08) คง F-ID ช่องทีมตัดสินยังว่าง (เจ้าของยังไม่ได้เขียน) โค้ดยังเหมือนรอบ 1 / F-05 แก้รายละเอียดตามของกลางที่เปลี่ยน
+ข้อค้นพบเดิมที่ยังเจออยู่ (F-01 ถึง F-04, F-06 ถึง F-08) คง F-ID ช่องทีมตัดสินยังว่าง (เจ้าของยังไม่ได้เขียน) โค้ดยังเหมือนรอบ 1 / F-05 แก้แล้ว (รอบ 3)
 ข้อค้นพบใหม่รอบนี้: F-09 (ช่องทีมตัดสินว่าง ทีมเขียนเอง)
 
 ## 4. แก้แล้ว
 | F-ID | แก้อย่างไร | รู้ได้อย่างไร |
 |---|---|---|
-| - | รอบ 2 ยังไม่มีข้อค้นพบที่แก้แล้ว (โค้ดของ 005 ไม่เปลี่ยน) F-05 ส่วน HTTPS ทำแล้วโดย 004 แต่ volume ยังไม่ merge จึงยังไม่ย้ายมา | - |
+| F-05 | HTTPS: 004 ทำ service backend :8443 พร้อม TLS 1.2 (T-50 ของ 004) / volume: บรรลุเพิ่ม `PHOTO_DIR: /data/photos` และ volume `photos` ใน service backend (7d52293, T-07) merge เข้า main โดยพรรณธรที่ a0c1b5a แทน PR #38 ที่ปิดเพราะ conflict (ช่องทีมตัดสินเดิมว่าง) | อ่าน deploy/docker-compose.yml บรรทัด 36-48 และ `docker compose config -q` ผ่าน / config.PhotoDir() อ่าน PHOTO_DIR ตัวเดียวกัน |
