@@ -828,6 +828,30 @@ Updated: 2569-11-13 (v2: CR-009 เฟส 19 ถึง 25, T-40 ถึง T-50 /
 - เสร็จเมื่อ: test ของ AC-APV-19 ผ่านบนระบบที่มี HTTPS
 - สถานะ: รอ Q-APV-38
 
+## เฟส 27: แก้ตามที่ทีมตัดสิน rtm.md รอบ 4 (CR-009 แก้ไขหลังอนุมัติ 2569-11-13)
+
+### T-51 [ID เสนอ รอทีมอนุมัติ] ตัดช่องว่างหน้าหลังของชื่ออาจารย์ก่อนเก็บและก่อนนับความยาว
+- รองรับ: FR-APV-03 (ช) v3.1, rtm.md F-07
+- ตรวจด้วย: AC-APV-22 (TC-APV-22-4)
+- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/tc_ac_apv_22_26_test.go`, `backend/internal/approve/service_test.go`, `frontend/src/pages/ApproveRequest/ApproveRequests.jsx`, `frontend/src/pages/ApproveRequest/ApproveRequests.test.jsx`
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: T-44, T-45
+- เสร็จเมื่อ: `TestTC_APV_22_4` ตามแถวที่ทีมตรวจแล้วผ่าน: `advisor_name` เก็บแบบตัดช่องว่างหน้าหลัง และชื่อที่ยาวเกิน 100 เพราะช่องว่างหน้าหลังยังอนุมัติได้ / หน้าจอนับความยาวหลังตัดแบบเดียวกัน / test เดิมทุกตัวยังผ่าน
+- สถานะ: รอทีมอนุมัติ ID และตรวจแถว TC-APV-22-4
+
+### T-52 [ID เสนอ รอทีมอนุมัติ] เพิ่มชื่ออาจารย์ที่เซ็นใน Email ผลอนุมัติของคำขอค้างคืน
+- รองรับ: FR-APV-02 (ก) v3.1, FR-APV-03 (ข), rtm.md F-08
+- ตรวจด้วย: AC-APV-22 (TC-APV-22-12)
+- ไฟล์ที่แตะ: `backend/internal/approve/email.go`, `backend/internal/approve/sender.go` (อ่าน `advisor_name` และ loan_type), `backend/internal/approve/model.go` หรือที่เก็บ EmailData, `backend/internal/config/config.go` (ApprovalEmailTemplates), `backend/internal/config/config_approval_test.go`, `backend/internal/approve/email_test.go`, `backend/internal/approve/tc_ac_apv_22_26_test.go`
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: T-14, T-44
+- เสร็จเมื่อ: `TestTC_APV_22_12` ตามแถวที่ทีมตรวจแล้วผ่าน: Email ผลอนุมัติของคำขอค้างคืนมี "ชื่ออาจารย์ที่เซ็นอนุมัติ" และไม่มีจำนวนอุปกรณ์ / Email ของยืมปกติไม่เปลี่ยน (TestTC_APV_04_* ยังผ่าน)
+- สถานะ: รอทีมอนุมัติ ID และตรวจแถว TC-APV-22-12
+
+#### จุดตรวจเฟส 27
+- test ที่ต้องผ่านทั้งหมด: `TestTC_APV_22_4`, `TestTC_APV_22_12` และ test ของ**ทุกเฟส**ต้องยังผ่าน
+- ตรวจ rtm.md: F-07 และ F-08 ย้ายไปหัวข้อ "แก้แล้ว" ได้ตอน /verify รอบถัดไป
+
 ## ตารางตรวจความครบ
 
 ### 1. AC กับ task
