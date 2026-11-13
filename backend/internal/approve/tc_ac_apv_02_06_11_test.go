@@ -328,8 +328,8 @@ func TestTC_APV_02_10_AlreadyApprovedNotRejected(t *testing.T) {
 	}
 }
 
-// TC-APV-02-11 (AC-APV-02 ผิด)
-func TestTC_APV_02_11_OvernightNotFound(t *testing.T) {
+// TC-APV-02-11 (AC-APV-02 ขอบ) แก้ตาม spec v3 CR-009 2569-11-13
+func TestTC_APV_02_11_OvernightRejected(t *testing.T) {
 	// Given คำขอค้างคืน C ของ AP-TEST-0001
 	tx := devTx(t)
 	c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
@@ -338,16 +338,26 @@ func TestTC_APV_02_11_OvernightNotFound(t *testing.T) {
 	// When staff-001 ปฏิเสธ C พร้อมเหตุผล
 	w := tcReject(srv, tokenStaffDept1, c, "อุปกรณ์ต้องใช้สอบ", time.Now())
 
-	// Then (1) ได้ 404 REQUEST_NOT_FOUND ข้อความ "ไม่พบคำขอนี้"
-	if w.Code != http.StatusNotFound {
-		t.Errorf("(1) ต้องได้ 404 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	// Then (1) ได้ 200 status = rejected
+	if w.Code != http.StatusOK {
+		t.Fatalf("(1) ต้องได้ 200 แต่ได้ %d body=%s", w.Code, w.Body.String())
 	}
-	if e := tcError(t, w); e.Code != "REQUEST_NOT_FOUND" || e.Message != "ไม่พบคำขอนี้" {
-		t.Errorf("(1) ต้องได้ REQUEST_NOT_FOUND พร้อมข้อความ \"ไม่พบคำขอนี้\" แต่ได้ %+v", e)
+	var res ResultDTO
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatal(err)
 	}
-	// Then (2) C ยังเป็น requested
-	if s := tcRequestStatus(t, tx, c); s != "requested" {
-		t.Errorf("(2) C ต้องยังเป็น requested แต่ได้ %q", s)
+	if res.Status != "rejected" {
+		t.Errorf("(1) status ต้องเป็น rejected แต่ได้ %q", res.Status)
+	}
+	// Then (2) C เป็น rejected
+	if s := tcRequestStatus(t, tx, c); s != "rejected" {
+		t.Errorf("(2) C ต้องเป็น rejected แต่ได้ %q", s)
+	}
+	// Then (3) A และ B ของ AP-TEST-0001 ยังเป็น requested
+	for _, who := range []string{"student-001", "student-002"} {
+		if s := tcRequestStatus(t, tx, requestIDOf(t, tx, "AP-TEST-0001", who)); s != "requested" {
+			t.Errorf("(3) คำขอของ %s ต้องยังเป็น requested แต่ได้ %q", who, s)
+		}
 	}
 }
 
@@ -550,31 +560,30 @@ func TestTC_APV_11_1_ListOwnDepartmentPending(t *testing.T) {
 	// When staff-001 เรียก GET /v1/approvals/requests
 	w, got := tcList(t, srv, tokenStaffDept1)
 
-	// Then (1) ได้ 200 และ 5 รายการ
+	// Then (1) ได้ 200 และ 6 รายการ (แก้ตาม spec v3 CR-009 2569-11-13)
 	if w.Code != http.StatusOK {
 		t.Fatalf("(1) ต้องได้ 200 แต่ได้ %d body=%s", w.Code, w.Body.String())
 	}
-	if len(got.Items) != 5 {
-		t.Fatalf("(1) ต้องได้ 5 รายการ แต่ได้ %d: %+v", len(got.Items), got.Items)
+	if len(got.Items) != 6 {
+		t.Fatalf("(1) ต้องได้ 6 รายการ แต่ได้ %d: %+v", len(got.Items), got.Items)
 	}
-	// Then (2) ไม่มีคำขอ C, คำขอ cancelled, คำขอ approved และคำขอของ AP-TEST-0101
+	// Then (2) ไม่มีคำขอ cancelled, คำขอ approved และคำขอของ AP-TEST-0101
 	for _, it := range got.Items {
 		switch {
-		case it.RequesterName == "นักศึกษาตัวอย่าง ค":
-			t.Error("(2) ต้องไม่มีคำขอค้างคืน C")
 		case it.AssetCode == "AP-TEST-0005":
 			t.Errorf("(2) ต้องไม่มีคำขอ cancelled หรือ approved ของ AP-TEST-0005 แต่ได้ %+v", it)
 		case it.AssetCode == "AP-TEST-0101":
 			t.Error("(2) ต้องไม่มีคำขอของ AP-TEST-0101 (ภาควิชา 2)")
 		}
 	}
-	// Then (3) เรียงตาม submittedAt จากเก่าไปใหม่: A, 0002, B, 0003, 0004
+	// Then (3) เรียงตาม submittedAt จากเก่าไปใหม่: A, 0002, B, 0003, 0004, C
 	want := []struct{ asset, name string }{
 		{"AP-TEST-0001", "นักศึกษาตัวอย่าง ก"},
 		{"AP-TEST-0002", "นักศึกษาตัวอย่าง ก"},
 		{"AP-TEST-0001", "นักศึกษาตัวอย่าง ข"},
 		{"AP-TEST-0003", "นักศึกษาตัวอย่าง ข"},
 		{"AP-TEST-0004", "นักศึกษาตัวอย่าง ก"},
+		{"AP-TEST-0001", "นักศึกษาตัวอย่าง ค"},
 	}
 	for i, w := range want {
 		if got.Items[i].AssetCode != w.asset || got.Items[i].RequesterName != w.name {
@@ -593,6 +602,18 @@ func TestTC_APV_11_1_ListOwnDepartmentPending(t *testing.T) {
 	// Then (5) มี loadedAt
 	if got.LoadedAt.IsZero() {
 		t.Error("(5) ต้องมี loadedAt")
+	}
+	// Then (6) C เป็น overnight isFirst=false มี attachmentUrl รายการอื่นเป็น normal ไม่มี attachmentUrl
+	c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+	for i, it := range got.Items {
+		if it.RequestID == c {
+			want := fmt.Sprintf("/v1/loan-requests/%d/attachment", c)
+			if it.LoanType != "overnight" || it.IsFirst || it.AttachmentURL != want {
+				t.Errorf("(6) C ต้องเป็น overnight isFirst=false attachmentUrl=%s แต่ได้ %+v", want, it)
+			}
+		} else if it.LoanType != "normal" || it.AttachmentURL != "" {
+			t.Errorf("(6) แถว %d ต้องเป็น normal ไม่มี attachmentUrl แต่ได้ %+v", i, it)
+		}
 	}
 }
 
@@ -616,9 +637,9 @@ func TestTC_APV_11_3_DecidedRequestsDisappear(t *testing.T) {
 		t.Fatalf("ต้องได้ 200 แต่ได้ %d", w.Code)
 	}
 
-	// Then (1) ได้ 3 รายการ (A, B, 0004)
-	if len(got.Items) != 3 {
-		t.Errorf("(1) ต้องได้ 3 รายการ แต่ได้ %d: %+v", len(got.Items), got.Items)
+	// Then (1) ได้ 4 รายการ (A, B, 0004, C) แก้ตาม spec v3 CR-009 2569-11-13
+	if len(got.Items) != 4 {
+		t.Errorf("(1) ต้องได้ 4 รายการ แต่ได้ %d: %+v", len(got.Items), got.Items)
 	}
 	// Then (2) ไม่มีคำขอของ AP-TEST-0002 และ 0003 แล้ว
 	for _, it := range got.Items {

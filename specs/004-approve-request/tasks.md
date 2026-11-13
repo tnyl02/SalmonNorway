@@ -647,7 +647,7 @@ Updated: 2569-11-13 (v2: CR-009 เฟส 19 ถึง 25, T-40 ถึง T-50 /
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-04, T-40
 - เสร็จเมื่อ: `TestAC_APV_11` ที่แก้ตาม v3 ผ่าน: รายการมีคำขอค้างคืน `requested` ของภาควิชาตนเองพร้อม `loanType` / `isFirst` คิดเฉพาะยืมปกติ (Q-APV-23 คงเดิม) / คำขอที่มีไฟล์แนบมี `attachmentUrl` = `/v1/loan-requests/{id}/attachment`
-- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestAC_APV_11`, `TestAC_APV_11_HTTP`, `TestListPending_OvernightDoesNotBlockQueue` / `TestTC_APV_11_1` และ `TestTC_APV_11_3` ยังไม่ผ่าน รอทีมแก้แถว TC-APV-11-1 และ 11-3 ใน test-cases.md ก่อน)
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestAC_APV_11`, `TestAC_APV_11_HTTP`, `TestListPending_OvernightDoesNotBlockQueue` / ทีมแก้แถว TC-APV-11-1, 11-3 แล้ว 2569-11-13 `TestTC_APV_11_1`, `TestTC_APV_11_3` ผ่าน)
 
 ### T-43 แสดงประเภทการยืมและลิงก์ใบบันทึกข้อความบนหน้าจอ
 - รองรับ: FR-APV-03 (ก), Q-APV-41
@@ -678,7 +678,7 @@ Updated: 2569-11-13 (v2: CR-009 เฟส 19 ถึง 25, T-40 ถึง T-50 /
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-07, T-40, T-41
 - เสร็จเมื่อ: `TestAC_APV_22` ผ่าน: อนุมัติค้างคืนพร้อม advisorName -> `approved`, อุปกรณ์ยัง `available`, `approval_decision.advisor_name` ตรง, `approval_step` 3 แถว / ชื่อว่างหรือยาว 101 code point -> 422 `VALIDATION_FAILED` ช่อง advisorName ข้อความจาก config สถานะคงเดิม / อุปกรณ์ไม่ว่าง -> 409 `ITEM_NOT_AVAILABLE` / ลำดับการตรวจยืมปกติไม่เปลี่ยน (test เดิมทุกตัวผ่าน)
-- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestAC_APV_22`, `TestApproveOvernight_Rules`, `TestAC_APV_22_HTTP` / `TestTC_APV_01_12` ยังไม่ผ่าน รอทีมแก้แถว TC-APV-01-12 ใน test-cases.md ก่อน)
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestAC_APV_22`, `TestApproveOvernight_Rules`, `TestAC_APV_22_HTTP` / ทีมแก้แถว TC-APV-01-12 แล้ว 2569-11-13 `TestTC_APV_01_12_OvernightWithoutAdvisor` ผ่าน)
 
 ### T-45 ช่องชื่ออาจารย์และปุ่มอนุมัติของคำขอค้างคืนบนหน้าจอ
 - รองรับ: FR-APV-03 (ข)(ช), FR-APV-01 (ซ)
@@ -753,7 +753,7 @@ Updated: 2569-11-13 (v2: CR-009 เฟส 19 ถึง 25, T-40 ถึง T-50 /
 - แบบหน้าจอ: ไม่มี (ใช้ปุ่มปฏิเสธเดิมจาก T-11)
 - ต้องทำหลัง: T-10, T-44
 - เสร็จเมื่อ: `TestAC_APV_25` ผ่าน: ปฏิเสธค้างคืนพร้อมเหตุผล -> `rejected` ไม่มี advisor_name ไม่มี approval_step และตัวส่งจำลองได้ Email ผลปฏิเสธภายใน 60 วินาที / กฎเหตุผลเดิม (ว่าง, 500 ตัวอักษร) ใช้กับค้างคืนด้วย
-- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestAC_APV_25` / `TestTC_APV_02_11` ยังไม่ผ่าน รอทีมแก้แถว TC-APV-02-11 ใน test-cases.md ก่อน)
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestAC_APV_25` / ทีมแก้แถว TC-APV-02-11 แล้ว 2569-11-13 `TestTC_APV_02_11_OvernightRejected` ผ่าน)
 
 #### จุดตรวจเฟส 24
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_25` และ test ของ**ทุกเฟส**

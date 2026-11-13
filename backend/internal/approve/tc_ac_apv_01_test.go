@@ -348,22 +348,26 @@ func TestTC_APV_01_11_CancelledNotApproved(t *testing.T) {
 	}
 }
 
-// TC-APV-01-12 (AC-APV-01 ผิด)
-func TestTC_APV_01_12_OvernightNotFound(t *testing.T) {
-	// Given คำขอค้างคืน C ของ AP-TEST-0001
+// TC-APV-01-12 (AC-APV-01 ผิด) แก้ตาม spec v3 CR-009 2569-11-13
+func TestTC_APV_01_12_OvernightWithoutAdvisor(t *testing.T) {
+	// Given คำขอค้างคืน C ของ AP-TEST-0001 และไม่ส่ง advisorName
 	tx := devTx(t)
 	c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
 	srv := tcServer(tx, nil)
 
-	// When staff-001 อนุมัติ C
+	// When staff-001 อนุมัติ C โดยไม่ระบุชื่ออาจารย์ (tcApprove ส่งแค่ loadedAt)
 	w := tcApprove(srv, tokenStaffDept1, c)
 
-	// Then (1) ได้ 404 REQUEST_NOT_FOUND ข้อความ "ไม่พบคำขอนี้"
-	if w.Code != http.StatusNotFound {
-		t.Errorf("(1) ต้องได้ 404 แต่ได้ %d body=%s", w.Code, w.Body.String())
+	// Then (1) ได้ 422 VALIDATION_FAILED fields ["advisorName"] ข้อความ "กรุณาระบุชื่ออาจารย์ที่เซ็นอนุมัติ"
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("(1) ต้องได้ 422 แต่ได้ %d body=%s", w.Code, w.Body.String())
 	}
-	if e := tcError(t, w); e.Code != "REQUEST_NOT_FOUND" || e.Message != "ไม่พบคำขอนี้" {
-		t.Errorf("(1) ต้องได้ REQUEST_NOT_FOUND พร้อมข้อความ \"ไม่พบคำขอนี้\" แต่ได้ %+v", e)
+	var e ValidationErrorDTO
+	if err := json.Unmarshal(w.Body.Bytes(), &e); err != nil {
+		t.Fatal(err)
+	}
+	if e.Code != "VALIDATION_FAILED" || e.Message != "กรุณาระบุชื่ออาจารย์ที่เซ็นอนุมัติ" || len(e.Fields) != 1 || e.Fields[0] != "advisorName" {
+		t.Errorf("(1) ต้องได้ VALIDATION_FAILED ช่อง advisorName พร้อมข้อความ \"กรุณาระบุชื่ออาจารย์ที่เซ็นอนุมัติ\" แต่ได้ %+v", e)
 	}
 	// Then (2) C ยังเป็น requested
 	if s := tcRequestStatus(t, tx, c); s != "requested" {
