@@ -616,7 +616,7 @@ Updated: 2569-11-13 (v2: CR-009 เฟส 19 ถึง 25, T-40 ถึง T-50 /
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-01
 - เสร็จเมื่อ: test ยืนยันว่ามีคอลัมน์ `approval_decision.advisor_name` (ว่างได้) และตาราง `approval_step` (request_id FK, status เฉพาะ `approved_by_officer` / `pending_advisor_approval` / `approved`, actor_id, created_at) ที่ UPDATE / DELETE ไม่ได้ และ down ย้อนได้
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ (2569-11-13 test TestMigration_ApprovalOvernight, TestMigration_ApprovalOvernightDown ผ่าน)
 
 ### T-41 เพิ่มค่าของคำขอค้างคืนใน config
 - รองรับ: FR-APV-03 (ช), FR-APV-01 (ซ), Q-APV-44

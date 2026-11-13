@@ -7827,3 +7827,17 @@ main
   - T-50 ทดสอบ TLS (AC-APV-19) สถานะรอ Q-APV-38
 - ตารางตรวจความครบ: AC-APV-19, 22 ถึง 26 มี task ครบ / Constraint เพิ่ม task ใหม่ / เพิ่มแถว FR-APV-03
 - ระบุในจุดตรวจ: แถว TC-APV-01-12, 02-11, 11-1 ใน test-cases.md ขัดกับ spec v3 ทีมต้องแก้แถวก่อนแก้ test (กฎ TestTC_ ห้ามแก้ให้ผ่าน)
+
+---
+
+## 2569-11-13 /implement T-40 (004 migration 0011 คำขอยืมค้างคืน)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request (แก้ของกลาง `backend/db/migrations/` และ `backend/internal/platform/` เพราะฟีเจอร์ 004 ตาม CR-009)
+- เครื่องมือ: Claude Code (ทำตาม `.claude/commands/implement.md` แตะเฉพาะไฟล์ใน "ไฟล์ที่แตะ" ของ T-40)
+- คำสั่ง: "/implement T-40"
+- ผลลัพธ์:
+  - `0011_approval_overnight.up.sql`: เพิ่มคอลัมน์ `approval_decision.advisor_name` (ว่างได้) และตาราง `approval_step` (FK ไป borrow_request, status 3 ค่า, actor_id, created_at) แบบ append-only ด้วย trigger เหมือน 0008 / ไม่แตะ CHECK ของ audit_log และตาราง equipment_item
+  - `0011_approval_overnight.down.sql`: ลบตาราง ฟังก์ชัน และคอลัมน์
+  - `migrate_approval_test.go`: เพิ่ม TestMigration_ApprovalOvernight และ TestMigration_ApprovalOvernightDown (รันไฟล์ down ใน transaction ที่ยกเลิกทิ้ง)
+  - รัน test platform และ approve ผ่าน / tasks.md T-40 สถานะ "เสร็จ รอทีมตรวจ"
