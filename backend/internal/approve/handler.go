@@ -95,8 +95,8 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// approve: POST /v1/approvals/requests/{id}/approve อนุมัติคำขอยืมปกติ (FR-APV-01 ค, AC-APV-01)
-// body { loadedAt } มาจาก GET รายการ ใช้แยก "พิจารณาแล้ว" กับ "กดพร้อมกัน" ใน T-23 (plan.md ข้อ 4)
+// approve: POST /v1/approvals/requests/{id}/approve อนุมัติคำขอยืมปกติและค้างคืน (FR-APV-01 ค, FR-APV-03 ข, AC-APV-01, AC-APV-22)
+// body { loadedAt, advisorName } มาจาก GET รายการ ใช้แยก "พิจารณาแล้ว" กับ "กดพร้อมกัน" ใน T-23 (plan.md ข้อ 4)
 func (h *Handler) approve(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
@@ -107,7 +107,8 @@ func (h *Handler) approve(w http.ResponseWriter, r *http.Request) {
 	// body ที่อ่านไม่ออกหรือไม่มี loadedAt ไม่ปฏิเสธ แค่ถือว่าไม่รู้เวลาโหลด คำขอที่พิจารณาไปแล้วจึงได้ REQUEST_ALREADY_DECIDED (T-23)
 	_ = json.NewDecoder(r.Body).Decode(&in)
 
-	res, err := h.svc.Approve(r.Context(), id, in.LoadedAt)
+	// FR-APV-03 (ข): คำขอค้างคืนต้องส่ง advisorName มาด้วย ยืมปกติไม่ใช้ (plan.md v2 ข้อ 4)
+	res, err := h.svc.ApproveWithAdvisor(r.Context(), id, in.LoadedAt, in.AdvisorName)
 	if err != nil {
 		writeServiceError(w, err)
 		return
@@ -146,6 +147,16 @@ func writeServiceError(w http.ResponseWriter, err error) {
 		// รหัสเดียวกับไม่ระบุเหตุผล ข้อความต่างกัน (FR-APV-01 ซ, Q-APV-28)
 		writeJSON(w, http.StatusUnprocessableEntity, ValidationErrorDTO{
 			Code: "VALIDATION_FAILED", Message: config.ApprovalReasonTooLongMessage, Fields: []string{"reason"},
+		})
+	case errors.Is(err, ErrAdvisorNameRequired):
+		// FR-APV-03 (ช), FR-APV-01 (ซ), Q-APV-44: ไม่ระบุชื่ออาจารย์ตอนอนุมัติคำขอค้างคืน
+		writeJSON(w, http.StatusUnprocessableEntity, ValidationErrorDTO{
+			Code: "VALIDATION_FAILED", Message: config.ApprovalAdvisorNameRequiredMessage, Fields: []string{"advisorName"},
+		})
+	case errors.Is(err, ErrAdvisorNameTooLong):
+		// รหัสเดียวกับไม่ระบุชื่อ ข้อความต่างกัน (FR-APV-01 ซ, Q-APV-44)
+		writeJSON(w, http.StatusUnprocessableEntity, ValidationErrorDTO{
+			Code: "VALIDATION_FAILED", Message: config.ApprovalAdvisorNameTooLongMessage, Fields: []string{"advisorName"},
 		})
 	case errors.Is(err, ErrForbiddenDepartment):
 		// ไม่ส่งข้อมูลอุปกรณ์กลับ ตอบแค่ {code, message} (CON-TECH-03, AC-APV-12)

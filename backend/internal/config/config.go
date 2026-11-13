@@ -21,6 +21,10 @@ const TimeZone = "Asia/Bangkok"
 // เพื่อให้หน้าจอได้ 503 พร้อม message ก่อนหน้าจอเลิกรอเอง
 const EquipmentDBTimeout = 5 * time.Second
 
+// EquipmentPerfP95 คือเวลาตอบสนอง p95 สูงสุดของการค้นหาและแสดงรายการอุปกรณ์ (NFR-PERF-01, AC-EQS-10, RQ-24)
+// ใช้เป็นเกณฑ์ของ test ประสิทธิภาพ (TestTC_EQS_10_*) ย้ายมาจากไฟล์ test ตาม F-09 ใน rtm.md
+const EquipmentPerfP95 = 3 * time.Second
+
 // ---- 003-cancel-request (plan.md ข้อ 5 ของ 003, T-03) ----
 
 // CancellableStatuses คือสถานะของคำขอที่นักศึกษายังยกเลิกได้ (CON-CXL-02, FR-CXL-01, ASM-04)
@@ -253,6 +257,19 @@ const ApprovalRejectReasonMaxLength = 500
 
 // ApprovalReasonTooLongMessage คือข้อความเมื่อเหตุผลยาวเกิน ใช้กับ 422 VALIDATION_FAILED ช่อง reason (FR-APV-01 ซ, Q-APV-28)
 var ApprovalReasonTooLongMessage = "เหตุผลต้องไม่เกิน 500 ตัวอักษร"
+
+// คำขอยืมค้างคืน (CR-009, FR-APV-03) ใช้ LoanTypeOvernight, StatusApprovedByOfficer, StatusPendingAdvisorApproval ของ 002 ด้านบน ไม่ประกาศซ้ำ
+
+// ApprovalAdvisorNameMaxLength คือความยาวสูงสุดของชื่ออาจารย์ที่เซ็นอนุมัติ นับตาม code point (FR-APV-03 ช, Q-APV-44)
+// ต้องตรงกับ APPROVAL_ADVISOR_NAME_MAX_LENGTH ใน frontend/src/config.js
+const ApprovalAdvisorNameMaxLength = 100
+
+// ApprovalAdvisorNameRequiredMessage คือข้อความเมื่อไม่ระบุชื่ออาจารย์ตอนอนุมัติคำขอค้างคืน
+// ใช้กับ 422 VALIDATION_FAILED ช่อง advisorName (FR-APV-01 ซ, FR-APV-03 ช, Q-APV-44)
+var ApprovalAdvisorNameRequiredMessage = "กรุณาระบุชื่ออาจารย์ที่เซ็นอนุมัติ"
+
+// ApprovalAdvisorNameTooLongMessage คือข้อความเมื่อชื่ออาจารย์ยาวเกิน ใช้กับ 422 VALIDATION_FAILED ช่อง advisorName (FR-APV-01 ซ, Q-APV-44)
+var ApprovalAdvisorNameTooLongMessage = "ชื่ออาจารย์ต้องไม่เกิน 100 ตัวอักษร"
 
 // ---------- จบค่าของฟีเจอร์ 004 ----------
 

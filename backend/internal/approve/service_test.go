@@ -109,9 +109,10 @@ func TestApprove_OnlyRequestedNormal(t *testing.T) {
 		t.Errorf("อนุมัติซ้ำต้องได้ ErrAlreadyDecided แต่ได้ %v", err)
 	}
 
+	// v3 (T-44): คำขอค้างคืนอยู่ในขอบเขตแล้ว อนุมัติโดยไม่มีชื่ออาจารย์ได้ ErrAdvisorNameRequired (FR-APV-03 ช)
 	overnight := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
-	if _, err := svc.Approve(ctx, overnight, time.Time{}); err != ErrRequestNotFound {
-		t.Errorf("คำขอค้างคืนต้องได้ ErrRequestNotFound (Q-APV-01) แต่ได้ %v", err)
+	if _, err := svc.Approve(ctx, overnight, time.Time{}); err != ErrAdvisorNameRequired {
+		t.Errorf("คำขอค้างคืนที่ไม่มีชื่ออาจารย์ต้องได้ ErrAdvisorNameRequired แต่ได้ %v", err)
 	}
 	if _, err := svc.Approve(ctx, 999999, time.Time{}); err != ErrRequestNotFound {
 		t.Errorf("คำขอที่ไม่มีอยู่ต้องได้ ErrRequestNotFound แต่ได้ %v", err)
@@ -721,5 +722,434 @@ func TestAC_APV_10(t *testing.T) {
 				t.Errorf("ต้องมี approval_decision 1 แถวและ Email 1 ฉบับ แต่ได้ %d / %d", decisions, emails)
 			}
 		})
+	}
+}
+
+// AC-APV-22 (FR-APV-03 ข, CON-DATA-01)
+// Given คำขอยืมแบบค้างคืนสถานะ requested ของอุปกรณ์ภาควิชาเดียวกับเจ้าหน้าที่ (C ของ AP-TEST-0001 ใน approve_dev.sql)
+// When  เจ้าหน้าที่อนุมัติพร้อมระบุชื่ออาจารย์ที่เซ็น
+// Then  คำขอเป็น approved สถานะอุปกรณ์ยังเป็น "ว่าง" และประวัติมีชื่ออาจารย์
+//
+//	(T-44 เสร็จเมื่อ: approval_decision.advisor_name ตรง, approval_step 3 แถวตามลำดับ, ไม่ติดคิวของ A และ B)
+func TestAC_APV_22(t *testing.T) {
+	tx := devTx(t)
+	ctx := staffCtx("staff-001", 1)
+	bg := context.Background()
+	c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+	const advisor = "อ.สมชาย ใจดี"
+
+	// When: C ส่งหลัง A และ B แต่ไม่มีคิว (FR-APV-03 ค) และไม่มีเวลาตัด (FR-APV-03 ง) ใช้เวลาจริงได้
+	res, err := NewService(NewRepository(tx)).ApproveWithAdvisor(ctx, c, time.Now(), advisor)
+	if err != nil {
+		t.Fatalf("อนุมัติคำขอค้างคืนต้องสำเร็จ แต่ได้ %v", err)
+	}
+
+	// Then: คำขอเป็น approved
+	if res.Status != config.StatusApproved {
+		t.Errorf("ผลต้องเป็น approved แต่ได้ %q", res.Status)
+	}
+	var status, itemStatus string
+	if err := tx.QueryRow(bg, `
+		SELECT r.status, i.status FROM borrow_request r JOIN equipment_item i ON i.id = r.item_id WHERE r.id = $1`, c).
+		Scan(&status, &itemStatus); err != nil {
+		t.Fatal(err)
+	}
+	if status != config.StatusApproved {
+		t.Errorf("สถานะคำขอต้องเป็น approved แต่ได้ %q", status)
+	}
+	// Then: สถานะอุปกรณ์ยังเป็น "ว่าง" (CON-DATA-01, data-model.md แถว UC-14)
+	if itemStatus != config.ItemStatusAvailable {
+		t.Errorf("สถานะอุปกรณ์ต้องยังเป็น available แต่ได้ %q", itemStatus)
+	}
+	// Then: ประวัติมีชื่ออาจารย์ (FR-APV-03 ข ช)
+	var got *string
+	if err := tx.QueryRow(bg, `SELECT advisor_name FROM approval_decision WHERE request_id = $1`, c).Scan(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got == nil || *got != advisor {
+		t.Errorf("approval_decision.advisor_name ต้องเป็น %q แต่ได้ %v", advisor, got)
+	}
+	// FR-APV-03 (ข): approval_step 3 แถวตามลำดับ ผู้ดำเนินการคือเจ้าหน้าที่
+	rows, err := tx.Query(bg, `SELECT status, actor_id FROM approval_step WHERE request_id = $1 ORDER BY id`, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var steps []string
+	for rows.Next() {
+		var s, actor string
+		if err := rows.Scan(&s, &actor); err != nil {
+			t.Fatal(err)
+		}
+		if actor != "staff-001" {
+			t.Errorf("approval_step.actor_id ต้องเป็น staff-001 แต่ได้ %q", actor)
+		}
+		steps = append(steps, s)
+	}
+	want := []string{config.StatusApprovedByOfficer, config.StatusPendingAdvisorApproval, config.StatusApproved}
+	if strings.Join(steps, ",") != strings.Join(want, ",") {
+		t.Errorf("approval_step ต้องเป็น %v แต่ได้ %v", want, steps)
+	}
+	// ประวัติ approval_decision และ audit_log action approve แบบเดียวกับยืมปกติ (FR-APV-01 ฌ, FR-APV-03 ช)
+	assertHistory(t, tx, c, config.ApprovalKindApproved, "", "staff-001", config.AuditActionApprove)
+}
+
+// AC-APV-22 ทางผิด (FR-APV-03 ข ช, Q-APV-42, Q-APV-44)
+//   - ชื่ออาจารย์ว่าง มีแต่ช่องว่าง หรือยาวเกิน 100 code point -> error และสถานะคงเดิม ไม่มี approval_step
+//   - ชื่อยาว 100 code point พอดีผ่าน
+//   - อุปกรณ์ไม่ว่าง -> ErrItemNotAvailable
+//   - ลำดับ: ภาควิชาก่อนชื่ออาจารย์ และชื่ออาจารย์ก่อนสถานะคำขอ (ทีมตอบ 2569-11-13 ตอน T-44)
+func TestApproveOvernight_Rules(t *testing.T) {
+	ctx := staffCtx("staff-001", 1)
+	bg := context.Background()
+	long := strings.Repeat("ก", config.ApprovalAdvisorNameMaxLength+1)
+	exact := strings.Repeat("ก", config.ApprovalAdvisorNameMaxLength)
+
+	for _, tc := range []struct {
+		name, advisor string
+		want          error
+	}{
+		{"ชื่อว่าง", "", ErrAdvisorNameRequired},
+		{"มีแต่ช่องว่าง", "   ", ErrAdvisorNameRequired},
+		{"ยาว 101 code point", long, ErrAdvisorNameTooLong},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tx := devTx(t)
+			c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+			if _, err := NewService(NewRepository(tx)).ApproveWithAdvisor(ctx, c, time.Now(), tc.advisor); err != tc.want {
+				t.Fatalf("ต้องได้ %v แต่ได้ %v", tc.want, err)
+			}
+			if s := tcRequestStatus(t, tx, c); s != config.StatusRequested {
+				t.Errorf("สถานะต้องคงเดิม requested แต่ได้ %q", s)
+			}
+			var n int
+			if err := tx.QueryRow(bg, `SELECT count(*) FROM approval_step WHERE request_id = $1`, c).Scan(&n); err != nil {
+				t.Fatal(err)
+			}
+			if n != 0 {
+				t.Errorf("ต้องไม่มี approval_step แต่มี %d แถว", n)
+			}
+		})
+	}
+
+	t.Run("ยาว 100 code point พอดีผ่าน", func(t *testing.T) {
+		tx := devTx(t)
+		c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+		if _, err := NewService(NewRepository(tx)).ApproveWithAdvisor(ctx, c, time.Now(), exact); err != nil {
+			t.Fatalf("ชื่อ 100 code point ต้องอนุมัติได้ แต่ได้ %v", err)
+		}
+	})
+
+	t.Run("อุปกรณ์ไม่ว่าง", func(t *testing.T) {
+		tx := devTx(t)
+		// AP-TEST-0004 ถูกยืมอยู่ใน approve_dev.sql เพิ่มคำขอค้างคืนของชิ้นนั้น
+		var id int
+		if err := tx.QueryRow(bg, `
+			INSERT INTO borrow_request (requester_id, requester_name, student_code, item_id, loan_type, purpose,
+			                            start_at, end_at, status, attachment_path)
+			SELECT 'student-003', 'ค้างคืนอุปกรณ์ไม่ว่าง', 'student-003', id, 'overnight', 'activity',
+			       now(), now() + interval '1 day', 'requested', 'dev/x.pdf'
+			FROM equipment_item WHERE asset_code = 'AP-TEST-0004' RETURNING id`).Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := NewService(NewRepository(tx)).ApproveWithAdvisor(ctx, id, time.Now(), "อ.สมชาย"); err != ErrItemNotAvailable {
+			t.Fatalf("ต้องได้ ErrItemNotAvailable (Q-APV-42) แต่ได้ %v", err)
+		}
+		if s := tcRequestStatus(t, tx, id); s != config.StatusRequested {
+			t.Errorf("สถานะต้องคงเดิม requested แต่ได้ %q", s)
+		}
+	})
+
+	t.Run("ภาควิชาอื่นได้ ErrForbiddenDepartment ก่อนชื่ออาจารย์", func(t *testing.T) {
+		tx := devTx(t)
+		c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+		if _, err := NewService(NewRepository(tx)).ApproveWithAdvisor(staffCtx("staff-201", 2), c, time.Now(), ""); err != ErrForbiddenDepartment {
+			t.Fatalf("ต้องได้ ErrForbiddenDepartment แต่ได้ %v", err)
+		}
+	})
+
+	t.Run("คำขอยกเลิกแล้วและไม่มีชื่ออาจารย์ได้ ErrAdvisorNameRequired", func(t *testing.T) {
+		tx := devTx(t)
+		c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+		if _, err := tx.Exec(bg, `UPDATE borrow_request SET status = 'cancelled', cancel_reason = 'ทดสอบ', cancelled_at = now() WHERE id = $1`, c); err != nil {
+			t.Fatal(err)
+		}
+		svc := NewService(NewRepository(tx))
+		if _, err := svc.ApproveWithAdvisor(ctx, c, time.Now(), ""); err != ErrAdvisorNameRequired {
+			t.Fatalf("ชื่ออาจารย์ต้องตรวจก่อนสถานะ ได้ ErrAdvisorNameRequired แต่ได้ %v", err)
+		}
+		if _, err := svc.ApproveWithAdvisor(ctx, c, time.Now(), "อ.สมชาย"); err != ErrRequestCancelled {
+			t.Fatalf("มีชื่ออาจารย์แล้วต้องได้ ErrRequestCancelled แต่ได้ %v", err)
+		}
+	})
+
+	t.Run("ยืมปกติส่งชื่ออาจารย์มาก็ไม่บันทึก", func(t *testing.T) {
+		tx := devTx(t)
+		a := requestIDOf(t, tx, "AP-TEST-0002", "student-001")
+		svc := NewService(NewRepository(tx))
+		svc.now = func() time.Time { return approvalCutoff(tcStartAt(t, tx, a)).Add(-time.Hour) }
+		if _, err := svc.ApproveWithAdvisor(ctx, a, time.Now(), "อ.สมชาย"); err != nil {
+			t.Fatal(err)
+		}
+		var got *string
+		if err := tx.QueryRow(bg, `SELECT advisor_name FROM approval_decision WHERE request_id = $1`, a).Scan(&got); err != nil {
+			t.Fatal(err)
+		}
+		if got != nil {
+			t.Errorf("ยืมปกติต้องไม่มี advisor_name แต่ได้ %q", *got)
+		}
+	})
+}
+
+// AC-APV-23 (FR-APV-03 ค ฉ, DOM-REQ-01)
+// Given อุปกรณ์ชิ้นเดียวกันมีคำขอค้างคืน X (ส่งก่อน) และ Y สถานะ requested
+// When  เจ้าหน้าที่อนุมัติ Y
+// Then  Y เป็น approved เพราะคำขอค้างคืนไม่มีคิว และ X เป็น rejected ด้วยเหตุผล "อุปกรณ์ชิ้นนี้ได้รับการอนุมัติให้คำขออื่นแล้ว"
+//
+//	(T-46 เสร็จเมื่อ: ไม่ได้ NOT_FIRST_IN_QUEUE) ใช้ AP-TEST-0003 ที่มีคำขอปกติของ student-002 อยู่ 1 ใบ คำขอนั้นถูกปฏิเสธตามด้วย (FR-APV-01 จ)
+func TestAC_APV_23(t *testing.T) {
+	tx := devTx(t)
+	bg := context.Background()
+	insertOvernight := func(requester string, ago string) int {
+		t.Helper()
+		var id int
+		if err := tx.QueryRow(bg, `
+			INSERT INTO borrow_request (requester_id, requester_name, student_code, item_id, loan_type, purpose,
+			                            start_at, end_at, status, submitted_at, attachment_path)
+			SELECT $1, $1, $1, id, 'overnight', 'activity', now(), now() + interval '1 day', 'requested',
+			       now() - $2::interval, 'dev/x.pdf'
+			FROM equipment_item WHERE asset_code = 'AP-TEST-0003' RETURNING id`, requester, ago).Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	// Given: X ส่งก่อน Y
+	x := insertOvernight("student-101", "3 hours")
+	y := insertOvernight("student-102", "1 minute")
+	normal := requestIDOf(t, tx, "AP-TEST-0003", "student-002")
+
+	// When: อนุมัติ Y ข้าม X
+	res, err := NewService(NewRepository(tx)).ApproveWithAdvisor(staffCtx("staff-001", 1), y, time.Now(), "อ.สมชาย ใจดี")
+	if err != nil {
+		t.Fatalf("อนุมัติ Y ต้องสำเร็จเพราะคำขอค้างคืนไม่มีคิว (FR-APV-03 ค) แต่ได้ %v", err)
+	}
+
+	// Then: Y approved
+	if s := tcRequestStatus(t, tx, y); s != config.StatusApproved {
+		t.Errorf("Y ต้องเป็น approved แต่ได้ %q", s)
+	}
+	// Then: X rejected ด้วยเหตุผลของการปฏิเสธตาม ผู้ดำเนินการคือเจ้าหน้าที่ที่กดอนุมัติ (FR-APV-03 ฉ, FR-APV-01 จ)
+	if s := tcRequestStatus(t, tx, x); s != config.StatusRejected {
+		t.Errorf("X ต้องเป็น rejected แต่ได้ %q", s)
+	}
+	assertHistory(t, tx, x, config.ApprovalKindRejected, config.ApprovalSupersededReason, "staff-001", config.AuditActionReject)
+	// คำขอปกติของชิ้นเดียวกันถูกปฏิเสธตามด้วย (FR-APV-03 ฉ ทั้งปกติและค้างคืน)
+	if s := tcRequestStatus(t, tx, normal); s != config.StatusRejected {
+		t.Errorf("คำขอปกติของ AP-TEST-0003 ต้องถูกปฏิเสธตาม แต่ได้ %q", s)
+	}
+	got := map[int]bool{}
+	for _, id := range res.RejectedBy {
+		got[id] = true
+	}
+	if len(res.RejectedBy) != 2 || !got[x] || !got[normal] {
+		t.Errorf("rejectedRequestIds ต้องเป็น X (%d) และคำขอปกติ (%d) แต่ได้ %v", x, normal, res.RejectedBy)
+	}
+}
+
+// AC-APV-24 (FR-APV-03 ฉ, FR-APV-01 จ, FR-APV-02 ข)
+// Given อุปกรณ์ชิ้นเดียวกันมีคำขอค้างคืน C และคำขอปกติ A สถานะ requested (AP-TEST-0001 ใน approve_dev.sql มี A, B ปกติ และ C ค้างคืน)
+// When  เจ้าหน้าที่อนุมัติ C
+// Then  C เป็น approved A เป็น rejected ด้วยเหตุผล "อุปกรณ์ชิ้นนี้ได้รับการอนุมัติให้คำขออื่นแล้ว" และผู้ขอ A ได้รับ Email ผลปฏิเสธ
+//
+//	(T-47 เสร็จเมื่อ: ผู้ดำเนินการคือเจ้าหน้าที่ และมี approval_email ผลปฏิเสธของ A) B ถูกปฏิเสธตามแบบเดียวกัน
+func TestAC_APV_24(t *testing.T) {
+	tx := devTx(t)
+	bg := context.Background()
+	c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+	a := requestIDOf(t, tx, "AP-TEST-0001", "student-001")
+	b := requestIDOf(t, tx, "AP-TEST-0001", "student-002")
+
+	// When
+	res, err := NewService(NewRepository(tx)).ApproveWithAdvisor(staffCtx("staff-001", 1), c, time.Now(), "อ.สมชาย ใจดี")
+	if err != nil {
+		t.Fatalf("อนุมัติ C ต้องสำเร็จ แต่ได้ %v", err)
+	}
+
+	// Then: C approved
+	if s := tcRequestStatus(t, tx, c); s != config.StatusApproved {
+		t.Errorf("C ต้องเป็น approved แต่ได้ %q", s)
+	}
+	// Then: A (และ B) rejected เหตุผลของการปฏิเสธตาม ผู้ดำเนินการคือเจ้าหน้าที่ (FR-APV-01 จ)
+	for name, id := range map[string]int{"A": a, "B": b} {
+		if s := tcRequestStatus(t, tx, id); s != config.StatusRejected {
+			t.Errorf("%s ต้องเป็น rejected แต่ได้ %q", name, s)
+		}
+		assertHistory(t, tx, id, config.ApprovalKindRejected, config.ApprovalSupersededReason, "staff-001", config.AuditActionReject)
+	}
+	if len(res.RejectedBy) != 2 {
+		t.Errorf("rejectedRequestIds ต้องมี A และ B แต่ได้ %v", res.RejectedBy)
+	}
+
+	// Then: ผู้ขอ A ได้รับ Email ผลปฏิเสธ (FR-APV-02 ข) และ C ได้รับ Email ผลอนุมัติ (FR-APV-02 ก, แจ้งเฉพาะผลสุดท้าย CR-009 ข้อ 6)
+	emailKinds := func(id int) []string {
+		t.Helper()
+		rows, err := tx.Query(bg, `SELECT kind FROM approval_email WHERE request_id = $1 ORDER BY id`, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var kinds []string
+		for rows.Next() {
+			var k string
+			if err := rows.Scan(&k); err != nil {
+				t.Fatal(err)
+			}
+			kinds = append(kinds, k)
+		}
+		return kinds
+	}
+	if k := emailKinds(a); len(k) != 1 || k[0] != config.ApprovalKindRejected {
+		t.Errorf("A ต้องมี Email ผลปฏิเสธ 1 ฉบับ แต่ได้ %v", k)
+	}
+	if k := emailKinds(c); len(k) != 1 || k[0] != config.ApprovalKindApproved {
+		t.Errorf("C ต้องมี Email ผลอนุมัติ 1 ฉบับ แต่ได้ %v", k)
+	}
+}
+
+// AC-APV-25 (FR-APV-03 จ, FR-APV-02 ข)
+// Given คำขอค้างคืนสถานะ requested (C ของ AP-TEST-0001 ใน approve_dev.sql)
+// When  เจ้าหน้าที่ปฏิเสธพร้อมเหตุผล
+// Then  คำขอเป็น rejected และผู้ขอได้รับ Email ผลปฏิเสธตาม FR-APV-02 (ข) ภายใน 60 วินาที
+//
+//	(T-48 เสร็จเมื่อ: ไม่มี advisor_name ไม่มี approval_step / กฎเหตุผลเดิมใช้กับค้างคืนด้วย Q-APV-43)
+func TestAC_APV_25(t *testing.T) {
+	const reason = "เอกสารไม่มีลายเซ็นอาจารย์"
+	ctx := staffCtx("staff-001", 1)
+	bg := context.Background()
+
+	t.Run("ปฏิเสธพร้อมเหตุผล", func(t *testing.T) {
+		tx := devTx(t)
+		clock := &fakeClock{t: time.Now()}
+		svc := NewService(NewRepository(tx))
+		svc.now = clock.Now
+		mailer := &fakeMailer{}
+		sender := &Sender{db: tx, mailer: mailer, resolver: MockRecipientResolver{}, now: clock.Now}
+		c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+
+		// When
+		res, err := svc.Reject(ctx, c, reason, time.Time{})
+		if err != nil {
+			t.Fatalf("ปฏิเสธคำขอค้างคืนต้องสำเร็จ แต่ได้ %v", err)
+		}
+
+		// Then: rejected ประวัติมีเหตุผล ไม่มีชื่ออาจารย์และ approval_step (Q-APV-43)
+		if res.Status != config.StatusRejected || tcRequestStatus(t, tx, c) != config.StatusRejected {
+			t.Errorf("คำขอต้องเป็น rejected แต่ได้ %+v", res)
+		}
+		assertHistory(t, tx, c, config.ApprovalKindRejected, reason, "staff-001", config.AuditActionReject)
+		var advisor *string
+		if err := tx.QueryRow(bg, `SELECT advisor_name FROM approval_decision WHERE request_id = $1`, c).Scan(&advisor); err != nil {
+			t.Fatal(err)
+		}
+		if advisor != nil {
+			t.Errorf("การปฏิเสธต้องไม่มี advisor_name แต่ได้ %q", *advisor)
+		}
+		var steps int
+		if err := tx.QueryRow(bg, `SELECT count(*) FROM approval_step WHERE request_id = $1`, c).Scan(&steps); err != nil {
+			t.Fatal(err)
+		}
+		if steps != 0 {
+			t.Errorf("การปฏิเสธต้องไม่มี approval_step แต่มี %d แถว", steps)
+		}
+		// การปฏิเสธไม่ปฏิเสธตามคำขออื่น A และ B ยังเป็น requested
+		for _, who := range []string{"student-001", "student-002"} {
+			if s := tcRequestStatus(t, tx, requestIDOf(t, tx, "AP-TEST-0001", who)); s != config.StatusRequested {
+				t.Errorf("คำขอของ %s ต้องยังเป็น requested แต่ได้ %q", who, s)
+			}
+		}
+
+		// Then: ตัวส่งรอบถัดไปส่ง Email ผลปฏิเสธถึงผู้ขอภายใน 60 วินาที (FR-APV-02 ข)
+		decidedAt := clock.Now()
+		clock.Advance(config.ApprovalSenderPollInterval)
+		if err := sender.SendDue(bg); err != nil {
+			t.Fatal(err)
+		}
+		if len(mailer.sent) != 1 {
+			t.Fatalf("ต้องส่ง Email 1 ฉบับ แต่ได้ %d", len(mailer.sent))
+		}
+		e := mailer.sent[0]
+		if e.To != "student-003@example.com" || e.Subject != config.ApprovalEmailSubjects[config.ApprovalKindRejected] ||
+			!strings.Contains(e.Body, "เหตุผลในการปฏิเสธ: "+reason) {
+			t.Errorf("Email ผลปฏิเสธไม่ถูกต้อง: %+v", e)
+		}
+		if d := clock.Now().Sub(decidedAt); d > config.ApprovalEmailDeadline {
+			t.Errorf("ต้องส่งภายใน %v แต่ใช้ %v", config.ApprovalEmailDeadline, d)
+		}
+	})
+
+	// กฎเหตุผลเดิมของ FR-APV-01 (ง) ใช้กับค้างคืนด้วย (FR-APV-03 จ)
+	for _, tc := range []struct {
+		name, reason string
+		want         error
+	}{
+		{"เหตุผลว่าง", "", ErrReasonRequired},
+		{"เหตุผลมีแต่ช่องว่าง", "   ", ErrReasonRequired},
+		{"เหตุผลยาว 501 ตัวอักษร", strings.Repeat("ก", config.ApprovalRejectReasonMaxLength+1), ErrReasonTooLong},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tx := devTx(t)
+			c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+			if _, err := NewService(NewRepository(tx)).Reject(ctx, c, tc.reason, time.Time{}); err != tc.want {
+				t.Fatalf("ต้องได้ %v แต่ได้ %v", tc.want, err)
+			}
+			if s := tcRequestStatus(t, tx, c); s != config.StatusRequested {
+				t.Errorf("สถานะต้องคงเดิม requested แต่ได้ %q", s)
+			}
+		})
+	}
+}
+
+// AC-APV-26 (FR-APV-03 ง, FR-APV-01 ค ฉ, DOM-LOAN-01)
+// Given คำขอค้างคืนสถานะ requested และเวลาปัจจุบันเลย 16:00 น. ของวันที่เริ่มยืม และเลยเที่ยงคืนของวันที่ส่งแล้ว
+// When  เจ้าหน้าที่อนุมัติพร้อมชื่ออาจารย์
+// Then  คำขอเป็น approved (ไม่มีเวลาตัดและไม่ถูกปฏิเสธอัตโนมัติ)
+//
+//	(T-49 เสร็จเมื่อ: งานเที่ยงคืน RejectStale และ CatchUp ตอนเริ่ม server ไม่แตะคำขอค้างคืน)
+func TestAC_APV_26(t *testing.T) {
+	tx := devTx(t)
+	bg := context.Background()
+	c := requestIDOf(t, tx, "AP-TEST-0001", "student-003")
+
+	// Given: C ส่งเมื่อวาน 08:00 น. เริ่มยืมเมื่อวาน 09:00 น. ตามเวลาไทย / นาฬิกาจำลองคือวันนี้ 17:00 น.
+	today := autoRejectCutoff(time.Now()) // 00:00 น. ของวันนี้ เวลาไทย
+	yesterday := today.AddDate(0, 0, -1)
+	if _, err := tx.Exec(bg, `UPDATE borrow_request SET submitted_at = $2, start_at = $3, end_at = $4 WHERE id = $1`,
+		c, yesterday.Add(8*time.Hour), yesterday.Add(9*time.Hour), today.Add(16*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	now := today.Add(17 * time.Hour)
+	if !now.After(approvalCutoff(yesterday.Add(9 * time.Hour))) {
+		t.Fatal("เตรียมข้อมูล: นาฬิกาต้องเลย 16:00 น. ของวันที่เริ่มยืม")
+	}
+	clock := func() time.Time { return now }
+
+	// งานเที่ยงคืนรอบปกติ และรอบไล่ตามตอน server เริ่มทำงาน (FR-APV-01 ฉ, Q-APV-21) ต้องไม่แตะ C
+	job := &AutoRejecter{db: tx, now: clock}
+	if _, err := job.RejectStale(bg); err != nil {
+		t.Fatal(err)
+	}
+	job.CatchUp(bg)
+	if s := tcRequestStatus(t, tx, c); s != config.StatusRequested {
+		t.Fatalf("งานเที่ยงคืนต้องไม่ปฏิเสธคำขอค้างคืน (FR-APV-03 ง) แต่ C เป็น %q", s)
+	}
+
+	// When: อนุมัติพร้อมชื่ออาจารย์หลัง 16:00 น. ของวันที่เริ่มยืม
+	svc := NewService(NewRepository(tx))
+	svc.now = clock
+	if _, err := svc.ApproveWithAdvisor(staffCtx("staff-001", 1), c, now, "อ.สมชาย ใจดี"); err != nil {
+		t.Fatalf("อนุมัติค้างคืนต้องไม่ติดเวลาตัด (FR-APV-03 ง) แต่ได้ %v", err)
+	}
+
+	// Then
+	if s := tcRequestStatus(t, tx, c); s != config.StatusApproved {
+		t.Errorf("C ต้องเป็น approved แต่ได้ %q", s)
 	}
 }
