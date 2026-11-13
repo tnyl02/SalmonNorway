@@ -846,7 +846,7 @@ Updated: 2569-11-13 (v2: CR-009 เฟส 19 ถึง 25, T-40 ถึง T-50 /
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-14, T-44
 - เสร็จเมื่อ: `TestTC_APV_22_12` ตามแถวที่ทีมตรวจแล้วผ่าน: Email ผลอนุมัติของคำขอค้างคืนมี "ชื่ออาจารย์ที่เซ็นอนุมัติ" และไม่มีจำนวนอุปกรณ์ / Email ของยืมปกติไม่เปลี่ยน (TestTC_APV_04_* ยังผ่าน)
-- สถานะ: เสร็จ รอทีมตรวจ (2569-11-13 `TestTC_APV_22_12_ApprovedEmail` (4)(5), `TestBuildEmail_OvernightAdvisor`, `TestConfig_ApprovalEmailAdvisorLabel` ผ่าน / TestTC_APV_04_* ของยืมปกติยังผ่าน / ไม่ได้แตะ model.go เพราะ EmailData อยู่ใน email.go)
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestTC_APV_22_12_ApprovedEmail` (4)(5), `TestBuildEmail_OvernightAdvisor`, `TestConfig_ApprovalEmailAdvisorLabel` ผ่าน / TestTC_APV_04_* ของยืมปกติยังผ่าน / ไม่ได้แตะ model.go เพราะ EmailData อยู่ใน email.go)
 
 #### จุดตรวจเฟส 27
 - test ที่ต้องผ่านทั้งหมด: `TestTC_APV_22_4`, `TestTC_APV_22_12` และ test ของ**ทุกเฟส**ต้องยังผ่าน
