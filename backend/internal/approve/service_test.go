@@ -899,3 +899,58 @@ func TestApproveOvernight_Rules(t *testing.T) {
 		}
 	})
 }
+
+// AC-APV-23 (FR-APV-03 ค ฉ, DOM-REQ-01)
+// Given อุปกรณ์ชิ้นเดียวกันมีคำขอค้างคืน X (ส่งก่อน) และ Y สถานะ requested
+// When  เจ้าหน้าที่อนุมัติ Y
+// Then  Y เป็น approved เพราะคำขอค้างคืนไม่มีคิว และ X เป็น rejected ด้วยเหตุผล "อุปกรณ์ชิ้นนี้ได้รับการอนุมัติให้คำขออื่นแล้ว"
+//
+//	(T-46 เสร็จเมื่อ: ไม่ได้ NOT_FIRST_IN_QUEUE) ใช้ AP-TEST-0003 ที่มีคำขอปกติของ student-002 อยู่ 1 ใบ คำขอนั้นถูกปฏิเสธตามด้วย (FR-APV-01 จ)
+func TestAC_APV_23(t *testing.T) {
+	tx := devTx(t)
+	bg := context.Background()
+	insertOvernight := func(requester string, ago string) int {
+		t.Helper()
+		var id int
+		if err := tx.QueryRow(bg, `
+			INSERT INTO borrow_request (requester_id, requester_name, student_code, item_id, loan_type, purpose,
+			                            start_at, end_at, status, submitted_at, attachment_path)
+			SELECT $1, $1, $1, id, 'overnight', 'activity', now(), now() + interval '1 day', 'requested',
+			       now() - $2::interval, 'dev/x.pdf'
+			FROM equipment_item WHERE asset_code = 'AP-TEST-0003' RETURNING id`, requester, ago).Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	// Given: X ส่งก่อน Y
+	x := insertOvernight("student-101", "3 hours")
+	y := insertOvernight("student-102", "1 minute")
+	normal := requestIDOf(t, tx, "AP-TEST-0003", "student-002")
+
+	// When: อนุมัติ Y ข้าม X
+	res, err := NewService(NewRepository(tx)).ApproveWithAdvisor(staffCtx("staff-001", 1), y, time.Now(), "อ.สมชาย ใจดี")
+	if err != nil {
+		t.Fatalf("อนุมัติ Y ต้องสำเร็จเพราะคำขอค้างคืนไม่มีคิว (FR-APV-03 ค) แต่ได้ %v", err)
+	}
+
+	// Then: Y approved
+	if s := tcRequestStatus(t, tx, y); s != config.StatusApproved {
+		t.Errorf("Y ต้องเป็น approved แต่ได้ %q", s)
+	}
+	// Then: X rejected ด้วยเหตุผลของการปฏิเสธตาม ผู้ดำเนินการคือเจ้าหน้าที่ที่กดอนุมัติ (FR-APV-03 ฉ, FR-APV-01 จ)
+	if s := tcRequestStatus(t, tx, x); s != config.StatusRejected {
+		t.Errorf("X ต้องเป็น rejected แต่ได้ %q", s)
+	}
+	assertHistory(t, tx, x, config.ApprovalKindRejected, config.ApprovalSupersededReason, "staff-001", config.AuditActionReject)
+	// คำขอปกติของชิ้นเดียวกันถูกปฏิเสธตามด้วย (FR-APV-03 ฉ ทั้งปกติและค้างคืน)
+	if s := tcRequestStatus(t, tx, normal); s != config.StatusRejected {
+		t.Errorf("คำขอปกติของ AP-TEST-0003 ต้องถูกปฏิเสธตาม แต่ได้ %q", s)
+	}
+	got := map[int]bool{}
+	for _, id := range res.RejectedBy {
+		got[id] = true
+	}
+	if len(res.RejectedBy) != 2 || !got[x] || !got[normal] {
+		t.Errorf("rejectedRequestIds ต้องเป็น X (%d) และคำขอปกติ (%d) แต่ได้ %v", x, normal, res.RejectedBy)
+	}
+}
