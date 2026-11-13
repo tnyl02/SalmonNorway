@@ -1,7 +1,7 @@
 # specs/001-equipment-status/spec.md
 # Feature: ตรวจสอบสถานะอุปกรณ์ (Equipment Status)
 Spec ID: SPEC-EQS-001 | Source: US-001, RQ-02, RQ-05, RQ-09, Journey Map เฟส "ตรวจสอบอุปกรณ์ที่ต้องการยืม" | Use case: UC-01
-Owner: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05) | Status: Draft v5.2 | Updated: 2569-11-13 (v5.2: Q-SH-03 ตอบแล้ว ใช้ auth จำลองใน prototype / v5.1: ปิด Q-08 timeout / v5: CR-005 เพิ่ม FR-EQS-11, AC-EQS-17 / v4.4: ปิด Q-16, รับ Q-SH-04 / Q-SH-05, อ้าง CON-TECH-03)
+Owner: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05) | Status: Draft v5.2 | Updated: 2569-11-13 (v5.2: Q-SH-03 ตอบแล้ว ใช้ auth จำลองใน prototype, CON-DATA-02 อ้าง Q-SH-09 ที่ปิดแล้ว / v5.1: ปิด Q-08 timeout / v5: CR-005 เพิ่ม FR-EQS-11, AC-EQS-17 / v4.4: ปิด Q-16, รับ Q-SH-04 / Q-SH-05, อ้าง CON-TECH-03)
 Backlog: BL-01, BL-02, BL-03, BL-04 (specs/backlog.md)
 
 ## Goal
@@ -36,7 +36,7 @@ Backlog: BL-01, BL-02, BL-03, BL-04 (specs/backlog.md)
 เฉพาะฟีเจอร์นี้:
 - CON-DATA-02 ฟีเจอร์นี้เป็น read-only ไม่มีการเปลี่ยนสถานะอุปกรณ์จากที่นี่
   สถานะถูกเปลี่ยนโดย UC-08 (ส่งมอบ), UC-09 (รับคืน), UC-10 (จัดการรายการอุปกรณ์)
-  และเมื่อคืนแล้วชำรุด UC-07 หรือ UC-09 เป็นผู้เปลี่ยนเป็น "ไม่พร้อมใช้งาน" รอ Q-SH-09
+  และเมื่อคืนแล้วชำรุด UC-09 เป็นผู้เปลี่ยนเป็น "ไม่พร้อมใช้งาน" (Q-SH-09 ปิดแล้ว FR-RET-04 ของ 006)
   ดูตาราง "ใครเปลี่ยนสถานะอุปกรณ์" ใน specs/000-shared/data-model.md
 
 ## Requirements
