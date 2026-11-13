@@ -8723,3 +8723,27 @@ FR-BRQ-01 เขียนว่าต้องตรวจสถานะทั�
 - ลองใน Docker จริง: `docker compose up -d --build backend` แล้ว curl https://localhost:8443/healthz ได้ 200, /v1/approvals/requests ด้วย token เจ้าหน้าที่ได้ 200, TLS 1.1 จับมือไม่สำเร็จ, http://localhost:8443 ได้ 400 "Client sent an HTTP request to an HTTPS server." หยุด container backend หลังลอง
 - สิ่งที่ทีมเลือกเอง ไม่ได้มาจาก spec: ไม่ตั้ง cert = HTTP สำหรับเครื่องพัฒนาและ test, port 8443, image distroless, cert ลงนามเองอายุ 1 ปี
 - tasks.md T-50 สถานะ "เสร็จ รอทีมตรวจ" / ยังไม่มีแถว test-cases ของ AC-APV-19
+
+---
+
+## 2569-11-13 /testcases AC-APV-19 โหมดร่าง (004)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ไม่มีคำสั่ง /testcases ในเครื่องมือรอบนี้ ทำตาม `.claude/commands/testcases.md`)
+- คำสั่ง: "/testcases AC-APV-19 ต่อ"
+- โหมด: ร่าง (AC-APV-19 ยังไม่มีแถว) ไม่เขียนโค้ด test
+- ผลลัพธ์: เพิ่ม 8 แถวสถานะ "ร่าง" ต่อจาก TC-APV-26-4: 19-1 ถึง 19-7 (go test) และ 19-8 (คน ลองใน Docker)
+- คำถามที่ AI ถาม (spec ไม่ได้บอก): TC-APV-19-7 หลังบ้านที่เริ่มโดยไม่ตั้ง cert และ key (เครื่องพัฒนา, test ของทุกฟีเจอร์) ตอบผ่าน HTTP ได้ไหม AC-APV-19 เขียนว่าไม่ให้บริการผ่าน HTTP แต่ T-50 ให้ HTTP ได้เมื่อไม่ตั้ง cert (ทีมเลือกเอง)
+- คำตอบ: รอทีม
+
+---
+
+## 2569-11-13 ทีมตรวจ T-50 ผ่าน (004)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "T-50 ตรวจสอบผ่าน"
+- ผลลัพธ์: tasks.md T-50 สถานะเป็น "เสร็จ (ทีมตรวจแล้ว 2569-11-13)" / specs/README.md แถว 004 tasks เป็น "เสร็จ 49/52, ไม่ทำใน prototype 3"
+- ยังค้าง: แถว TC-APV-19-* สถานะ "ร่าง" และคำถาม TC-APV-19-7 (ไม่ตั้ง cert ให้ HTTP ได้ไหม)
