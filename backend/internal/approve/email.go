@@ -21,6 +21,7 @@ type EmailData struct {
 	SubmittedAt   time.Time // วันที่ยื่นคำขอ (ข ค)
 	Reason        string    // เหตุผลในการปฏิเสธ (ข)
 	ActorName     string    // ชื่อผู้อนุมัติ / ผู้พิจารณา (ก ข) Principal ยังไม่มีชื่อ ใช้รหัสเจ้าหน้าที่ไปก่อน (T-38)
+	AdvisorName   string    // ชื่ออาจารย์ที่เซ็นอนุมัติ มีเฉพาะคำขอค้างคืนที่อนุมัติ ว่าง = ยืมปกติ (ก v3.1, T-52)
 }
 
 // BuildEmail สร้างหัวข้อและเนื้อ Email ตามแบบ (config.ApprovalKind*) (FR-APV-02 ก ข ค, AC-APV-04)
@@ -39,6 +40,11 @@ func BuildEmail(kind string, d EmailData) (subject, body string, err error) {
 			return "", "", fmt.Errorf("approve: Email แบบ %q ไม่มีค่าของ %q", kind, label)
 		}
 		fmt.Fprintf(&b, "%s: %s\n", label, v)
+		// FR-APV-02 (ก) v3.1, rtm F-08: Email ผลอนุมัติของคำขอค้างคืนมีชื่ออาจารย์ที่เซ็น ต่อจากชื่อผู้อนุมัติ (T-52)
+		// ยังไม่แสดงจำนวนอุปกรณ์ทั้ง 2 ประเภท (1 คำขอ = 1 ชิ้น)
+		if kind == config.ApprovalKindApproved && label == "ชื่อผู้อนุมัติ" && d.AdvisorName != "" {
+			fmt.Fprintf(&b, "%s: %s\n", config.ApprovalEmailAdvisorLabel, d.AdvisorName)
+		}
 	}
 	return subject, b.String(), nil
 }

@@ -90,7 +90,8 @@ func loadDueEmails(ctx context.Context, tx pgx.Tx, now time.Time) ([]dueEmail, e
 	const q = `
 SELECT e.id, e.kind, r.requester_id,
        r.id, r.requester_name, m.name, i.asset_code, r.purpose, coalesce(r.purpose_other, ''),
-       r.start_at, r.end_at, r.submitted_at, coalesce(d.reason, ''), coalesce(d.actor_name, d.actor_id)
+       r.start_at, r.end_at, r.submitted_at, coalesce(d.reason, ''), coalesce(d.actor_name, d.actor_id),
+       coalesce(d.advisor_name, '')
 FROM approval_email e
 JOIN approval_decision d ON d.request_id = e.request_id
 JOIN borrow_request    r ON r.id = e.request_id
@@ -109,7 +110,7 @@ FOR UPDATE OF e SKIP LOCKED`
 		d := &e.Data
 		err := row.Scan(&e.ID, &e.Kind, &e.RequesterID,
 			&d.RequestID, &d.RequesterName, &d.ModelName, &d.AssetCode, &d.Purpose, &d.PurposeOther,
-			&d.StartAt, &d.EndAt, &d.SubmittedAt, &d.Reason, &d.ActorName)
+			&d.StartAt, &d.EndAt, &d.SubmittedAt, &d.Reason, &d.ActorName, &d.AdvisorName)
 		return e, err
 	})
 }

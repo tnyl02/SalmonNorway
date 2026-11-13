@@ -1,6 +1,8 @@
 # ฐานข้อมูลสำหรับเครื่องพัฒนา (CON-TECH-01 PostgreSQL, CON-TECH-02 Docker)
 # รหัสผ่านนี้ใช้ในเครื่องพัฒนาเท่านั้น ทีมเลือกเอง ไม่ได้มาจาก spec
-# HTTPS และ reverse proxy (CON-TECH-02, NFR-SEC-01) ยังไม่อยู่ในไฟล์นี้ ดูหมายเหตุท้าย tasks.md ของ 001
+# HTTPS (CON-TECH-02, NFR-SEC-01): service backend เปิดเฉพาะ HTTPS ด้วย TLS 1.2 ขึ้นไปที่ :8443 (T-50 ของ 004 รับทำตาม Q-APV-38)
+#   ก่อน up ครั้งแรกสร้างใบรับรองสำหรับเครื่องพัฒนา: cd backend && go run ./cmd/devcert
+#   รันทั้งระบบ: docker compose -f deploy/docker-compose.yml up -d --build
 services:
   db:
     image: postgres:16
@@ -19,5 +21,24 @@ services:
       timeout: 3s
       retries: 10
 
+  backend:
+    build: ../backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://salmon:salmon@db:5432/salmon?sslmode=disable
+      HTTP_ADDR: ":8443"
+      TLS_CERT_FILE: /certs/cert.pem
+      TLS_KEY_FILE: /certs/key.pem
+      ATTACHMENT_DIR: /data/attachments
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./certs:/certs:ro
+      - attachments:/data/attachments
+
 volumes:
   pgdata:
+  attachments:

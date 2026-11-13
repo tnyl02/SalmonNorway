@@ -815,18 +815,42 @@ Updated: 2569-11-13 (v2: CR-009 เฟส 19 ถึง 25, T-40 ถึง T-50 /
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-27
 - เสร็จเมื่อ: หลังเปลี่ยน auth `TestAC_APV_05` และ `TestAC_APV_12` ยังผ่าน
-- สถานะ: รอ Q-SH-03
+- สถานะ: ไม่ทำใน prototype (Q-SH-03 ตอบ 2569-11-13: ใช้ auth จำลองตลอด prototype, ASM-02)
 
 ---
 
 ### T-50 ทดสอบว่าเรียก API ผ่าน HTTP ธรรมดาหรือ TLS ต่ำกว่า 1.2 ไม่ได้
 - รองรับ: NFR-SEC-01, CON-TECH-02
 - ตรวจด้วย: AC-APV-19
-- ไฟล์ที่แตะ: ขึ้นกับว่าทีมทำ HTTPS ที่ไหน (Q-APV-38) เช่น `deploy/` และ test ของ 004
+- ไฟล์ที่แตะ: `backend/cmd/server/main.go`, `backend/internal/config/config.go` (ที่อยู่ไฟล์ cert / key จาก env และ TLS ต่ำสุด), `backend/internal/platform/tls.go` และ `tls_test.go` (ใหม่: ตั้ง `tls.Config` MinVersion TLS 1.2 และเริ่ม server), `backend/Dockerfile` (ใหม่), `deploy/docker-compose.yml` (เพิ่ม service backend ที่เปิด HTTPS), `deploy/certs/` หรือสคริปต์สร้าง cert สำหรับเครื่องพัฒนา (ใหม่), `frontend/vite.config.js` (proxy ไปหลังบ้านแบบ https เมื่อเปิด TLS) / ไฟล์กลางทั้งหมด เจ้าของ 004 รับทำเอง (Q-APV-38)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
-- เสร็จเมื่อ: test ของ AC-APV-19 ผ่านบนระบบที่มี HTTPS
-- สถานะ: รอ Q-APV-38
+- เสร็จเมื่อ: เมื่อตั้งไฟล์ cert / key หลังบ้านเปิดเฉพาะ HTTPS ด้วย TLS 1.2 ขึ้นไป / test ใน `tls_test.go`: เรียกด้วย TLS 1.2 สำเร็จ, TLS 1.1 จับมือไม่สำเร็จ, HTTP ธรรมดาไม่ได้คำตอบของ API / `docker compose up` ได้หลังบ้านที่เปิด HTTPS / test เดิมทุกตัวยังผ่าน (ไม่ตั้ง cert ในเครื่องพัฒนาและ test ยังเป็น HTTP แบบเดิม ทีมเลือกเอง ไม่ได้มาจาก spec) / หลังเสร็จทำ /testcases AC-APV-19
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestAC_APV_19` (TLS 1.2 ใช้ได้ / TLS 1.1 ไม่ได้ / HTTP ไม่ได้), `TestServe_TLSFilesIncomplete`, `TestTLSConfig_MinVersion` ผ่าน / ลองใน Docker จริง: https :8443 ได้ 200, TLS 1.1 จับมือไม่สำเร็จ, http ได้ 400 "Client sent an HTTP request to an HTTPS server." / ไฟล์เพิ่มจากรายการ: `backend/cmd/devcert/main.go` (สร้าง cert) และ `backend/.dockerignore` / ยังไม่มีแถว test-cases ของ AC-APV-19 ต้องทำ /testcases ต่อ)
+
+## เฟส 27: แก้ตามที่ทีมตัดสิน rtm.md รอบ 4 (CR-009 แก้ไขหลังอนุมัติ 2569-11-13)
+
+### T-51 [ทีมอนุมัติ ID 2569-11-13] ตัดช่องว่างหน้าหลังของชื่ออาจารย์ก่อนเก็บและก่อนนับความยาว
+- รองรับ: FR-APV-03 (ช) v3.1, rtm.md F-07
+- ตรวจด้วย: AC-APV-22 (TC-APV-22-4)
+- ไฟล์ที่แตะ: `backend/internal/approve/service.go`, `backend/internal/approve/tc_ac_apv_22_26_test.go`, `backend/internal/approve/service_test.go`, `frontend/src/pages/ApproveRequest/ApproveRequests.jsx`, `frontend/src/pages/ApproveRequest/ApproveRequests.test.jsx`
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: T-44, T-45
+- เสร็จเมื่อ: `TestTC_APV_22_4` ตามแถวที่ทีมตรวจแล้วผ่าน: `advisor_name` เก็บแบบตัดช่องว่างหน้าหลัง และชื่อที่ยาวเกิน 100 เพราะช่องว่างหน้าหลังยังอนุมัติได้ / หน้าจอนับความยาวหลังตัดแบบเดียวกัน / test เดิมทุกตัวยังผ่าน
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestTC_APV_22_4_AdvisorNameSpaces` (ก)(ข) และ vitest AC-APV-22 ชื่อที่มีช่องว่างหน้าหลัง ผ่าน / ไม่ได้แตะ service_test.go เพราะ TC ครอบแล้ว)
+
+### T-52 [ทีมอนุมัติ ID 2569-11-13] เพิ่มชื่ออาจารย์ที่เซ็นใน Email ผลอนุมัติของคำขอค้างคืน
+- รองรับ: FR-APV-02 (ก) v3.1, FR-APV-03 (ข), rtm.md F-08
+- ตรวจด้วย: AC-APV-22 (TC-APV-22-12)
+- ไฟล์ที่แตะ: `backend/internal/approve/email.go`, `backend/internal/approve/sender.go` (อ่าน `advisor_name` และ loan_type), `backend/internal/approve/model.go` หรือที่เก็บ EmailData, `backend/internal/config/config.go` (ApprovalEmailTemplates), `backend/internal/config/config_approval_test.go`, `backend/internal/approve/email_test.go`, `backend/internal/approve/tc_ac_apv_22_26_test.go`
+- แบบหน้าจอ: ไม่มี
+- ต้องทำหลัง: T-14, T-44
+- เสร็จเมื่อ: `TestTC_APV_22_12` ตามแถวที่ทีมตรวจแล้วผ่าน: Email ผลอนุมัติของคำขอค้างคืนมี "ชื่ออาจารย์ที่เซ็นอนุมัติ" และไม่มีจำนวนอุปกรณ์ / Email ของยืมปกติไม่เปลี่ยน (TestTC_APV_04_* ยังผ่าน)
+- สถานะ: เสร็จ (ทีมตรวจแล้ว 2569-11-13 / test ผ่าน 2569-11-13: `TestTC_APV_22_12_ApprovedEmail` (4)(5), `TestBuildEmail_OvernightAdvisor`, `TestConfig_ApprovalEmailAdvisorLabel` ผ่าน / TestTC_APV_04_* ของยืมปกติยังผ่าน / ไม่ได้แตะ model.go เพราะ EmailData อยู่ใน email.go)
+
+#### จุดตรวจเฟส 27
+- test ที่ต้องผ่านทั้งหมด: `TestTC_APV_22_4`, `TestTC_APV_22_12` และ test ของ**ทุกเฟส**ต้องยังผ่าน
+- ตรวจ rtm.md: F-07 และ F-08 ย้ายไปหัวข้อ "แก้แล้ว" ได้ตอน /verify รอบถัดไป
 
 ## ตารางตรวจความครบ
 

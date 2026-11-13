@@ -78,6 +78,26 @@ func TestBuildEmail_Contents(t *testing.T) {
 }
 
 // FR-BRQ-02 (ก): วัตถุประสงค์ "อื่น ๆ" แสดงข้อความที่ผู้ขอพิมพ์
+// T-52: Email ผลอนุมัติของคำขอค้างคืนมีชื่ออาจารย์ต่อจากชื่อผู้อนุมัติ ยืมปกติไม่มี และไม่มีจำนวนอุปกรณ์ (FR-APV-02 ก v3.1, rtm F-08)
+func TestBuildEmail_OvernightAdvisor(t *testing.T) {
+	d := EmailData{RequesterName: "ค", ModelName: "รุ่น", AssetCode: "AP-1", Purpose: "study",
+		StartAt: time.Now(), EndAt: time.Now(), ActorName: "staff-001", AdvisorName: "อ.สมชาย ใจดี"}
+	_, body, err := BuildEmail(config.ApprovalKindApproved, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(body, "ชื่อผู้อนุมัติ: staff-001\nชื่ออาจารย์ที่เซ็นอนุมัติ: อ.สมชาย ใจดี\n") {
+		t.Errorf("ต้องมีชื่ออาจารย์ต่อจากชื่อผู้อนุมัติ:\n%s", body)
+	}
+	if strings.Contains(body, "จำนวน") {
+		t.Errorf("ต้องไม่มีจำนวนอุปกรณ์:\n%s", body)
+	}
+	d.AdvisorName = ""
+	if _, body, _ = BuildEmail(config.ApprovalKindApproved, d); strings.Contains(body, "ชื่ออาจารย์") {
+		t.Errorf("ยืมปกติต้องไม่มีชื่ออาจารย์:\n%s", body)
+	}
+}
+
 func TestBuildEmail_PurposeOther(t *testing.T) {
 	d := sampleEmailData()
 	d.Purpose, d.PurposeOther = config.PurposeOther, "ถ่ายวิดีโอโครงงาน"

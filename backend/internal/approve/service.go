@@ -140,7 +140,9 @@ func (s *Service) ApproveWithAdvisor(ctx context.Context, requestID int, loadedA
 		// FR-APV-03 (ข)(ช), Q-APV-44: ค้างคืนต้องระบุชื่ออาจารย์ ว่างหรือมีแต่ช่องว่างไม่นับ ไม่เกิน 100 code point
 		// ตรวจก่อนสถานะ (ทีมตอบ 2569-11-13 ตอน T-44) ยังไม่เขียนอะไร สถานะจึงคงเดิม
 		if overnight {
-			if strings.TrimSpace(advisorName) == "" {
+			// FR-APV-03 (ช) v3.1, rtm F-07: ตัดช่องว่างหน้าหลังก่อนเก็บ และนับความยาวหลังตัด (T-51)
+			advisorName = strings.TrimSpace(advisorName)
+			if advisorName == "" {
 				return ErrAdvisorNameRequired
 			}
 			if utf8.RuneCountInString(advisorName) > config.ApprovalAdvisorNameMaxLength {

@@ -1,0 +1,2 @@
+# ใบรับรองของเครื่องพัฒนา สร้างด้วย cd backend && go run ./cmd/devcert ห้าม commit (T-50 ของ 004)
+*.pem

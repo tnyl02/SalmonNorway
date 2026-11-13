@@ -22,7 +22,7 @@ type PendingRequestDTO struct {
 	EndAt         time.Time `json:"endAt"`
 	SubmittedAt   time.Time `json:"submittedAt"`
 	LoanType      string    `json:"loanType"` // normal / overnight (FR-APV-03 ก, plan.md v2 ข้อ 4)
-	IsFirst       bool      `json:"isFirst"` // หน้าจอแสดงปุ่มอนุมัติเฉพาะแถวนี้ (FR-APV-01 ข, T-18) server ตรวจซ้ำเสมอ (T-17) คำขอค้างคืนเป็น false เสมอ เพราะไม่มีคิว
+	IsFirst       bool      `json:"isFirst"`  // หน้าจอแสดงปุ่มอนุมัติเฉพาะแถวนี้ (FR-APV-01 ข, T-18) server ตรวจซ้ำเสมอ (T-17) คำขอค้างคืนเป็น false เสมอ เพราะไม่มีคิว
 	// AttachmentURL คือลิงก์เปิดไฟล์ใบบันทึกข้อความผ่าน endpoint ของ 002 (FR-APV-03 ก, FR-BRQ-10 ก, Q-APV-41) มีเฉพาะคำขอค้างคืนที่มีไฟล์
 	AttachmentURL string `json:"attachmentUrl,omitempty"`
 }
