@@ -7,7 +7,7 @@ package approve
 
 import "time"
 
-// PendingRequest คือคำขอยืมแบบปกติที่รอพิจารณา 1 แถวในหน้ารายการของเจ้าหน้าที่ (FR-APV-01 ก ข)
+// PendingRequest คือคำขอยืมที่รอพิจารณา 1 แถวในหน้ารายการของเจ้าหน้าที่ ทั้งยืมปกติและค้างคืน (FR-APV-01 ก ข, FR-APV-03 ก)
 type PendingRequest struct {
 	ID            int       // รหัสคำขอ (DM-06)
 	RequesterName string    // ชื่อผู้ขอ (FR-APV-01 ก) ผู้ขอพิมพ์เองตอนส่งคำขอ (FR-BRQ-03 ก)
@@ -19,7 +19,9 @@ type PendingRequest struct {
 	StartAt       time.Time // ช่วงเวลาที่ต้องการยืม: เริ่ม (FR-APV-01 ก)
 	EndAt         time.Time // ช่วงเวลาที่ต้องการยืม: คืน (FR-APV-01 ก)
 	SubmittedAt   time.Time // เวลาที่ส่ง ใช้เรียงลำดับ (FR-APV-01 ก, DOM-REQ-01)
-	IsFirst       bool      // เป็นคำขอแรกของอุปกรณ์รายชิ้นนั้นหรือไม่ อนุมัติได้เฉพาะคำขอแรก (FR-APV-01 ข, Q-APV-23)
+	LoanType      string    // normal / overnight (config.LoanTypeNormal, config.LoanTypeOvernight) ใช้แยกกฎ (FR-APV-03, plan.md v2)
+	IsFirst       bool      // เป็นคำขอแรกของอุปกรณ์รายชิ้นนั้นหรือไม่ อนุมัติได้เฉพาะคำขอแรก คิดเฉพาะยืมปกติ (FR-APV-01 ข, Q-APV-23)
+	HasAttachment bool      // มีไฟล์ใบบันทึกข้อความที่ 002 เก็บไว้ (FR-APV-03 ก, Q-APV-41)
 }
 
 // requestRow คือคำขอ 1 ใบที่ล็อกไว้ระหว่างพิจารณา พร้อมข้อมูลอุปกรณ์ที่ต้องใช้ตรวจ (FR-APV-01 ข ค, ASM-06)

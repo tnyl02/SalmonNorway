@@ -43,6 +43,7 @@ func getJSON(srv http.Handler, token, path string) *httptest.ResponseRecorder {
 // Given มีคำขอ requested ของภาควิชาตนเองหลายคำขอ และคำขอของภาควิชาอื่น (approve_dev.sql)
 // When  เจ้าหน้าที่ภาควิชา 1 เรียก GET /v1/approvals/requests
 // Then  ได้ 200 รายการเฉพาะภาควิชาตนเอง เรียงตามเวลาที่ส่ง พร้อมข้อมูลที่ต้องแสดง is_first และ loadedAt
+// v3 (T-42): มีคำขอค้างคืน C ต่อท้าย พร้อม loanType และ attachmentUrl ของ 002 (FR-APV-03 ก, Q-APV-41)
 func TestAC_APV_11_HTTP(t *testing.T) {
 	srv := newTestServer(devTx(t))
 
@@ -57,7 +58,7 @@ func TestAC_APV_11_HTTP(t *testing.T) {
 	if got.LoadedAt.IsZero() {
 		t.Error("ต้องมี loadedAt ให้หน้าจอส่งกลับมาตอนพิจารณา (plan.md ข้อ 4)")
 	}
-	wantAssets := []string{"AP-TEST-0001", "AP-TEST-0002", "AP-TEST-0001", "AP-TEST-0003", "AP-TEST-0004"}
+	wantAssets := []string{"AP-TEST-0001", "AP-TEST-0002", "AP-TEST-0001", "AP-TEST-0003", "AP-TEST-0004", "AP-TEST-0001"}
 	if len(got.Items) != len(wantAssets) {
 		t.Fatalf("ต้องได้ %d คำขอ แต่ได้ %d: %+v", len(wantAssets), len(got.Items), got.Items)
 	}
@@ -72,6 +73,19 @@ func TestAC_APV_11_HTTP(t *testing.T) {
 	}
 	if got.Items[2].IsFirst {
 		t.Error("คำขอ B ของ AP-TEST-0001 ต้องไม่ใช่คำขอแรก (FR-APV-01 ข)")
+	}
+	for i, it := range got.Items[:5] {
+		if it.LoanType != config.LoanTypeNormal || it.AttachmentURL != "" {
+			t.Errorf("แถว %d ต้องเป็นยืมปกติที่ไม่มี attachmentUrl แต่ได้ %+v", i, it)
+		}
+	}
+	c := got.Items[5]
+	wantURL := fmt.Sprintf("/v1/loan-requests/%d/attachment", c.RequestID)
+	if c.LoanType != config.LoanTypeOvernight || c.IsFirst || c.AttachmentURL != wantURL {
+		t.Errorf("คำขอ C ต้องเป็น overnight isFirst=false attachmentUrl=%s แต่ได้ %+v", wantURL, c)
+	}
+	if !strings.Contains(w.Body.String(), `"attachmentUrl":"`+wantURL+`"`) {
+		t.Error("JSON ต้องใช้ชื่อช่อง attachmentUrl (plan.md v2 ข้อ 4)")
 	}
 }
 

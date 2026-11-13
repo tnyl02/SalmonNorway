@@ -7875,3 +7875,19 @@ main
 - เครื่องมือ: Claude Code
 - คำสั่ง: "ทีมตรวจแล้วผ่าน ใส่commit เป็น 004: T-41 done and reviewed"
 - ผลลัพธ์: tasks.md T-41 สถานะเปลี่ยนเป็น "เสร็จ (ทีมตรวจแล้ว 2569-11-13)" / commit รวมงาน T-41 และผลตรวจในครั้งเดียว
+
+---
+
+## 2569-11-13 /implement T-42 (004 รวมคำขอค้างคืนในรายการของหลังบ้าน)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ไม่มีคำสั่ง /implement ในเครื่องมือรอบนี้ ทำตาม `.claude/commands/implement.md` แตะเฉพาะไฟล์ใน "ไฟล์ที่แตะ" ของ T-42)
+- คำสั่ง: "/implement T-42 commit ไม่ต้องใส่ -m "Co-Authored-By: ..."" (ผู้สั่งให้ commit ไม่มีบรรทัด Co-Authored-By ต่อจากนี้)
+- ผลลัพธ์:
+  - `repository.go` ListPending: ไม่กรอง loan_type แล้ว คืน loan_type, is_first (แบ่งลำดับตาม item_id และ loan_type จริงได้เฉพาะยืมปกติ Q-APV-23) และ has_attachment
+  - `model.go`: เพิ่ม LoanType, HasAttachment / `dto.go`: เพิ่ม `loanType` และ `attachmentUrl` (ใช้ `borrowrequest.PathPrefix` ของ 002 มีเฉพาะค้างคืนที่มีไฟล์ FR-APV-03 ก, Q-APV-41)
+  - แก้ test ที่ไม่ใช่ TestTC_: TestAC_APV_11, TestAC_APV_11_HTTP (คำขอ C ค้างคืนต่อท้ายพร้อม attachmentUrl), TestListPending_OvernightDoesNotBlockQueue (ตรวจเฉพาะแถวยืมปกติ)
+  - ผล test: approve ผ่านทั้งหมด ยกเว้น `TestTC_APV_11_1` (ได้ 6 รายการ ตารางบอก 5 และไม่มี C) และ `TestTC_APV_11_3` (ได้ 4 ตารางบอก 3) ไม่ได้แก้ test เพราะกฎ TestTC_ ห้ามแก้ให้ผ่าน
+- ต้องให้ทีมตัดสิน: แก้แถว TC-APV-11-1 (6 รายการ C ต่อท้ายเป็น overnight isFirst=false มี attachmentUrl) และ TC-APV-11-3 (4 รายการ A, B, 0004, C) ใน test-cases.md / แถว 11-3 เพิ่มจากรายการที่ขัดกับ v3 เดิม (01-12, 02-11, 11-1)
+- tasks.md T-42 สถานะ "เสร็จ รอทีมตรวจ" พร้อมหมายเหตุรอทีมแก้แถว

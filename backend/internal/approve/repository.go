@@ -32,21 +32,24 @@ func NewRepository(db Querier) *Repository {
 	return &Repository{db: db}
 }
 
-// ListPending คืนคำขอยืมแบบปกติสถานะ requested ของอุปกรณ์ภาควิชาที่ระบุ เรียงตามเวลาที่ส่งจากเก่าไปใหม่
-// พร้อมบอกว่าแถวไหนเป็นคำขอแรกของอุปกรณ์รายชิ้นนั้น (FR-APV-01 ก ข, DOM-REQ-01, ASM-06)
+// ListPending คืนคำขอยืมสถานะ requested ทั้งยืมปกติและค้างคืนของอุปกรณ์ภาควิชาที่ระบุ เรียงตามเวลาที่ส่งจากเก่าไปใหม่
+// (FR-APV-01 ก, FR-APV-03 ก, DOM-REQ-01, ASM-06, plan.md v2 ข้อ 4 รวมในรายการเดียว)
 //
-// คำขอค้างคืนไม่ขึ้นในรายการ (Out of scope รอ Q-APV-01) และไม่นับในลำดับคำขอแรก (Q-APV-23)
+// คำขอแรกของอุปกรณ์รายชิ้นคิดเฉพาะยืมปกติ (FR-APV-01 ข) คำขอค้างคืนไม่มีคิว (FR-APV-03 ค) และไม่ขวางคิวยืมปกติ (Q-APV-23)
+// จึงแบ่งลำดับตาม item_id และ loan_type แล้วให้ is_first เป็นจริงได้เฉพาะยืมปกติ
+// has_attachment บอกว่ามีไฟล์ใบบันทึกข้อความที่ 002 เก็บไว้ไหม (FR-APV-03 ก, FR-BRQ-10 ก, Q-APV-41)
 // ภาควิชาเทียบกับภาควิชาเจ้าของอุปกรณ์ (equipment_model.department_id, DM-03) ไม่ใช่ภาควิชาของผู้ขอ
 func (r *Repository) ListPending(ctx context.Context, departmentID int) ([]PendingRequest, error) {
 	const q = `
 SELECT r.id, r.requester_name, r.student_code, m.name, i.asset_code,
        r.purpose, coalesce(r.purpose_other, ''), r.start_at, r.end_at, r.submitted_at,
-       row_number() OVER (PARTITION BY r.item_id ORDER BY r.submitted_at, r.id) = 1 AS is_first
+       r.loan_type,
+       r.loan_type = $2 AND row_number() OVER (PARTITION BY r.item_id, r.loan_type ORDER BY r.submitted_at, r.id) = 1 AS is_first,
+       r.attachment_path IS NOT NULL AS has_attachment
 FROM borrow_request r
 JOIN equipment_item  i ON i.id = r.item_id
 JOIN equipment_model m ON m.id = i.model_id
 WHERE r.status = $1
-  AND r.loan_type = $2
   AND m.department_id = $3
 ORDER BY r.submitted_at, r.id`
 
@@ -57,7 +60,7 @@ ORDER BY r.submitted_at, r.id`
 	out, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (PendingRequest, error) {
 		var p PendingRequest
 		err := row.Scan(&p.ID, &p.RequesterName, &p.StudentCode, &p.ModelName, &p.AssetCode,
-			&p.Purpose, &p.PurposeOther, &p.StartAt, &p.EndAt, &p.SubmittedAt, &p.IsFirst)
+			&p.Purpose, &p.PurposeOther, &p.StartAt, &p.EndAt, &p.SubmittedAt, &p.LoanType, &p.IsFirst, &p.HasAttachment)
 		return p, err
 	})
 	if err != nil {
