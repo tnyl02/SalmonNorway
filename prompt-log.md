@@ -7369,3 +7369,31 @@ AC-BRQ-12 **เรียกชั้น service ตรง ๆ ไม่ผ่า
 
 ### ไม่ได้แก้โค้ดของระบบเลย
 ### ความคืบหน้า test-cases: เขียนโค้ด test แล้ว 38 จาก 63 แถว เหลือ 25 แถวใน 6 AC
+
+---
+
+## 2569-11-13 /testcases AC-BRQ-01 AC-BRQ-07 (002-borrow-request) — โหมดเขียน test
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- เครื่องมือ: Claude Code คำสั่ง `/testcases AC-BRQ-01 AC-BRQ-07`
+
+### ไฟล์ที่สร้าง (ไม่ได้แก้ไฟล์ test เดิมเลย)
+- `backend/internal/borrowrequest/tc_ac_brq_01_test.go` — TC-BRQ-01-1 ถึง 01-3
+- `backend/internal/borrowrequest/tc_ac_brq_07_test.go` — TC-BRQ-07-1 ถึง 07-3
+- `frontend/src/__tests__/TC-BRQ-01-4.test.jsx` — TC-BRQ-01-4
+
+### ผล test (ผ่านทั้งหมด)
+หลังบ้าน 6 test PASS ok 5.165s / หน้าจอ 1 ไฟล์ 1 test ผ่าน
+
+### helper ที่เพิ่มในไฟล์ test ของรอบนี้
+- `insertTempItemDept2` ใส่อุปกรณ์ model 3 (ภาควิชา 2) เพราะ `insertTempItem` เดิมใส่ model 1
+  ใช้แทนการแย่ง XX-NB-0001 จาก seed กับ TestDepartmentScope_OwnDepartmentStillWorks จนติดกฎคำขอซ้ำ
+- `expectNoItemInfo` ไล่หาคำที่ไม่ควรหลุดใน body (ค่าสถานะ 3 ค่า ชื่อรุ่น รหัสครุภัณฑ์) ใช้กับ 07-1 และ 07-3
+- `setItemStatus` เปลี่ยนสถานะอุปกรณ์ จำลองว่าฟีเจอร์อื่นเปลี่ยนระหว่างผู้ขอกรอกฟอร์ม
+
+### จุดที่เพิ่งถูกตรวจครั้งแรก
+- TC-BRQ-01-2 สถานะ unavailable (ไม่ใช่ borrowed) ต้องถูกปฏิเสธและแจ้งสถานะนั้นกลับไป
+- TC-BRQ-07-3 ลำดับ 403 มาก่อน 409 ที่ชั้น HTTP (ของเดิม TestCheckOrder_DepartmentBeforeItemStatus ตรวจที่ชั้น service)
+
+### ไม่ได้แก้โค้ดของระบบเลย
+### ความคืบหน้า test-cases: เขียนโค้ด test แล้ว 45 จาก 63 แถว เหลือ 18 แถวใน 4 AC (05, 08, 09, 10)
