@@ -8992,3 +8992,46 @@ main
   - 001 spec CON-DATA-02 และ tasks: Q-SH-09 ปิดแล้ว (อยู่ใน v5.2, tasks v2.6 เดิม)
   - specs/CHANGELOG.md
 - ไม่แก้: Q-SH-08 (002 เขียนว่าปิด, 004 เขียนว่ารอทีม ต้องให้ทีมตัดสิน), Q-SH-10 และ Q-SH-11 (002 ต้องลงทะเบียนเอง)
+
+---
+
+## 2569-11-13 ทีมตัดสิน Q-SH-08 ทาง ก และแก้ทุกฟีเจอร์ให้ตรงกัน (ของกลาง + 001 ถึง 006)
+
+- ผู้สั่ง: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05)
+- เครื่องมือ: Claude Code
+- คำสั่ง: "เอา ก ละแก้ทั้งหมดเลย ไม่ต้องสนใจชื่อการคอมมิดถือว่าเป็นการแก้ส่วนรวมไปเลย มันส่งพรุ่งนี้แล้วเดี๋ยวไปทัน"
+- ก่อนหน้า AI อธิบายทางเลือก: ก ปิดสำหรับ prototype คง 401 (ข้อเสนอของ 002) / ข ปล่อยเปิด ไม่ทำใน prototype (ข้อเสนอของ 004) / ค ทำ 503 จริงตอนนี้ (ไม่แนะนำ) AI แนะนำ ก ผู้สั่งเลือก ก
+- คำตอบที่บันทึก: ปิดสำหรับ prototype ทีมตัดสิน 2569-11-13 คง auth.Middleware ตอบ 401 UNAUTHENTICATED เมื่อต่อระบบจริงต้องถามนักเทคโนโลยีสารสนเทศ และแยกเป็น 503 UPSTREAM_UNAVAILABLE
+- ไฟล์ที่แก้ (แก้ไฟล์ของฟีเจอร์อื่นตามคำสั่งผู้สั่ง ต้องแจ้งเจ้าของ 002 004 005 006 ใน PR และในกลุ่ม):
+  - ของกลาง: specs/000-shared/constraints.md v5.6, docs/srs/SRS.md v1.1 (3.2), specs/README.md, specs/CHANGELOG.md
+  - 001: spec v5.3, tasks v2.7, test-cases TC-EQS-09-7, backend/internal/equipment/tc_ac_eqs_09_test.go (คอมเมนต์เท่านั้น)
+  - 002: spec v3.5, plan, tasks (ข้อความ Q-SH-08 เท่านั้น)
+  - 004: spec v3.4 (Open Questions และ Session ใหม่ ไม่แก้ Session เก่า), plan, tasks
+  - 005: spec v2.9, plan, tasks
+  - 006: spec v2.3, tasks (T-27 ไม่ทำใน prototype), test-cases TC-RET-08-6 ไม่ทำใน prototype, plan
+- ไม่แก้: rtm.md ของทุกฟีเจอร์ (สร้างใหม่ตอน /verify รอบสุดท้าย), โค้ดระบบ (ไม่มีพฤติกรรมเปลี่ยน)
+- ตรวจ: ค้นคำว่า "รอ Q-SH-08" ใน spec plan tasks test-cases SRS และโค้ดแล้วไม่เหลือ, go vet ./internal/equipment ผ่าน
+
+---
+
+## 2569-11-13 กรอกช่อง "ส่วนอื่นที่ทำ" ใน README ของ 002, 005, 006 (ไฟล์กลาง README.md)
+
+- ผู้สั่ง: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05)
+- เครื่องมือ: Claude Code
+- คำสั่ง: "กรอกช่อง "ส่วนอื่นที่ทำ" ใน README กรอกให้เลยได้มั้ยทุก 00 ที่ยังว่างอะ"
+- วิธี: AI ไล่ git log ของแต่ละคน (ไม่นับ merge) หา commit ที่แตะไฟล์นอกฟีเจอร์ตัวเอง แล้วอ่าน diff ทีละ commit เขียนเฉพาะที่มีหลักฐาน
+  - 002: Initial commit, CR-003 (97a55dc), CR-004 (8e5e78b), CR-007 (1eab076), endpoint คิวใน main.go (b99cc0c, CR-005), seed.sql (8ff302d), postForm (49bd050), ApiError.body (03f28a7)
+  - 005: CON-TECH-03 v5.1 FORBIDDEN_ROLE, REQUEST_NOT_APPROVED, BORROWER_MISMATCH (4c6a51b), migration 0009 action handover (2d7a42f), volume photos (7d52293, PR #38 ยังไม่ merge)
+  - 006: CON-TECH-03 v5.4 (58db246), data-model ฟิลด์รับคืนและ action (257a362, afa3f4c), Q-SH-09 ผ่าน FR-RET-04
+  - ไม่ใส่: authHeaders ใน api/client.js ที่ 006 เพิ่มใน T-06 เพราะ 001 เขียนใหม่ทับแล้ว (git blame 487b205)
+- เจ้าของแต่ละคนควรตรวจและแก้ข้อความของตัวเองได้
+
+---
+
+## 2569-11-13 เอา volume photos ออกจากช่อง "ส่วนอื่นที่ทำ" ของ 005 (README.md)
+
+- ผู้สั่ง: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05)
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ตอนนี้เหลืออะไรพร้อมอัปเดตลิ้ง"
+- พบว่า PR #38 (005-handover) ถูกปิดโดยเจ้าของ 14:33 สถานะ CONFLICTING ไม่ได้ merge volume photos (7d52293) จึงยังไม่อยู่ใน main
+- เอาข้อความ volume photos ออกจาก README แถว 005 ให้ตรงกับ main ถ้า 005 merge ภายหลังให้เพิ่มกลับ

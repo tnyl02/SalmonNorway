@@ -1,7 +1,7 @@
 # specs/001-equipment-status/spec.md
 # Feature: ตรวจสอบสถานะอุปกรณ์ (Equipment Status)
 Spec ID: SPEC-EQS-001 | Source: US-001, RQ-02, RQ-05, RQ-09, Journey Map เฟส "ตรวจสอบอุปกรณ์ที่ต้องการยืม" | Use case: UC-01
-Owner: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05) | Status: Draft v5.2 | Updated: 2569-11-13 (v5.2: Q-SH-03 ตอบแล้ว ใช้ auth จำลองใน prototype, CON-DATA-02 อ้าง Q-SH-09 ที่ปิดแล้ว / v5.1: ปิด Q-08 timeout / v5: CR-005 เพิ่ม FR-EQS-11, AC-EQS-17 / v4.4: ปิด Q-16, รับ Q-SH-04 / Q-SH-05, อ้าง CON-TECH-03)
+Owner: 660710767 นางสาวพรรณธร จันทร์สายทอง (@Pannathorn05) | Status: Draft v5.3 | Updated: 2569-11-13 (v5.3: Q-SH-08 ปิดสำหรับ prototype / v5.2: Q-SH-03 ตอบแล้ว ใช้ auth จำลองใน prototype, CON-DATA-02 อ้าง Q-SH-09 ที่ปิดแล้ว / v5.1: ปิด Q-08 timeout / v5: CR-005 เพิ่ม FR-EQS-11, AC-EQS-17 / v4.4: ปิด Q-16, รับ Q-SH-04 / Q-SH-05, อ้าง CON-TECH-03)
 Backlog: BL-01, BL-02, BL-03, BL-04 (specs/backlog.md)
 
 ## Goal
@@ -181,8 +181,9 @@ Backlog: BL-01, BL-02, BL-03, BL-04 (specs/backlog.md)
   ตรงเงื่อนไขที่เขียนไว้ว่าต้องเพิ่ม FR ผ่าน CR จึงเสนอ CR-005 (specs/changes/CR-005.md) เพิ่ม FR-EQS-11 แล้ว (CR-005)
 - Q-SH-03 [ปิดแล้ว 2569-11-13 ของกลาง ดู specs/000-shared/constraints.md] auth service ใช้โปรโตคอลอะไร และส่ง role + ภาควิชามาอย่างไร
   prototype ใช้ auth จำลองตลอด ไม่ต่อระบบจริง (ASM-02) ไม่เปลี่ยน FR หรือ AC ของฟีเจอร์นี้ T-30 ไม่ทำใน prototype
-- Q-SH-08 [ของกลาง ดู specs/000-shared/constraints.md] ถ้าระบบยืนยันตัวตนของมหาวิทยาลัยเชื่อมต่อไม่ได้ ระบบต้องทำอย่างไร
+- Q-SH-08 [ปิดสำหรับ prototype ทีมตัดสิน 2569-11-13 ของกลาง ดู specs/000-shared/constraints.md] ถ้าระบบยืนยันตัวตนของมหาวิทยาลัยเชื่อมต่อไม่ได้ ระบบต้องทำอย่างไร
   (กระทบ AC-EQS-09 ซึ่งตอนนี้ครอบคลุมแค่ session หมดอายุ) -> ถามนักเทคโนโลยีสารสนเทศ
+  prototype: คง `auth.Middleware` ตอบ 401 `UNAUTHENTICATED` ไม่ปล่อยผ่านและไม่เดาภาควิชา (fail closed) เพราะ prototype ใช้ auth จำลอง (Q-SH-03) กรณีเชื่อมต่อไม่ได้จึงไม่เกิด ไม่เพิ่ม AC ไม่ทำ CR AC-EQS-09 ไม่เปลี่ยน / เมื่อต่อ Auth API จริง: ยังต้องถามนักเทคโนโลยีสารสนเทศ และแยกกรณีระบบยืนยันตัวตนล่มเป็น 503 `UPSTREAM_UNAVAILABLE` ที่ `auth.Middleware` ที่เดียว
 - Q-13 [ปิดแล้ว 2569-11-10] FR-EQS-01 "1 แถวคือ 1 รุ่น/ชนิด" และ "ประเภท" ต่างกันอย่างไร
   1 แถว = 1 รุ่น ชนิดเดียวกันหลายรุ่นแสดงแยกแถว
   "ประเภท" คือกลุ่มใหญ่ (คอมพิวเตอร์พกพา, อุปกรณ์นำเสนอ) ถามนักเทคโนโลยีสารสนเทศ
@@ -257,6 +258,9 @@ Backlog: BL-01, BL-02, BL-03, BL-04 (specs/backlog.md)
 ### Session 2569-11-13 (รับคำตอบ Q-SH-03 ของกลาง, v5.2)
 - Q: auth service ใช้โปรโตคอลอะไร (Q-SH-03) -> A: prototype ใช้ auth จำลองตลอด ไม่ต่อระบบจริง (เจ้าของ 004 บันทึกใน constraints.md)
   ASM-02 เพิ่มหมายเหตุ ไม่เปลี่ยนข้อความ FR หรือ AC (IF-IDP-01, AC-EQS-09)
+### Session 2569-11-13 (ทีมตัดสิน Q-SH-08 ของกลาง ทาง ก, v5.3)
+- Q: ระบบยืนยันตัวตนล่มตอนใช้งานทั่วไป ระบบทำอย่างไร (Q-SH-08) -> A: ปิดสำหรับ prototype คงตอบ 401 แบบเดิม
+  ไม่เปลี่ยน FR หรือ AC (AC-EQS-09) TC-EQS-09-7 ไม่ทดสอบใน prototype / เมื่อต่อ Auth API จริง: ยังต้องถามนักเทคโนโลยีสารสนเทศ และแยกกรณีระบบยืนยันตัวตนล่มเป็น 503 `UPSTREAM_UNAVAILABLE` ที่ `auth.Middleware` ที่เดียว
 
 
 ## Traceability

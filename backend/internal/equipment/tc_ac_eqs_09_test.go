@@ -1,7 +1,7 @@
 package equipment
 
 // test จาก specs/001-equipment-status/test-cases.md ของ AC-EQS-09 (ห้ามแก้ให้ผ่าน)
-// TC-EQS-09-7 ตรวจด้วยคน (รอ Q-SH-08) ไม่มีโค้ด
+// TC-EQS-09-7 ไม่ทดสอบใน prototype (Q-SH-08 ปิดสำหรับ prototype 2569-11-13: auth จำลองเชื่อมต่อไม่ได้ไม่เกิด) ไม่มีโค้ด
 
 import (
 	"net/http"

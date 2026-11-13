@@ -2,6 +2,21 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [shared constraints v5.6 + SPEC-EQS-001 v5.3 + SPEC-BRQ-002 v3.5 + SPEC-APV-004 v3.4 + SPEC-HND-005 v2.9 + SPEC-RET-006 v2.3] - 2569-11-13
+ทีมตัดสิน Q-SH-08 ทาง ก (พรรณธรแจ้งในกลุ่ม 2569-11-13) ไม่มี CR เพราะไม่เปลี่ยนข้อความ FR หรือ AC ของฟีเจอร์ใด
+คำตอบ: ปิดสำหรับ prototype คง `auth.Middleware` ตอบ 401 `UNAUTHENTICATED` (fail closed) เพราะ auth จำลอง (Q-SH-03) เชื่อมต่อไม่ได้ไม่เกิด
+เมื่อต่อ Auth API จริง ยังต้องถามนักเทคโนโลยีสารสนเทศ และแยกกรณีระบบล่มเป็น 503 `UPSTREAM_UNAVAILABLE` ที่ `auth.Middleware` ที่เดียว
+แก้ทุกไฟล์ในคราวเดียวโดย 001 ตามคำสั่งของพรรณธร (ส่งงานพรุ่งนี้) เจ้าของแต่ละฟีเจอร์ตรวจได้ใน PR
+
+### Changed
+- constraints.md v5.6: Q-SH-08 [ปิดสำหรับ prototype ทีมตัดสิน 2569-11-13] / SRS v1.1 หัวข้อ 3.2
+- 001 spec v5.3 (Open Questions, Clarifications), tasks v2.7, test-cases TC-EQS-09-7 Then เป็น "ไม่ทดสอบใน prototype", คอมเมนต์ tc_ac_eqs_09_test.go
+- 002 spec v3.5: Q-SH-08 เดิมปิดไว้แล้ว เพิ่มว่าทั้งทีมยืนยัน และต้องถามนักเทคโนโลยีสารสนเทศก่อนต่อระบบจริง, Traceability แถว IF-IDP-01 / plan, tasks ข้อความ Q-SH-08
+- 004 spec v3.4: Open Questions Q-SH-08 ทีมรับข้อเสนอของ 004, เพิ่ม Session 2569-11-13 (Session เก่าคงไว้) / plan, tasks ข้อความ Q-SH-08
+- 005 spec v2.9: Open Questions Q-SH-08 / plan, tasks ข้อความ Q-SH-08
+- 006 spec v2.3: Open Questions Q-SH-08, เพิ่ม Session 2569-11-13 / tasks: T-27 "ไม่ทำใน prototype" สรุปเป็น รอ Q-xx 3 ไม่ทำใน prototype 1 / test-cases TC-RET-08-6 "ไม่ทำใน prototype" / plan ข้อความ Q-SH-08
+- specs/README.md: เวอร์ชัน spec และสถานะ tasks ของ 006
+
 ## [SPEC-EQS-001 Draft v5.2 + plan v2 + tasks v2.6] - 2569-11-13
 รับคำตอบ Q-SH-03 ของกลาง (เจ้าของ 004 บันทึกใน constraints.md 2569-11-13) ไม่มี CR เพราะไม่เปลี่ยนข้อความ FR หรือ AC
 
