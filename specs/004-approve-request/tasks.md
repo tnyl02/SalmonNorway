@@ -815,18 +815,18 @@ Updated: 2569-11-13 (v2: CR-009 เฟส 19 ถึง 25, T-40 ถึง T-50 /
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: T-27
 - เสร็จเมื่อ: หลังเปลี่ยน auth `TestAC_APV_05` และ `TestAC_APV_12` ยังผ่าน
-- สถานะ: รอ Q-SH-03
+- สถานะ: ไม่ทำใน prototype (Q-SH-03 ตอบ 2569-11-13: ใช้ auth จำลองตลอด prototype, ASM-02)
 
 ---
 
 ### T-50 ทดสอบว่าเรียก API ผ่าน HTTP ธรรมดาหรือ TLS ต่ำกว่า 1.2 ไม่ได้
 - รองรับ: NFR-SEC-01, CON-TECH-02
 - ตรวจด้วย: AC-APV-19
-- ไฟล์ที่แตะ: ขึ้นกับว่าทีมทำ HTTPS ที่ไหน (Q-APV-38) เช่น `deploy/` และ test ของ 004
+- ไฟล์ที่แตะ: `backend/cmd/server/main.go`, `backend/internal/config/config.go` (ที่อยู่ไฟล์ cert / key จาก env และ TLS ต่ำสุด), `backend/internal/platform/tls.go` และ `tls_test.go` (ใหม่: ตั้ง `tls.Config` MinVersion TLS 1.2 และเริ่ม server), `backend/Dockerfile` (ใหม่), `deploy/docker-compose.yml` (เพิ่ม service backend ที่เปิด HTTPS), `deploy/certs/` หรือสคริปต์สร้าง cert สำหรับเครื่องพัฒนา (ใหม่), `frontend/vite.config.js` (proxy ไปหลังบ้านแบบ https เมื่อเปิด TLS) / ไฟล์กลางทั้งหมด เจ้าของ 004 รับทำเอง (Q-APV-38)
 - แบบหน้าจอ: ไม่มี
 - ต้องทำหลัง: ไม่มี
-- เสร็จเมื่อ: test ของ AC-APV-19 ผ่านบนระบบที่มี HTTPS
-- สถานะ: รอ Q-APV-38
+- เสร็จเมื่อ: เมื่อตั้งไฟล์ cert / key หลังบ้านเปิดเฉพาะ HTTPS ด้วย TLS 1.2 ขึ้นไป / test ใน `tls_test.go`: เรียกด้วย TLS 1.2 สำเร็จ, TLS 1.1 จับมือไม่สำเร็จ, HTTP ธรรมดาไม่ได้คำตอบของ API / `docker compose up` ได้หลังบ้านที่เปิด HTTPS / test เดิมทุกตัวยังผ่าน (ไม่ตั้ง cert ในเครื่องพัฒนาและ test ยังเป็น HTTP แบบเดิม ทีมเลือกเอง ไม่ได้มาจาก spec) / หลังเสร็จทำ /testcases AC-APV-19
+- สถานะ: พร้อมทำ (Q-APV-38 ปิด 2569-11-13: 004 รับทำเอง แบบหลังบ้าน Go เปิด TLS เอง)
 
 ## เฟส 27: แก้ตามที่ทีมตัดสิน rtm.md รอบ 4 (CR-009 แก้ไขหลังอนุมัติ 2569-11-13)
 
