@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client.js'
 import {
+  APPROVAL_ATTACHMENT_LINK,
   APPROVAL_EMPTY_LIST,
+  APPROVAL_LOAN_TYPE_LABELS,
   APPROVAL_MESSAGES,
   APPROVAL_REASON_MAX_LENGTH,
   APPROVAL_REASON_TOO_LONG,
@@ -23,7 +25,8 @@ function purposeLabel(r) {
   return PURPOSE_OPTIONS.find((o) => o.value === r.purpose)?.label ?? r.purpose
 }
 
-// หน้ารายการคำขอยืมแบบปกติที่รอพิจารณาของภาควิชาตนเอง (FR-APV-01 ก, AC-APV-11)
+// หน้ารายการคำขอยืมที่รอพิจารณาของภาควิชาตนเอง ทั้งยืมปกติและค้างคืน (FR-APV-01 ก, FR-APV-03 ก, AC-APV-11)
+// คอลัมน์ประเภทการยืม และลิงก์เปิดใบบันทึกข้อความเฉพาะคำขอค้างคืนที่มีไฟล์ (T-43, Q-APV-41)
 // เรียงตามเวลาที่ส่งจากเก่าไปใหม่ตามที่หลังบ้านส่งมา ไม่เรียงใหม่ที่หน้าจอ (DOM-REQ-01)
 // แสดงเฉพาะ 4 ข้อมูลตาม FR-APV-01 (ก) ไม่มีคอลัมน์เวลาที่ส่ง (rtm.md F-05 ทีมตัดสินแก้โค้ด 2569-11-13)
 // ปุ่มอนุมัติ (T-09) / ปฏิเสธพร้อมช่องเหตุผล (T-11) / หน้าจอไม่มี mockup ทีมออกแบบเอง (plan.md ข้อ 4)
@@ -53,6 +56,14 @@ export default function ApproveRequests({ client = api }) {
     } finally {
       setBusyId(null)
     }
+  }
+
+  // เปิดใบบันทึกข้อความของคำขอค้างคืน (FR-APV-03 ก, Q-APV-41) ไม่สำเร็จแสดงข้อความตามรหัสเหนือรายการ
+  const openAttachment = (r) => {
+    setActionError(null)
+    Promise.resolve(client.openAttachment(r.attachmentUrl)).catch((err) =>
+      setActionError(err?.code ?? 'UPSTREAM_UNAVAILABLE'),
+    )
   }
 
   // อนุมัติ (FR-APV-01 ค, AC-APV-01)
@@ -116,6 +127,7 @@ export default function ApproveRequests({ client = api }) {
             <th className="py-1">อุปกรณ์</th>
             <th className="py-1">วัตถุประสงค์</th>
             <th className="py-1">ช่วงเวลาที่ต้องการยืม</th>
+            <th className="py-1">ประเภทการยืม</th>
             <th className="py-1"></th>
           </tr>
         </thead>
@@ -129,6 +141,24 @@ export default function ApproveRequests({ client = api }) {
               <td className="py-1">{purposeLabel(r)}</td>
               <td className="py-1">
                 {fmt(r.startAt)} - {fmt(r.endAt)}
+              </td>
+              <td className="py-1">
+                {APPROVAL_LOAN_TYPE_LABELS[r.loanType] ?? r.loanType}
+                {r.attachmentUrl && (
+                  <>
+                    {' '}
+                    <a
+                      href={r.attachmentUrl}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        openAttachment(r)
+                      }}
+                      className="text-teal-700 underline"
+                    >
+                      {APPROVAL_ATTACHMENT_LINK}
+                    </a>
+                  </>
+                )}
               </td>
               <td className="py-1">
                 {/* ปุ่มอนุมัติเฉพาะคำขอแรกของชิ้นนั้น (FR-APV-01 ข, AC-APV-07, T-18) หลังบ้านตรวจซ้ำเสมอ (T-17)

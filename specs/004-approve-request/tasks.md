@@ -652,11 +652,11 @@ Updated: 2569-11-13 (v2: CR-009 เฟส 19 ถึง 25, T-40 ถึง T-50 /
 ### T-43 แสดงประเภทการยืมและลิงก์ใบบันทึกข้อความบนหน้าจอ
 - รองรับ: FR-APV-03 (ก), Q-APV-41
 - ตรวจด้วย: AC-APV-11
-- ไฟล์ที่แตะ: `frontend/src/pages/ApproveRequest/ApproveRequests.jsx`, `frontend/src/pages/ApproveRequest/ApproveRequests.test.jsx`, `frontend/src/config.js`
+- ไฟล์ที่แตะ: `frontend/src/pages/ApproveRequest/ApproveRequests.jsx`, `frontend/src/pages/ApproveRequest/ApproveRequests.test.jsx`, `frontend/src/config.js`, `frontend/src/api/client.js` (เพิ่ม 2569-11-13 เจ้าของอนุมัติ: ลิงก์ธรรมดาส่ง token ไม่ได้ ต้องดึงไฟล์พร้อม token)
 - แบบหน้าจอ: ไม่มี (ไม่มี mockup ทีมออกแบบเอง)
 - ต้องทำหลัง: T-06, T-42
 - เสร็จเมื่อ: vitest `AC-APV-11` ผ่าน แถวค้างคืนแสดงประเภท "ค้างคืน" และลิงก์ "เปิดใบบันทึกข้อความ" ชี้ไปที่ attachmentUrl / แถวยืมปกติไม่มีลิงก์
-- สถานะ: พร้อมทำ
+- สถานะ: เสร็จ รอทีมตรวจ (2569-11-13 vitest `AC-APV-11 แถวค้างคืนแสดงประเภทและลิงก์เปิดใบบันทึกข้อความ แถวปกติไม่มีลิงก์` และ `AC-APV-11 เปิดใบบันทึกข้อความไม่สำเร็จ ...` ผ่าน vitest ทั้งหมด 190 ผ่าน)
 
 #### จุดตรวจเฟส 20
 - test ที่ต้องผ่านทั้งหมด: `TestAC_APV_11` (แก้ตาม v3), `TestAC_APV_11_HTTP`, vitest `AC-APV-11` และ test ของ**ทุกเฟส**

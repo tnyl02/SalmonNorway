@@ -197,9 +197,9 @@ export const api = {
   //   -> [{ requestId, queuePosition, submittedAt, requesterName }] หรือ throw ApiError(403 FORBIDDEN_ROLE) เมื่อไม่ใช่เจ้าหน้าที่
   listItemRequests: (assetCode) => getJSON(`/v1/equipment/items/${encodeURIComponent(assetCode)}/requests`),
 
-  // 004 FR-APV-01 (ก)(ข): คำขอยืมปกติที่รอพิจารณาของภาควิชาเจ้าหน้าที่ เรียงตามเวลาที่ส่ง
+  // 004 FR-APV-01 (ก)(ข), FR-APV-03 (ก): คำขอยืมปกติและค้างคืนที่รอพิจารณาของภาควิชาเจ้าหน้าที่ เรียงตามเวลาที่ส่ง
   //   -> { items: [{ requestId, requesterName, modelName, assetCode, purpose, purposeOther?,
-  //                  startAt, endAt, submittedAt, isFirst }], loadedAt }
+  //                  startAt, endAt, submittedAt, loanType, isFirst, attachmentUrl? }], loadedAt }
   getApprovalRequests: () => getJSON('/v1/approvals/requests'),
 
   // 004 FR-APV-01 (ค): อนุมัติคำขอ ส่ง loadedAt ที่ได้จาก getApprovalRequests
@@ -210,6 +210,24 @@ export const api = {
   // 004 FR-APV-01 (ง): ปฏิเสธคำขอพร้อมเหตุผล -> { requestId, status, decidedAt, rejectedRequestIds }
   rejectRequest: (requestId, reason, loadedAt) =>
     postJSON(`/v1/approvals/requests/${encodeURIComponent(requestId)}/reject`, { reason, loadedAt }),
+
+  // 004 FR-APV-03 (ก), Q-APV-41: เปิดไฟล์ใบบันทึกข้อความผ่าน endpoint ของ 002 (attachmentUrl จาก getApprovalRequests)
+  //   ลิงก์ <a href> ธรรมดาส่ง token ไม่ได้ (endpoint อยู่หลัง auth.Middleware) จึงดึงไฟล์พร้อม token แล้วเปิดในแท็บใหม่
+  //   เปิดแท็บก่อน await เพื่อไม่ให้เบราว์เซอร์บล็อก popup / ไม่สำเร็จปิดแท็บแล้ว throw ApiError ให้หน้าจอแสดงข้อความ
+  //   (ทีมเลือกเอง ไม่ได้มาจาก spec เจ้าของ 004 อนุมัติให้แก้ไฟล์นี้ 2569-11-13)
+  openAttachment: async (attachmentUrl) => {
+    const win = window.open('', '_blank')
+    try {
+      const res = await fetch(`${BASE}${attachmentUrl}`, { headers: authHeaders(), cache: 'no-store' })
+      if (!res.ok) throw await failed(res)
+      const url = URL.createObjectURL(await res.blob())
+      if (win) win.location.href = url
+      else window.open(url, '_blank')
+    } catch (err) {
+      win?.close()
+      throw err
+    }
+  },
 
   // 004 FR-APV-02 (ง): Email ที่ส่งไม่สำเร็จของภาควิชาเจ้าหน้าที่
   //   -> { items: [{ emailId, requestId, kind, requesterName, modelName, assetCode, attempts, lastError, lastAttemptAt }] }
