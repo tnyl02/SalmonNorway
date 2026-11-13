@@ -7306,3 +7306,33 @@ main
 
 ### ความคืบหน้า test-cases
 เขียนโค้ด test แล้ว 20 จาก 63 แถว (AC-BRQ-02, 04, 11, 14) เหลือ 43 แถวใน 10 AC
+
+---
+
+## 2569-11-13 /testcases AC-BRQ-03 AC-BRQ-13 (002-borrow-request) — โหมดเขียน test
+
+- ผู้สั่ง: ธัญลักษณ์ ด. (@tnyl02)
+- เครื่องมือ: Claude Code คำสั่ง `/testcases AC-BRQ-03 AC-BRQ-13`
+- โหมด: เขียน test (ทุกแถวของสอง AC นี้สถานะ "ใช้ได้")
+
+### ไฟล์ที่สร้าง (ไม่ได้แก้ไฟล์ test เดิมเลย)
+- `backend/internal/borrowrequest/tc_ac_brq_03_test.go` — TC-BRQ-03-1 ถึง 03-4
+- `backend/internal/borrowrequest/tc_ac_brq_13_test.go` — TC-BRQ-13-1 ถึง 13-4
+- `frontend/src/__tests__/TC-BRQ-03-5.test.jsx` — TC-BRQ-03-5
+- `frontend/src/__tests__/TC-BRQ-13-5.test.jsx` — TC-BRQ-13-5
+
+### ผล test (ผ่านทั้งหมด)
+หลังบ้าน 8 test PASS ok 4.796s / หน้าจอ 2 ไฟล์ 2 test ผ่าน
+
+### สิ่งที่ AI ตัดสินใจระหว่างเขียน และแจ้งทีมไว้
+1. ไม่เขียนเลข 16 ลงใน test ใช้ `config.LoanNormalReturnHour` และ `LOAN_NORMAL_RETURN_HOUR`
+   ตาม AGENTS.md กฎข้อ 9 ถ้าทีมเปลี่ยนเวลาคืน test ชุดนี้ยังถูกต้องโดยไม่ต้องแก้
+2. เพิ่ม helper `multipartWithEnd` ในไฟล์ test ของ 13 เพราะ `multipartForm` เดิมคิดเวลาคืนให้เอง
+   แต่ TC-BRQ-13-4 ต้องระบุ 18:00 น. ของวันนี้ ไม่ได้แก้ helper เดิมเพื่อไม่ให้กระทบ test ของคนอื่น
+
+### จุดที่ไม่เคยมี test เดิมครอบ และเพิ่งตรวจครั้งแรกในรอบนี้
+- TC-BRQ-13-2 คืนเวลา 16:00 น. พอดี ต้องผ่าน (ขอบล่างของกฎ DOM-LOAN-01)
+- TC-BRQ-03-5 ส่วนที่ 3 ช่องที่ไม่ผิดต้องไม่มี aria-invalid
+
+### ไม่ได้แก้โค้ดของระบบเลย
+### ความคืบหน้า test-cases: เขียนโค้ด test แล้ว 30 จาก 63 แถว เหลือ 33 แถวใน 8 AC
