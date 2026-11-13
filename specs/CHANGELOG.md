@@ -2,6 +2,12 @@
 บันทึกการเปลี่ยนแปลงของ spec ทุกครั้ง เรียงจากใหม่ไปเก่า
 การเปลี่ยนแปลงหลัง Draft v2 ต้องอ้างอิง change request ใน `specs/changes/`
 
+## [SPEC-HND-005 Draft v2.11] - 2569-11-13
+ไม่มี CR เพราะไม่เปลี่ยนข้อความ FR หรือ AC ใช้ ID เดิมทั้งหมด
+### Added
+- spec 005 หัวข้อ Traceability: RQ / US / UC -> FR -> AC รวม CON-HND-01, IF-IDP-01 และ NFR
+  ส่วนที่ไม่มี AC อ้างคำตัดสินใน rtm.md (F-03 ยืมค้างคืน, F-04 NFR) และ Q-HND-09
+
 ## [shared constraints v5.7 + SPEC-BRQ-002 Draft v3.6 + SPEC-HND-005 Draft v2.10] - 2569-11-13 CR-010
 คนกลาง (พรรณธร 001) ทำแทนก่อนส่งงาน ตามที่ทีมตัดสินไว้แล้ว ไม่มีการตัดสินใหม่
 ### Added
