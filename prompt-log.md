@@ -8747,3 +8747,25 @@ FR-BRQ-01 เขียนว่าต้องตรวจสถานะทั�
 - คำสั่ง: "T-50 ตรวจสอบผ่าน"
 - ผลลัพธ์: tasks.md T-50 สถานะเป็น "เสร็จ (ทีมตรวจแล้ว 2569-11-13)" / specs/README.md แถว 004 tasks เป็น "เสร็จ 49/52, ไม่ทำใน prototype 3"
 - ยังค้าง: แถว TC-APV-19-* สถานะ "ร่าง" และคำถาม TC-APV-19-7 (ไม่ตั้ง cert ให้ HTTP ได้ไหม)
+
+---
+
+## 2569-11-13 ทีมตรวจแถว TC-APV-19-1 ถึง 19-8 (004)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "เปลี่ยนใช้ได้ C-APV-19"
+- ผลลัพธ์: test-cases.md แถว TC-APV-19-1 ถึง 19-8 สถานะ "ใช้ได้" (8 แถว) / แถว 19-7 ยังมีส่วน "spec ไม่ได้บอก" ตอนเขียน test จะไม่ assert ส่วนนั้น
+
+---
+
+## 2569-11-13 /testcases AC-APV-19 โหมดเขียน test (004)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code (ไม่มีคำสั่ง /testcases ในเครื่องมือรอบนี้ ทำตาม `.claude/commands/testcases.md`) ไม่แก้โค้ดของระบบ
+- คำสั่ง: "/testcases AC-APV-19"
+- โหมด: เขียน test (8 แถวสถานะ "ใช้ได้")
+- ผลลัพธ์: ไฟล์ใหม่ `backend/internal/platform/tc_ac_apv_19_test.go` 7 test (TestTC_APV_19_1 ถึง 19_7) ใช้ตัวช่วย tlsTestServer, tlsClient จาก tls_test.go / 19-5 ข้อ (2) ตรวจ service backend ใน deploy/docker-compose.yml ว่าเปิด port เดียวและตั้ง cert กับ key / 19-7 ข้อ (1) "spec ไม่ได้บอก" ไม่เขียน assert บันทึกผลจริงใน t.Logf (ตอนนี้ไม่ตั้ง cert ได้ HTTP 200) / 19-8 (คน) ไม่เขียนโค้ด
+- ผล test: 7 ตัวผ่าน / go test platform ผ่าน
