@@ -7841,3 +7841,13 @@ main
   - `0011_approval_overnight.down.sql`: ลบตาราง ฟังก์ชัน และคอลัมน์
   - `migrate_approval_test.go`: เพิ่ม TestMigration_ApprovalOvernight และ TestMigration_ApprovalOvernightDown (รันไฟล์ down ใน transaction ที่ยกเลิกทิ้ง)
   - รัน test platform และ approve ผ่าน / tasks.md T-40 สถานะ "เสร็จ รอทีมตรวจ"
+
+---
+
+## 2569-11-13 ทีมตรวจ T-40 ผ่าน (004)
+
+- ผู้สั่ง: 660710758 นางสาวณัฐสุดา กัญญาบุญ
+- ฟีเจอร์: 004-approve-request
+- เครื่องมือ: Claude Code
+- คำสั่ง: "ทีมตรวจแล้วผ่าน"
+- ผลลัพธ์: tasks.md T-40 สถานะเปลี่ยนจาก "เสร็จ รอทีมตรวจ" เป็น "เสร็จ (ทีมตรวจแล้ว 2569-11-13)" ตามรูปแบบของ T-01
